@@ -20,9 +20,9 @@ func main() {
 
 	reader := bufio.NewReader(file)
 
-	lex := lexer.NewLexer(reader)
+	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
 	for i := range tokens {
-		fmt.Printf("%s", tokens[i].Kind)
+		fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Position)
 	}
 }

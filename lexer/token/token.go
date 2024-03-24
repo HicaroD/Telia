@@ -6,9 +6,11 @@ import (
 
 // TODO: define lexeme, position and more related to token
 type Token struct {
-	Kind kind.TokenKind
+	Lexeme   any
+	Kind     kind.TokenKind
+	Position Position
 }
 
-func NewToken(kind kind.TokenKind) Token {
-	return Token{Kind: kind}
+func NewToken(lexeme any, kind kind.TokenKind, position Position) Token {
+	return Token{Lexeme: lexeme, Kind: kind, Position: position}
 }
