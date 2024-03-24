@@ -16,7 +16,6 @@ var KEYWORDS map[string]kind.TokenKind = map[string]kind.TokenKind{
 	"return": kind.RETURN,
 }
 
-// TODO: define everything related to the lexer, such as cursor
 type Lexer struct {
 	filename string
 	cursor   *Cursor
@@ -70,13 +69,14 @@ func (lex *Lexer) getToken(character rune) token.Token {
 		lex.cursor.Skip()
 		return token
 	default:
+		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
-			position := lex.cursor.Position()
+			// position := lex.cursor.Position()
 			identifier := lex.cursor.ReadWhile(func(chr rune) bool { return unicode.IsNumber(chr) || unicode.IsLetter(chr) || chr == '_' })
 			token := lex.classifyIdentifier(identifier, position)
 			return token
 		} else if unicode.IsNumber(character) {
-			position := lex.cursor.Position()
+			// position := lex.cursor.Position()
 			number := lex.cursor.ReadWhile(func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' })
 
 			// TODO: deal with floating pointer numbers
@@ -122,9 +122,9 @@ func (lex *Lexer) getStringLiteral() token.Token {
 func (lex *Lexer) classifyIdentifier(identifier string, position token.Position) token.Token {
 	idKind, ok := KEYWORDS[identifier]
 	if ok {
-		return token.NewToken(&identifier, idKind, position)
+		return token.NewToken(identifier, idKind, position)
 	}
-	return token.NewToken(&identifier, kind.ID, position)
+	return token.NewToken(identifier, kind.ID, position)
 }
 
 func (lex *Lexer) consumeToken(lexeme any, kind kind.TokenKind) token.Token {

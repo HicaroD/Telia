@@ -22,7 +22,13 @@ func main() {
 
 	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
-	for i := range tokens {
-		fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Position)
+	for _, token := range tokens {
+		switch token.Lexeme.(type) {
+		case int:
+		case string:
+			fmt.Printf("%s '%s' %s\n", token.Kind, token.Lexeme, token.Position)
+		default:
+			fmt.Printf("%s %s\n", token.Kind, token.Position)
+		}
 	}
 }
