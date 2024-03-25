@@ -14,18 +14,19 @@ import (
 var KEYWORDS map[string]kind.TokenKind = map[string]kind.TokenKind{
 	"fn":     kind.FN,
 	"return": kind.RETURN,
+	"bool":   kind.BOOL_TYPE,
 }
 
-type Lexer struct {
+type lexer struct {
 	filename string
-	cursor   *Cursor
+	cursor   *cursor
 }
 
-func NewLexer(filename string, reader *bufio.Reader) *Lexer {
-	return &Lexer{filename: filename, cursor: newCursor(filename, reader)}
+func NewLexer(filename string, reader *bufio.Reader) *lexer {
+	return &lexer{filename: filename, cursor: newCursor(filename, reader)}
 }
 
-func (lex *Lexer) Tokenize() []token.Token {
+func (lex *lexer) Tokenize() []token.Token {
 	var tokens []token.Token
 	for {
 		lex.cursor.SkipWhitespace()
@@ -44,7 +45,7 @@ func (lex *Lexer) Tokenize() []token.Token {
 	return tokens
 }
 
-func (lex *Lexer) getToken(character rune) token.Token {
+func (lex *lexer) getToken(character rune) token.Token {
 	switch character {
 	case '(':
 		token := lex.consumeToken(nil, kind.OPEN_PAREN)
@@ -64,6 +65,10 @@ func (lex *Lexer) getToken(character rune) token.Token {
 		return token
 	case '"':
 		return lex.getStringLiteral()
+	case ',':
+		token := lex.consumeToken(nil, kind.COMMA)
+		lex.cursor.Skip()
+		return token
 	case ';':
 		token := lex.consumeToken(nil, kind.SEMICOLON)
 		lex.cursor.Skip()
@@ -99,7 +104,7 @@ func (lex *Lexer) getToken(character rune) token.Token {
 	return lex.consumeToken(nil, kind.INVALID)
 }
 
-func (lex *Lexer) getStringLiteral() token.Token {
+func (lex *lexer) getStringLiteral() token.Token {
 	position := lex.cursor.Position()
 
 	lex.cursor.Skip() // "
@@ -119,7 +124,7 @@ func (lex *Lexer) getStringLiteral() token.Token {
 	return token.NewToken(strLiteral, kind.STRING_LITERAL, position)
 }
 
-func (lex *Lexer) classifyIdentifier(identifier string, position token.Position) token.Token {
+func (lex *lexer) classifyIdentifier(identifier string, position token.Position) token.Token {
 	idKind, ok := KEYWORDS[identifier]
 	if ok {
 		return token.NewToken(identifier, idKind, position)
@@ -127,6 +132,6 @@ func (lex *Lexer) classifyIdentifier(identifier string, position token.Position)
 	return token.NewToken(identifier, kind.ID, position)
 }
 
-func (lex *Lexer) consumeToken(lexeme any, kind kind.TokenKind) token.Token {
+func (lex *lexer) consumeToken(lexeme any, kind kind.TokenKind) token.Token {
 	return token.NewToken(lexeme, kind, lex.cursor.Position())
 }

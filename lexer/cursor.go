@@ -9,16 +9,16 @@ import (
 	"github.com/HicaroD/telia-lang/lexer/token"
 )
 
-type Cursor struct {
+type cursor struct {
 	reader   *bufio.Reader
 	position token.Position
 }
 
-func newCursor(filename string, reader *bufio.Reader) *Cursor {
-	return &Cursor{reader: reader, position: token.NewPosition(filename, 0, 0)}
+func newCursor(filename string, reader *bufio.Reader) *cursor {
+	return &cursor{reader: reader, position: token.NewPosition(filename, 0, 0)}
 }
 
-func (cursor *Cursor) Next() (rune, error) {
+func (cursor *cursor) Next() (rune, error) {
 	character, _, err := cursor.reader.ReadRune()
 	if err != nil {
 		return 0, err
@@ -34,7 +34,7 @@ func (cursor *Cursor) Next() (rune, error) {
 	return character, nil
 }
 
-func (cursor *Cursor) Peek() (rune, error) {
+func (cursor *cursor) Peek() (rune, error) {
 	var err error
 
 	character, _, err := cursor.reader.ReadRune()
@@ -50,16 +50,16 @@ func (cursor *Cursor) Peek() (rune, error) {
 	return character, nil
 }
 
-func (cursor *Cursor) Skip() {
+func (cursor *cursor) Skip() {
 	// QUESTION: should I ignore the error here?
 	cursor.Next()
 }
 
-func (cursor *Cursor) SkipWhitespace() {
+func (cursor *cursor) SkipWhitespace() {
 	cursor.ReadWhile(func(character rune) bool { return unicode.IsSpace(character) })
 }
 
-func (cursor *Cursor) ReadWhile(isValid func(rune) bool) string {
+func (cursor *cursor) ReadWhile(isValid func(rune) bool) string {
 	var content strings.Builder
 
 	for {
@@ -80,6 +80,6 @@ func (cursor *Cursor) ReadWhile(isValid func(rune) bool) string {
 	return content.String()
 }
 
-func (cursor Cursor) Position() token.Position {
+func (cursor cursor) Position() token.Position {
 	return cursor.position
 }

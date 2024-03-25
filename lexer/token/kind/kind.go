@@ -2,8 +2,6 @@ package kind
 
 import "log"
 
-// TODO: define all token kinds here
-
 type TokenKind int
 
 const (
@@ -18,6 +16,9 @@ const (
 	FN
 	RETURN
 
+	// Types
+	BOOL_TYPE
+
 	// (
 	OPEN_PAREN
 	// )
@@ -27,6 +28,9 @@ const (
 	OPEN_CURLY
 	// }
 	CLOSE_CURLY
+
+	// ,
+	COMMA
 
 	// ;
 	SEMICOLON
@@ -48,6 +52,8 @@ func (kind TokenKind) String() string {
 		return "FN"
 	case RETURN:
 		return "RETURN"
+	case BOOL_TYPE:
+		return "bool"
 	case OPEN_PAREN:
 		return "("
 	case CLOSE_PAREN:
@@ -56,6 +62,8 @@ func (kind TokenKind) String() string {
 		return "{"
 	case CLOSE_CURLY:
 		return "}"
+	case COMMA:
+		return ","
 	case SEMICOLON:
 		return ";"
 	default:
