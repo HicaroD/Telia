@@ -1,8 +1,16 @@
 package kind
 
-import "log"
+import (
+	"log"
+)
 
 type TokenKind int
+
+var KEYWORDS map[string]TokenKind = map[string]TokenKind{
+	"fn":     FN,
+	"return": RETURN,
+	"bool":   BOOL_TYPE,
+}
 
 const (
 	// EOF
@@ -34,6 +42,14 @@ const (
 
 	// ;
 	SEMICOLON
+
+	// ..
+	DOT_DOT
+	// ...
+	DOT_DOT_DOT
+
+	// *
+	STAR
 )
 
 func (kind TokenKind) String() string {
@@ -66,6 +82,12 @@ func (kind TokenKind) String() string {
 		return ","
 	case SEMICOLON:
 		return ";"
+	case DOT_DOT:
+		return ".."
+	case DOT_DOT_DOT:
+		return "..."
+	case STAR:
+		return "*"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}

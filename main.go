@@ -8,6 +8,7 @@ import (
 	// "github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/parser"
+	"github.com/HicaroD/telia-lang/sema"
 )
 
 func main() {
@@ -25,17 +26,12 @@ func main() {
 	tokens := lex.Tokenize()
 
 	parser := parser.NewParser(tokens)
-	// astNodes, err := parser.Parse()
-	_, err = parser.Parse()
+	astNodes, err := parser.Parse()
 	if err != nil {
 		// TODO(errors)
 		log.Fatal(err)
 	}
 
-	// for i := range astNodes {
-	// 	switch astNodes[i].(type) {
-	// 	case ast.FunctionDecl:
-	// 		fnDecl := astNodes[i].(ast.FunctionDecl)
-	// 	}
-	// }
+	sema := sema.NewSema(astNodes)
+	sema.Analyze()
 }

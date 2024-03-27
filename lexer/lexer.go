@@ -11,12 +11,6 @@ import (
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
 
-var KEYWORDS map[string]kind.TokenKind = map[string]kind.TokenKind{
-	"fn":     kind.FN,
-	"return": kind.RETURN,
-	"bool":   kind.BOOL_TYPE,
-}
-
 type lexer struct {
 	filename string
 	cursor   *cursor
@@ -73,15 +67,44 @@ func (lex *lexer) getToken(character rune) token.Token {
 		token := lex.consumeToken(nil, kind.SEMICOLON)
 		lex.cursor.Skip()
 		return token
+	case '*':
+		token := lex.consumeToken(nil, kind.STAR)
+		lex.cursor.Skip()
+		return token
+	case '.':
+		// TODO: this could be refactored for being used across different
+		// composite tokens
+		var tokenKind kind.TokenKind
+		lex.cursor.Skip() // .
+		tokenPosition := lex.cursor.Position()
+
+		next, err := lex.cursor.Peek()
+		if err != nil {
+			// TODO(errors)
+		}
+		if next == '.' {
+			tokenKind = kind.DOT_DOT
+			lex.cursor.Skip() // .
+		} else {
+			// TODO(errors): invalid single dot token
+		}
+
+		next, err = lex.cursor.Peek()
+		if err != nil {
+			// TODO(errors)
+		}
+		if next == '.' {
+			tokenKind = kind.DOT_DOT_DOT
+			lex.cursor.Skip() // .
+		}
+		return token.NewToken(nil, tokenKind, tokenPosition)
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
-			// position := lex.cursor.Position()
 			identifier := lex.cursor.ReadWhile(func(chr rune) bool { return unicode.IsNumber(chr) || unicode.IsLetter(chr) || chr == '_' })
 			token := lex.classifyIdentifier(identifier, position)
 			return token
 		} else if unicode.IsNumber(character) {
-			// position := lex.cursor.Position()
 			number := lex.cursor.ReadWhile(func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' })
 
 			// TODO: deal with floating pointer numbers
@@ -125,7 +148,7 @@ func (lex *lexer) getStringLiteral() token.Token {
 }
 
 func (lex *lexer) classifyIdentifier(identifier string, position token.Position) token.Token {
-	idKind, ok := KEYWORDS[identifier]
+	idKind, ok := kind.KEYWORDS[identifier]
 	if ok {
 		return token.NewToken(identifier, idKind, position)
 	}
