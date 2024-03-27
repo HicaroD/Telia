@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"fmt"
+
 	"github.com/HicaroD/telia-lang/lexer/token"
 )
 
@@ -16,6 +18,10 @@ type BlockStmt struct {
 	CloseCurly token.Position
 }
 
+func (variable BlockStmt) String() string {
+	return fmt.Sprintf("BLOCK")
+}
+
 type VarStmt struct {
 	Stmt
 	Name  string
@@ -23,8 +29,16 @@ type VarStmt struct {
 	Value Expr
 }
 
+func (variable VarStmt) String() string {
+	return fmt.Sprintf("Variable: %s", variable.Name)
+}
+
 type ReturnStmt struct {
 	Stmt
 	Return *token.Token
 	Value  Expr
+}
+
+func (ret ReturnStmt) String() string {
+	return fmt.Sprintf("RETURN: %s", ret.Value)
 }

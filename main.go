@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 
@@ -24,6 +25,9 @@ func main() {
 
 	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
+	for i := range tokens {
+		fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
+	}
 
 	parser := parser.NewParser(tokens)
 	astNodes, err := parser.Parse()

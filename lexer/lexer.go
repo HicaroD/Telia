@@ -87,11 +87,13 @@ func (lex *lexer) getToken(character rune) token.Token {
 			lex.cursor.Skip() // .
 		} else {
 			// TODO(errors): invalid single dot token
+			log.Fatal("invalid single dot token")
 		}
 
 		next, err = lex.cursor.Peek()
 		if err != nil {
 			// TODO(errors)
+			log.Fatal("unable to peek token")
 		}
 		if next == '.' {
 			tokenKind = kind.DOT_DOT_DOT

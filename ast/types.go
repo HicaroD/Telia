@@ -8,7 +8,13 @@ type ExprType interface {
 	exprType()
 }
 
-type LiteralType struct {
+// bool, i8, i16, i32, i64, i128
+type BasicType struct {
 	ExprType
 	Kind kind.TokenKind
+}
+
+type PointerType struct {
+	ExprType
+	Type ExprType
 }

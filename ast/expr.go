@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"fmt"
+
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
 
@@ -20,4 +22,8 @@ type BinaryExpr struct {
 	Left  Expr
 	Op    kind.TokenKind
 	Right Expr
+}
+
+func (binExpr BinaryExpr) String() string {
+	return fmt.Sprintf("BinOp: %s", binExpr.Op)
 }
