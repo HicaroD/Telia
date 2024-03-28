@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 
@@ -17,6 +16,7 @@ func main() {
 	filename := args[0]
 
 	file, err := os.Open(filename)
+	// TODO(errors)
 	if err != nil {
 		log.Fatalf("unable to open file: %s due to error '%s'", filename, err)
 	}
@@ -25,9 +25,9 @@ func main() {
 
 	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
-	for i := range tokens {
-		fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
-	}
+	// for i := range tokens {
+	// 	fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
+	// }
 
 	parser := parser.NewParser(tokens)
 	astNodes, err := parser.Parse()

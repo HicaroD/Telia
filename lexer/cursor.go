@@ -20,6 +20,7 @@ func newCursor(filename string, reader *bufio.Reader) *cursor {
 
 func (cursor *cursor) Next() (rune, error) {
 	character, _, err := cursor.reader.ReadRune()
+	// TODO(errors)
 	if err != nil {
 		return 0, err
 	}
@@ -38,11 +39,13 @@ func (cursor *cursor) Peek() (rune, error) {
 	var err error
 
 	character, _, err := cursor.reader.ReadRune()
+	// TODO(errors)
 	if err != nil {
 		return 0, err
 	}
 
 	err = cursor.reader.UnreadRune()
+	// TODO(errors)
 	if err != nil {
 		return 0, err
 	}

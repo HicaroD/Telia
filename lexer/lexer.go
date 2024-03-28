@@ -81,6 +81,7 @@ func (lex *lexer) getToken(character rune) token.Token {
 		next, err := lex.cursor.Peek()
 		if err != nil {
 			// TODO(errors)
+			log.Fatalf("can't peek next")
 		}
 		if next == '.' {
 			tokenKind = kind.DOT_DOT

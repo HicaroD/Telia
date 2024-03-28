@@ -194,6 +194,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			return nil, err
 		}
 		paramType, err := parser.parseExprType()
+		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -270,6 +271,7 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 	case kind.STAR:
 		parser.cursor.skip() // *
 		ty, err := parser.parseExprType()
+		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
