@@ -275,11 +275,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.PointerType{Type: ty}, nil
+		return ast.PointerType{Type: ty}, nil
 	default:
 		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
 			parser.cursor.skip()
-			return &ast.BasicType{Kind: token.Kind}, nil
+			return ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
 		return nil, fmt.Errorf("Token %s %s is not a proper type", token.Kind, token.Lexeme)
@@ -365,7 +365,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return fnCall, nil
+		return *fnCall, nil
 	// TODO: deal with variable decl, variable reassignment
 	default:
 		// TODO(errors)
@@ -387,7 +387,7 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseFnCall(fnName string) (*ast.FuncCallStmt, error) {
+func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCallStmt, error) {
 	_, err := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
 	if err != nil {
@@ -413,5 +413,5 @@ func (parser *parser) parseFnCall(fnName string) (*ast.FuncCallStmt, error) {
 		}
 	}
 
-	return &ast.FuncCallStmt{Name: fnName, Args: callArgs}, nil
+	return &ast.FunctionCallStmt{Name: fnName, Args: callArgs}, nil
 }

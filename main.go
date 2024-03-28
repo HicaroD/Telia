@@ -6,6 +6,7 @@ import (
 	"os"
 
 	// "github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/codegen"
 	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/parser"
 	"github.com/HicaroD/telia-lang/sema"
@@ -38,4 +39,10 @@ func main() {
 
 	sema := sema.NewSema(astNodes)
 	sema.Analyze()
+
+	codegen := codegen.NewCodegen(astNodes)
+	err = codegen.Generate()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
