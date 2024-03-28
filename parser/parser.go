@@ -51,11 +51,13 @@ func (parser *parser) parseExternBlockDecl() (*ast.ExternDecl, error) {
 	var err error
 
 	_, err = parser.expect(kind.EXTERN)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	externName, err := parser.expect(kind.STRING_LITERAL)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
