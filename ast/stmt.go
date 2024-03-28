@@ -53,6 +53,6 @@ type FuncCallStmt struct {
 }
 
 func (call FuncCallStmt) String() string {
-	return fmt.Sprintf("RETURN: %s", call.Name)
+	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
 func (call FuncCallStmt) stmtNode() {}

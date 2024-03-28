@@ -311,13 +311,24 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
-
 			_, err = parser.expect(kind.SEMICOLON)
 			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
 			statements = append(statements, ast.ReturnStmt{Return: token, Value: returnValue})
+		case kind.ID:
+			idNode, err := parser.parseIdStmt()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			_, err = parser.expect(kind.SEMICOLON)
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			statements = append(statements, idNode)
 		default:
 			return nil, fmt.Errorf("invalid token for statement parsing: %s", token.Kind)
 		}
@@ -332,6 +343,34 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	return &ast.BlockStmt{OpenCurly: openCurly.Position, Statements: statements, CloseCurly: closeCurly.Position}, nil
 }
 
+func (parser *parser) parseIdStmt() (ast.Stmt, error) {
+	identifier, err := parser.expect(kind.ID)
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	next := parser.cursor.peek()
+	// TODO(errors)
+	if next == nil {
+		return nil, fmt.Errorf("Invalid id statement")
+	}
+
+	switch next.Kind {
+	case kind.OPEN_PAREN:
+		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		return fnCall, nil
+	// TODO: deal with variable decl, variable reassignment
+	default:
+		// TODO(errors)
+		return nil, fmt.Errorf("unable to parse id statement")
+	}
+}
+
 func (parser *parser) parseExpr() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	if token == nil {
@@ -344,4 +383,33 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	default:
 		return nil, fmt.Errorf("invalid token for expression parsing: %s", token.Kind)
 	}
+}
+
+func (parser *parser) parseFnCall(fnName string) (*ast.FuncCallStmt, error) {
+	_, err := parser.expect(kind.OPEN_PAREN)
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	var callArgs []ast.Expr
+	for {
+		if parser.cursor.nextIs(kind.CLOSE_PAREN) {
+			parser.cursor.skip()
+			break
+		}
+		expr, err := parser.parseExpr()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		callArgs = append(callArgs, expr)
+
+		if parser.cursor.nextIs(kind.COMMA) {
+			parser.cursor.skip()
+			continue
+		}
+	}
+
+	return &ast.FuncCallStmt{Name: fnName, Args: callArgs}, nil
 }
