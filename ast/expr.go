@@ -17,6 +17,11 @@ type LiteralExpr struct {
 	Value any
 }
 
+func (literal LiteralExpr) String() string {
+	return fmt.Sprintf("Literal: %s", literal.Kind)
+}
+func (literal LiteralExpr) exprNode() {}
+
 type BinaryExpr struct {
 	Expr
 	Left  Expr
@@ -27,3 +32,4 @@ type BinaryExpr struct {
 func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("BinOp: %s", binExpr.Op)
 }
+func (binExpr BinaryExpr) exprNode() {}

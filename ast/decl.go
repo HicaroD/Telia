@@ -22,6 +22,7 @@ type FunctionDecl struct {
 func (fnDecl FunctionDecl) String() string {
 	return fmt.Sprintf("FN: %s", fnDecl.Name)
 }
+func (fnDecl FunctionDecl) declNode() {}
 
 /*
 Extern blocks contains a list of function prototypes.
@@ -40,6 +41,7 @@ type ExternDecl struct {
 func (extern ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
+func (extern ExternDecl) declNode() {}
 
 type Proto struct {
 	Name    string

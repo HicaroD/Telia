@@ -18,9 +18,10 @@ type BlockStmt struct {
 	CloseCurly token.Position
 }
 
-func (variable BlockStmt) String() string {
+func (block BlockStmt) String() string {
 	return fmt.Sprintf("BLOCK")
 }
+func (block BlockStmt) stmtNode() {}
 
 type VarStmt struct {
 	Stmt
@@ -32,6 +33,7 @@ type VarStmt struct {
 func (variable VarStmt) String() string {
 	return fmt.Sprintf("Variable: %s", variable.Name)
 }
+func (variable VarStmt) stmtNode() {}
 
 type ReturnStmt struct {
 	Stmt
@@ -42,3 +44,15 @@ type ReturnStmt struct {
 func (ret ReturnStmt) String() string {
 	return fmt.Sprintf("RETURN: %s", ret.Value)
 }
+func (ret ReturnStmt) stmtNode() {}
+
+type FuncCallStmt struct {
+	Stmt
+	Name string
+	Args []Expr
+}
+
+func (call FuncCallStmt) String() string {
+	return fmt.Sprintf("RETURN: %s", call.Name)
+}
+func (call FuncCallStmt) stmtNode() {}
