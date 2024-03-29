@@ -26,10 +26,10 @@ func (cursor *cursor) Next() (rune, error) {
 	}
 
 	if character == '\n' {
-		cursor.position.X = 1
-		cursor.position.Y++
+		cursor.position.Column = 1
+		cursor.position.Line++
 	} else {
-		cursor.position.X++
+		cursor.position.Column++
 	}
 
 	return character, nil

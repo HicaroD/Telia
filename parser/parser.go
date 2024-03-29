@@ -63,6 +63,9 @@ func (parser *parser) parseExternBlockDecl() (*ast.ExternDecl, error) {
 	}
 
 	_, err = parser.expect(kind.OPEN_CURLY)
+	if err != nil {
+		return nil, err
+	}
 
 	var prototypes []*ast.Proto
 	for {
@@ -82,7 +85,11 @@ func (parser *parser) parseExternBlockDecl() (*ast.ExternDecl, error) {
 			break
 		}
 	}
+
 	_, err = parser.expect(kind.CLOSE_CURLY)
+	if err != nil {
+		return nil, err
+	}
 	return &ast.ExternDecl{Name: externName, Prototypes: prototypes}, nil
 }
 
@@ -218,7 +225,7 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 
 	// TODO(errors)
 	if !parser.nextIsPossibleType() {
-		return nil, fmt.Errorf("Not a valid function return type annotation")
+		return nil, fmt.Errorf("not a valid function return type annotation")
 	}
 
 	returnType, err := parser.parseExprType()
@@ -282,7 +289,7 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			return ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
-		return nil, fmt.Errorf("Token %s %s is not a proper type", token.Kind, token.Lexeme)
+		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
 	}
 }
 
@@ -355,7 +362,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 	next := parser.cursor.peek()
 	// TODO(errors)
 	if next == nil {
-		return nil, fmt.Errorf("Invalid id statement")
+		return nil, fmt.Errorf("invalid id statement")
 	}
 
 	switch next.Kind {
