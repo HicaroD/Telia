@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 
+	// "github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/codegen"
 	"github.com/HicaroD/telia-lang/lexer"
+	"github.com/HicaroD/telia-lang/parser"
+	"github.com/HicaroD/telia-lang/sema"
 )
 
 func main() {
@@ -14,6 +17,7 @@ func main() {
 	filename := args[0]
 
 	file, err := os.Open(filename)
+	// TODO(errors)
 	if err != nil {
 		log.Fatalf("unable to open file: %s due to error '%s'", filename, err)
 	}
@@ -22,13 +26,23 @@ func main() {
 
 	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
-	for _, token := range tokens {
-		switch token.Lexeme.(type) {
-		case int:
-		case string:
-			fmt.Printf("%s '%s' %s\n", token.Kind, token.Lexeme, token.Position)
-		default:
-			fmt.Printf("%s %s\n", token.Kind, token.Position)
-		}
+	// for i := range tokens {
+	// 	fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
+	// }
+
+	parser := parser.NewParser(tokens)
+	astNodes, err := parser.Parse()
+	if err != nil {
+		// TODO(errors)
+		log.Fatal(err)
+	}
+
+	sema := sema.NewSema(astNodes)
+	sema.Analyze()
+
+	codegen := codegen.NewCodegen(astNodes)
+	err = codegen.Generate()
+	if err != nil {
+		log.Fatal(err)
 	}
 }
