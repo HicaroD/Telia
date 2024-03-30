@@ -3,8 +3,8 @@ package token
 import "fmt"
 
 type Position struct {
-	Filename string
-	Column, Line     int
+	Filename     string
+	Column, Line int
 }
 
 func NewPosition(filename string, x, y int) Position {

@@ -12,7 +12,7 @@ type parser struct {
 	cursor *cursor
 }
 
-func NewParser(tokens []token.Token) *parser {
+func NewParser(tokens []*token.Token) *parser {
 	return &parser{cursor: newCursor(tokens)}
 }
 

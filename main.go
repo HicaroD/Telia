@@ -14,6 +14,7 @@ import (
 
 func main() {
 	args := os.Args[1:]
+	// TODO(errors)
 	if len(args) == 0 {
 		log.Fatal("error: no input files")
 	}
@@ -26,7 +27,6 @@ func main() {
 	}
 
 	reader := bufio.NewReader(file)
-
 	lex := lexer.NewLexer(filename, reader)
 	tokens := lex.Tokenize()
 	// for i := range tokens {

@@ -7,10 +7,10 @@ import (
 
 type cursor struct {
 	offset int
-	tokens []token.Token
+	tokens []*token.Token
 }
 
-func newCursor(tokens []token.Token) *cursor {
+func newCursor(tokens []*token.Token) *cursor {
 	return &cursor{offset: 0, tokens: tokens}
 }
 
@@ -18,7 +18,7 @@ func (cursor *cursor) peek() *token.Token {
 	if cursor.isOutOfBound() {
 		return nil
 	}
-	return &cursor.tokens[cursor.offset]
+	return cursor.tokens[cursor.offset]
 }
 
 func (cursor *cursor) next() *token.Token {
@@ -27,7 +27,7 @@ func (cursor *cursor) next() *token.Token {
 	}
 	token := cursor.tokens[cursor.offset]
 	cursor.offset++
-	return &token
+	return token
 }
 
 func (cursor *cursor) skip() {

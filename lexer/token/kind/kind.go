@@ -33,10 +33,14 @@ const (
 	EOF TokenKind = iota
 	INVALID
 
-	// Identifier, literals and keywords
+	// Identifier
 	ID
+
+	// Literals
 	INTEGER_LITERAL
 	STRING_LITERAL
+
+	// Keywords
 	FN
 	RETURN
 	EXTERN
@@ -65,6 +69,8 @@ const (
 	// ;
 	SEMICOLON
 
+	// .
+	DOT
 	// ..
 	DOT_DOT
 	// ...
@@ -116,6 +122,8 @@ func (kind TokenKind) String() string {
 		return ","
 	case SEMICOLON:
 		return ";"
+	case DOT:
+		return "."
 	case DOT_DOT:
 		return ".."
 	case DOT_DOT_DOT:
