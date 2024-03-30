@@ -7,7 +7,6 @@ set -o pipefail # Fail when any error ocurrs on pipe operations
 
 TELIA_FILE=$1
 LLVM_FILE=telia.ll
-LLVM_ASSEMBLY_FILE=telia.s
 
 echo "Compiling program"
 go build -tags=llvm16
