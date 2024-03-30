@@ -110,12 +110,12 @@ func TestTokenPos(t *testing.T) {
 	}
 }
 
-type tokIdentTest struct {
+type tokenIdentTest struct {
 	lexeme      string
 	expectingId bool
 }
 
-var tokIdent []*tokIdentTest = []*tokIdentTest{
+var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
 	{"hello", true},
 	{"world", true},
 	{"foobar", true},
@@ -135,7 +135,7 @@ var tokIdent []*tokIdentTest = []*tokIdentTest{
 func TestIsIdentifier(t *testing.T) {
 	testFilename := "test.tt"
 
-	for _, expectedTokenIdent := range tokIdent {
+	for _, expectedTokenIdent := range tokenIdent {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenIdent.lexeme))
 		lexer := NewLexer(testFilename, reader)
 		tokenResult := lexer.Tokenize()
@@ -152,4 +152,42 @@ func TestIsIdentifier(t *testing.T) {
 	}
 }
 
-func TestIsLiteral(t *testing.T) {}
+type tokenLiteralTest struct {
+	lexeme      string
+	literalKind kind.TokenKind
+}
+
+var tokenLiterals []*tokenLiteralTest = []*tokenLiteralTest{
+	// TODO: add float here
+	// TODO: add bool here
+	{"1", kind.INTEGER_LITERAL},
+	{"2", kind.INTEGER_LITERAL},
+	{"3", kind.INTEGER_LITERAL},
+	{"4", kind.INTEGER_LITERAL},
+	{"5", kind.INTEGER_LITERAL},
+	{"6", kind.INTEGER_LITERAL},
+	{"7", kind.INTEGER_LITERAL},
+	{"8", kind.INTEGER_LITERAL},
+	{"9", kind.INTEGER_LITERAL},
+	{"123456789", kind.INTEGER_LITERAL},
+	{"\"Hello world\"", kind.STRING_LITERAL},
+}
+
+func TestIsLiteral(t *testing.T) {
+	testFilename := "test.tt"
+	for _, expectedTokenLiteral := range tokenLiterals {
+		reader := bufio.NewReader(strings.NewReader(expectedTokenLiteral.lexeme))
+		lexer := NewLexer(testFilename, reader)
+		tokenResult := lexer.Tokenize()
+
+		if len(tokenResult) != 2 {
+			t.Errorf("TestIsIdentifier(%q): expected a single token, but got %d", expectedTokenLiteral.lexeme, len(tokenResult))
+		}
+		if tokenResult[1].Kind != kind.EOF {
+			t.Errorf("TestIsIdentifier(%q): expected last token to be EOF, but got %q", expectedTokenLiteral.lexeme, tokenResult[1].Kind)
+		}
+		if tokenResult[0].Kind != expectedTokenLiteral.literalKind {
+			t.Errorf("TestIsIdentifier(%q): expected to be a %q, but got %q", expectedTokenLiteral.lexeme, expectedTokenLiteral.literalKind, tokenResult[0].Kind)
+		}
+	}
+}
