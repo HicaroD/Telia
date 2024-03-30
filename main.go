@@ -14,6 +14,9 @@ import (
 
 func main() {
 	args := os.Args[1:]
+	if len(args) == 0 {
+		log.Fatal("error: no input files")
+	}
 	filename := args[0]
 
 	file, err := os.Open(filename)
@@ -38,7 +41,10 @@ func main() {
 	}
 
 	sema := sema.NewSema(astNodes)
-	sema.Analyze()
+	err = sema.Analyze()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	codegen := codegen.NewCodegen(astNodes)
 	err = codegen.Generate()
