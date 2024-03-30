@@ -110,6 +110,46 @@ func TestTokenPos(t *testing.T) {
 	}
 }
 
-func TestIsIdentifier(t *testing.T) {}
+type tokIdentTest struct {
+	lexeme      string
+	expectingId bool
+}
+
+var tokIdent []*tokIdentTest = []*tokIdentTest{
+	{"hello", true},
+	{"world", true},
+	{"foobar", true},
+	{"hello_world_", true},
+	{"foo६४", true},
+	{"a۰۱۸", true},
+	{"bar９８７６", true},
+	{"ŝ", true},
+	{"ŝfoo", true},
+	{"a123456789", true}, // NOTE: starts with "a"
+	{"123456789", false},
+	// TODO: add float here
+	{"fn", false},
+	{"return", false},
+}
+
+func TestIsIdentifier(t *testing.T) {
+	testFilename := "test.tt"
+
+	for _, expectedTokenIdent := range tokIdent {
+		reader := bufio.NewReader(strings.NewReader(expectedTokenIdent.lexeme))
+		lexer := NewLexer(testFilename, reader)
+		tokenResult := lexer.Tokenize()
+
+		if len(tokenResult) != 2 {
+			t.Errorf("TestIsIdentifier(%q): expected a single token, but got %d", expectedTokenIdent.lexeme, len(tokenResult))
+		}
+		if tokenResult[1].Kind != kind.EOF {
+			t.Errorf("TestIsIdentifier(%q): expected last token to be EOF, but got %q", expectedTokenIdent.lexeme, tokenResult[1].Kind)
+		}
+		if tokenResult[0].Kind != kind.ID && expectedTokenIdent.expectingId {
+			t.Errorf("TestIsIdentifier(%q): expected to be an identifier, but got %q", expectedTokenIdent.lexeme, tokenResult[0].Kind)
+		}
+	}
+}
 
 func TestIsLiteral(t *testing.T) {}
