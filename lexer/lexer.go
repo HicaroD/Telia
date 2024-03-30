@@ -67,7 +67,7 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		lex.cursor.Skip()
 		return token
 	// TODO: there will plenty of tokens with multiple characters
-	// I need to figure out a way to make easier to tokenize those
+	// I need to figure out a way to make it easier to identify
 	case '.':
 		tokenKind := kind.DOT
 		lex.cursor.Skip() // .

@@ -4,11 +4,11 @@ import "fmt"
 
 type Position struct {
 	Filename     string
-	Column, Line int
+	Line, Column int
 }
 
-func NewPosition(filename string, x, y int) Position {
-	return Position{Filename: filename, Column: x, Line: y}
+func NewPosition(filename string, column, line int) Position {
+	return Position{Filename: filename, Line: line, Column: column}
 }
 
 func (pos Position) String() string {

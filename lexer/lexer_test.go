@@ -5,15 +5,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
 
-type tokenTest struct {
+type tokenKindTest struct {
 	lexeme string
 	kind   kind.TokenKind
 }
 
-var tokenKinds []*tokenTest = []*tokenTest{
+var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	// Keywords
 	{"fn", kind.FN},
 	{"return", kind.RETURN},
@@ -59,7 +60,48 @@ func TestTokenKinds(t *testing.T) {
 	}
 }
 
-func TestTokenPos(t *testing.T) {}
+type tokenPosTest struct {
+	input     string
+	positions []token.Position
+}
+
+var tokenPos []*tokenPosTest = []*tokenPosTest{
+	{";", []token.Position{
+		{Filename: "test.tt", Line: 1, Column: 1},
+		{Filename: "test.tt", Line: 1, Column: 2}},
+	},
+	{";\n;", []token.Position{
+		{Filename: "test.tt", Line: 1, Column: 1},
+		{Filename: "test.tt", Line: 2, Column: 1},
+		{Filename: "test.tt", Line: 2, Column: 2}},
+	},
+}
+
+func TestTokenPos(t *testing.T) {
+	testFilename := "test.tt"
+
+	for _, expectedPos := range tokenPos {
+		reader := bufio.NewReader(strings.NewReader(expectedPos.input))
+		lexer := NewLexer(testFilename, reader)
+		tokenResult := lexer.Tokenize()
+
+		if len(tokenResult) == 1 && tokenResult[0].Kind == kind.EOF {
+			t.Errorf("TestTokenPos(%q): expected at least one token, but only got EOF", expectedPos.input)
+		}
+
+		if len(tokenResult) != len(expectedPos.positions) {
+			t.Errorf("TestTokenPos(%q): expected len(tokenResult) == len(expectedPos.positions), expected %q, but got %q", expectedPos.input, len(tokenResult), len(expectedPos.positions))
+		}
+
+		for i, expectedPos := range expectedPos.positions {
+			lexeme := tokenResult[i].Lexeme
+			actualPos := tokenResult[i].Position
+			if expectedPos != actualPos {
+				t.Errorf("TestTokenPos(%q): expected token position to be the same, expected %q, but got %q", lexeme, expectedPos, actualPos)
+			}
+		}
+	}
+}
 
 func TestIsIdentifier(t *testing.T) {}
 

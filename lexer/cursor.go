@@ -14,7 +14,7 @@ type cursor struct {
 }
 
 func newCursor(filename string, reader *bufio.Reader) *cursor {
-	return &cursor{reader: reader, position: token.NewPosition(filename, 0, 0)}
+	return &cursor{reader: reader, position: token.NewPosition(filename, 1, 1)}
 }
 
 func (cursor *cursor) Peek() (rune, bool) {
