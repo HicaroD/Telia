@@ -33,7 +33,7 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 			}
 			astNodes = append(astNodes, fnDecl)
 		case kind.EXTERN:
-			externDecl, err := parser.parseExternBlockDecl()
+			externDecl, err := parser.parseExternDecl()
 			// TODO(errors)
 			if err != nil {
 				return nil, err
@@ -47,7 +47,7 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 	return astNodes, nil
 }
 
-func (parser *parser) parseExternBlockDecl() (*ast.ExternDecl, error) {
+func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	var err error
 
 	_, err = parser.expect(kind.EXTERN)
