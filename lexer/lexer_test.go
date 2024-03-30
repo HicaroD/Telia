@@ -75,6 +75,13 @@ var tokenPos []*tokenPosTest = []*tokenPosTest{
 		{Filename: "test.tt", Line: 2, Column: 1},
 		{Filename: "test.tt", Line: 2, Column: 2}},
 	},
+	{"fn\nhello world\n;", []token.Position{
+		{Filename: "test.tt", Line: 1, Column: 1},
+		{Filename: "test.tt", Line: 2, Column: 1},
+		{Filename: "test.tt", Line: 2, Column: 7},
+		{Filename: "test.tt", Line: 3, Column: 1},
+		{Filename: "test.tt", Line: 3, Column: 2}},
+	},
 }
 
 func TestTokenPos(t *testing.T) {
@@ -90,7 +97,7 @@ func TestTokenPos(t *testing.T) {
 		}
 
 		if len(tokenResult) != len(expectedPos.positions) {
-			t.Errorf("TestTokenPos(%q): expected len(tokenResult) == len(expectedPos.positions), expected %q, but got %q", expectedPos.input, len(tokenResult), len(expectedPos.positions))
+			t.Errorf("TestTokenPos(%q): expected len(tokenResult) == len(expectedPos.positions), expected %d, but got %d", expectedPos.input, len(tokenResult), len(expectedPos.positions))
 		}
 
 		for i, expectedPos := range expectedPos.positions {
