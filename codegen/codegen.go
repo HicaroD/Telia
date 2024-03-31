@@ -55,6 +55,7 @@ type codegen struct {
 
 func NewCodegen(astNodes []ast.AstNode) *codegen {
 	context := llvm.NewContext()
+	// TODO: properly define the module name
 	module := context.NewModule("tmpmod")
 	builder := context.NewBuilder()
 
@@ -78,7 +79,7 @@ func (codegen *codegen) Generate() error {
 		case *ast.ExternDecl:
 			codegen.generateExternDecl(astNode)
 		default:
-			fmt.Printf("Generating...: %s\n", reflect.TypeOf(codegen.astNodes[i]))
+			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(codegen.astNodes[i]))
 		}
 	}
 
@@ -107,13 +108,13 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 
 	functionBody := codegen.context.AddBasicBlock(functionValue, "entry")
 	codegen.builder.SetInsertPointAtEnd(functionBody)
-	codegen.generateBlock(function.Block)
+	codegen.generateBlock(functionValue, function.Block)
 	return nil
 }
 
-func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
-	for i := range block.Statements {
-		switch statement := block.Statements[i].(type) {
+func (codegen *codegen) generateBlock(function llvm.Value, stmts *ast.BlockStmt) {
+	for i := range stmts.Statements {
+		switch statement := stmts.Statements[i].(type) {
 		case *ast.FunctionCallStmt:
 			function := codegen.moduleCache.GetFunction(statement.Name)
 			// TODO(errors): function not found on cache
@@ -126,9 +127,9 @@ func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
 			returnValue := codegen.getExpr(statement.Value)
 			codegen.builder.CreateRet(returnValue)
 		case *ast.CondStmt:
-			fmt.Println("CONDITIONAL STATEMENT")
+			codegen.generateCondStmt(function, statement)
 		default:
-			log.Fatalf("unimplemented block statement: %s", reflect.TypeOf(block.Statements[i]))
+			log.Fatalf("unimplemented block statement: %s", reflect.TypeOf(stmts.Statements[i]))
 		}
 	}
 }
@@ -206,6 +207,12 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 			stringLiteral := currentExpr.Value.(string)
 			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
 			return globalStrPtr
+		case kind.TRUE_BOOL_LITERAL:
+			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
+			return trueBoolLiteral
+		case kind.FALSE_BOOL_LITERAL:
+			falseBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 0, false)
+			return falseBoolLiteral
 		default:
 			log.Fatalf("unimplemented literal expr: %s", expr)
 		}
@@ -215,4 +222,54 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 	// NOTE: this line should be unreachable
 	fmt.Println("REACHING AN UNREACHABLE LINE AT getExpr AT getExpr")
 	return llvm.Value{}
+}
+
+func (codegen *codegen) generateCondStmt(function llvm.Value, condStmt *ast.CondStmt) {
+	ifBlock := llvm.AddBasicBlock(function, ".if")
+	elseBlock := llvm.AddBasicBlock(function, ".else")
+	endBlock := llvm.AddBasicBlock(function, ".end")
+
+	ifExpr := codegen.getExpr(condStmt.IfStmt.Expr)
+	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
+
+	codegen.builder.SetInsertPointAtEnd(ifBlock)
+	codegen.generateBlock(function, condStmt.IfStmt.Block)
+	codegen.builder.CreateBr(endBlock)
+
+	// TODO: implement elif
+	/*
+		Lembre-se de que elif são traduzidos para um else e dentro terá if:
+
+		if condition {
+	    	// A
+		}
+		elif condition {
+	    	// B
+		}
+		else {
+	    	// C
+		}
+
+		Será traduzido para isso:
+
+		if condition {
+	    	// A
+		}
+		else {
+	    	if condition {
+	        	// B
+	    	}
+	    	else {
+	        	// C
+	    	}
+		}
+	*/
+
+	codegen.builder.SetInsertPointAtEnd(elseBlock)
+	if condStmt.ElseStmt != nil {
+		codegen.generateBlock(function, condStmt.ElseStmt.Block)
+	}
+	codegen.builder.CreateBr(endBlock)
+
+	codegen.builder.SetInsertPointAtEnd(endBlock)
 }
