@@ -66,28 +66,56 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		token := lex.consumeToken(nil, kind.STAR)
 		lex.cursor.Skip()
 		return token
-	// TODO: there will plenty of tokens with multiple characters
-	// I need to figure out a way to make it easier to identify
+	case '=':
+		tokenKind := kind.EQUAL
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // =
+
+		next, ok := lex.cursor.Peek()
+		if !ok || next != '=' {
+			return token.New(nil, tokenKind, tokenPosition)
+		}
+		lex.cursor.Skip() // =
+		tokenKind = kind.EQUAL_EQUAL
+		return token.New(nil, tokenKind, tokenPosition)
 	case '.':
 		tokenKind := kind.DOT
-		lex.cursor.Skip() // .
 		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // .
 
 		next, ok := lex.cursor.Peek()
 		if !ok || next != '.' {
-			return token.NewToken(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition)
 		}
 		lex.cursor.Skip() // .
 		tokenKind = kind.DOT_DOT
 
 		next, ok = lex.cursor.Peek()
 		if !ok || next != '.' {
-			return token.NewToken(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition)
 		}
 		lex.cursor.Skip() // .
 		tokenKind = kind.DOT_DOT_DOT
+		return token.New(nil, tokenKind, tokenPosition)
+	case '-':
+		token := lex.consumeToken(nil, kind.MINUS)
+		lex.cursor.Skip()
+		return token
+	case ':':
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // :
 
-		return token.NewToken(nil, tokenKind, tokenPosition)
+		next, ok := lex.cursor.Peek()
+		if !ok {
+			// TODO(errors)
+			log.Fatal("invalid ':' character") // EOF
+		}
+		if next == '=' {
+			lex.cursor.Skip() // =
+			return token.New(nil, kind.COLON_EQUAL, tokenPosition)
+		}
+		// TODO(errors)
+		log.Fatal("invalid ':' character")
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
@@ -105,7 +133,7 @@ func (lex *lexer) getToken(character rune) *token.Token {
 				// TODO(errors): unable to convert string to integer
 				log.Fatalf("unable to convert string to integer due to error: '%s'", err)
 			}
-			token := token.NewToken(convertedNumber, kind.INTEGER_LITERAL, position)
+			token := token.New(convertedNumber, kind.INTEGER_LITERAL, position)
 			return token
 		} else {
 			// TODO(errors): invalid character
@@ -132,17 +160,17 @@ func (lex *lexer) getStringLiteral() *token.Token {
 		lex.cursor.Skip()
 	}
 
-	return token.NewToken(strLiteral, kind.STRING_LITERAL, position)
+	return token.New(strLiteral, kind.STRING_LITERAL, position)
 }
 
 func (lex *lexer) classifyIdentifier(identifier string, position token.Position) *token.Token {
 	idKind, ok := kind.KEYWORDS[identifier]
 	if ok {
-		return token.NewToken(identifier, idKind, position)
+		return token.New(identifier, idKind, position)
 	}
-	return token.NewToken(identifier, kind.ID, position)
+	return token.New(identifier, kind.ID, position)
 }
 
 func (lex *lexer) consumeToken(lexeme any, kind kind.TokenKind) *token.Token {
-	return token.NewToken(lexeme, kind, lex.cursor.Position())
+	return token.New(lexeme, kind, lex.cursor.Position())
 }

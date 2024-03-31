@@ -11,6 +11,6 @@ type Token struct {
 	Position Position
 }
 
-func NewToken(lexeme any, kind kind.TokenKind, position Position) *Token {
+func New(lexeme any, kind kind.TokenKind, position Position) *Token {
 	return &Token{Lexeme: lexeme, Kind: kind, Position: position}
 }

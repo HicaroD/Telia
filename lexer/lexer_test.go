@@ -19,6 +19,7 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{"fn", kind.FN},
 	{"return", kind.RETURN},
 	{"extern", kind.EXTERN},
+	{"if", kind.IF},
 
 	// Types
 	{"bool", kind.BOOL_TYPE},
@@ -38,6 +39,10 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{"..", kind.DOT_DOT},
 	{"...", kind.DOT_DOT_DOT},
 	{"*", kind.STAR},
+	{"=", kind.EQUAL},
+	{"==", kind.EQUAL_EQUAL},
+	{"-", kind.MINUS},
+	{":=", kind.COLON_EQUAL},
 }
 
 func TestTokenKinds(t *testing.T) {
@@ -111,8 +116,8 @@ func TestTokenPos(t *testing.T) {
 }
 
 type tokenIdentTest struct {
-	lexeme      string
-	expectingId bool
+	lexeme string
+	isId   bool
 }
 
 var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
@@ -128,8 +133,11 @@ var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
 	{"a123456789", true}, // NOTE: starts with "a"
 	{"123456789", false},
 	// TODO: add float here
+	{"true", false},
+	{"false", false},
 	{"fn", false},
 	{"return", false},
+	{"if", false},
 }
 
 func TestIsIdentifier(t *testing.T) {
@@ -146,8 +154,8 @@ func TestIsIdentifier(t *testing.T) {
 		if tokenResult[1].Kind != kind.EOF {
 			t.Errorf("TestIsIdentifier(%q): expected last token to be EOF, but got %q", expectedTokenIdent.lexeme, tokenResult[1].Kind)
 		}
-		if tokenResult[0].Kind != kind.ID && expectedTokenIdent.expectingId {
-			t.Errorf("TestIsIdentifier(%q): expected to be an identifier, but got %q", expectedTokenIdent.lexeme, tokenResult[0].Kind)
+		if tokenResult[0].Kind != kind.ID && expectedTokenIdent.isId {
+			t.Errorf("TestIsIdentifier(%q): expecting to be an identifier, but got %q", expectedTokenIdent.lexeme, tokenResult[0].Kind)
 		}
 	}
 }
@@ -159,7 +167,6 @@ type tokenLiteralTest struct {
 
 var tokenLiterals []*tokenLiteralTest = []*tokenLiteralTest{
 	// TODO: add float here
-	// TODO: add bool here
 	{"1", kind.INTEGER_LITERAL},
 	{"2", kind.INTEGER_LITERAL},
 	{"3", kind.INTEGER_LITERAL},
@@ -171,6 +178,8 @@ var tokenLiterals []*tokenLiteralTest = []*tokenLiteralTest{
 	{"9", kind.INTEGER_LITERAL},
 	{"123456789", kind.INTEGER_LITERAL},
 	{"\"Hello world\"", kind.STRING_LITERAL},
+	{"true", kind.TRUE_BOOL_LITERAL},
+	{"false", kind.FALSE_BOOL_LITERAL},
 }
 
 func TestIsLiteral(t *testing.T) {
