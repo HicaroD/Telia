@@ -63,6 +63,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	}
 
 	_, err = parser.expect(kind.OPEN_CURLY)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +88,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	}
 
 	_, err = parser.expect(kind.CLOSE_CURLY)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -282,11 +284,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.PointerType{Type: ty}, nil
+		return &ast.PointerType{Type: ty}, nil
 	default:
 		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
 			parser.cursor.skip()
-			return ast.BasicType{Kind: token.Kind}, nil
+			return &ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
 		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
@@ -325,7 +327,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
-			statements = append(statements, ast.ReturnStmt{Return: token, Value: returnValue})
+			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
 			idNode, err := parser.parseIdStmt()
 			// TODO(errors)
@@ -372,7 +374,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return *fnCall, nil
+		return fnCall, nil
 	// TODO: deal with variable decl, variable reassignment
 	default:
 		// TODO(errors)
@@ -388,7 +390,7 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	switch token.Kind {
 	case kind.INTEGER_LITERAL, kind.STRING_LITERAL:
 		parser.cursor.skip()
-		return ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
+		return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
 	default:
 		return nil, fmt.Errorf("invalid token for expression parsing: %s", token.Kind)
 	}

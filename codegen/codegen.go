@@ -119,9 +119,8 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
 	for i := range block.Statements {
 		switch block.Statements[i].(type) {
-		// TODO: build function call stmt
-		case ast.FunctionCallStmt:
-			calledFn := block.Statements[i].(ast.FunctionCallStmt)
+		case *ast.FunctionCallStmt:
+			calledFn := block.Statements[i].(*ast.FunctionCallStmt)
 			function := codegen.moduleCache.GetFunction(calledFn.Name)
 			// TODO(errors): function not found on cache
 			if function == nil {
@@ -130,9 +129,9 @@ func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
 			args := codegen.getExprList(calledFn.Args)
 			call := codegen.builder.CreateCall(*function.ty, *function.fn, args, "call")
 			fmt.Printf("BUILDING CALL: %s\n", call)
-		case ast.ReturnStmt:
+		case *ast.ReturnStmt:
 			fmt.Println("RETURN STATEMENT")
-			ret := block.Statements[i].(ast.ReturnStmt)
+			ret := block.Statements[i].(*ast.ReturnStmt)
 			returnValue := codegen.getExpr(ret.Value)
 			generatedRet := codegen.builder.CreateRet(returnValue)
 			fmt.Printf("BUILDING RETURN: %s\n", generatedRet)
@@ -156,8 +155,8 @@ func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 	switch ty.(type) {
-	case ast.BasicType:
-		basicType := ty.(ast.BasicType)
+	case *ast.BasicType:
+		basicType := ty.(*ast.BasicType)
 		switch basicType.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
@@ -174,8 +173,8 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		default:
 			log.Fatalf("invalid basic type token: '%s'", basicType.Kind)
 		}
-	case ast.PointerType:
-		pointerType := ty.(ast.PointerType)
+	case *ast.PointerType:
+		pointerType := ty.(*ast.PointerType)
 		underlyingExprType := codegen.getType(pointerType.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
@@ -206,8 +205,8 @@ func (codegen *codegen) getExprList(expressions []ast.Expr) []llvm.Value {
 
 func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 	switch expr.(type) {
-	case ast.LiteralExpr:
-		literalExpr := expr.(ast.LiteralExpr)
+	case *ast.LiteralExpr:
+		literalExpr := expr.(*ast.LiteralExpr)
 		switch literalExpr.Kind {
 		case kind.INTEGER_LITERAL:
 			integerLiteral := uint64(literalExpr.Value.(int))
