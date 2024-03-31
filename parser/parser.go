@@ -41,31 +41,29 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 			astNodes = append(astNodes, externDecl)
 		default:
 			// TODO(errors)
-			return nil, fmt.Errorf("unimplemented: %s %s", token.Kind, token.Lexeme)
+			return nil, fmt.Errorf("unimplemented: %s", token.Lexeme)
 		}
 	}
 	return astNodes, nil
 }
 
 func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
-	var err error
-
-	_, err = parser.expect(kind.EXTERN)
+	_, ok := parser.expect(kind.EXTERN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected 'extern'")
 	}
 
-	externName, err := parser.expect(kind.STRING_LITERAL)
+	externName, ok := parser.expect(kind.STRING_LITERAL)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected string literal")
 	}
 
-	_, err = parser.expect(kind.OPEN_CURLY)
+	_, ok = parser.expect(kind.OPEN_CURLY)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '{'")
 	}
 
 	var prototypes []*ast.Proto
@@ -87,27 +85,25 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 		}
 	}
 
-	_, err = parser.expect(kind.CLOSE_CURLY)
+	_, ok = parser.expect(kind.CLOSE_CURLY)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '}'")
 	}
 	return &ast.ExternDecl{Name: externName, Prototypes: prototypes}, nil
 }
 
 func (parser *parser) parsePrototype() (*ast.Proto, error) {
-	var err error
-
-	_, err = parser.expect(kind.FN)
+	_, ok := parser.expect(kind.FN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected 'fn'")
 	}
 
-	name, err := parser.expect(kind.ID)
+	name, ok := parser.expect(kind.ID)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected an identifier")
 	}
 
 	params, err := parser.parseFunctionParams()
@@ -122,10 +118,10 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, err
 	}
 
-	_, err = parser.expect(kind.SEMICOLON)
+	_, ok = parser.expect(kind.SEMICOLON)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected ';'")
 	}
 
 	return &ast.Proto{Name: name.Lexeme.(string), Params: params, RetType: returnType}, nil
@@ -134,16 +130,16 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	var err error
 
-	_, err = parser.expect(kind.FN)
+	_, ok := parser.expect(kind.FN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected 'fn'")
 	}
 
-	name, err := parser.expect(kind.ID)
+	name, ok := parser.expect(kind.ID)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected an identifier")
 	}
 
 	params, err := parser.parseFunctionParams()
@@ -169,14 +165,13 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
-	var err error
 	var params []*ast.Field
 	isVariadic := false
 
-	openParen, err := parser.expect(kind.OPEN_PAREN)
+	openParen, ok := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '('")
 	}
 
 	for {
@@ -197,10 +192,10 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			continue
 		}
 
-		name, err := parser.expect(kind.ID)
+		name, ok := parser.expect(kind.ID)
 		// TODO(errors): unable to parse identifier
-		if err != nil {
-			return nil, err
+		if !ok {
+			return nil, fmt.Errorf("expected an identifier")
 		}
 		paramType, err := parser.parseExprType()
 		// TODO(errors)
@@ -211,12 +206,11 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 
 	}
 
-	closeParen, err := parser.expect(kind.CLOSE_PAREN)
+	closeParen, ok := parser.expect(kind.CLOSE_PAREN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected ')'")
 	}
-
 	return &ast.FieldList{Open: openParen, Fields: params, Close: closeParen, IsVariadic: isVariadic}, nil
 }
 
@@ -239,20 +233,20 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 }
 
 // TODO: maybe return a boolean for saying if matches or not
-func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, error) {
+func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 	token := parser.cursor.peek()
 	// TODO(errors)
 	if token == nil {
-		return nil, fmt.Errorf("can't peek next token because it is null")
+		return nil, false
 	}
 
 	// TODO(errors)
 	if token.Kind != expectedKind {
-		return nil, fmt.Errorf("expected '%s', but got '%s' '%s'", expectedKind, token.Kind, token.Lexeme)
+		return nil, false
 	}
 
 	parser.cursor.skip()
-	return token, nil
+	return token, true
 }
 
 func (parser *parser) nextIsPossibleType() bool {
@@ -296,11 +290,10 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 }
 
 func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
-	openCurly, err := parser.expect(kind.OPEN_CURLY)
-
+	openCurly, ok := parser.expect(kind.OPEN_CURLY)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '{'")
 	}
 	var statements []ast.Stmt
 
@@ -322,10 +315,10 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, err = parser.expect(kind.SEMICOLON)
+			_, ok = parser.expect(kind.SEMICOLON)
 			// TODO(errors)
-			if err != nil {
-				return nil, err
+			if !ok {
+				return nil, fmt.Errorf("expected ';'")
 			}
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
@@ -334,31 +327,37 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, err = parser.expect(kind.SEMICOLON)
+			_, ok = parser.expect(kind.SEMICOLON)
 			// TODO(errors)
+			if !ok {
+				return nil, fmt.Errorf("expected ';'")
+			}
+			statements = append(statements, idNode)
+		case kind.IF:
+			condStmt, err := parser.parseCondStmt()
 			if err != nil {
 				return nil, err
 			}
-			statements = append(statements, idNode)
+			statements = append(statements, condStmt)
 		default:
 			return nil, fmt.Errorf("invalid token for statement parsing: %s", token.Kind)
 		}
 	}
 
-	closeCurly, err := parser.expect(kind.CLOSE_CURLY)
+	closeCurly, ok := parser.expect(kind.CLOSE_CURLY)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '}'")
 	}
 
 	return &ast.BlockStmt{OpenCurly: openCurly.Position, Statements: statements, CloseCurly: closeCurly.Position}, nil
 }
 
 func (parser *parser) parseIdStmt() (ast.Stmt, error) {
-	identifier, err := parser.expect(kind.ID)
+	identifier, ok := parser.expect(kind.ID)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected identifier")
 	}
 
 	next := parser.cursor.peek()
@@ -382,13 +381,91 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 	}
 }
 
+func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
+	ifCond, err := parser.parseIfCond()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	elifConds, err := parser.parseElifConds()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	elseCond, err := parser.parseElseCond()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}, nil
+}
+
+func (parser *parser) parseIfCond() (*ast.IfCondStmt, error) {
+	ifToken, ok := parser.expect(kind.IF)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected 'if'")
+	}
+
+	// TODO(errors)
+	ifExpr, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	ifBlock, err := parser.parseBlock()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.IfCondStmt{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
+}
+
+func (parser *parser) parseElifConds() ([]*ast.ElifCondStmt, error) {
+	var elifConds []*ast.ElifCondStmt
+	for {
+		elifToken, ok := parser.expect(kind.ELIF)
+		if !ok {
+			break
+		}
+		elifExpr, err := parser.parseExpr()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		elifBlock, err := parser.parseBlock()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		elifConds = append(elifConds, &ast.ElifCondStmt{Elif: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
+	}
+	return elifConds, nil
+}
+
+func (parser *parser) parseElseCond() (*ast.ElseCondStmt, error) {
+	elseToken, ok := parser.expect(kind.ELSE)
+	if !ok {
+		return nil, nil
+	}
+
+	elseBlock, err := parser.parseBlock()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ElseCondStmt{Else: &elseToken.Position, Block: elseBlock}, nil
+}
+
 func (parser *parser) parseExpr() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	if token == nil {
 		return nil, fmt.Errorf("can't peek next token because it is null")
 	}
 	switch token.Kind {
-	case kind.INTEGER_LITERAL, kind.STRING_LITERAL:
+	case kind.INTEGER_LITERAL, kind.STRING_LITERAL, kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
 		parser.cursor.skip()
 		return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
 	default:
@@ -397,10 +474,10 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 }
 
 func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCallStmt, error) {
-	_, err := parser.expect(kind.OPEN_PAREN)
+	_, ok := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
-	if err != nil {
-		return nil, err
+	if !ok {
+		return nil, fmt.Errorf("expected '('")
 	}
 
 	var callArgs []ast.Expr

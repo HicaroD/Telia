@@ -11,6 +11,8 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"return": RETURN,
 	"extern": EXTERN,
 	"if":     IF,
+	"elif":   ELIF,
+	"else":   ELSE,
 
 	"true":  TRUE_BOOL_LITERAL,
 	"false": FALSE_BOOL_LITERAL,
@@ -51,6 +53,8 @@ const (
 	RETURN
 	EXTERN
 	IF
+	ELIF
+	ELSE
 
 	// Types
 	BOOL_TYPE
@@ -122,6 +126,10 @@ func (kind TokenKind) String() string {
 		return "extern"
 	case IF:
 		return "if"
+	case ELIF:
+		return "elif"
+	case ELSE:
+		return "else"
 	case BOOL_TYPE:
 		return "bool"
 	case I8_TYPE:

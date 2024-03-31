@@ -19,7 +19,7 @@ type BlockStmt struct {
 }
 
 func (block BlockStmt) String() string {
-	return fmt.Sprintf("BLOCK")
+	return "BLOCK"
 }
 func (block BlockStmt) stmtNode() {}
 
@@ -56,3 +56,33 @@ func (call FunctionCallStmt) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
 func (call FunctionCallStmt) stmtNode() {}
+
+type CondStmt struct {
+	IfStmt    *IfCondStmt
+	ElifStmts []*ElifCondStmt
+	ElseStmt  *ElseCondStmt
+}
+
+func (condStmt CondStmt) String() string {
+	return ""
+}
+func (cond CondStmt) stmtNode() {}
+
+type IfCondStmt struct {
+	If    *token.Position
+	Expr  Expr
+	Block *BlockStmt
+}
+
+// NOTE: it is the same as IfCondStmt, I might want to reuse the same struct
+type ElifCondStmt struct {
+	Elif  *token.Position
+	Expr  Expr
+	Block *BlockStmt
+}
+
+// NOTE: Maybe use an alias to *BlockStmt given that this struct only has a single field
+type ElseCondStmt struct {
+	Else  *token.Position
+	Block *BlockStmt
+}

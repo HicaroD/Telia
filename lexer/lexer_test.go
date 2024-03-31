@@ -20,6 +20,8 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{"return", kind.RETURN},
 	{"extern", kind.EXTERN},
 	{"if", kind.IF},
+	{"elif", kind.ELIF},
+	{"else", kind.ELSE},
 
 	// Types
 	{"bool", kind.BOOL_TYPE},
@@ -138,6 +140,8 @@ var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
 	{"fn", false},
 	{"return", false},
 	{"if", false},
+	{"elif", false},
+	{"else", false},
 }
 
 func TestIsIdentifier(t *testing.T) {
