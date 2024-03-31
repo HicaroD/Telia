@@ -76,10 +76,7 @@ func (codegen *codegen) Generate() error {
 				return err
 			}
 		case *ast.ExternDecl:
-			err := codegen.generateExternDecl(astNode)
-			if err != nil {
-				return err
-			}
+			codegen.generateExternDecl(astNode)
 		default:
 			fmt.Printf("Generating...: %s\n", reflect.TypeOf(codegen.astNodes[i]))
 		}
@@ -124,29 +121,30 @@ func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
 				log.Fatalf("FUNCTION %s not found on module", statement.Name)
 			}
 			args := codegen.getExprList(statement.Args)
-			call := codegen.builder.CreateCall(*function.ty, *function.fn, args, "call")
-			fmt.Printf("BUILDING CALL: %s\n", call)
+			codegen.builder.CreateCall(*function.ty, *function.fn, args, "call")
 		case *ast.ReturnStmt:
-			fmt.Println("RETURN STATEMENT")
 			returnValue := codegen.getExpr(statement.Value)
-			generatedRet := codegen.builder.CreateRet(returnValue)
-			fmt.Printf("BUILDING RETURN: %s\n", generatedRet)
+			codegen.builder.CreateRet(returnValue)
+		case *ast.CondStmt:
+			fmt.Println("CONDITIONAL STATEMENT")
 		default:
 			log.Fatalf("unimplemented block statement: %s", reflect.TypeOf(block.Statements[i]))
 		}
 	}
 }
 
-// TODO: generate extern blocks
-func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
+func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) {
 	for i := range external.Prototypes {
-		returnType := codegen.getType(external.Prototypes[i].RetType)
-		paramsTypes := codegen.getFieldListTypes(external.Prototypes[i].Params)
-		functionType := llvm.FunctionType(returnType, paramsTypes, external.Prototypes[i].Params.IsVariadic)
-		functionValue := llvm.AddFunction(codegen.module, external.Prototypes[i].Name, functionType)
-		codegen.moduleCache.InsertFunction(external.Prototypes[i].Name, &functionValue, &functionType)
+		codegen.generatePrototype(external.Prototypes[i])
 	}
-	return nil
+}
+
+func (codegen *codegen) generatePrototype(prototype *ast.Proto) {
+	returnType := codegen.getType(prototype.RetType)
+	paramsTypes := codegen.getFieldListTypes(prototype.Params)
+	functionType := llvm.FunctionType(returnType, paramsTypes, prototype.Params.IsVariadic)
+	functionValue := llvm.AddFunction(codegen.module, prototype.Name, functionType)
+	codegen.moduleCache.InsertFunction(prototype.Name, &functionValue, &functionType)
 }
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
