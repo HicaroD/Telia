@@ -69,16 +69,14 @@ func NewCodegen(astNodes []ast.AstNode) *codegen {
 
 func (codegen *codegen) Generate() error {
 	for i := range codegen.astNodes {
-		switch codegen.astNodes[i].(type) {
+		switch astNode := codegen.astNodes[i].(type) {
 		case *ast.FunctionDecl:
-			fnDecl := codegen.astNodes[i].(*ast.FunctionDecl)
-			err := codegen.generateFnDecl(fnDecl)
+			err := codegen.generateFnDecl(astNode)
 			if err != nil {
 				return err
 			}
 		case *ast.ExternDecl:
-			externDecl := codegen.astNodes[i].(*ast.ExternDecl)
-			err := codegen.generateExternDecl(externDecl)
+			err := codegen.generateExternDecl(astNode)
 			if err != nil {
 				return err
 			}
@@ -118,21 +116,19 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 
 func (codegen *codegen) generateBlock(block *ast.BlockStmt) {
 	for i := range block.Statements {
-		switch block.Statements[i].(type) {
+		switch statement := block.Statements[i].(type) {
 		case *ast.FunctionCallStmt:
-			calledFn := block.Statements[i].(*ast.FunctionCallStmt)
-			function := codegen.moduleCache.GetFunction(calledFn.Name)
+			function := codegen.moduleCache.GetFunction(statement.Name)
 			// TODO(errors): function not found on cache
 			if function == nil {
-				log.Fatalf("FUNCTION %s not found on module", calledFn.Name)
+				log.Fatalf("FUNCTION %s not found on module", statement.Name)
 			}
-			args := codegen.getExprList(calledFn.Args)
+			args := codegen.getExprList(statement.Args)
 			call := codegen.builder.CreateCall(*function.ty, *function.fn, args, "call")
 			fmt.Printf("BUILDING CALL: %s\n", call)
 		case *ast.ReturnStmt:
 			fmt.Println("RETURN STATEMENT")
-			ret := block.Statements[i].(*ast.ReturnStmt)
-			returnValue := codegen.getExpr(ret.Value)
+			returnValue := codegen.getExpr(statement.Value)
 			generatedRet := codegen.builder.CreateRet(returnValue)
 			fmt.Printf("BUILDING RETURN: %s\n", generatedRet)
 		default:
@@ -202,15 +198,14 @@ func (codegen *codegen) getExprList(expressions []ast.Expr) []llvm.Value {
 }
 
 func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
-	switch expr.(type) {
+	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
-		literalExpr := expr.(*ast.LiteralExpr)
-		switch literalExpr.Kind {
+		switch currentExpr.Kind {
 		case kind.INTEGER_LITERAL:
-			integerLiteral := uint64(literalExpr.Value.(int))
+			integerLiteral := uint64(currentExpr.Value.(int))
 			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false)
 		case kind.STRING_LITERAL:
-			stringLiteral := literalExpr.Value.(string)
+			stringLiteral := currentExpr.Value.(string)
 			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
 			return globalStrPtr
 		default:
