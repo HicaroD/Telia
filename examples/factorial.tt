@@ -1,0 +1,18 @@
+extern "C" {
+  fn printf(format *i8, ...) i32;
+}
+
+fn factorial(n i32) i32 {
+  if n == 1 {
+    return n;
+  }
+  return n * factorial(n - 1);
+}
+
+fn main() i32 {
+  n := 5;
+  result := factorial(n);
+
+  printf("The factorial of %d is %d", n, result);
+  return 0;
+}

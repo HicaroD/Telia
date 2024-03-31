@@ -12,5 +12,5 @@ echo "Compiling program"
 go build -tags=llvm16
 ./telia-lang $TELIA_FILE
 echo "Generating binary executable"
-clang -fomit-frame-pointer $LLVM_FILE
+clang $LLVM_FILE
 ./a.out

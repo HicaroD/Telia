@@ -238,31 +238,35 @@ func (codegen *codegen) generateCondStmt(function llvm.Value, condStmt *ast.Cond
 
 	// TODO: implement elif
 	/*
-		Lembre-se de que elif são traduzidos para um else e dentro terá if:
+			Lembre-se de que elif são traduzidos para um else e dentro terá if:
 
-		if condition {
-	    	// A
-		}
-		elif condition {
-	    	// B
-		}
-		else {
-	    	// C
-		}
+			if condition {
+		    	// A
+			}
+			elif condition {
+		    	// B
+			}
+			else {
+		    	// C
+			}
 
-		Será traduzido para isso:
+			Será traduzido para isso:
 
-		if condition {
-	    	// A
-		}
-		else {
-	    	if condition {
-	        	// B
-	    	}
-	    	else {
-	        	// C
-	    	}
-		}
+			if condition {
+		    	// A
+			}
+			else {
+		    	if condition {
+		        	// B
+		    	}
+		    	else {
+		        	// C
+		    	}
+			}
+
+			Na pasta de "Prototypes", em "learn_c", tem um exemplo de código em C
+			e o código LLVM. Lá eu posso me inspirar para aprender como else if
+			funcionam de fato, mas eu já tenho uma ideia.
 	*/
 
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
