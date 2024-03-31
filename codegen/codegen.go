@@ -154,10 +154,9 @@ func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 }
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
-	switch ty.(type) {
+	switch exprTy := ty.(type) {
 	case *ast.BasicType:
-		basicType := ty.(*ast.BasicType)
-		switch basicType.Kind {
+		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
 		case kind.I8_TYPE:
@@ -171,17 +170,16 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		case kind.I128_TYPE:
 			return codegen.context.IntType(128)
 		default:
-			log.Fatalf("invalid basic type token: '%s'", basicType.Kind)
+			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}
 	case *ast.PointerType:
-		pointerType := ty.(*ast.PointerType)
-		underlyingExprType := codegen.getType(pointerType.Type)
+		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
 	case nil:
 		return codegen.context.VoidType()
 	default:
-		log.Fatalf("invalid type: %s", reflect.TypeOf(ty))
+		log.Fatalf("invalid type: %s", reflect.TypeOf(exprTy))
 	}
 	// NOTE: this line should be unreachable
 	return codegen.context.VoidType()
