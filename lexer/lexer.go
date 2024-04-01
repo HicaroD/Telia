@@ -16,7 +16,7 @@ type lexer struct {
 }
 
 func New(filename string, reader *bufio.Reader) *lexer {
-	return &lexer{filename: filename, cursor: newCursor(filename, reader)}
+	return &lexer{filename: filename, cursor: new(filename, reader)}
 }
 
 func (lex *lexer) Tokenize() []*token.Token {

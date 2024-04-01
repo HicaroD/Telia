@@ -35,19 +35,21 @@ func main() {
 
 	parser := parser.New(tokens)
 	astNodes, err := parser.Parse()
+	// TODO(errors)
 	if err != nil {
-		// TODO(errors)
 		log.Fatal(err)
 	}
 
 	sema := sema.New(astNodes)
 	err = sema.Analyze()
+	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	codegen := codegen.New(astNodes)
 	err = codegen.Generate()
+	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)
 	}

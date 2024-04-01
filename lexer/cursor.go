@@ -13,7 +13,7 @@ type cursor struct {
 	position token.Position
 }
 
-func newCursor(filename string, reader *bufio.Reader) *cursor {
+func new(filename string, reader *bufio.Reader) *cursor {
 	return &cursor{reader: reader, position: token.NewPosition(filename, 1, 1)}
 }
 
