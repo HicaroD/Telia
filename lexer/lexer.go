@@ -15,7 +15,7 @@ type lexer struct {
 	cursor   *cursor
 }
 
-func NewLexer(filename string, reader *bufio.Reader) *lexer {
+func New(filename string, reader *bufio.Reader) *lexer {
 	return &lexer{filename: filename, cursor: newCursor(filename, reader)}
 }
 

@@ -52,7 +52,7 @@ func TestTokenKinds(t *testing.T) {
 
 	for _, expectedToken := range tokenKinds {
 		reader := bufio.NewReader(strings.NewReader(expectedToken.lexeme))
-		lexer := NewLexer(testFilename, reader)
+		lexer := New(testFilename, reader)
 		tokenResult := lexer.Tokenize()
 
 		if len(tokenResult) != 2 {
@@ -96,7 +96,7 @@ func TestTokenPos(t *testing.T) {
 
 	for _, expectedPos := range tokenPos {
 		reader := bufio.NewReader(strings.NewReader(expectedPos.input))
-		lexer := NewLexer(testFilename, reader)
+		lexer := New(testFilename, reader)
 		tokenResult := lexer.Tokenize()
 
 		if len(tokenResult) == 1 && tokenResult[0].Kind == kind.EOF {
@@ -149,7 +149,7 @@ func TestIsIdentifier(t *testing.T) {
 
 	for _, expectedTokenIdent := range tokenIdent {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenIdent.lexeme))
-		lexer := NewLexer(testFilename, reader)
+		lexer := New(testFilename, reader)
 		tokenResult := lexer.Tokenize()
 
 		if len(tokenResult) != 2 {
@@ -190,7 +190,7 @@ func TestIsLiteral(t *testing.T) {
 	testFilename := "test.tt"
 	for _, expectedTokenLiteral := range tokenLiterals {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenLiteral.lexeme))
-		lexer := NewLexer(testFilename, reader)
+		lexer := New(testFilename, reader)
 		tokenResult := lexer.Tokenize()
 
 		if len(tokenResult) != 2 {

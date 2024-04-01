@@ -27,26 +27,26 @@ func main() {
 	}
 
 	reader := bufio.NewReader(file)
-	lex := lexer.NewLexer(filename, reader)
+	lex := lexer.New(filename, reader)
 	tokens := lex.Tokenize()
 	// for i := range tokens {
 	// 	fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
 	// }
 
-	parser := parser.NewParser(tokens)
+	parser := parser.New(tokens)
 	astNodes, err := parser.Parse()
 	if err != nil {
 		// TODO(errors)
 		log.Fatal(err)
 	}
 
-	sema := sema.NewSema(astNodes)
+	sema := sema.New(astNodes)
 	err = sema.Analyze()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	codegen := codegen.NewCodegen(astNodes)
+	codegen := codegen.New(astNodes)
 	err = codegen.Generate()
 	if err != nil {
 		log.Fatal(err)

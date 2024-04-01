@@ -53,7 +53,7 @@ type codegen struct {
 	moduleCache *moduleCache
 }
 
-func NewCodegen(astNodes []ast.AstNode) *codegen {
+func New(astNodes []ast.AstNode) *codegen {
 	context := llvm.NewContext()
 	// TODO: properly define the module name
 	module := context.NewModule("tmpmod")

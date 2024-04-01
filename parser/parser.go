@@ -12,7 +12,7 @@ type parser struct {
 	cursor *cursor
 }
 
-func NewParser(tokens []*token.Token) *parser {
+func New(tokens []*token.Token) *parser {
 	return &parser{cursor: newCursor(tokens)}
 }
 
@@ -340,7 +340,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			}
 			statements = append(statements, condStmt)
 		default:
-			return nil, fmt.Errorf("invalid token for statement parsing: %s", token.Kind)
+			return nil, fmt.Errorf("invalid token for statement parsing: %s %s", token.Kind, token.Lexeme)
 		}
 	}
 
@@ -469,7 +469,7 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 		parser.cursor.skip()
 		return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
 	default:
-		return nil, fmt.Errorf("invalid token for expression parsing: %s", token.Kind)
+		return nil, fmt.Errorf("invalid token for expression parsing: %s %s %s", token.Kind, token.Lexeme, token.Position)
 	}
 }
 
