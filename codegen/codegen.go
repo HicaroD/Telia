@@ -12,18 +12,18 @@ import (
 )
 
 type moduleCache struct {
-	functions map[string]*cachedFunction
+	functions map[string]*function
 	globals   map[string]*llvm.Value
 }
 
-type cachedFunction struct {
+type function struct {
 	fn *llvm.Value
 	ty *llvm.Type
 }
 
 func newModuleCache() *moduleCache {
 	return &moduleCache{
-		functions: map[string]*cachedFunction{},
+		functions: map[string]*function{},
 		globals:   map[string]*llvm.Value{},
 	}
 }
@@ -33,14 +33,14 @@ func (cache *moduleCache) InsertFunction(name string, fn *llvm.Value, ty *llvm.T
 	if _, ok := cache.functions[name]; ok {
 		return
 	}
-	function := cachedFunction{
+	function := function{
 		fn: fn,
 		ty: ty,
 	}
 	cache.functions[name] = &function
 }
 
-func (cache *moduleCache) GetFunction(name string) *cachedFunction {
+func (cache *moduleCache) GetFunction(name string) *function {
 	if fn, ok := cache.functions[name]; ok {
 		return fn
 	}
