@@ -13,6 +13,7 @@ import (
 
 type moduleCache struct {
 	functions map[string]*cachedFunction
+	globals   map[string]*llvm.Value
 }
 
 type cachedFunction struct {
@@ -23,13 +24,14 @@ type cachedFunction struct {
 func newModuleCache() *moduleCache {
 	return &moduleCache{
 		functions: map[string]*cachedFunction{},
+		globals:   map[string]*llvm.Value{},
 	}
 }
 
 func (cache *moduleCache) InsertFunction(name string, fn *llvm.Value, ty *llvm.Type) {
 	// TODO(errors)
 	if _, ok := cache.functions[name]; ok {
-		log.Fatalf("FUNCTION %s ALREADY DECLARED", name)
+		return
 	}
 	function := cachedFunction{
 		fn: fn,
@@ -41,6 +43,21 @@ func (cache *moduleCache) InsertFunction(name string, fn *llvm.Value, ty *llvm.T
 func (cache *moduleCache) GetFunction(name string) *cachedFunction {
 	if fn, ok := cache.functions[name]; ok {
 		return fn
+	}
+	return nil
+}
+
+func (cache *moduleCache) InsertGlobal(name string, value *llvm.Value) {
+	// TODO(errors)
+	if _, ok := cache.globals[name]; ok {
+		return
+	}
+	cache.globals[name] = value
+}
+
+func (cache *moduleCache) GetGlobal(name string) *llvm.Value {
+	if global, ok := cache.globals[name]; ok {
+		return global
 	}
 	return nil
 }
@@ -205,7 +222,12 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false)
 		case kind.STRING_LITERAL:
 			stringLiteral := currentExpr.Value.(string)
+			globalStrLiteral := codegen.moduleCache.GetGlobal(stringLiteral)
+			if globalStrLiteral != nil {
+				return *globalStrLiteral
+			}
 			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
+			codegen.moduleCache.InsertGlobal(stringLiteral, &globalStrPtr)
 			return globalStrPtr
 		case kind.TRUE_BOOL_LITERAL:
 			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
