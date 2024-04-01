@@ -100,6 +100,11 @@ func (codegen *codegen) Generate() error {
 		}
 	}
 
+	err := codegen.generateBitcodeFile()
+	return err
+}
+
+func (codegen *codegen) generateBitcodeFile() error {
 	filename := "telia.ll"
 	file, err := os.Create(filename)
 	if err != nil {
@@ -111,6 +116,7 @@ func (codegen *codegen) Generate() error {
 	if err != nil {
 		return err
 	}
+
 	fmt.Printf("'%s' file generated successfuly\n", filename)
 	return nil
 }
