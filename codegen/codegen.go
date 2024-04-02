@@ -11,7 +11,7 @@ import (
 	"tinygo.org/x/go-llvm"
 )
 
-type moduleCache struct {
+type cache struct {
 	functions map[string]*function
 	globals   map[string]*llvm.Value
 }
@@ -21,14 +21,14 @@ type function struct {
 	ty *llvm.Type
 }
 
-func newModuleCache() *moduleCache {
-	return &moduleCache{
+func newModuleCache() *cache {
+	return &cache{
 		functions: map[string]*function{},
 		globals:   map[string]*llvm.Value{},
 	}
 }
 
-func (cache *moduleCache) InsertFunction(name string, fn *llvm.Value, ty *llvm.Type) {
+func (cache *cache) InsertFunction(name string, fn *llvm.Value, ty *llvm.Type) {
 	// TODO(errors)
 	if _, ok := cache.functions[name]; ok {
 		return
@@ -40,14 +40,14 @@ func (cache *moduleCache) InsertFunction(name string, fn *llvm.Value, ty *llvm.T
 	cache.functions[name] = &function
 }
 
-func (cache *moduleCache) GetFunction(name string) *function {
+func (cache *cache) GetFunction(name string) *function {
 	if fn, ok := cache.functions[name]; ok {
 		return fn
 	}
 	return nil
 }
 
-func (cache *moduleCache) InsertGlobal(name string, value *llvm.Value) {
+func (cache *cache) InsertGlobal(name string, value *llvm.Value) {
 	// TODO(errors)
 	if _, ok := cache.globals[name]; ok {
 		return
@@ -55,7 +55,7 @@ func (cache *moduleCache) InsertGlobal(name string, value *llvm.Value) {
 	cache.globals[name] = value
 }
 
-func (cache *moduleCache) GetGlobal(name string) *llvm.Value {
+func (cache *cache) GetGlobal(name string) *llvm.Value {
 	if global, ok := cache.globals[name]; ok {
 		return global
 	}
@@ -67,7 +67,7 @@ type codegen struct {
 	module      llvm.Module
 	builder     llvm.Builder
 	astNodes    []ast.AstNode
-	moduleCache *moduleCache
+	moduleCache *cache
 }
 
 func New(astNodes []ast.AstNode) *codegen {
