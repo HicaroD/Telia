@@ -7,27 +7,31 @@ import (
 
 type cursor struct {
 	offset int
-	tokens []token.Token
+	tokens []*token.Token
 }
 
-func newCursor(tokens []token.Token) *cursor {
+func newCursor(tokens []*token.Token) *cursor {
 	return &cursor{offset: 0, tokens: tokens}
 }
 
+// TODO: When it is outbound, just don't update the cursor,
+// return the EOF, so I can check
 func (cursor *cursor) peek() *token.Token {
 	if cursor.isOutOfBound() {
 		return nil
 	}
-	return &cursor.tokens[cursor.offset]
+	return cursor.tokens[cursor.offset]
 }
 
+// TODO: When it is outbound, just don't update the cursor,
+// return the EOF, so I can check
 func (cursor *cursor) next() *token.Token {
 	if cursor.isOutOfBound() {
 		return nil
 	}
 	token := cursor.tokens[cursor.offset]
 	cursor.offset++
-	return &token
+	return token
 }
 
 func (cursor *cursor) skip() {

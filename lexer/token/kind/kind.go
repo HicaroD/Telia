@@ -10,6 +10,12 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"fn":     FN,
 	"return": RETURN,
 	"extern": EXTERN,
+	"if":     IF,
+	"elif":   ELIF,
+	"else":   ELSE,
+
+	"true":  TRUE_BOOL_LITERAL,
+	"false": FALSE_BOOL_LITERAL,
 
 	"bool": BOOL_TYPE,
 	"i8":   I8_TYPE,
@@ -33,13 +39,22 @@ const (
 	EOF TokenKind = iota
 	INVALID
 
-	// Identifier, literals and keywords
+	// Identifier
 	ID
+
+	// Literals
 	INTEGER_LITERAL
 	STRING_LITERAL
+	TRUE_BOOL_LITERAL
+	FALSE_BOOL_LITERAL
+
+	// Keywords
 	FN
 	RETURN
 	EXTERN
+	IF
+	ELIF
+	ELSE
 
 	// Types
 	BOOL_TYPE
@@ -65,6 +80,8 @@ const (
 	// ;
 	SEMICOLON
 
+	// .
+	DOT
 	// ..
 	DOT_DOT
 	// ...
@@ -72,6 +89,17 @@ const (
 
 	// *
 	STAR
+
+	// =
+	EQUAL
+	// ==
+	EQUAL_EQUAL
+
+	// :=
+	COLON_EQUAL
+
+	// -
+	MINUS
 )
 
 func (kind TokenKind) String() string {
@@ -86,12 +114,22 @@ func (kind TokenKind) String() string {
 		return "INTEGER_LITERAL"
 	case STRING_LITERAL:
 		return "STRING_LITERAL"
+	case TRUE_BOOL_LITERAL:
+		return "true"
+	case FALSE_BOOL_LITERAL:
+		return "false"
 	case FN:
 		return "fn"
 	case RETURN:
 		return "return"
 	case EXTERN:
 		return "extern"
+	case IF:
+		return "if"
+	case ELIF:
+		return "elif"
+	case ELSE:
+		return "else"
 	case BOOL_TYPE:
 		return "bool"
 	case I8_TYPE:
@@ -116,12 +154,22 @@ func (kind TokenKind) String() string {
 		return ","
 	case SEMICOLON:
 		return ";"
+	case DOT:
+		return "."
 	case DOT_DOT:
 		return ".."
 	case DOT_DOT_DOT:
 		return "..."
 	case STAR:
 		return "*"
+	case EQUAL:
+		return "="
+	case EQUAL_EQUAL:
+		return "=="
+	case MINUS:
+		return "-"
+	case COLON_EQUAL:
+		return ":="
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}

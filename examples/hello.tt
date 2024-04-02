@@ -1,8 +1,9 @@
 extern "C" {
   fn printf(format *i8, ...) i32;
+  fn puts(format *i8) i32;
 }
 
 fn main() i32 {
-  printf("My name is Hícaro Dânrlley and I'm %d years-old", 20);
+  puts("Hello, world!");
   return 0;
 }

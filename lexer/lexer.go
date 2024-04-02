@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"bufio"
-	"io"
 	"log"
 	"strconv"
 	"unicode"
@@ -16,30 +15,26 @@ type lexer struct {
 	cursor   *cursor
 }
 
-func NewLexer(filename string, reader *bufio.Reader) *lexer {
-	return &lexer{filename: filename, cursor: newCursor(filename, reader)}
+func New(filename string, reader *bufio.Reader) *lexer {
+	return &lexer{filename: filename, cursor: new(filename, reader)}
 }
 
-func (lex *lexer) Tokenize() []token.Token {
-	var tokens []token.Token
+func (lex *lexer) Tokenize() []*token.Token {
+	var tokens []*token.Token
 	for {
 		lex.cursor.SkipWhitespace()
-		character, err := lex.cursor.Peek()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
+		character, ok := lex.cursor.Peek()
+		if !ok {
+			break
 		}
-
 		token := lex.getToken(character)
 		tokens = append(tokens, token)
 	}
-
 	tokens = append(tokens, lex.consumeToken(nil, kind.EOF))
 	return tokens
 }
 
-func (lex *lexer) getToken(character rune) token.Token {
+func (lex *lexer) getToken(character rune) *token.Token {
 	switch character {
 	case '(':
 		token := lex.consumeToken(nil, kind.OPEN_PAREN)
@@ -71,36 +66,56 @@ func (lex *lexer) getToken(character rune) token.Token {
 		token := lex.consumeToken(nil, kind.STAR)
 		lex.cursor.Skip()
 		return token
-	case '.':
-		// TODO: this could be refactored for being used across different
-		// composite tokens
-		var tokenKind kind.TokenKind
-		lex.cursor.Skip() // .
+	case '=':
+		tokenKind := kind.EQUAL
 		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // =
 
-		next, err := lex.cursor.Peek()
-		if err != nil {
-			// TODO(errors)
-			log.Fatalf("can't peek next")
+		next, ok := lex.cursor.Peek()
+		if !ok || next != '=' {
+			return token.New(nil, tokenKind, tokenPosition)
 		}
-		if next == '.' {
-			tokenKind = kind.DOT_DOT
-			lex.cursor.Skip() // .
-		} else {
-			// TODO(errors): invalid single dot token
-			log.Fatal("invalid single dot token")
-		}
+		lex.cursor.Skip() // =
+		tokenKind = kind.EQUAL_EQUAL
+		return token.New(nil, tokenKind, tokenPosition)
+	case '.':
+		tokenKind := kind.DOT
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // .
 
-		next, err = lex.cursor.Peek()
-		if err != nil {
+		next, ok := lex.cursor.Peek()
+		if !ok || next != '.' {
+			return token.New(nil, tokenKind, tokenPosition)
+		}
+		lex.cursor.Skip() // .
+		tokenKind = kind.DOT_DOT
+
+		next, ok = lex.cursor.Peek()
+		if !ok || next != '.' {
+			return token.New(nil, tokenKind, tokenPosition)
+		}
+		lex.cursor.Skip() // .
+		tokenKind = kind.DOT_DOT_DOT
+		return token.New(nil, tokenKind, tokenPosition)
+	case '-':
+		token := lex.consumeToken(nil, kind.MINUS)
+		lex.cursor.Skip()
+		return token
+	case ':':
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.Skip() // :
+
+		next, ok := lex.cursor.Peek()
+		if !ok {
 			// TODO(errors)
-			log.Fatal("unable to peek token")
+			log.Fatal("invalid ':' character") // EOF
 		}
-		if next == '.' {
-			tokenKind = kind.DOT_DOT_DOT
-			lex.cursor.Skip() // .
+		if next == '=' {
+			lex.cursor.Skip() // =
+			return token.New(nil, kind.COLON_EQUAL, tokenPosition)
 		}
-		return token.NewToken(nil, tokenKind, tokenPosition)
+		// TODO(errors)
+		log.Fatal("invalid ':' character")
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
@@ -118,7 +133,7 @@ func (lex *lexer) getToken(character rune) token.Token {
 				// TODO(errors): unable to convert string to integer
 				log.Fatalf("unable to convert string to integer due to error: '%s'", err)
 			}
-			token := token.NewToken(convertedNumber, kind.INTEGER_LITERAL, position)
+			token := token.New(convertedNumber, kind.INTEGER_LITERAL, position)
 			return token
 		} else {
 			// TODO(errors): invalid character
@@ -130,34 +145,32 @@ func (lex *lexer) getToken(character rune) token.Token {
 	return lex.consumeToken(nil, kind.INVALID)
 }
 
-func (lex *lexer) getStringLiteral() token.Token {
+func (lex *lexer) getStringLiteral() *token.Token {
 	position := lex.cursor.Position()
 
 	lex.cursor.Skip() // "
 	strLiteral := lex.cursor.ReadWhile(func(character rune) bool { return character != '"' })
 
-	currentCharacter, err := lex.cursor.Peek()
-	if err != nil {
-		if err == io.EOF {
-			// TODO(errors): deal with unterminated string literal error
-			log.Fatal("unterminated string literal error")
-		}
+	currentCharacter, ok := lex.cursor.Peek()
+	if !ok {
+		// TODO(errors): deal with unterminated string literal error
+		log.Fatal("unterminated string literal error")
 	}
 	if currentCharacter == '"' {
 		lex.cursor.Skip()
 	}
 
-	return token.NewToken(strLiteral, kind.STRING_LITERAL, position)
+	return token.New(strLiteral, kind.STRING_LITERAL, position)
 }
 
-func (lex *lexer) classifyIdentifier(identifier string, position token.Position) token.Token {
+func (lex *lexer) classifyIdentifier(identifier string, position token.Position) *token.Token {
 	idKind, ok := kind.KEYWORDS[identifier]
 	if ok {
-		return token.NewToken(identifier, idKind, position)
+		return token.New(identifier, idKind, position)
 	}
-	return token.NewToken(identifier, kind.ID, position)
+	return token.New(identifier, kind.ID, position)
 }
 
-func (lex *lexer) consumeToken(lexeme any, kind kind.TokenKind) token.Token {
-	return token.NewToken(lexeme, kind, lex.cursor.Position())
+func (lex *lexer) consumeToken(lexeme any, kind kind.TokenKind) *token.Token {
+	return token.New(lexeme, kind, lex.cursor.Position())
 }
