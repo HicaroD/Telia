@@ -25,9 +25,10 @@ func (block BlockStmt) stmtNode() {}
 
 type VarStmt struct {
 	Stmt
-	Name  string
-	Type  ExprType
-	Value Expr
+	Name           *token.Token
+	Type           ExprType
+	Value          Expr
+	NeedsInference bool
 }
 
 func (variable VarStmt) String() string {

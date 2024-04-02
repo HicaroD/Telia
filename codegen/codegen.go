@@ -12,8 +12,8 @@ import (
 )
 
 type cache struct {
-	functions map[string]*function
 	globals   map[string]*llvm.Value
+	functions map[string]*function
 }
 
 type function struct {
@@ -23,8 +23,8 @@ type function struct {
 
 func newModuleCache() *cache {
 	return &cache{
-		functions: map[string]*function{},
 		globals:   map[string]*llvm.Value{},
+		functions: map[string]*function{},
 	}
 }
 
@@ -185,8 +185,8 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 			return codegen.context.Int32Type()
 		case kind.I64_TYPE:
 			return codegen.context.Int64Type()
-		case kind.I128_TYPE:
-			return codegen.context.IntType(128)
+		// case kind.I128_TYPE:
+		// 	return codegen.context.IntType(128)
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}

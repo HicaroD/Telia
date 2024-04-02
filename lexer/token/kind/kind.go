@@ -34,7 +34,7 @@ const (
 	I16_TYPE
 	I32_TYPE
 	I64_TYPE
-	I128_TYPE
+	// I128_TYPE
 
 	// (
 	OPEN_PAREN
@@ -90,7 +90,7 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"i16":  I16_TYPE,
 	"i32":  I32_TYPE,
 	"i64":  I64_TYPE,
-	"i128": I128_TYPE,
+	// "i128": I128_TYPE,
 }
 
 var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
@@ -99,7 +99,7 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	I16_TYPE:  true,
 	I32_TYPE:  true,
 	I64_TYPE:  true,
-	I128_TYPE: true,
+	// I128_TYPE: true,
 }
 
 func (kind TokenKind) String() string {
@@ -140,8 +140,8 @@ func (kind TokenKind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
-	case I128_TYPE:
-		return "i128"
+	// case I128_TYPE:
+	// 	return "i128"
 	case OPEN_PAREN:
 		return "("
 	case CLOSE_PAREN:
