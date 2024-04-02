@@ -13,6 +13,7 @@ type Decl interface {
 
 type FunctionDecl struct {
 	Decl
+	Scope   *Scope
 	Name    string
 	Params  *FieldList
 	RetType ExprType
@@ -34,6 +35,7 @@ extern "C" {
 
 type ExternDecl struct {
 	Decl
+	Scope      *Scope
 	Name       *token.Token
 	Prototypes []*Proto
 }
