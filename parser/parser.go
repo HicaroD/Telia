@@ -90,7 +90,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected '}'")
 	}
-	return &ast.ExternDecl{Name: externName, Prototypes: prototypes}, nil
+	return &ast.ExternDecl{Scope: nil, Name: externName, Prototypes: prototypes}, nil
 }
 
 func (parser *parser) parsePrototype() (*ast.Proto, error) {
@@ -160,7 +160,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnDecl := ast.FunctionDecl{Name: name.Lexeme.(string), Params: params, Block: block, RetType: returnType}
+	fnDecl := ast.FunctionDecl{Scope: nil, Name: name.Lexeme.(string), Params: params, Block: block, RetType: returnType}
 	return &fnDecl, nil
 }
 
