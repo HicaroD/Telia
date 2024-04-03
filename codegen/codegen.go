@@ -16,28 +16,25 @@ type cache struct {
 	functions map[string]*function
 }
 
-type function struct {
-	fn *llvm.Value
-	ty *llvm.Type
-}
-
-func newModuleCache() *cache {
+func newCache() *cache {
 	return &cache{
 		globals:   map[string]*llvm.Value{},
 		functions: map[string]*function{},
 	}
 }
 
-func (cache *cache) InsertFunction(name string, fn *llvm.Value, ty *llvm.Type) {
+func (cache *cache) InsertFunction(name string, fn *llvm.Value, ty *llvm.Type) *function {
 	// TODO(errors)
-	if _, ok := cache.functions[name]; ok {
-		return
+	if fn, ok := cache.functions[name]; ok {
+		return fn
 	}
 	function := function{
-		fn: fn,
-		ty: ty,
+		fn:     fn,
+		ty:     ty,
+		locals: map[string]*variable{},
 	}
 	cache.functions[name] = &function
+	return &function
 }
 
 func (cache *cache) GetFunction(name string) *function {
@@ -62,12 +59,43 @@ func (cache *cache) GetGlobal(name string) *llvm.Value {
 	return nil
 }
 
+type function struct {
+	fn     *llvm.Value
+	ty     *llvm.Type
+	locals map[string]*variable
+}
+
+func (function *function) InsertLocal(name string, ty llvm.Type, ptr llvm.Value) error {
+	// TODO(errors)
+	if _, ok := function.locals[name]; ok {
+		log.Fatalf("this should not happen at code generation level - variable redeclaration")
+	}
+	variable := variable{
+		ty:  ty,
+		ptr: ptr,
+	}
+	function.locals[name] = &variable
+	return nil
+}
+
+func (function *function) GetLocal(name string) *variable {
+	if local, ok := function.locals[name]; ok {
+		return local
+	}
+	return nil
+}
+
+type variable struct {
+	ty  llvm.Type
+	ptr llvm.Value
+}
+
 type codegen struct {
-	context     llvm.Context
-	module      llvm.Module
-	builder     llvm.Builder
-	astNodes    []ast.AstNode
-	moduleCache *cache
+	context  llvm.Context
+	module   llvm.Module
+	builder  llvm.Builder
+	astNodes []ast.AstNode
+	cache    *cache
 }
 
 func New(astNodes []ast.AstNode) *codegen {
@@ -77,11 +105,11 @@ func New(astNodes []ast.AstNode) *codegen {
 	builder := context.NewBuilder()
 
 	return &codegen{
-		context:     context,
-		module:      module,
-		builder:     builder,
-		astNodes:    astNodes,
-		moduleCache: newModuleCache(),
+		context:  context,
+		module:   module,
+		builder:  builder,
+		astNodes: astNodes,
+		cache:    newCache(),
 	}
 }
 
@@ -127,32 +155,41 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
 
-	codegen.moduleCache.InsertFunction(function.Name, &functionValue, &functionType)
+	fn := codegen.cache.InsertFunction(function.Name, &functionValue, &functionType)
 
 	functionBody := codegen.context.AddBasicBlock(functionValue, "entry")
 	codegen.builder.SetInsertPointAtEnd(functionBody)
-	codegen.generateBlock(functionValue, function.Block)
+	codegen.generateBlock(fn, function.Block)
 	return nil
 }
 
-func (codegen *codegen) generateBlock(function llvm.Value, stmts *ast.BlockStmt) {
+func (codegen *codegen) generateBlock(fn *function, stmts *ast.BlockStmt) {
 	for i := range stmts.Statements {
 		switch statement := stmts.Statements[i].(type) {
 		case *ast.FunctionCallStmt:
-			function := codegen.moduleCache.GetFunction(statement.Name)
+			function := codegen.cache.GetFunction(statement.Name)
 			// TODO(errors): function not found on cache
 			if function == nil {
 				log.Fatalf("FUNCTION %s not found on module", statement.Name)
 			}
-			args := codegen.getExprList(statement.Args)
+			args := codegen.getExprList(fn, statement.Args)
 			codegen.builder.CreateCall(*function.ty, *function.fn, args, "call")
 		case *ast.ReturnStmt:
-			returnValue := codegen.getExpr(statement.Value)
+			returnValue := codegen.getExpr(statement.Value, fn)
 			codegen.builder.CreateRet(returnValue)
 		case *ast.CondStmt:
-			codegen.generateCondStmt(function, statement)
+			codegen.generateCondStmt(fn, statement)
+		case *ast.VarStmt:
+			valueType := codegen.getType(statement.Type)
+			allocaInst := codegen.builder.CreateAlloca(valueType, ".ptr")
+			varExpr := codegen.getExpr(statement.Value, fn)
+			codegen.builder.CreateStore(varExpr, allocaInst)
+			err := fn.InsertLocal(statement.Name.Lexeme.(string), valueType, allocaInst)
+			if err != nil {
+				log.Fatal(err)
+			}
 		default:
-			log.Fatalf("unimplemented block statement: %s", reflect.TypeOf(stmts.Statements[i]))
+			log.Fatalf("unimplemented block statement: %s", statement)
 		}
 	}
 }
@@ -168,7 +205,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) {
 	paramsTypes := codegen.getFieldListTypes(prototype.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, prototype.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, prototype.Name, functionType)
-	codegen.moduleCache.InsertFunction(prototype.Name, &functionValue, &functionType)
+	codegen.cache.InsertFunction(prototype.Name, &functionValue, &functionType)
 }
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
@@ -211,15 +248,15 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 	return types
 }
 
-func (codegen *codegen) getExprList(expressions []ast.Expr) []llvm.Value {
+func (codegen *codegen) getExprList(fn *function, expressions []ast.Expr) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i := range expressions {
-		values[i] = codegen.getExpr(expressions[i])
+		values[i] = codegen.getExpr(expressions[i], fn)
 	}
 	return values
 }
 
-func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
+func (codegen *codegen) getExpr(expr ast.Expr, fn *function) llvm.Value {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
 		switch currentExpr.Kind {
@@ -228,12 +265,12 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false)
 		case kind.STRING_LITERAL:
 			stringLiteral := currentExpr.Value.(string)
-			globalStrLiteral := codegen.moduleCache.GetGlobal(stringLiteral)
+			globalStrLiteral := codegen.cache.GetGlobal(stringLiteral)
 			if globalStrLiteral != nil {
 				return *globalStrLiteral
 			}
 			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-			codegen.moduleCache.InsertGlobal(stringLiteral, &globalStrPtr)
+			codegen.cache.InsertGlobal(stringLiteral, &globalStrPtr)
 			return globalStrPtr
 		case kind.TRUE_BOOL_LITERAL:
 			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
@@ -244,6 +281,15 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 		default:
 			log.Fatalf("unimplemented literal expr: %s", expr)
 		}
+	case *ast.IdExpr:
+		// TODO: globals?
+		varName := currentExpr.Name.Lexeme.(string)
+		localVar := fn.GetLocal(varName)
+		if localVar == nil {
+			log.Fatalf("local not defined: %s", varName)
+		}
+		loadedVariable := codegen.builder.CreateLoad(localVar.ty, localVar.ptr, ".load")
+		return loadedVariable
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
@@ -252,16 +298,16 @@ func (codegen *codegen) getExpr(expr ast.Expr) llvm.Value {
 	return llvm.Value{}
 }
 
-func (codegen *codegen) generateCondStmt(function llvm.Value, condStmt *ast.CondStmt) {
-	ifBlock := llvm.AddBasicBlock(function, ".if")
-	elseBlock := llvm.AddBasicBlock(function, ".else")
-	endBlock := llvm.AddBasicBlock(function, ".end")
+func (codegen *codegen) generateCondStmt(fn *function, condStmt *ast.CondStmt) {
+	ifBlock := llvm.AddBasicBlock(*fn.fn, ".if")
+	elseBlock := llvm.AddBasicBlock(*fn.fn, ".else")
+	endBlock := llvm.AddBasicBlock(*fn.fn, ".end")
 
-	ifExpr := codegen.getExpr(condStmt.IfStmt.Expr)
+	ifExpr := codegen.getExpr(condStmt.IfStmt.Expr, fn)
 	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
-	codegen.generateBlock(function, condStmt.IfStmt.Block)
+	codegen.generateBlock(fn, condStmt.IfStmt.Block)
 	codegen.builder.CreateBr(endBlock)
 
 	// TODO: implement elif
@@ -299,7 +345,7 @@ func (codegen *codegen) generateCondStmt(function llvm.Value, condStmt *ast.Cond
 
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
-		codegen.generateBlock(function, condStmt.ElseStmt.Block)
+		codegen.generateBlock(fn, condStmt.ElseStmt.Block)
 	}
 	codegen.builder.CreateBr(endBlock)
 
