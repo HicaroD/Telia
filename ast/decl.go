@@ -25,14 +25,6 @@ func (fnDecl FunctionDecl) String() string {
 }
 func (fnDecl FunctionDecl) declNode() {}
 
-/*
-Extern blocks contains a list of function prototypes.
-
-extern "C" {
-  fn printf(format *i8, ...) i32;
-}
-*/
-
 type ExternDecl struct {
 	Decl
 	Scope      *Scope

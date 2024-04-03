@@ -222,6 +222,9 @@ func (codegen *codegen) getExpr(expr ast.Expr, fn *function) llvm.Value {
 func (codegen *codegen) generateCondStmt(fn *function, condStmt *ast.CondStmt) {
 	ifBlock := llvm.AddBasicBlock(*fn.fn, ".if")
 	elseBlock := llvm.AddBasicBlock(*fn.fn, ".else")
+	// TODO(errors): if there are no instructions left to process, the end
+	// block will be empty, and this will cause an error, I need to deal with
+	// it
 	endBlock := llvm.AddBasicBlock(*fn.fn, ".end")
 
 	ifExpr := codegen.getExpr(condStmt.IfStmt.Expr, fn)
