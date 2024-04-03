@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "buildFlags": ["-tags=llvm16"],
-            "args": ["examples/hello.tt"]
+            "args": ["examples/variables.tt"]
         }
     ]
 }
