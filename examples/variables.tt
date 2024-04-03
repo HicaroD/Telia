@@ -6,5 +6,6 @@ fn main() i32 {
   can_vote := true;
   if can_vote {
     puts("Yep, you can vote!");
-  }
+  } 
+  return 0;
 }
