@@ -100,7 +100,7 @@ func (codegen *codegen) generateBlock(fn *function, stmts *ast.BlockStmt) {
 			codegen.builder.CreateRet(returnValue)
 		case *ast.CondStmt:
 			codegen.generateCondStmt(fn, statement)
-		case *ast.VarStmt:
+		case *ast.VarDeclStmt:
 			valueType := codegen.getType(statement.Type)
 			allocaInst := codegen.builder.CreateAlloca(valueType, ".ptr")
 			varExpr := codegen.getExpr(statement.Value, fn)

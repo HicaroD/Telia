@@ -45,8 +45,12 @@ func (extern ExternDecl) String() string {
 }
 func (extern ExternDecl) declNode() {}
 
+// NOTE: Proto implementing AstNode is temporary
 type Proto struct {
+	AstNode
 	Name    string
 	Params  *FieldList
 	RetType ExprType
 }
+
+func (proto Proto) String() string { return "" }

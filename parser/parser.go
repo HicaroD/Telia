@@ -393,7 +393,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 	return nil, nil
 }
 
-func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarStmt, error) {
+func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
 	_, ok := parser.expect(kind.COLON_EQUAL)
 	if !ok {
 		return nil, fmt.Errorf("expected ':=' at parseVarDecl")
@@ -403,7 +403,7 @@ func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarStmt, error
 	if err != nil {
 		return nil, err
 	}
-	return &ast.VarStmt{Name: identifier, Type: nil, Value: varExpr, NeedsInference: true}, nil
+	return &ast.VarDeclStmt{Name: identifier, Type: nil, Value: varExpr, NeedsInference: true}, nil
 }
 
 func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
@@ -428,7 +428,7 @@ func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
 	return &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}, nil
 }
 
-func (parser *parser) parseIfCond() (*ast.IfCondStmt, error) {
+func (parser *parser) parseIfCond() (*ast.IfElifCond, error) {
 	ifToken, ok := parser.expect(kind.IF)
 	// TODO(errors)
 	if !ok {
@@ -446,11 +446,11 @@ func (parser *parser) parseIfCond() (*ast.IfCondStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.IfCondStmt{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
+	return &ast.IfElifCond{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
 }
 
-func (parser *parser) parseElifConds() ([]*ast.ElifCondStmt, error) {
-	var elifConds []*ast.ElifCondStmt
+func (parser *parser) parseElifConds() ([]*ast.IfElifCond, error) {
+	var elifConds []*ast.IfElifCond
 	for {
 		elifToken, ok := parser.expect(kind.ELIF)
 		if !ok {
@@ -466,12 +466,12 @@ func (parser *parser) parseElifConds() ([]*ast.ElifCondStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		elifConds = append(elifConds, &ast.ElifCondStmt{Elif: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
+		elifConds = append(elifConds, &ast.IfElifCond{If: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
 	}
 	return elifConds, nil
 }
 
-func (parser *parser) parseElseCond() (*ast.ElseCondStmt, error) {
+func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 	elseToken, ok := parser.expect(kind.ELSE)
 	if !ok {
 		return nil, nil
@@ -481,7 +481,7 @@ func (parser *parser) parseElseCond() (*ast.ElseCondStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ElseCondStmt{Else: &elseToken.Position, Block: elseBlock}, nil
+	return &ast.ElseCond{Else: &elseToken.Position, Block: elseBlock}, nil
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {

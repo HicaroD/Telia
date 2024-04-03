@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	SYMBOL_ALREADY_DEFINED_ON_SCOPE error = errors.New("symbol already defined on scope")
-	SYMBOL_NOT_FOUND_ON_SCOPE error = errors.New("symbol not found on scope")
+	SYMBOL_NOT_FOUND_ON_SCOPE       error = errors.New("symbol not found on scope")
 )
 
 type Scope struct {
@@ -24,9 +24,12 @@ func (scope *Scope) Insert(name string, element AstNode) error {
 	return nil
 }
 
-func (scope *Scope) Lookup(name string) AstNode {
+func (scope *Scope) Lookup(name string) (AstNode, error) {
 	if node, ok := scope.elements[name]; ok {
-		return node
+		return node, nil
 	}
-	return nil
+	if scope.parent == nil {
+		return nil, SYMBOL_NOT_FOUND_ON_SCOPE
+	}
+	return scope.parent.Lookup(name)
 }
