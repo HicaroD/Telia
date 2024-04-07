@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/HicaroD/telia-lang/lexer/token"
+	"github.com/HicaroD/telia-lang/scope"
 )
 
 type Decl interface {
@@ -13,7 +14,7 @@ type Decl interface {
 
 type FunctionDecl struct {
 	Decl
-	Scope   *Scope
+	Scope   *scope.Scope[AstNode]
 	Name    string
 	Params  *FieldList
 	RetType ExprType
@@ -27,7 +28,7 @@ func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
 	Decl
-	Scope      *Scope
+	Scope      *scope.Scope[AstNode]
 	Name       *token.Token
 	Prototypes []*Proto
 }

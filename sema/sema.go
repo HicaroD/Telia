@@ -7,17 +7,19 @@ import (
 
 	"github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/telia-lang/scope"
 )
 
 type sema struct {
 	astNodes []ast.AstNode
-	universe *ast.Scope
+	universe *scope.Scope[ast.AstNode]
 }
 
 func New(astNodes []ast.AstNode) *sema {
 	// "universe" scope does not have any parent, it is the root of the tree of
 	// scopes
-	universe := ast.NewScope(nil)
+	var nilScope *scope.Scope[ast.AstNode] = nil
+	universe := scope.New(nilScope)
 	return &sema{astNodes, universe}
 }
 
@@ -49,7 +51,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 		return err
 	}
 
-	function.Scope = ast.NewScope(sema.universe)
+	function.Scope = scope.New(sema.universe)
 	err = sema.analyzeBlock(function.Scope, function.Block, function.RetType)
 	// TODO(errors)
 	if err != nil {
@@ -58,11 +60,11 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 	return nil
 }
 
-func (sema *sema) analyzeBlock(scope *ast.Scope, block *ast.BlockStmt, returnTy ast.ExprType) error {
+func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *ast.BlockStmt, returnTy ast.ExprType) error {
 	for i := range block.Statements {
 		switch statement := block.Statements[i].(type) {
 		case *ast.FunctionCallStmt:
-			function, err := scope.Lookup(statement.Name)
+			function, err := currentScope.Lookup(statement.Name)
 			// TODO(errors)
 			if err != nil {
 				return err
@@ -125,7 +127,7 @@ func (sema *sema) analyzeBlock(scope *ast.Scope, block *ast.BlockStmt, returnTy 
 				if statement.Type != nil {
 					log.Fatalf("needs inference, but variable already has a type: %s", statement.Type)
 				}
-				exprType, err := sema.inferExprType(statement.Value, scope)
+				exprType, err := sema.inferExprType(statement.Value, currentScope)
 				// TODO(errors)
 				if err != nil {
 					return err
@@ -145,18 +147,18 @@ func (sema *sema) analyzeBlock(scope *ast.Scope, block *ast.BlockStmt, returnTy 
 			}
 
 			varName := statement.Name.Lexeme.(string)
-			err := scope.Insert(varName, statement)
+			err := currentScope.Insert(varName, statement)
 			if err != nil {
 				return err
 			}
 		case *ast.CondStmt:
-			err := sema.analyzeIfExpr(statement.IfStmt.Expr, scope)
+			err := sema.analyzeIfExpr(statement.IfStmt.Expr, currentScope)
 			// TODO(errors)
 			if err != nil {
 				return err
 			}
 
-			ifScope := ast.NewScope(scope)
+			ifScope := scope.New(currentScope)
 			err = sema.analyzeBlock(ifScope, statement.IfStmt.Block, returnTy)
 			// TODO(errors)
 			if err != nil {
@@ -164,13 +166,13 @@ func (sema *sema) analyzeBlock(scope *ast.Scope, block *ast.BlockStmt, returnTy 
 			}
 
 			for i := range statement.ElifStmts {
-				err := sema.analyzeIfExpr(statement.ElifStmts[i].Expr, scope)
+				err := sema.analyzeIfExpr(statement.ElifStmts[i].Expr, currentScope)
 				// TODO(errors)
 				if err != nil {
 					return err
 				}
 
-				elifScope := ast.NewScope(scope)
+				elifScope := scope.New(currentScope)
 				err = sema.analyzeBlock(elifScope, statement.ElseStmt.Block, returnTy)
 				// TODO(errors)
 				if err != nil {
@@ -190,7 +192,7 @@ func (sema *sema) analyzeBlock(scope *ast.Scope, block *ast.BlockStmt, returnTy 
 	return nil
 }
 
-func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *ast.Scope) error {
+func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) error {
 	inferedExpr, err := sema.inferExprType(expr, scope)
 	// TODO(errors)
 	if err != nil {
@@ -280,7 +282,7 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType) (ast
 	return nil, nil
 }
 
-func (sema *sema) inferExprType(expr ast.Expr, scope *ast.Scope) (ast.ExprType, error) {
+func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
 		switch expression.Kind {
@@ -331,7 +333,7 @@ func (sema *sema) analyzeExternDecl(extern *ast.ExternDecl) error {
 	if err != nil {
 		return err
 	}
-	extern.Scope = ast.NewScope(sema.universe)
+	extern.Scope = scope.New(sema.universe)
 	// NOTE: this move is temporary, the idea is to access prototypes
 	// methods using something like "libc.printf()" where libc is the name
 	// of extern block and "printf" is one of the functions defined inside
