@@ -1,0 +1,17 @@
+extern "C" {
+  fn puts(format *i8) i32;
+}
+
+fn main() i32 {
+  can_vote := true;
+  if can_vote {
+    other_bool := true;
+    if other_bool {
+      puts("Hey, it is true and other_bool as well!");
+    }
+    puts("Hey, it is true!");
+  } else {
+    puts("Hey, it is NOT true!");
+  }
+  return 0;
+}

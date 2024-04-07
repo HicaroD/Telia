@@ -14,12 +14,12 @@ import (
 )
 
 type codegen struct {
-	universe *scope.Scope[values.LLVMValue]
-	globalStrLiterals  map[string]llvm.Value
-	context  llvm.Context
-	module   llvm.Module
-	builder  llvm.Builder
-	astNodes []ast.AstNode
+	universe          *scope.Scope[values.LLVMValue]
+	globalStrLiterals map[string]llvm.Value
+	context           llvm.Context
+	module            llvm.Module
+	builder           llvm.Builder
+	astNodes          []ast.AstNode
 }
 
 func New(astNodes []ast.AstNode) *codegen {
@@ -33,12 +33,12 @@ func New(astNodes []ast.AstNode) *codegen {
 	builder := context.NewBuilder()
 
 	return &codegen{
-		universe: universe,
-		context:  context,
-		module:   module,
-		builder:  builder,
-		astNodes: astNodes,
-		globalStrLiterals:  map[string]llvm.Value{},
+		universe:          universe,
+		context:           context,
+		module:            module,
+		builder:           builder,
+		astNodes:          astNodes,
+		globalStrLiterals: map[string]llvm.Value{},
 	}
 }
 
@@ -95,17 +95,22 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	// parent scope in order to do lookups, however sometimes we need to access
 	// the llvm value and the scope provided by sema does not contain any llvm
 	// value, only things related to the type and etcetera
-	functionV := values.NewFunctionValue(functionValue, functionType)
-	err := codegen.universe.Insert(function.Name, functionV)
+	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
+	codegen.builder.SetInsertPointAtEnd(functionBlock)
+
+	functionV := values.NewFunctionValue(functionValue, functionType, &functionBlock)
+	err := codegen.generateBlock(codegen.universe, functionV, function.Block)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	functionBody := codegen.context.AddBasicBlock(functionValue, "entry")
-	codegen.builder.SetInsertPointAtEnd(functionBody)
+	err = codegen.universe.Insert(function.Name, functionV)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
 
-	err = codegen.generateBlock(codegen.universe, functionV, function.Block)
 	return err
 }
 
@@ -153,6 +158,7 @@ func (codegen *codegen) generateBlock(parentScope *scope.Scope[values.LLVMValue]
 				return nil
 			}
 			codegen.builder.CreateStore(varExpr, varPtr)
+
 			variable := values.Variable{
 				Ty:  varTy,
 				Ptr: varPtr,
@@ -186,7 +192,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) error {
 	functionType := llvm.FunctionType(returnType, paramsTypes, prototype.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, prototype.Name, functionType)
 
-	function := values.NewFunctionValue(functionValue, functionType)
+	function := values.NewFunctionValue(functionValue, functionType, nil)
 	err := codegen.universe.Insert(prototype.Name, function)
 	return err
 }
@@ -294,9 +300,6 @@ func (codegen *codegen) getExpr(parentScope *scope.Scope[values.LLVMValue], expr
 func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function values.Function, condStmt *ast.CondStmt) error {
 	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
-	// TODO(errors): if there are no instructions left to process, the end
-	// block will be empty, and this will cause an error, I need to deal with
-	// it
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	ifScope := scope.New(parentScope)
@@ -304,6 +307,7 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 	if err != nil {
 		return err
 	}
+
 	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
@@ -312,41 +316,9 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 	if err != nil {
 		return nil
 	}
-
 	codegen.builder.CreateBr(endBlock)
 
-	// TODO: implement elif
-	/*
-			Lembre-se de que elif são traduzidos para um else e dentro terá if:
-
-			if condition {
-		    	// A
-			}
-			elif condition {
-		    	// B
-			}
-			else {
-		    	// C
-			}
-
-			Será traduzido para isso:
-
-			if condition {
-		    	// A
-			}
-			else {
-		    	if condition {
-		        	// B
-		    	}
-		    	else {
-		        	// C
-		    	}
-			}
-
-			Na pasta de "Prototypes", em "learn_c", tem um exemplo de código em C
-			e o código LLVM. Lá eu posso me inspirar para aprender como else if
-			funcionam de fato, mas eu já tenho uma ideia.
-	*/
+	// TODO: implement elif statements (basically an if inside the else)
 
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
@@ -357,7 +329,6 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 			return err
 		}
 	}
-
 	codegen.builder.CreateBr(endBlock)
 	codegen.builder.SetInsertPointAtEnd(endBlock)
 	return nil
