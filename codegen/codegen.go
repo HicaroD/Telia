@@ -91,10 +91,6 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
 
-	// NOTE: when generating any block, we need to pass the reference to the
-	// parent scope in order to do lookups, however sometimes we need to access
-	// the llvm value and the scope provided by sema does not contain any llvm
-	// value, only things related to the type and etcetera
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
 
@@ -141,10 +137,6 @@ func (codegen *codegen) generateBlock(parentScope *scope.Scope[values.LLVMValue]
 			}
 			codegen.builder.CreateRet(returnValue)
 		case *ast.CondStmt:
-			// NOTE: here is basically the same situation as directly generating
-			// a new block. it is necessary to pass the reference to the parent
-			// scope, and that scope needs to contain information about the
-			// values, such as local variables and more
 			err := codegen.generateCondStmt(currentBlockScope, function, statement)
 			if err != nil {
 				return err
@@ -199,7 +191,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) error {
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 	switch exprTy := ty.(type) {
-	case *ast.BasicType:
+	case ast.BasicType:
 		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
@@ -211,12 +203,10 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 			return codegen.context.Int32Type()
 		case kind.I64_TYPE:
 			return codegen.context.Int64Type()
-		// case kind.I128_TYPE:
-		// 	return codegen.context.IntType(128)
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}
-	case *ast.PointerType:
+	case ast.PointerType:
 		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)

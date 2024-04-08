@@ -82,7 +82,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 
 					for i := range minimumNumberOfArgs {
 						paramType := decl.Params.Fields[i].Type
-						argType, err := sema.getExprType(statement.Args[i], paramType)
+						argType, err := sema.getExprType(statement.Args[i], paramType, currentScope)
 						// TODO(errors)
 						if err != nil {
 							return err
@@ -104,7 +104,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 
 					for i := range minimumNumberOfArgs {
 						paramType := decl.Params.Fields[i].Type
-						argType, err := sema.getExprType(statement.Args[i], paramType)
+						argType, err := sema.getExprType(statement.Args[i], paramType, currentScope)
 						// TODO(errors)
 						if err != nil {
 							return err
@@ -139,7 +139,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 					log.Fatalf("variable does not have a type and it said it does not need inference")
 				}
 				// TODO: what do I assert here in order to make it right?
-				_, err := sema.getExprType(statement.Value, statement.Type)
+				_, err := sema.getExprType(statement.Value, statement.Type, currentScope)
 				// TODO(errors): Deal with type mismatch
 				if err != nil {
 					return err
@@ -180,7 +180,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 				}
 			}
 		case *ast.ReturnStmt:
-			_, err := sema.getExprType(statement.Value, returnTy)
+			_, err := sema.getExprType(statement.Value, returnTy, currentScope)
 			// TODO(errors)
 			if err != nil {
 				return err
@@ -208,7 +208,7 @@ func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 
 func (sema *sema) isValidExprToBeOnIf(exprType ast.ExprType) bool {
 	switch ty := exprType.(type) {
-	case *ast.BasicType:
+	case ast.BasicType:
 		switch ty.Kind {
 		case kind.BOOL_TYPE:
 			return true
@@ -222,17 +222,12 @@ func (sema *sema) isValidExprToBeOnIf(exprType ast.ExprType) bool {
 
 // TODO: think about the way I'm inferring or getting the expr type correctly
 
-func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType) (ast.ExprType, error) {
+func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
 	switch expr := exprNode.(type) {
 	case *ast.LiteralExpr:
 		switch expr.Kind {
-		// TODO: is this right?
 		case kind.STRING_LITERAL:
-			return &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}}, nil
-		// TODO: the idea is to deal with different kinds of integer literals
-		// REFACTOR: this code could be simpler
-		// TODO(errors): be careful with number overflow when trying to convert
-		// the any to a number
+			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
 		case kind.INTEGER_LITERAL:
 			switch ty := expectedType.(type) {
 			case *ast.BasicType:
@@ -243,37 +238,48 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType) (ast
 					if !(value >= -128 && value <= 127) {
 						log.Fatalf("i8 integer overflow: %d", value)
 					}
-					return &ast.BasicType{Kind: kind.I8_TYPE}, nil
+					return ast.BasicType{Kind: kind.I8_TYPE}, nil
 				case kind.I16_TYPE:
 					value := expr.Value.(int)
 					// TODO(errors)
 					if !(value >= -32768 && value <= 32767) {
 						log.Fatalf("i16 integer overflow: %d", value)
 					}
-					return &ast.BasicType{Kind: kind.I16_TYPE}, nil
+					return ast.BasicType{Kind: kind.I16_TYPE}, nil
 				case kind.I32_TYPE:
 					value := expr.Value.(int)
 					// TODO(errors)
 					if !(value >= -2147483648 && value <= 2147483647) {
 						log.Fatalf("i32 integer overflow: %d", value)
 					}
-					return &ast.BasicType{Kind: kind.I32_TYPE}, nil
+					return ast.BasicType{Kind: kind.I32_TYPE}, nil
 				case kind.I64_TYPE:
 					value := expr.Value.(int)
 					// TODO(errors)
 					if !(value >= -9223372036854775808 && value <= 9223372036854775807) {
 						log.Fatalf("i64 integer overflow: %d", value)
 					}
-					return &ast.BasicType{Kind: kind.I64_TYPE}, nil
+					return ast.BasicType{Kind: kind.I64_TYPE}, nil
 				default:
 					// TODO(errors)
 					log.Fatalf("expected to be an %s, but got %s", ty, expr.Kind)
 				}
 			}
 		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
-			return &ast.BasicType{Kind: kind.BOOL_TYPE}, nil
+			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
 		}
-	// TODO: IdExpr
+	case *ast.IdExpr:
+		symbol, err := scope.Lookup(expr.Name.Lexeme.(string))
+		if err != nil {
+			return nil, err
+		}
+		switch symTy := symbol.(type) {
+		case *ast.VarDeclStmt:
+			return symTy.Type, nil
+		// TODO(errors)
+		default:
+			log.Fatalf("expected to be a variable, but got %s", reflect.TypeOf(symTy))
+		}
 	default:
 		// TODO(errors)
 		log.Fatalf("unimplemented: %s", expr)
@@ -290,9 +296,9 @@ func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 			return sema.inferIntegerType(expression.Value.(int)), nil
 		// TODO: is this correct?
 		case kind.STRING_LITERAL:
-			return &ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
+			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
 		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
-			return &ast.BasicType{Kind: kind.BOOL_TYPE}, nil
+			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
 		default:
 			log.Fatalf("unimplemented literal expr: %s", expression)
 		}
@@ -325,7 +331,7 @@ func (sema *sema) inferIntegerType(value int) ast.ExprType {
 		integerType = kind.I64_TYPE
 	}
 	// TODO: deal with i64 overflow
-	return &ast.BasicType{Kind: integerType}
+	return ast.BasicType{Kind: integerType}
 }
 
 func (sema *sema) analyzeExternDecl(extern *ast.ExternDecl) error {

@@ -279,11 +279,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.PointerType{Type: ty}, nil
+		return ast.PointerType{Type: ty}, nil
 	default:
 		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
 			parser.cursor.skip()
-			return &ast.BasicType{Kind: token.Kind}, nil
+			return ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
 		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
