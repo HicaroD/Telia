@@ -17,7 +17,7 @@ func new(filename string, reader *bufio.Reader) *cursor {
 	return &cursor{reader: reader, position: token.NewPosition(filename, 1, 1)}
 }
 
-func (cursor *cursor) Peek() (rune, bool) {
+func (cursor *cursor) peek() (rune, bool) {
 	var err error
 
 	character, _, err := cursor.reader.ReadRune()
@@ -35,7 +35,7 @@ func (cursor *cursor) Peek() (rune, bool) {
 	return character, true
 }
 
-func (cursor *cursor) Skip() {
+func (cursor *cursor) skip() {
 	// QUESTION: should I ignore the error here?
 	cursor.next()
 }
@@ -57,21 +57,21 @@ func (cursor *cursor) next() (rune, bool) {
 	return character, false
 }
 
-func (cursor *cursor) SkipWhitespace() {
-	cursor.ReadWhile(func(character rune) bool { return unicode.IsSpace(character) })
+func (cursor *cursor) skipWhitespace() {
+	cursor.readWhile(func(character rune) bool { return unicode.IsSpace(character) })
 }
 
-func (cursor *cursor) ReadWhile(isValid func(rune) bool) string {
+func (cursor *cursor) readWhile(isValid func(rune) bool) string {
 	var content strings.Builder
 
 	for {
-		character, ok := cursor.Peek()
+		character, ok := cursor.peek()
 		if !ok {
 			break
 		}
 		if isValid(character) {
 			content.WriteRune(character)
-			cursor.Skip()
+			cursor.skip()
 		} else {
 			break
 		}
