@@ -2,8 +2,9 @@ package parser
 
 import "testing"
 
-func TestFunctionDecl(t *testing.T) {}
-func TestExternDecl(t *testing.T)   {}
+func TestFunctionDecl(t *testing.T) {
+}
+func TestExternDecl(t *testing.T) {}
 
 // TODO: build a utility method for parsing expressions for
 // testing

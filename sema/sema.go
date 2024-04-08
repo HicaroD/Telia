@@ -231,6 +231,8 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 		case kind.INTEGER_LITERAL:
 			switch ty := expectedType.(type) {
 			case *ast.BasicType:
+				// TODO: refactor this
+				// This switch seems unnecessary because it is quite repetitive
 				switch ty.Kind {
 				case kind.I8_TYPE:
 					value := expr.Value.(int)
@@ -292,11 +294,11 @@ func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
 		switch expression.Kind {
-		case kind.INTEGER_LITERAL:
-			return sema.inferIntegerType(expression.Value.(int)), nil
-		// TODO: is this correct?
 		case kind.STRING_LITERAL:
 			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
+		case kind.INTEGER_LITERAL, kind.NEGATIVE_INTEGER_LITERAL:
+			return sema.inferIntegerType(expression.Value.(int)), nil
+		// TODO: is this correct?
 		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
 			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
 		default:

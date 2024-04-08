@@ -247,6 +247,9 @@ func (codegen *codegen) getExpr(parentScope *scope.Scope[values.LLVMValue], expr
 		case kind.INTEGER_LITERAL:
 			integerLiteral := uint64(currentExpr.Value.(int))
 			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
+		case kind.NEGATIVE_INTEGER_LITERAL:
+			negativeIntegerLiteral := int64(currentExpr.Value.(int))
+			return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
 		case kind.STRING_LITERAL:
 			stringLiteral := currentExpr.Value.(string)
 			globalStrLiteral, ok := codegen.globalStrLiterals[stringLiteral]

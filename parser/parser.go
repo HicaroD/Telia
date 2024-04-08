@@ -490,13 +490,14 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 		return nil, fmt.Errorf("can't peek next token because it is null")
 	}
 	switch token.Kind {
-	case kind.INTEGER_LITERAL, kind.STRING_LITERAL, kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
-		parser.cursor.skip()
-		return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
 	case kind.ID:
 		parser.cursor.skip()
 		return &ast.IdExpr{Name: token}, nil
 	default:
+		if _, ok := kind.LITERAL_KIND[token.Kind]; ok {
+			parser.cursor.skip()
+			return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
+		}
 		return nil, fmt.Errorf("invalid token for expression parsing: %s %s %s", token.Kind, token.Lexeme, token.Position)
 	}
 }

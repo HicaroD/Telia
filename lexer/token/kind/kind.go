@@ -114,6 +114,14 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	U64_TYPE:  true,
 }
 
+var LITERAL_KIND map[TokenKind]bool = map[TokenKind]bool{
+	INTEGER_LITERAL:          true,
+	NEGATIVE_INTEGER_LITERAL: true,
+	STRING_LITERAL:           true,
+	TRUE_BOOL_LITERAL:        true,
+	FALSE_BOOL_LITERAL:       true,
+}
+
 func (kind TokenKind) String() string {
 	switch kind {
 	case EOF:

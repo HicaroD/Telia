@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"strconv"
 	"unicode"
@@ -170,7 +169,6 @@ func (lex *lexer) getNumberLiteral(position token.Position, isNegative bool) *to
 	// TODO: deal with floating pointer numbers
 	// if strings.Contains(number, ".") {}
 
-	fmt.Println(number)
 	convertedNumber, err := strconv.Atoi(number)
 	if err != nil {
 		// TODO(errors): unable to convert string to integer

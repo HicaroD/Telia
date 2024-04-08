@@ -10,7 +10,7 @@ type ExprType interface {
 	exprTypeNode()
 }
 
-// bool, i8, i16, i32, i64, i128, void
+// void, bool, i8, i16, i32, i64, u8, u16, u32, u64
 type BasicType struct {
 	ExprType
 	Kind kind.TokenKind
