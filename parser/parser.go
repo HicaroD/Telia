@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/lexer/token"
@@ -90,7 +91,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected '}'")
 	}
-	return &ast.ExternDecl{Name: externName, Prototypes: prototypes}, nil
+	return &ast.ExternDecl{Scope: nil, Name: externName, Prototypes: prototypes}, nil
 }
 
 func (parser *parser) parsePrototype() (*ast.Proto, error) {
@@ -118,8 +119,8 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, err
 	}
 
-	_, ok = parser.expect(kind.SEMICOLON)
 	// TODO(errors)
+	_, ok = parser.expect(kind.SEMICOLON)
 	if !ok {
 		return nil, fmt.Errorf("expected ';'")
 	}
@@ -160,7 +161,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnDecl := ast.FunctionDecl{Name: name.Lexeme.(string), Params: params, Block: block, RetType: returnType}
+	fnDecl := ast.FunctionDecl{Scope: nil, Name: name.Lexeme.(string), Params: params, Block: block, RetType: returnType}
 	return &fnDecl, nil
 }
 
@@ -242,7 +243,7 @@ func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 
 	// TODO(errors)
 	if token.Kind != expectedKind {
-		return nil, false
+		return token, false
 	}
 
 	parser.cursor.skip()
@@ -278,11 +279,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.PointerType{Type: ty}, nil
+		return ast.PointerType{Type: ty}, nil
 	default:
 		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
 			parser.cursor.skip()
-			return &ast.BasicType{Kind: token.Kind}, nil
+			return ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
 		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
@@ -293,7 +294,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	openCurly, ok := parser.expect(kind.OPEN_CURLY)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected '{'")
+		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
 	var statements []ast.Stmt
 
@@ -368,17 +369,41 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 
 	switch next.Kind {
 	case kind.OPEN_PAREN:
-		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
+		fnCall, err := parser.parseFnCallStmt(identifier.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
 		return fnCall, nil
-	// TODO: deal with variable decl, variable reassignment
+	case kind.COLON_EQUAL:
+		varDecl, err := parser.parseVarDecl(identifier)
+		if err != nil {
+			return nil, err
+		}
+		return varDecl, nil
+	// TODO: variable reassignment
+	case kind.EQUAL:
+		log.Fatalf("unimplemented var reassigment")
+	// TODO(errors)
 	default:
-		// TODO(errors)
-		return nil, fmt.Errorf("unable to parse id statement")
+		return nil, fmt.Errorf("unable to parse id statement: %s", next)
 	}
+	// TODO(errors)
+	log.Fatalf("should be unreachable - parseIdStmt")
+	return nil, nil
+}
+
+func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
+	_, ok := parser.expect(kind.COLON_EQUAL)
+	if !ok {
+		return nil, fmt.Errorf("expected ':=' at parseVarDecl")
+	}
+
+	varExpr, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.VarDeclStmt{Name: identifier, Type: nil, Value: varExpr, NeedsInference: true}, nil
 }
 
 func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
@@ -403,7 +428,7 @@ func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
 	return &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}, nil
 }
 
-func (parser *parser) parseIfCond() (*ast.IfCondStmt, error) {
+func (parser *parser) parseIfCond() (*ast.IfElifCond, error) {
 	ifToken, ok := parser.expect(kind.IF)
 	// TODO(errors)
 	if !ok {
@@ -421,11 +446,11 @@ func (parser *parser) parseIfCond() (*ast.IfCondStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.IfCondStmt{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
+	return &ast.IfElifCond{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
 }
 
-func (parser *parser) parseElifConds() ([]*ast.ElifCondStmt, error) {
-	var elifConds []*ast.ElifCondStmt
+func (parser *parser) parseElifConds() ([]*ast.IfElifCond, error) {
+	var elifConds []*ast.IfElifCond
 	for {
 		elifToken, ok := parser.expect(kind.ELIF)
 		if !ok {
@@ -441,12 +466,12 @@ func (parser *parser) parseElifConds() ([]*ast.ElifCondStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		elifConds = append(elifConds, &ast.ElifCondStmt{Elif: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
+		elifConds = append(elifConds, &ast.IfElifCond{If: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
 	}
 	return elifConds, nil
 }
 
-func (parser *parser) parseElseCond() (*ast.ElseCondStmt, error) {
+func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 	elseToken, ok := parser.expect(kind.ELSE)
 	if !ok {
 		return nil, nil
@@ -456,7 +481,7 @@ func (parser *parser) parseElseCond() (*ast.ElseCondStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ElseCondStmt{Else: &elseToken.Position, Block: elseBlock}, nil
+	return &ast.ElseCond{Else: &elseToken.Position, Block: elseBlock}, nil
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
@@ -468,12 +493,15 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	case kind.INTEGER_LITERAL, kind.STRING_LITERAL, kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
 		parser.cursor.skip()
 		return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
+	case kind.ID:
+		parser.cursor.skip()
+		return &ast.IdExpr{Name: token}, nil
 	default:
 		return nil, fmt.Errorf("invalid token for expression parsing: %s %s %s", token.Kind, token.Lexeme, token.Position)
 	}
 }
 
-func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCallStmt, error) {
+func (parser *parser) parseFnCallStmt(fnName string) (*ast.FunctionCallStmt, error) {
 	_, ok := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
 	if !ok {

@@ -29,7 +29,7 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{"i16", kind.I16_TYPE},
 	{"i32", kind.I32_TYPE},
 	{"i64", kind.I64_TYPE},
-	{"i128", kind.I128_TYPE},
+	// {"i128", kind.I128_TYPE},
 
 	{"(", kind.OPEN_PAREN},
 	{")", kind.CLOSE_PAREN},

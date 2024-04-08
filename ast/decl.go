@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/HicaroD/telia-lang/lexer/token"
+	"github.com/HicaroD/telia-lang/scope"
 )
 
 type Decl interface {
@@ -13,6 +14,7 @@ type Decl interface {
 
 type FunctionDecl struct {
 	Decl
+	Scope   *scope.Scope[AstNode]
 	Name    string
 	Params  *FieldList
 	RetType ExprType
@@ -24,16 +26,9 @@ func (fnDecl FunctionDecl) String() string {
 }
 func (fnDecl FunctionDecl) declNode() {}
 
-/*
-Extern blocks contains a list of function prototypes.
-
-extern "C" {
-  fn printf(format *i8, ...) i32;
-}
-*/
-
 type ExternDecl struct {
 	Decl
+	Scope      *scope.Scope[AstNode]
 	Name       *token.Token
 	Prototypes []*Proto
 }
@@ -43,8 +38,12 @@ func (extern ExternDecl) String() string {
 }
 func (extern ExternDecl) declNode() {}
 
+// NOTE: Proto implementing AstNode is temporary
 type Proto struct {
+	AstNode
 	Name    string
 	Params  *FieldList
 	RetType ExprType
 }
+
+func (proto Proto) String() string { return "" }

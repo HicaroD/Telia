@@ -23,17 +23,18 @@ func (block BlockStmt) String() string {
 }
 func (block BlockStmt) stmtNode() {}
 
-type VarStmt struct {
+type VarDeclStmt struct {
 	Stmt
-	Name  string
-	Type  ExprType
-	Value Expr
+	Name           *token.Token
+	Type           ExprType
+	Value          Expr
+	NeedsInference bool
 }
 
-func (variable VarStmt) String() string {
+func (variable VarDeclStmt) String() string {
 	return fmt.Sprintf("Variable: %s", variable.Name)
 }
-func (variable VarStmt) stmtNode() {}
+func (variable VarDeclStmt) stmtNode() {}
 
 type ReturnStmt struct {
 	Stmt
@@ -58,31 +59,24 @@ func (call FunctionCallStmt) String() string {
 func (call FunctionCallStmt) stmtNode() {}
 
 type CondStmt struct {
-	IfStmt    *IfCondStmt
-	ElifStmts []*ElifCondStmt
-	ElseStmt  *ElseCondStmt
+	Stmt
+	IfStmt    *IfElifCond
+	ElifStmts []*IfElifCond
+	ElseStmt  *ElseCond
 }
 
 func (condStmt CondStmt) String() string {
-	return ""
+	return "IF"
 }
 func (cond CondStmt) stmtNode() {}
 
-type IfCondStmt struct {
+type IfElifCond struct {
 	If    *token.Position
 	Expr  Expr
 	Block *BlockStmt
 }
 
-// NOTE: it is the same as IfCondStmt, I might want to reuse the same struct
-type ElifCondStmt struct {
-	Elif  *token.Position
-	Expr  Expr
-	Block *BlockStmt
-}
-
-// NOTE: Maybe use an alias to *BlockStmt given that this struct only has a single field
-type ElseCondStmt struct {
+type ElseCond struct {
 	Else  *token.Position
 	Block *BlockStmt
 }

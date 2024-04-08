@@ -3,6 +3,7 @@ package ast
 import (
 	"fmt"
 
+	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
 
@@ -33,3 +34,13 @@ func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("BinOp: %s", binExpr.Op)
 }
 func (binExpr BinaryExpr) exprNode() {}
+
+type IdExpr struct {
+	Expr
+	Name *token.Token
+}
+
+func (idExpr IdExpr) String() string {
+	return fmt.Sprintf("IdExpr: %s", idExpr.Name)
+}
+func (idExpr IdExpr) exprNode() {}

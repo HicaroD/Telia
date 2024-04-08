@@ -6,34 +6,6 @@ import (
 
 type TokenKind int
 
-var KEYWORDS map[string]TokenKind = map[string]TokenKind{
-	"fn":     FN,
-	"return": RETURN,
-	"extern": EXTERN,
-	"if":     IF,
-	"elif":   ELIF,
-	"else":   ELSE,
-
-	"true":  TRUE_BOOL_LITERAL,
-	"false": FALSE_BOOL_LITERAL,
-
-	"bool": BOOL_TYPE,
-	"i8":   I8_TYPE,
-	"i16":  I16_TYPE,
-	"i32":  I32_TYPE,
-	"i64":  I64_TYPE,
-	"i128": I128_TYPE,
-}
-
-var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
-	BOOL_TYPE: true,
-	I8_TYPE:   true,
-	I16_TYPE:  true,
-	I32_TYPE:  true,
-	I64_TYPE:  true,
-	I128_TYPE: true,
-}
-
 const (
 	// EOF
 	EOF TokenKind = iota
@@ -62,7 +34,8 @@ const (
 	I16_TYPE
 	I32_TYPE
 	I64_TYPE
-	I128_TYPE
+	VOID_TYPE
+	// I128_TYPE
 
 	// (
 	OPEN_PAREN
@@ -102,6 +75,35 @@ const (
 	MINUS
 )
 
+var KEYWORDS map[string]TokenKind = map[string]TokenKind{
+	"fn":     FN,
+	"return": RETURN,
+	"extern": EXTERN,
+	"if":     IF,
+	"elif":   ELIF,
+	"else":   ELSE,
+
+	"true":  TRUE_BOOL_LITERAL,
+	"false": FALSE_BOOL_LITERAL,
+
+	"bool": BOOL_TYPE,
+	"i8":   I8_TYPE,
+	"i16":  I16_TYPE,
+	"i32":  I32_TYPE,
+	"i64":  I64_TYPE,
+	// "i128": I128_TYPE,
+}
+
+var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
+	BOOL_TYPE: true,
+	I8_TYPE:   true,
+	I16_TYPE:  true,
+	I32_TYPE:  true,
+	I64_TYPE:  true,
+	VOID_TYPE: true,
+	// I128_TYPE: true,
+}
+
 func (kind TokenKind) String() string {
 	switch kind {
 	case EOF:
@@ -140,8 +142,10 @@ func (kind TokenKind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
-	case I128_TYPE:
-		return "i128"
+	case VOID_TYPE:
+		return "VOID"
+	// case I128_TYPE:
+	// 	return "i128"
 	case OPEN_PAREN:
 		return "("
 	case CLOSE_PAREN:
