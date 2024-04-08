@@ -29,7 +29,10 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{"i16", kind.I16_TYPE},
 	{"i32", kind.I32_TYPE},
 	{"i64", kind.I64_TYPE},
-	// {"i128", kind.I128_TYPE},
+	{"u8", kind.U8_TYPE},
+	{"u16", kind.U16_TYPE},
+	{"u32", kind.U32_TYPE},
+	{"u64", kind.U64_TYPE},
 
 	{"(", kind.OPEN_PAREN},
 	{")", kind.CLOSE_PAREN},
@@ -135,6 +138,7 @@ var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
 	{"a123456789", true}, // NOTE: starts with "a"
 	{"123456789", false},
 	// TODO: add float here
+
 	{"true", false},
 	{"false", false},
 	{"fn", false},
@@ -142,6 +146,16 @@ var tokenIdent []*tokenIdentTest = []*tokenIdentTest{
 	{"if", false},
 	{"elif", false},
 	{"else", false},
+
+	{"bool", false},
+	{"i8", false},
+	{"i16", false},
+	{"i32", false},
+	{"i64", false},
+	{"u8", false},
+	{"u16", false},
+	{"u32", false},
+	{"u64", false},
 }
 
 func TestIsIdentifier(t *testing.T) {

@@ -34,6 +34,10 @@ const (
 	I16_TYPE
 	I32_TYPE
 	I64_TYPE
+	U8_TYPE
+	U16_TYPE
+	U32_TYPE
+	U64_TYPE
 	VOID_TYPE
 	// I128_TYPE
 
@@ -68,11 +72,11 @@ const (
 	// ==
 	EQUAL_EQUAL
 
-	// :=
-	COLON_EQUAL
-
 	// -
 	MINUS
+
+	// :=
+	COLON_EQUAL
 )
 
 var KEYWORDS map[string]TokenKind = map[string]TokenKind{
@@ -91,17 +95,23 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"i16":  I16_TYPE,
 	"i32":  I32_TYPE,
 	"i64":  I64_TYPE,
-	// "i128": I128_TYPE,
+	"u8":   U8_TYPE,
+	"u16":  U16_TYPE,
+	"u32":  U32_TYPE,
+	"u64":  U64_TYPE,
 }
 
 var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
+	VOID_TYPE: true,
 	BOOL_TYPE: true,
 	I8_TYPE:   true,
 	I16_TYPE:  true,
 	I32_TYPE:  true,
 	I64_TYPE:  true,
-	VOID_TYPE: true,
-	// I128_TYPE: true,
+	U8_TYPE:   true,
+	U16_TYPE:  true,
+	U32_TYPE:  true,
+	U64_TYPE:  true,
 }
 
 func (kind TokenKind) String() string {
@@ -142,10 +152,16 @@ func (kind TokenKind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
+	case U8_TYPE:
+		return "u8"
+	case U16_TYPE:
+		return "u16"
+	case U32_TYPE:
+		return "u32"
+	case U64_TYPE:
+		return "u64"
 	case VOID_TYPE:
 		return "VOID"
-	// case I128_TYPE:
-	// 	return "i128"
 	case OPEN_PAREN:
 		return "("
 	case CLOSE_PAREN:
@@ -170,10 +186,10 @@ func (kind TokenKind) String() string {
 		return "="
 	case EQUAL_EQUAL:
 		return "=="
-	case MINUS:
-		return "-"
 	case COLON_EQUAL:
 		return ":="
+	case MINUS:
+		return "-"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}
