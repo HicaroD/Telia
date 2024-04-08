@@ -90,18 +90,17 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	paramsTypes := codegen.getFieldListTypes(function.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
-
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
-	codegen.builder.SetInsertPointAtEnd(functionBlock)
+	fn := values.NewFunctionValue(functionValue, functionType, &functionBlock)
 
-	functionV := values.NewFunctionValue(functionValue, functionType, &functionBlock)
-	err := codegen.generateBlock(codegen.universe, functionV, function.Block)
+	err := codegen.universe.Insert(function.Name, fn)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	err = codegen.universe.Insert(function.Name, functionV)
+	codegen.builder.SetInsertPointAtEnd(functionBlock)
+	err = codegen.generateBlock(codegen.universe, fn, function.Block)
 	// TODO(errors)
 	if err != nil {
 		return err
