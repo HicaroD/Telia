@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	// "github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/codegen"
 	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/parser"
@@ -29,9 +28,6 @@ func main() {
 	reader := bufio.NewReader(file)
 	lex := lexer.New(filename, reader)
 	tokens := lex.Tokenize()
-	// for i := range tokens {
-	// 	fmt.Printf("%s %s\n", tokens[i].Kind, tokens[i].Lexeme)
-	// }
 
 	parser := parser.New(tokens)
 	astNodes, err := parser.Parse()
