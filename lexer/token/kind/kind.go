@@ -34,6 +34,7 @@ const (
 	I16_TYPE
 	I32_TYPE
 	I64_TYPE
+	VOID_TYPE
 	// I128_TYPE
 
 	// (
@@ -99,6 +100,7 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	I16_TYPE:  true,
 	I32_TYPE:  true,
 	I64_TYPE:  true,
+	VOID_TYPE: true,
 	// I128_TYPE: true,
 }
 
@@ -140,6 +142,8 @@ func (kind TokenKind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
+	case VOID_TYPE:
+		return "VOID"
 	// case I128_TYPE:
 	// 	return "i128"
 	case OPEN_PAREN:
