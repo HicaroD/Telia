@@ -503,10 +503,10 @@ func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
-	return parser.parseEquality()
+	return parser.parseLogical()
 }
 
-func (parser *parser) parseEquality() (ast.Expr, error) {
+func (parser *parser) parseLogical() (ast.Expr, error) {
 	lhs, err := parser.parseComparasion()
 	// TODO(errors)
 	if err != nil {
@@ -519,7 +519,7 @@ func (parser *parser) parseEquality() (ast.Expr, error) {
 		if next == nil {
 			break
 		}
-		if _, ok := ast.EQUALITY[next.Kind]; ok {
+		if _, ok := ast.LOGICAL[next.Kind]; ok {
 			parser.cursor.skip()
 			rhs, err := parser.parseComparasion()
 			// TODO(errors)

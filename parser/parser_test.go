@@ -359,6 +359,80 @@ func TestBinaryExpr(t *testing.T) {
 				},
 			},
 		},
+		{
+			expr: "n == 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.IdExpr{
+					Name: token.New("n", kind.ID, token.NewPosition("test.tt", 1, 1)),
+				},
+				Op: kind.EQUAL_EQUAL,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "n == 1 or n == 2",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.IdExpr{
+						Name: token.New("n", kind.ID, token.NewPosition("test.tt", 1, 1)),
+					},
+					Op: kind.EQUAL_EQUAL,
+					Right: &ast.LiteralExpr{
+						Kind:  kind.INTEGER_LITERAL,
+						Value: 1,
+					},
+				},
+				Op: kind.OR,
+				Right: &ast.BinaryExpr{
+					Left: &ast.IdExpr{
+						Name: token.New("n", kind.ID, token.NewPosition("test.tt", 11, 1)),
+					},
+					Op: kind.EQUAL_EQUAL,
+					Right: &ast.LiteralExpr{
+						Kind:  kind.INTEGER_LITERAL,
+						Value: 2,
+					},
+				},
+			},
+		},
+		{
+			expr: "1 + 1 > 2 and 1 == 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: 1,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: 1,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 2,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.AND,
+				Right: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.EQUAL_EQUAL,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range binExprs {
