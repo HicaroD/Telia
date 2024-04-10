@@ -52,6 +52,16 @@ func (literal LiteralExpr) String() string {
 }
 func (literal LiteralExpr) exprNode() {}
 
+type IdExpr struct {
+	Expr
+	Name *token.Token
+}
+
+func (idExpr IdExpr) String() string {
+	return fmt.Sprintf("%s", idExpr.Name)
+}
+func (idExpr IdExpr) exprNode() {}
+
 type UnaryExpr struct {
 	Expr
 	Op   kind.TokenKind
@@ -74,13 +84,3 @@ func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("(%s) %s (%s)", binExpr.Left, binExpr.Op, binExpr.Right)
 }
 func (binExpr BinaryExpr) exprNode() {}
-
-type IdExpr struct {
-	Expr
-	Name *token.Token
-}
-
-func (idExpr IdExpr) String() string {
-	return fmt.Sprintf("%s", idExpr.Name)
-}
-func (idExpr IdExpr) exprNode() {}
