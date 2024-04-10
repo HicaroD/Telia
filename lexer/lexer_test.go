@@ -44,11 +44,13 @@ var tokenKinds []*tokenKindTest = []*tokenKindTest{
 	{".", kind.DOT},
 	{"..", kind.DOT_DOT},
 	{"...", kind.DOT_DOT_DOT},
-	{"*", kind.STAR},
 	{"=", kind.EQUAL},
-	{"==", kind.EQUAL_EQUAL},
-	{"-", kind.MINUS},
 	{":=", kind.COLON_EQUAL},
+	{"==", kind.EQUAL_EQUAL},
+	{"+", kind.PLUS},
+	{"-", kind.MINUS},
+	{"*", kind.STAR},
+	{"/", kind.SLASH},
 }
 
 func TestTokenKinds(t *testing.T) {
