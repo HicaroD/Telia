@@ -63,7 +63,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *ast.BlockStmt, returnTy ast.ExprType) error {
 	for i := range block.Statements {
 		switch statement := block.Statements[i].(type) {
-		case *ast.FunctionCallStmt:
+		case *ast.FunctionCall:
 			function, err := currentScope.Lookup(statement.Name)
 			// TODO(errors)
 			if err != nil {

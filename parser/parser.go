@@ -387,7 +387,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 
 	switch next.Kind {
 	case kind.OPEN_PAREN:
-		fnCall, err := parser.parseFnCallStmt(identifier.Lexeme.(string))
+		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -647,6 +647,9 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	switch token.Kind {
 	case kind.ID:
 		parser.cursor.skip()
+		if parser.cursor.nextIs(kind.OPEN_PAREN) {
+			return parser.parseFnCall(token.Lexeme.(string))
+		}
 		return &ast.IdExpr{Name: token}, nil
 	case kind.OPEN_PAREN:
 		parser.cursor.skip() // (
@@ -669,7 +672,7 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseFnCallStmt(fnName string) (*ast.FunctionCallStmt, error) {
+func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCall, error) {
 	_, ok := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
 	if !ok {
@@ -694,6 +697,5 @@ func (parser *parser) parseFnCallStmt(fnName string) (*ast.FunctionCallStmt, err
 			continue
 		}
 	}
-
-	return &ast.FunctionCallStmt{Name: fnName, Args: callArgs}, nil
+	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
 }

@@ -114,7 +114,7 @@ func (codegen *codegen) generateBlock(parentScope *scope.Scope[values.LLVMValue]
 
 	for i := range stmts.Statements {
 		switch statement := stmts.Statements[i].(type) {
-		case *ast.FunctionCallStmt:
+		case *ast.FunctionCall:
 			symbol, err := parentScope.Lookup(statement.Name)
 			// TODO(errors)
 			if err != nil {
