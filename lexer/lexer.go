@@ -19,7 +19,7 @@ func New(filename string, reader *bufio.Reader) *lexer {
 	return &lexer{filename: filename, cursor: new(filename, reader)}
 }
 
-func (lex *lexer) Tokenize() []*token.Token {
+func (lex *lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
 		lex.cursor.skipWhitespace()
@@ -31,7 +31,7 @@ func (lex *lexer) Tokenize() []*token.Token {
 		tokens = append(tokens, token)
 	}
 	tokens = append(tokens, lex.consumeToken(nil, kind.EOF))
-	return tokens
+	return tokens, nil
 }
 
 func (lex *lexer) getToken(character rune) *token.Token {

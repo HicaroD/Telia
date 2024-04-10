@@ -57,7 +57,10 @@ func TestTokenKinds(t *testing.T) {
 	for _, expectedToken := range tokenKinds {
 		reader := bufio.NewReader(strings.NewReader(expectedToken.lexeme))
 		lexer := New(testFilename, reader)
-		tokenResult := lexer.Tokenize()
+		tokenResult, err := lexer.Tokenize()
+		if err != nil {
+			t.Errorf("TestTokenKind(%q): unexpected error '%v'", expectedToken.lexeme, err)
+		}
 
 		if len(tokenResult) != 2 {
 			t.Errorf("TestTokenKind(%q): expected len(tokenResult) == 2, but got %q", expectedToken.lexeme, len(tokenResult))
@@ -101,7 +104,10 @@ func TestTokenPos(t *testing.T) {
 	for _, expectedPos := range tokenPos {
 		reader := bufio.NewReader(strings.NewReader(expectedPos.input))
 		lexer := New(testFilename, reader)
-		tokenResult := lexer.Tokenize()
+		tokenResult, err := lexer.Tokenize()
+		if err != nil {
+			t.Errorf("TestTokenPos(%q): unexpected error '%v'", expectedPos.input, err)
+		}
 
 		if len(tokenResult) == 1 && tokenResult[0].Kind == kind.EOF {
 			t.Errorf("TestTokenPos(%q): expected at least one token, but only got EOF", expectedPos.input)
@@ -165,8 +171,10 @@ func TestIsIdentifier(t *testing.T) {
 	for _, expectedTokenIdent := range tokenIdent {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenIdent.lexeme))
 		lexer := New(testFilename, reader)
-		tokenResult := lexer.Tokenize()
-
+		tokenResult, err := lexer.Tokenize()
+		if err != nil {
+			t.Errorf("TestIsIdentifier(%q): unexpected error '%v'", expectedTokenIdent.lexeme, err)
+		}
 		if len(tokenResult) != 2 {
 			t.Errorf("TestIsIdentifier(%q): expected a single token, but got %d", expectedTokenIdent.lexeme, len(tokenResult))
 		}
@@ -216,7 +224,10 @@ func TestIsLiteral(t *testing.T) {
 	for _, expectedTokenLiteral := range tokenLiterals {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenLiteral.lexeme))
 		lexer := New(testFilename, reader)
-		tokenResult := lexer.Tokenize()
+		tokenResult, err := lexer.Tokenize()
+		if err != nil {
+			t.Errorf("TestIsIdentifier(%q): unexpected error '%v'", expectedTokenLiteral.lexeme, err)
+		}
 
 		if len(tokenResult) != 2 {
 			t.Errorf("TestIsIdentifier(%q): expected a single token, but got %d", expectedTokenLiteral.lexeme, len(tokenResult))

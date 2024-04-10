@@ -64,19 +64,21 @@ const (
 	// ...
 	DOT_DOT_DOT
 
-	// *
-	STAR
-
 	// =
 	EQUAL
+	// :=
+	COLON_EQUAL
 	// ==
 	EQUAL_EQUAL
 
+	// +
+	PLUS
 	// -
 	MINUS
-
-	// :=
-	COLON_EQUAL
+	// *
+	STAR
+	// /
+	SLASH
 )
 
 var KEYWORDS map[string]TokenKind = map[string]TokenKind{
@@ -190,16 +192,20 @@ func (kind TokenKind) String() string {
 		return ".."
 	case DOT_DOT_DOT:
 		return "..."
-	case STAR:
-		return "*"
 	case EQUAL:
 		return "="
-	case EQUAL_EQUAL:
-		return "=="
 	case COLON_EQUAL:
 		return ":="
+	case EQUAL_EQUAL:
+		return "=="
+	case PLUS:
+		return "+"
 	case MINUS:
 		return "-"
+	case STAR:
+		return "*"
+	case SLASH:
+		return "/"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}
