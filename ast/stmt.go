@@ -47,16 +47,18 @@ func (ret ReturnStmt) String() string {
 }
 func (ret ReturnStmt) stmtNode() {}
 
-type FunctionCallStmt struct {
+type FunctionCall struct {
 	Stmt
+	Expr
 	Name string
 	Args []Expr
 }
 
-func (call FunctionCallStmt) String() string {
+func (call FunctionCall) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
-func (call FunctionCallStmt) stmtNode() {}
+func (call FunctionCall) stmtNode() {}
+func (call FunctionCall) exprNode() {}
 
 type CondStmt struct {
 	Stmt
