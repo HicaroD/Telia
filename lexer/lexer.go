@@ -62,8 +62,29 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		token := lex.consumeToken(nil, kind.SEMICOLON)
 		lex.cursor.skip()
 		return token
+	case '+':
+		token := lex.consumeToken(nil, kind.PLUS)
+		lex.cursor.skip()
+		return token
+	case '-':
+		position := lex.cursor.Position()
+		token := lex.consumeToken(nil, kind.MINUS)
+		lex.cursor.skip()
+
+		next, ok := lex.cursor.peek()
+		if !ok {
+			return token
+		}
+		if unicode.IsNumber(next) {
+			return lex.getNumberLiteral(position, true)
+		}
+		return token
 	case '*':
 		token := lex.consumeToken(nil, kind.STAR)
+		lex.cursor.skip()
+		return token
+	case '/':
+		token := lex.consumeToken(nil, kind.SLASH)
 		lex.cursor.skip()
 		return token
 	case '=':
@@ -97,19 +118,6 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT_DOT
 		return token.New(nil, tokenKind, tokenPosition)
-	case '-':
-		position := lex.cursor.Position()
-		token := lex.consumeToken(nil, kind.MINUS)
-		lex.cursor.skip()
-
-		next, ok := lex.cursor.peek()
-		if !ok {
-			return token
-		}
-		if unicode.IsNumber(next) {
-			return lex.getNumberLiteral(position, true)
-		}
-		return token
 	case ':':
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip() // :
