@@ -19,7 +19,7 @@ type LiteralExpr struct {
 }
 
 func (literal LiteralExpr) String() string {
-	return fmt.Sprintf("Literal: %s", literal.Kind)
+	return fmt.Sprintf("%s %s", literal.Kind, literal.Value)
 }
 func (literal LiteralExpr) exprNode() {}
 
@@ -31,7 +31,7 @@ type BinaryExpr struct {
 }
 
 func (binExpr BinaryExpr) String() string {
-	return fmt.Sprintf("BinOp: %s", binExpr.Op)
+	return fmt.Sprintf("%s %s %s", binExpr.Left, binExpr.Op, binExpr.Right)
 }
 func (binExpr BinaryExpr) exprNode() {}
 
@@ -41,6 +41,6 @@ type IdExpr struct {
 }
 
 func (idExpr IdExpr) String() string {
-	return fmt.Sprintf("IdExpr: %s", idExpr.Name)
+	return fmt.Sprintf("%s", idExpr.Name)
 }
 func (idExpr IdExpr) exprNode() {}
