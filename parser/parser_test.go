@@ -14,12 +14,10 @@ type exprTest struct {
 	node ast.Expr
 }
 
-func TestFunctionDecl(t *testing.T) {
-}
+func TestFunctionDecl(t *testing.T) {}
+
 func TestExternDecl(t *testing.T) {}
 
-// TODO: build a utility method for parsing expressions for
-// testing
 func TestLiteralExpr(t *testing.T) {
 	filename := "test.tt"
 	literals := []exprTest{
@@ -28,16 +26,16 @@ func TestLiteralExpr(t *testing.T) {
 			node: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
 		},
 		{
-			expr: "-1",
-			node: &ast.LiteralExpr{Value: -1, Kind: kind.NEGATIVE_INTEGER_LITERAL},
-		},
-		{
 			expr: "true",
 			node: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
 		},
 		{
 			expr: "false",
 			node: &ast.LiteralExpr{Value: "false", Kind: kind.FALSE_BOOL_LITERAL},
+		},
+		{
+			expr: "\"Hello, world\"",
+			node: &ast.LiteralExpr{Value: "Hello, world", Kind: kind.STRING_LITERAL},
 		},
 	}
 
@@ -53,21 +51,26 @@ func TestLiteralExpr(t *testing.T) {
 		})
 	}
 }
-func TestFuncCallExpr(t *testing.T) {}
-func TestBinaryExpr(t *testing.T) {
+
+func TestUnaryExpr(t *testing.T) {
 	filename := "test.tt"
-	binExprs := []exprTest{
+	unaryExprs := []exprTest{
 		{
-			expr: "1 + 1",
-			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
-				Op:    kind.PLUS,
-				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			expr: "-1",
+			node: &ast.UnaryExpr{
+				Op:   kind.MINUS,
+				Node: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			},
+		},
+		{
+			expr: "not true",
+			node: &ast.UnaryExpr{
+				Op:   kind.NOT,
+				Node: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
 			},
 		},
 	}
-
-	for _, test := range binExprs {
+	for _, test := range unaryExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
 			actualNode, err := ParseExprFrom(test.expr, filename)
 			if err != nil {
@@ -80,5 +83,248 @@ func TestBinaryExpr(t *testing.T) {
 	}
 }
 
+func TestBinaryExpr(t *testing.T) {
+	filename := "test.tt"
+	binExprs := []exprTest{
+		{
+			expr: "1 + 1",
+			node: &ast.BinaryExpr{
+				Left:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Op:    kind.PLUS,
+				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			},
+		},
+		{
+			expr: "2 - 1",
+			node: &ast.BinaryExpr{
+				Left:  &ast.LiteralExpr{Value: 2, Kind: kind.INTEGER_LITERAL},
+				Op:    kind.MINUS,
+				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			},
+		},
+		{
+			expr: "5 * 10",
+			node: &ast.BinaryExpr{
+				Left:  &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+				Op:    kind.STAR,
+				Right: &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
+			},
+		},
+		{
+			expr: "10 / 1",
+			node: &ast.BinaryExpr{
+				Left:  &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
+				Op:    kind.SLASH,
+				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			},
+		},
+		{
+			expr: "6 / 3 - 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 6,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.SLASH,
+					Right: &ast.LiteralExpr{
+						Value: 3,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.MINUS,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "6 / (3 - 1)",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 6,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.SLASH,
+				Right: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 3,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.MINUS,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
+		{
+			expr: "1 / (1 + 1)",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Op:   kind.SLASH,
+				Right: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.PLUS,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
+		{
+			expr: "1 > 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.GREATER,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "1 >= 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.GREATER_EQ,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "1 < 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.LESS,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "1 <= 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.LESS_EQ,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		{
+			// not 1 > 1 is invalid in Golang
+			expr: "not (1 > 1)",
+			node: &ast.UnaryExpr{
+				Op: kind.NOT,
+				Node: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
+		{
+			expr: "1 > 1 and 1 > 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.AND,
+				Right: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
+		{
+			expr: "1 > 1 or 1 > 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.OR,
+				Right: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range binExprs {
+		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
+			actualNode, err := ParseExprFrom(test.expr, filename)
+			if err != nil {
+				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.expr, err)
+			}
+			if !reflect.DeepEqual(test.node, actualNode) {
+				t.Errorf("TestBinaryExpr('%s'): expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n", test.expr, test.node, reflect.TypeOf(test.node), actualNode, reflect.TypeOf(actualNode))
+			}
+		})
+	}
+}
+
+func TestFuncCallExpr(t *testing.T) {}
+
 func TestFuncCallStmt(t *testing.T) {}
-func TestIfStmt(t *testing.T)       {}
+
+func TestIfStmt(t *testing.T) {}

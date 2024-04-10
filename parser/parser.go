@@ -503,6 +503,143 @@ func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
+	return parser.parseEquality()
+}
+
+func (parser *parser) parseEquality() (ast.Expr, error) {
+	lhs, err := parser.parseComparasion()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.EQUALITY[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseComparasion()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseComparasion() (ast.Expr, error) {
+	lhs, err := parser.parseTerm()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.COMPARASION[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseTerm()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseTerm() (ast.Expr, error) {
+	lhs, err := parser.parseFactor()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.TERM[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseFactor()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseFactor() (ast.Expr, error) {
+	lhs, err := parser.parseUnary()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.FACTOR[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseUnary()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+
+}
+
+func (parser *parser) parseUnary() (ast.Expr, error) {
+	next := parser.cursor.peek()
+	// TODO(errors)
+	if next == nil {
+		return nil, fmt.Errorf("unable to peek next on parseUnary")
+	}
+
+	if _, ok := ast.UNARY[next.Kind]; ok {
+		parser.cursor.skip()
+		rhs, err := parser.parseUnary()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{Op: next.Kind, Node: rhs}, nil
+	}
+
+	return parser.parsePrimary()
+}
+
+func (parser *parser) parsePrimary() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	if token == nil {
 		return nil, fmt.Errorf("can't peek next token because it is null")
@@ -511,6 +648,18 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	case kind.ID:
 		parser.cursor.skip()
 		return &ast.IdExpr{Name: token}, nil
+	case kind.OPEN_PAREN:
+		parser.cursor.skip() // (
+		expr, err := parser.parseExpr()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		_, ok := parser.expect(kind.CLOSE_PAREN)
+		if !ok {
+			return nil, fmt.Errorf("expected closing parenthesis")
+		}
+		return expr, nil
 	default:
 		if _, ok := kind.LITERAL_KIND[token.Kind]; ok {
 			parser.cursor.skip()
