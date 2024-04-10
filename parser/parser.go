@@ -1,10 +1,13 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
@@ -24,7 +27,6 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 		if token == nil || token.Kind == kind.EOF {
 			break
 		}
-
 		switch token.Kind {
 		case kind.FN:
 			fnDecl, err := parser.parseFnDecl()
@@ -46,6 +48,22 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 		}
 	}
 	return astNodes, nil
+}
+
+func ParseExprFrom(expr, filename string) (ast.Expr, error) {
+	reader := bufio.NewReader(strings.NewReader(expr))
+	lex := lexer.New(filename, reader)
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens)
+	exprAst, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return exprAst, nil
 }
 
 func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
