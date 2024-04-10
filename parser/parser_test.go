@@ -336,8 +336,34 @@ func TestBinaryExpr(t *testing.T) {
 				},
 			},
 		},
-		// Semantically, the input below is invalid
-		// "bool > integer"
+		{
+			expr: "get_celsius()*9/5+32",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.BinaryExpr{
+						Left: &ast.FunctionCall{
+							Name: "get_celsius",
+							Args: nil,
+						},
+						Op: kind.STAR,
+						Right: &ast.LiteralExpr{
+							Value: 9,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+					Op: kind.SLASH,
+					Right: &ast.LiteralExpr{
+						Value: 5,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.PLUS,
+				Right: &ast.LiteralExpr{
+					Value: 32,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
 		{
 			expr: "1 > 1 > 1",
 			node: &ast.BinaryExpr{
@@ -433,22 +459,95 @@ func TestBinaryExpr(t *testing.T) {
 				},
 			},
 		},
+		{
+			expr: "true and true and true and true",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: "true",
+							Kind:  kind.TRUE_BOOL_LITERAL,
+						},
+						Op: kind.AND,
+						Right: &ast.LiteralExpr{
+							Value: "true",
+							Kind:  kind.TRUE_BOOL_LITERAL,
+						},
+					},
+					Op: kind.AND,
+					Right: &ast.LiteralExpr{
+						Value: "true",
+						Kind:  kind.TRUE_BOOL_LITERAL,
+					},
+				},
+				Op: kind.AND,
+				Right: &ast.LiteralExpr{
+					Value: "true",
+					Kind:  kind.TRUE_BOOL_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "(((true and true) and true) and true)",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: "true",
+							Kind:  kind.TRUE_BOOL_LITERAL,
+						},
+						Op: kind.AND,
+						Right: &ast.LiteralExpr{
+							Value: "true",
+							Kind:  kind.TRUE_BOOL_LITERAL,
+						},
+					},
+					Op: kind.AND,
+					Right: &ast.LiteralExpr{
+						Value: "true",
+						Kind:  kind.TRUE_BOOL_LITERAL,
+					},
+				},
+				Op: kind.AND,
+				Right: &ast.LiteralExpr{
+					Value: "true",
+					Kind:  kind.TRUE_BOOL_LITERAL,
+				},
+			},
+		},
+		{
+			expr: "1 + multiply_by_2(10)",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+				Op: kind.PLUS,
+				Right: &ast.FunctionCall{
+					Name: "multiply_by_2",
+					Args: []ast.Expr{
+						&ast.LiteralExpr{
+							Value: 10,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range binExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
 			actualNode, err := ParseExprFrom(test.expr, filename)
 			if err != nil {
-				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.expr, err)
+				t.Errorf("unexpected error '%v'", err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("TestBinaryExpr('%s'): expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n", test.expr, test.node, reflect.TypeOf(test.node), actualNode, reflect.TypeOf(actualNode))
+				t.Errorf("expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n", test.node, reflect.TypeOf(test.node), actualNode, reflect.TypeOf(actualNode))
 			}
 		})
 	}
 }
-
-func TestFuncCallExpr(t *testing.T) {}
 
 func TestFuncCallStmt(t *testing.T) {}
 
