@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
 
@@ -305,6 +306,56 @@ func TestBinaryExpr(t *testing.T) {
 						Value: 1,
 						Kind:  kind.INTEGER_LITERAL,
 					},
+				},
+			},
+		},
+		{
+			expr: "celsius*9/5+32",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.BinaryExpr{
+						Left: &ast.IdExpr{
+							Name: token.New("celsius", kind.ID, token.NewPosition("test.tt", 1, 1)),
+						},
+						Op: kind.STAR,
+						Right: &ast.LiteralExpr{
+							Value: 9,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+					Op: kind.SLASH,
+					Right: &ast.LiteralExpr{
+						Value: 5,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.PLUS,
+				Right: &ast.LiteralExpr{
+					Value: 32,
+					Kind:  kind.INTEGER_LITERAL,
+				},
+			},
+		},
+		// Semantically, the input below is invalid
+		// "bool > integer"
+		{
+			expr: "1 > 1 > 1",
+			node: &ast.BinaryExpr{
+				Left: &ast.BinaryExpr{
+					Left: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+					Op: kind.GREATER,
+					Right: &ast.LiteralExpr{
+						Value: 1,
+						Kind:  kind.INTEGER_LITERAL,
+					},
+				},
+				Op: kind.GREATER,
+				Right: &ast.LiteralExpr{
+					Value: 1,
+					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
 		},

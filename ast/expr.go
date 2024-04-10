@@ -10,8 +10,8 @@ import (
 var EQUALITY map[kind.TokenKind]bool = map[kind.TokenKind]bool{
 	kind.EQUAL_EQUAL: true,
 	kind.BANG_EQUAL:  true,
-	kind.AND:        true,
-	kind.OR:         true,
+	kind.AND:         true,
+	kind.OR:          true,
 }
 
 var COMPARASION map[kind.TokenKind]bool = map[kind.TokenKind]bool{
