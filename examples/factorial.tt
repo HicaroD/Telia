@@ -10,7 +10,7 @@ fn factorial(n i32) i32 {
 }
 
 fn main() i32 {
-  n := 20;
+  n := 5;
   result := factorial(n);
   printf("The factorial of %d is %d", n, result);
   return 0;
