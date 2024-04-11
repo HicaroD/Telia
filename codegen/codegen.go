@@ -102,13 +102,11 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	fnScope := scope.New(codegen.universe)
 
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
-
 	err = codegen.generateParameters(fnValue, function, fnScope, paramsTypes)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
-
 	// TODO: add parameters
 	err = codegen.generateBlock(function.Block, fnScope, fnValue)
 	// TODO(errors)
