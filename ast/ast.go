@@ -19,4 +19,5 @@ type Field struct {
 	Name *token.Token
 	Type ExprType
 }
+
 func (field Field) astNode() {}

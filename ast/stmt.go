@@ -21,7 +21,7 @@ type BlockStmt struct {
 func (block BlockStmt) String() string {
 	return "BLOCK"
 }
-func (block BlockStmt) astNode() {}
+func (block BlockStmt) astNode()  {}
 func (block BlockStmt) stmtNode() {}
 
 type VarDeclStmt struct {
@@ -35,7 +35,7 @@ type VarDeclStmt struct {
 func (variable VarDeclStmt) String() string {
 	return fmt.Sprintf("Variable: %s", variable.Name)
 }
-func (variable VarDeclStmt) astNode() {}
+func (variable VarDeclStmt) astNode()  {}
 func (variable VarDeclStmt) stmtNode() {}
 
 type ReturnStmt struct {
@@ -47,7 +47,7 @@ type ReturnStmt struct {
 func (ret ReturnStmt) String() string {
 	return fmt.Sprintf("RETURN: %s", ret.Value)
 }
-func (ret ReturnStmt) astNode() {}
+func (ret ReturnStmt) astNode()  {}
 func (ret ReturnStmt) stmtNode() {}
 
 type FunctionCall struct {
@@ -60,7 +60,7 @@ type FunctionCall struct {
 func (call FunctionCall) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
-func (call FunctionCall) astNode() {}
+func (call FunctionCall) astNode()  {}
 func (call FunctionCall) stmtNode() {}
 func (call FunctionCall) exprNode() {}
 
@@ -74,7 +74,7 @@ type CondStmt struct {
 func (condStmt CondStmt) String() string {
 	return "IF"
 }
-func (cond CondStmt) astNode() {}
+func (cond CondStmt) astNode()  {}
 func (cond CondStmt) stmtNode() {}
 
 type IfElifCond struct {
