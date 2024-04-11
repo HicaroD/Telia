@@ -4,6 +4,6 @@ extern "C" {
 }
 
 fn main() i32 {
-  puts("Hello, world!");
+  puts("Hello, world 😃 ");
   return 0;
 }
