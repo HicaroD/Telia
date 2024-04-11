@@ -8,6 +8,7 @@ import (
 
 type Stmt interface {
 	AstNode
+	IsReturn() bool
 	stmtNode()
 }
 
@@ -21,8 +22,9 @@ type BlockStmt struct {
 func (block BlockStmt) String() string {
 	return "BLOCK"
 }
-func (block BlockStmt) astNode()  {}
-func (block BlockStmt) stmtNode() {}
+func (block BlockStmt) IsReturn() bool { return false }
+func (block BlockStmt) astNode()       {}
+func (block BlockStmt) stmtNode()      {}
 
 type VarDeclStmt struct {
 	Stmt
@@ -35,8 +37,9 @@ type VarDeclStmt struct {
 func (variable VarDeclStmt) String() string {
 	return fmt.Sprintf("Variable: %s", variable.Name)
 }
-func (variable VarDeclStmt) astNode()  {}
-func (variable VarDeclStmt) stmtNode() {}
+func (variable VarDeclStmt) IsReturn() bool { return false }
+func (variable VarDeclStmt) astNode()       {}
+func (variable VarDeclStmt) stmtNode()      {}
 
 type ReturnStmt struct {
 	Stmt
@@ -47,8 +50,9 @@ type ReturnStmt struct {
 func (ret ReturnStmt) String() string {
 	return fmt.Sprintf("RETURN: %s", ret.Value)
 }
-func (ret ReturnStmt) astNode()  {}
-func (ret ReturnStmt) stmtNode() {}
+func (ret ReturnStmt) IsReturn() bool { return true }
+func (ret ReturnStmt) astNode()       {}
+func (ret ReturnStmt) stmtNode()      {}
 
 type FunctionCall struct {
 	Stmt
@@ -60,9 +64,10 @@ type FunctionCall struct {
 func (call FunctionCall) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
-func (call FunctionCall) astNode()  {}
-func (call FunctionCall) stmtNode() {}
-func (call FunctionCall) exprNode() {}
+func (call FunctionCall) IsReturn() bool { return false }
+func (call FunctionCall) astNode()       {}
+func (call FunctionCall) stmtNode()      {}
+func (call FunctionCall) exprNode()      {}
 
 type CondStmt struct {
 	Stmt
@@ -74,8 +79,9 @@ type CondStmt struct {
 func (condStmt CondStmt) String() string {
 	return "IF"
 }
-func (cond CondStmt) astNode()  {}
-func (cond CondStmt) stmtNode() {}
+func (cond CondStmt) IsReturn() bool { return false }
+func (cond CondStmt) astNode()       {}
+func (cond CondStmt) stmtNode()      {}
 
 type IfElifCond struct {
 	If    *token.Position
