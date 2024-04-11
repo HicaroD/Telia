@@ -3,7 +3,7 @@ package ast
 import "github.com/HicaroD/telia-lang/lexer/token"
 
 type AstNode interface {
-	String() string
+	astNode()
 }
 
 // Field list for function parameters
@@ -15,6 +15,8 @@ type FieldList struct {
 }
 
 type Field struct {
-	Name string
+	AstNode
+	Name *token.Token
 	Type ExprType
 }
+func (field Field) astNode() {}

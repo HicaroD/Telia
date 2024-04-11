@@ -99,8 +99,26 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 		return err
 	}
 
+	fnScope := scope.New(codegen.universe)
+
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
-	err = codegen.generateBlock(codegen.universe, fn, function.Block)
+
+	for i, paramPtrValue := range fn.Fn.Params() {
+		paramName := function.Params.Fields[i].Name.Lexeme.(string)
+		paramType := paramsTypes[i]
+		paramPtr := codegen.builder.CreateAlloca(paramType, ".paramTy") // Allocates enough memory for param
+		codegen.builder.CreateStore(paramPtrValue, paramPtr)            // Stores param pointer
+		variable := values.Variable{
+			Ty:  paramType,
+			Ptr: paramPtr,
+		}
+		err = fnScope.Insert(paramName, &variable)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+	}
+	err = codegen.generateBlock(function.Block, fnScope, fn)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -109,61 +127,109 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	return err
 }
 
-func (codegen *codegen) generateBlock(parentScope *scope.Scope[values.LLVMValue], function values.Function, stmts *ast.BlockStmt) error {
-	currentBlockScope := scope.New(parentScope)
-
+func (codegen *codegen) generateBlock(stmts *ast.BlockStmt, scope *scope.Scope[values.LLVMValue], function *values.Function) error {
 	for i := range stmts.Statements {
-		switch statement := stmts.Statements[i].(type) {
-		case *ast.FunctionCall:
-			symbol, err := parentScope.Lookup(statement.Name)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-
-			function := symbol.(values.Function)
-			args, err := codegen.getExprList(currentBlockScope, statement.Args)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-			codegen.builder.CreateCall(function.Ty, function.Fn, args, "call")
-		case *ast.ReturnStmt:
-			returnValue, err := codegen.getExpr(currentBlockScope, statement.Value)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-			codegen.builder.CreateRet(returnValue)
-		case *ast.CondStmt:
-			err := codegen.generateCondStmt(currentBlockScope, function, statement)
-			if err != nil {
-				return err
-			}
-		case *ast.VarDeclStmt:
-			varTy := codegen.getType(statement.Type)
-			varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
-			varExpr, err := codegen.getExpr(currentBlockScope, statement.Value)
-			// TODO(errors)
-			if err != nil {
-				return nil
-			}
-			codegen.builder.CreateStore(varExpr, varPtr)
-
-			variable := values.Variable{
-				Ty:  varTy,
-				Ptr: varPtr,
-			}
-			err = currentBlockScope.Insert(statement.Name.Lexeme.(string), variable)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		default:
-			log.Fatalf("unimplemented block statement: %s", statement)
+		err := codegen.generateStmt(stmts.Statements[i], scope, function)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LLVMValue], function *values.Function) error {
+	switch statement := stmt.(type) {
+	case *ast.FunctionCall:
+		_, err := codegen.generateFunctionCall(scope, statement)
+		if err != nil {
+			return err
+		}
+	case *ast.ReturnStmt:
+		returnValue, err := codegen.getExpr(scope, statement.Value)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+		codegen.builder.CreateRet(returnValue)
+	case *ast.CondStmt:
+		err := codegen.generateCondStmt(scope, function, statement)
+		if err != nil {
+			return err
+		}
+	case *ast.VarDeclStmt:
+		err := codegen.generateVariableDecl(statement, scope)
+		if err != nil {
+			return err
+		}
+	default:
+		log.Fatalf("unimplemented block statement: %s", statement)
+	}
+	return nil
+}
+
+func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
+	varTy := codegen.getType(varDecl.Type)
+	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
+	varExpr, err := codegen.getExpr(scope, varDecl.Value)
+
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	codegen.builder.CreateStore(varExpr, varPtr)
+
+	variable := values.Variable{
+		Ty:  varTy,
+		Ptr: varPtr,
+	}
+	err = scope.Insert(varDecl.Name.Lexeme.(string), &variable)
+
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO(refactor): get a ast.ParamExpr which contains type info, name and index for reading from the function
+// func (codegen *codegen) generateParameter(statement *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
+// 	varTy := codegen.getType(statement.Type)
+// 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
+// 	varExpr, err := codegen.getExpr(scope, statement.Value)
+//
+// 	// TODO(errors)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	codegen.builder.CreateStore(varExpr, varPtr)
+//
+// 	variable := values.Variable{
+// 		Ty:  varTy,
+// 		Ptr: varPtr,
+// 	}
+// 	err = scope.Insert(statement.Name.Lexeme.(string), &variable)
+//
+// 	// TODO(errors)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
+
+func (codegen *codegen) generateFunctionCall(scope *scope.Scope[values.LLVMValue], functionCall *ast.FunctionCall) (llvm.Value, error) {
+	symbol, err := scope.Lookup(functionCall.Name)
+	// TODO(errors)
+	if err != nil {
+		return llvm.Value{}, err
+	}
+
+	function := symbol.(*values.Function)
+	args, err := codegen.getExprList(scope, functionCall.Args)
+	// TODO(errors)
+	if err != nil {
+		return llvm.Value{}, err
+	}
+	return codegen.builder.CreateCall(function.Ty, function.Fn, args, "call"), nil
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
@@ -239,7 +305,7 @@ func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], 
 	return values, nil
 }
 
-func (codegen *codegen) getExpr(parentScope *scope.Scope[values.LLVMValue], expr ast.Expr) (llvm.Value, error) {
+func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.Expr) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
 		switch currentExpr.Kind {
@@ -269,7 +335,7 @@ func (codegen *codegen) getExpr(parentScope *scope.Scope[values.LLVMValue], expr
 		}
 	case *ast.IdExpr:
 		varName := currentExpr.Name.Lexeme.(string)
-		symbol, err := parentScope.Lookup(varName)
+		symbol, err := scope.Lookup(varName)
 		// TODO(errors)
 		if err != nil {
 			return llvm.Value{}, err
@@ -278,18 +344,59 @@ func (codegen *codegen) getExpr(parentScope *scope.Scope[values.LLVMValue], expr
 		if symbol == nil {
 			log.Fatalf("local not defined: %s", varName)
 		}
-		localVar := symbol.(values.Variable)
+		localVar := symbol.(*values.Variable)
 		loadedVariable := codegen.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable, nil
+	case *ast.BinaryExpr:
+		lhs, err := codegen.getExpr(scope, currentExpr.Left)
+		// TODO(errors)
+		if err != nil {
+			log.Fatalf("can't generate lhs expr: %s", err)
+		}
+		rhs, err := codegen.getExpr(scope, currentExpr.Right)
+		// TODO(errors)
+		if err != nil {
+			log.Fatalf("can't generate rhs expr: %s", err)
+		}
+		switch currentExpr.Op {
+		case kind.EQUAL_EQUAL:
+			// TODO: there a list of IntPredicate, I could map token kind to these
+			// for code reability
+			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
+			return codegen.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq"), nil
+		case kind.STAR:
+			return codegen.builder.CreateMul(lhs, rhs, ".mul"), nil
+		case kind.MINUS:
+			return codegen.builder.CreateSub(lhs, rhs, ".mul"), nil
+		default:
+			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
+		}
+	case *ast.FunctionCall:
+		symbol, err := scope.Lookup(currentExpr.Name)
+		// TODO(errors)
+		if err != nil {
+			log.Fatalf("at this point of code generation, every symbol should be located")
+		}
+		switch sym := symbol.(type) {
+		case *values.Function:
+			fnCall, err := codegen.generateFunctionCall(scope, currentExpr)
+			// TODO(errors)
+			if err != nil {
+				return llvm.Value{}, nil
+			}
+			return fnCall, nil
+		default:
+			log.Fatalf("unimplemented value: %s %s", expr, reflect.TypeOf(sym))
+		}
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
 	// NOTE: this line should be unreachable
-	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr AT getExpr")
+	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr")
 	return llvm.Value{}, nil
 }
 
-func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function values.Function, condStmt *ast.CondStmt) error {
+func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function *values.Function, condStmt *ast.CondStmt) error {
 	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
@@ -303,7 +410,7 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
-	err = codegen.generateBlock(ifScope, function, condStmt.IfStmt.Block)
+	err = codegen.generateBlock(condStmt.IfStmt.Block, ifScope, function)
 	// TODO(errors)
 	if err != nil {
 		return nil
@@ -315,7 +422,7 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
 		elseScope := scope.New(parentScope)
-		err := codegen.generateBlock(elseScope, function, condStmt.ElseStmt.Block)
+		err := codegen.generateBlock(condStmt.ElseStmt.Block, elseScope, function)
 		// TODO(errors)
 		if err != nil {
 			return err

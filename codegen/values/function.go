@@ -12,10 +12,11 @@ type Function struct {
 	Locals map[string]*LLVMValue
 }
 
-func NewFunctionValue(fn llvm.Value, ty llvm.Type, block *llvm.BasicBlock) Function {
-	return Function{Fn: fn, Ty: ty, Block: block, Locals: map[string]*LLVMValue{}}
+func NewFunctionValue(fn llvm.Value, ty llvm.Type, block *llvm.BasicBlock) *Function {
+	return &Function{Fn: fn, Ty: ty, Block: block, Locals: map[string]*LLVMValue{}}
 }
 
 func (function Function) Value() string {
 	return "Function"
 }
+

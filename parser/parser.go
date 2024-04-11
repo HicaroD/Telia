@@ -221,8 +221,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 		if err != nil {
 			return nil, err
 		}
-		params = append(params, &ast.Field{Name: name.Lexeme.(string), Type: paramType})
-
+		params = append(params, &ast.Field{Name: name, Type: paramType})
 	}
 
 	closeParen, ok := parser.expect(kind.CLOSE_PAREN)

@@ -24,6 +24,7 @@ type FunctionDecl struct {
 func (fnDecl FunctionDecl) String() string {
 	return fmt.Sprintf("FN: %s", fnDecl.Name)
 }
+func (fnDecl FunctionDecl) astNode()  {}
 func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
@@ -36,6 +37,7 @@ type ExternDecl struct {
 func (extern ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
+func (extern ExternDecl) astNode()  {}
 func (extern ExternDecl) declNode() {}
 
 // NOTE: Proto implementing AstNode is temporary
@@ -46,4 +48,6 @@ type Proto struct {
 	RetType ExprType
 }
 
+// TODO
 func (proto Proto) String() string { return "" }
+func (proto Proto) astNode()       {}
