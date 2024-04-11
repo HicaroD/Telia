@@ -108,7 +108,7 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 		return err
 	}
 	// TODO: add parameters
-	err = codegen.generateBlock(function.Block, fnScope, fnValue)
+	_, err = codegen.generateBlock(function.Block, fnScope, fnValue)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -117,14 +117,18 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	return err
 }
 
-func (codegen *codegen) generateBlock(stmts *ast.BlockStmt, scope *scope.Scope[values.LLVMValue], function *values.Function) error {
+func (codegen *codegen) generateBlock(stmts *ast.BlockStmt, scope *scope.Scope[values.LLVMValue], function *values.Function) (bool, error) {
 	for i := range stmts.Statements {
-		err := codegen.generateStmt(stmts.Statements[i], scope, function)
+		stmt := stmts.Statements[i]
+		err := codegen.generateStmt(stmt, scope, function)
+		if stmt.IsReturn() {
+			return true, nil
+		}
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
-	return nil
+	return false, nil
 }
 
 func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LLVMValue], function *values.Function) error {
@@ -141,6 +145,7 @@ func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LL
 			return err
 		}
 		codegen.builder.CreateRet(returnValue)
+		return nil
 	case *ast.CondStmt:
 		err := codegen.generateCondStmt(scope, function, statement)
 		if err != nil {
@@ -185,7 +190,7 @@ func (codegen *codegen) generateParameters(fnValue *values.Function, functionNod
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		paramName := functionNode.Params.Fields[i].Name.Lexeme.(string)
 		paramType := paramsTypes[i]
-		paramPtr := codegen.builder.CreateAlloca(paramType, ".paramTy")
+		paramPtr := codegen.builder.CreateAlloca(paramType, ".param")
 		codegen.builder.CreateStore(paramPtrValue, paramPtr)
 		variable := values.Variable{
 			Ty:  paramType,
@@ -351,7 +356,9 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 		case kind.STAR:
 			return codegen.builder.CreateMul(lhs, rhs, ".mul"), nil
 		case kind.MINUS:
-			return codegen.builder.CreateSub(lhs, rhs, ".mul"), nil
+			return codegen.builder.CreateSub(lhs, rhs, ".sub"), nil
+		case kind.PLUS:
+			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
@@ -391,28 +398,35 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 		return err
 	}
 
-	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
+	stoppedOnReturn := false
 
+	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
-	err = codegen.generateBlock(condStmt.IfStmt.Block, ifScope, function)
+	stoppedOnReturn, err = codegen.generateBlock(condStmt.IfStmt.Block, ifScope, function)
 	// TODO(errors)
 	if err != nil {
-		return nil
+		return err
 	}
-	codegen.builder.CreateBr(endBlock)
+	if !stoppedOnReturn {
+		codegen.builder.CreateBr(endBlock)
+	}
 
 	// TODO: implement elif statements (basically an if inside the else)
 
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
 		elseScope := scope.New(parentScope)
-		err := codegen.generateBlock(condStmt.ElseStmt.Block, elseScope, function)
+		elseStoppedOnReturn, err := codegen.generateBlock(condStmt.ElseStmt.Block, elseScope, function)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
+		if !elseStoppedOnReturn {
+			codegen.builder.CreateBr(endBlock)
+		}
+	} else {
+		codegen.builder.CreateBr(endBlock)
 	}
-	codegen.builder.CreateBr(endBlock)
 	codegen.builder.SetInsertPointAtEnd(endBlock)
 	return nil
 }
