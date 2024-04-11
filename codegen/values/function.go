@@ -19,4 +19,3 @@ func NewFunctionValue(fn llvm.Value, ty llvm.Type, block *llvm.BasicBlock) *Func
 func (function Function) Value() string {
 	return "Function"
 }
-

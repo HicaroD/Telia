@@ -91,9 +91,9 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
 	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
-	fn := values.NewFunctionValue(functionValue, functionType, &functionBlock)
+	fnValue := values.NewFunctionValue(functionValue, functionType, &functionBlock)
 
-	err := codegen.universe.Insert(function.Name, fn)
+	err := codegen.universe.Insert(function.Name, fnValue)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -103,22 +103,14 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
 
-	for i, paramPtrValue := range fn.Fn.Params() {
-		paramName := function.Params.Fields[i].Name.Lexeme.(string)
-		paramType := paramsTypes[i]
-		paramPtr := codegen.builder.CreateAlloca(paramType, ".paramTy") // Allocates enough memory for param
-		codegen.builder.CreateStore(paramPtrValue, paramPtr)            // Stores param pointer
-		variable := values.Variable{
-			Ty:  paramType,
-			Ptr: paramPtr,
-		}
-		err = fnScope.Insert(paramName, &variable)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+	err = codegen.generateParameters(fnValue, function, fnScope, paramsTypes)
+	// TODO(errors)
+	if err != nil {
+		return err
 	}
-	err = codegen.generateBlock(function.Block, fnScope, fn)
+
+	// TODO: add parameters
+	err = codegen.generateBlock(function.Block, fnScope, fnValue)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -191,30 +183,24 @@ func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *sc
 	return nil
 }
 
-// TODO(refactor): get a ast.ParamExpr which contains type info, name and index for reading from the function
-// func (codegen *codegen) generateParameter(statement *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
-// 	varTy := codegen.getType(statement.Type)
-// 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
-// 	varExpr, err := codegen.getExpr(scope, statement.Value)
-//
-// 	// TODO(errors)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	codegen.builder.CreateStore(varExpr, varPtr)
-//
-// 	variable := values.Variable{
-// 		Ty:  varTy,
-// 		Ptr: varPtr,
-// 	}
-// 	err = scope.Insert(statement.Name.Lexeme.(string), &variable)
-//
-// 	// TODO(errors)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (codegen *codegen) generateParameters(fnValue *values.Function, functionNode *ast.FunctionDecl, fnScope *scope.Scope[values.LLVMValue], paramsTypes []llvm.Type) error {
+	for i, paramPtrValue := range fnValue.Fn.Params() {
+		paramName := functionNode.Params.Fields[i].Name.Lexeme.(string)
+		paramType := paramsTypes[i]
+		paramPtr := codegen.builder.CreateAlloca(paramType, ".paramTy")
+		codegen.builder.CreateStore(paramPtrValue, paramPtr)
+		variable := values.Variable{
+			Ty:  paramType,
+			Ptr: paramPtr,
+		}
+		err := fnScope.Insert(paramName, &variable)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (codegen *codegen) generateFunctionCall(scope *scope.Scope[values.LLVMValue], functionCall *ast.FunctionCall) (llvm.Value, error) {
 	symbol, err := scope.Lookup(functionCall.Name)
