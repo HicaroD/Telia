@@ -171,13 +171,14 @@ func AnalyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 }
 
 func (sema *sema) analyzeCondStmt(condStmt *ast.CondStmt, returnTy ast.ExprType, outterScope *scope.Scope[ast.AstNode]) error {
+	ifScope := scope.New(outterScope)
+
 	err := sema.analyzeIfExpr(condStmt.IfStmt.Expr, outterScope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	ifScope := scope.New(outterScope)
 	err = sema.analyzeBlock(ifScope, condStmt.IfStmt.Block, returnTy)
 	// TODO(errors)
 	if err != nil {
@@ -193,6 +194,15 @@ func (sema *sema) analyzeCondStmt(condStmt *ast.CondStmt, returnTy ast.ExprType,
 			return err
 		}
 		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+	}
+
+	if condStmt.ElseStmt != nil {
+		elseScope := scope.New(outterScope)
+		err = sema.analyzeBlock(elseScope, condStmt.ElseStmt.Block, returnTy)
 		// TODO(errors)
 		if err != nil {
 			return err
