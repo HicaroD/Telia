@@ -229,6 +229,7 @@ var tokenLiterals []*tokenLiteralTest = []*tokenLiteralTest{
 
 func TestIsLiteral(t *testing.T) {
 	testFilename := "test.tt"
+	// TODO: use t.Run(...)
 	for _, expectedTokenLiteral := range tokenLiterals {
 		reader := bufio.NewReader(strings.NewReader(expectedTokenLiteral.lexeme))
 		lexer := New(testFilename, reader)

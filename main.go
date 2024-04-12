@@ -39,8 +39,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sema := sema.New(astNodes)
-	err = sema.Analyze()
+	sema := sema.New()
+	err = sema.Analyze(astNodes)
 	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)

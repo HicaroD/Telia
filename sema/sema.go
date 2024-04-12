@@ -1,31 +1,36 @@
 package sema
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 
 	"github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/telia-lang/parser"
 	"github.com/HicaroD/telia-lang/scope"
 )
 
 type sema struct {
-	astNodes []ast.AstNode
+	// astNodes []ast.AstNode
 	universe *scope.Scope[ast.AstNode]
 }
 
-func New(astNodes []ast.AstNode) *sema {
+func New() *sema {
 	// "universe" scope does not have any parent, it is the root of the tree of
 	// scopes
 	var nilScope *scope.Scope[ast.AstNode] = nil
 	universe := scope.New(nilScope)
-	return &sema{astNodes, universe}
+	// return &sema{astNodes, universe}
+	return &sema{universe}
 }
 
-func (sema *sema) Analyze() error {
-	for i := range sema.astNodes {
-		switch astNode := sema.astNodes[i].(type) {
+func (sema *sema) Analyze(astNodes []ast.AstNode) error {
+	for i := range astNodes {
+		switch astNode := astNodes[i].(type) {
 		case *ast.FunctionDecl:
 			err := sema.analyzeFnDecl(astNode)
 			// TODO(errors)
@@ -62,6 +67,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 			return err
 		}
 	}
+
 	err = sema.analyzeBlock(function.Scope, function.Block, function.RetType)
 	// TODO(errors)
 	if err != nil {
@@ -80,32 +86,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 				return err
 			}
 		case *ast.VarDeclStmt:
-			if statement.NeedsInference {
-				// TODO(errors): need a test for it
-				if statement.Type != nil {
-					log.Fatalf("needs inference, but variable already has a type: %s", statement.Type)
-				}
-				exprType, err := sema.inferExprType(statement.Value, currentScope)
-				// TODO(errors)
-				if err != nil {
-					return err
-				}
-				statement.Type = exprType
-			} else {
-				// TODO(errors)
-				if statement.Type == nil {
-					log.Fatalf("variable does not have a type and it said it does not need inference")
-				}
-				// TODO: what do I assert here in order to make it right?
-				_, err := sema.getExprType(statement.Value, statement.Type, currentScope)
-				// TODO(errors): Deal with type mismatch
-				if err != nil {
-					return err
-				}
-			}
-
-			varName := statement.Name.Lexeme.(string)
-			err := currentScope.Insert(varName, statement)
+			err := sema.analyzeVarDecl(statement, currentScope)
 			if err != nil {
 				return err
 			}
@@ -148,6 +129,68 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 		}
 	}
 	return nil
+}
+
+func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[ast.AstNode]) error {
+	if varDecl.NeedsInference {
+		// TODO(errors): need a test for it
+		if varDecl.Type != nil {
+			log.Fatalf("needs inference, but variable already has a type: %s", varDecl.Type)
+		}
+		exprType, err := sema.inferExprType(varDecl.Value, scope)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+		varDecl.Type = exprType
+	} else {
+		// TODO(errors)
+		if varDecl.Type == nil {
+			log.Fatalf("variable does not have a type and it said it does not need inference")
+		}
+		// TODO: what do I assert here in order to make it right?
+		_, err := sema.getExprType(varDecl.Value, varDecl.Type, scope)
+		// TODO(errors): Deal with type mismatch
+		if err != nil {
+			return err
+		}
+	}
+
+	varName := varDecl.Name.Lexeme.(string)
+	err := scope.Insert(varName, varDecl)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func AnalyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
+	reader := bufio.NewReader(strings.NewReader(input))
+
+	lexer := lexer.New(filename, reader)
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	par := parser.New(tokens)
+	idStmt, err := par.ParseIdStmt()
+	if err != nil {
+		return nil, err
+	}
+	varDecl := idStmt.(*ast.VarDeclStmt)
+
+	sema := New()
+
+	parent := scope.New[ast.AstNode](nil)
+	scope := scope.New(parent)
+
+	err = sema.analyzeVarDecl(varDecl, scope)
+	if err != nil {
+		return nil, err
+	}
+
+	return varDecl, nil
 }
 
 func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *scope.Scope[ast.AstNode]) error {

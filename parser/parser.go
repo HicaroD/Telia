@@ -44,7 +44,7 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 			astNodes = append(astNodes, externDecl)
 		default:
 			// TODO(errors)
-			return nil, fmt.Errorf("unimplemented: %s", token.Lexeme)
+			return nil, fmt.Errorf("unimplemented on parser: %s", token.Lexeme)
 		}
 	}
 	return astNodes, nil
@@ -340,7 +340,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			}
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
-			idNode, err := parser.parseIdStmt()
+			idNode, err := parser.ParseIdStmt()
 			// TODO(errors)
 			if err != nil {
 				return nil, err
@@ -371,7 +371,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	return &ast.BlockStmt{OpenCurly: openCurly.Position, Statements: statements, CloseCurly: closeCurly.Position}, nil
 }
 
-func (parser *parser) parseIdStmt() (ast.Stmt, error) {
+func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	identifier, ok := parser.expect(kind.ID)
 	// TODO(errors)
 	if !ok {
