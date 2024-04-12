@@ -17,6 +17,8 @@ type BasicType struct {
 }
 
 var LOGICAL_OP map[kind.TokenKind]bool = map[kind.TokenKind]bool{
+	kind.AND:         true,
+	kind.OR:          true,
 	kind.BANG_EQUAL:  true,
 	kind.EQUAL_EQUAL: true,
 	kind.GREATER:     true,

@@ -15,7 +15,6 @@ import (
 )
 
 type sema struct {
-	// astNodes []ast.AstNode
 	universe *scope.Scope[ast.AstNode]
 }
 
@@ -24,7 +23,6 @@ func New() *sema {
 	// scopes
 	var nilScope *scope.Scope[ast.AstNode] = nil
 	universe := scope.New(nilScope)
-	// return &sema{astNodes, universe}
 	return &sema{universe}
 }
 
@@ -191,6 +189,9 @@ func AnalyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	}
 
 	return varDecl, nil
+}
+
+func (sema *sema) analyzeCondStmt() {
 }
 
 func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *scope.Scope[ast.AstNode]) error {
