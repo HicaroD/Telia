@@ -85,36 +85,15 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 			}
 		case *ast.VarDeclStmt:
 			err := sema.analyzeVarDecl(statement, currentScope)
+			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.CondStmt:
-			err := sema.analyzeIfExpr(statement.IfStmt.Expr, currentScope)
+			err := sema.analyzeCondStmt(statement, returnTy, currentScope)
 			// TODO(errors)
 			if err != nil {
 				return err
-			}
-
-			ifScope := scope.New(currentScope)
-			err = sema.analyzeBlock(ifScope, statement.IfStmt.Block, returnTy)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-
-			for i := range statement.ElifStmts {
-				err := sema.analyzeIfExpr(statement.ElifStmts[i].Expr, currentScope)
-				// TODO(errors)
-				if err != nil {
-					return err
-				}
-
-				elifScope := scope.New(currentScope)
-				err = sema.analyzeBlock(elifScope, statement.ElseStmt.Block, returnTy)
-				// TODO(errors)
-				if err != nil {
-					return err
-				}
 			}
 		case *ast.ReturnStmt:
 			_, err := sema.getExprType(statement.Value, returnTy, currentScope)
@@ -191,7 +170,36 @@ func AnalyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	return varDecl, nil
 }
 
-func (sema *sema) analyzeCondStmt() {
+func (sema *sema) analyzeCondStmt(condStmt *ast.CondStmt, returnTy ast.ExprType, outterScope *scope.Scope[ast.AstNode]) error {
+	err := sema.analyzeIfExpr(condStmt.IfStmt.Expr, outterScope)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+
+	ifScope := scope.New(outterScope)
+	err = sema.analyzeBlock(ifScope, condStmt.IfStmt.Block, returnTy)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+
+	for i := range condStmt.ElifStmts {
+		elifScope := scope.New(outterScope)
+
+		err := sema.analyzeIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *scope.Scope[ast.AstNode]) error {
