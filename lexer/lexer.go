@@ -19,7 +19,7 @@ func New(filename string, reader *bufio.Reader) *lexer {
 	return &lexer{filename: filename, cursor: new(filename, reader)}
 }
 
-func (lex *lexer) Tokenize() []*token.Token {
+func (lex *lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
 		lex.cursor.skipWhitespace()
@@ -31,7 +31,7 @@ func (lex *lexer) Tokenize() []*token.Token {
 		tokens = append(tokens, token)
 	}
 	tokens = append(tokens, lex.consumeToken(nil, kind.EOF))
-	return tokens
+	return tokens, nil
 }
 
 func (lex *lexer) getToken(character rune) *token.Token {
@@ -62,10 +62,61 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		token := lex.consumeToken(nil, kind.SEMICOLON)
 		lex.cursor.skip()
 		return token
+	case '+':
+		token := lex.consumeToken(nil, kind.PLUS)
+		lex.cursor.skip()
+		return token
+	case '-':
+		token := lex.consumeToken(nil, kind.MINUS)
+		lex.cursor.skip()
+		return token
 	case '*':
 		token := lex.consumeToken(nil, kind.STAR)
 		lex.cursor.skip()
 		return token
+	case '/':
+		token := lex.consumeToken(nil, kind.SLASH)
+		lex.cursor.skip()
+		return token
+	case '!':
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.skip()
+
+		next, ok := lex.cursor.peek()
+		// TODO(errors)
+		if !ok {
+			log.Fatal("invalid '!' token")
+		}
+		if next == '=' {
+			lex.cursor.skip()
+			return token.New(nil, kind.BANG_EQUAL, tokenPosition)
+		}
+		// TODO(errors)
+		log.Fatal("invalid '!' token")
+	case '>':
+		tokenKind := kind.GREATER
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.skip() // >
+
+		next, ok := lex.cursor.peek()
+		if !ok || next != '=' {
+			return token.New(nil, tokenKind, tokenPosition)
+		}
+		lex.cursor.skip() // =
+		tokenKind = kind.GREATER_EQ
+		return token.New(nil, tokenKind, tokenPosition)
+	case '<':
+		tokenKind := kind.LESS
+		tokenPosition := lex.cursor.Position()
+		lex.cursor.skip() // >
+
+		next, ok := lex.cursor.peek()
+		if !ok || next != '=' {
+			return token.New(nil, tokenKind, tokenPosition)
+		}
+		lex.cursor.skip() // =
+		tokenKind = kind.LESS_EQ
+		return token.New(nil, tokenKind, tokenPosition)
 	case '=':
 		tokenKind := kind.EQUAL
 		tokenPosition := lex.cursor.Position()
@@ -97,19 +148,6 @@ func (lex *lexer) getToken(character rune) *token.Token {
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT_DOT
 		return token.New(nil, tokenKind, tokenPosition)
-	case '-':
-		position := lex.cursor.Position()
-		token := lex.consumeToken(nil, kind.MINUS)
-		lex.cursor.skip()
-
-		next, ok := lex.cursor.peek()
-		if !ok {
-			return token
-		}
-		if unicode.IsNumber(next) {
-			return lex.getNumberLiteral(position, true)
-		}
-		return token
 	case ':':
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip() // :
@@ -131,7 +169,7 @@ func (lex *lexer) getToken(character rune) *token.Token {
 			token := lex.classifyIdentifier(identifier, position)
 			return token
 		} else if unicode.IsNumber(character) {
-			return lex.getNumberLiteral(position, false)
+			return lex.getNumberLiteral(position)
 		} else {
 			// TODO(errors): invalid character
 			log.Fatalf("invalid character: '%c' at %s", character, lex.cursor.Position())
@@ -159,12 +197,8 @@ func (lex *lexer) getStringLiteral() *token.Token {
 	return token.New(strLiteral, kind.STRING_LITERAL, position)
 }
 
-func (lex *lexer) getNumberLiteral(position token.Position, isNegative bool) *token.Token {
-	number := ""
-	if isNegative {
-		number = "-"
-	}
-	number += lex.cursor.readWhile(func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' })
+func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
+	number := lex.cursor.readWhile(func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' })
 
 	// TODO: deal with floating pointer numbers
 	// if strings.Contains(number, ".") {}
@@ -175,11 +209,7 @@ func (lex *lexer) getNumberLiteral(position token.Position, isNegative bool) *to
 		log.Fatalf("unable to convert string to integer due to error: '%s'", err)
 	}
 
-	numberKind := kind.INTEGER_LITERAL
-	if isNegative {
-		numberKind = kind.NEGATIVE_INTEGER_LITERAL
-	}
-	token := token.New(convertedNumber, numberKind, position)
+	token := token.New(convertedNumber, kind.INTEGER_LITERAL, position)
 	return token
 }
 

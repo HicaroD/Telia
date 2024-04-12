@@ -28,6 +28,9 @@ const (
 	IF
 	ELIF
 	ELSE
+	NOT
+	AND
+	OR
 
 	// Types
 	BOOL_TYPE
@@ -64,19 +67,32 @@ const (
 	// ...
 	DOT_DOT_DOT
 
-	// *
-	STAR
-
 	// =
 	EQUAL
+	// :=
+	COLON_EQUAL
+	// !=
+	BANG_EQUAL
 	// ==
 	EQUAL_EQUAL
 
+	// >
+	GREATER
+	// >=
+	GREATER_EQ
+	// <
+	LESS
+	// <=
+	LESS_EQ
+
+	// +
+	PLUS
 	// -
 	MINUS
-
-	// :=
-	COLON_EQUAL
+	// *
+	STAR
+	// /
+	SLASH
 )
 
 var KEYWORDS map[string]TokenKind = map[string]TokenKind{
@@ -86,6 +102,9 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"if":     IF,
 	"elif":   ELIF,
 	"else":   ELSE,
+	"not":    NOT,
+	"and":    AND,
+	"or":     OR,
 
 	"true":  TRUE_BOOL_LITERAL,
 	"false": FALSE_BOOL_LITERAL,
@@ -152,6 +171,12 @@ func (kind TokenKind) String() string {
 		return "elif"
 	case ELSE:
 		return "else"
+	case NOT:
+		return "not"
+	case AND:
+		return "and"
+	case OR:
+		return "or"
 	case BOOL_TYPE:
 		return "bool"
 	case I8_TYPE:
@@ -190,16 +215,30 @@ func (kind TokenKind) String() string {
 		return ".."
 	case DOT_DOT_DOT:
 		return "..."
-	case STAR:
-		return "*"
 	case EQUAL:
 		return "="
-	case EQUAL_EQUAL:
-		return "=="
 	case COLON_EQUAL:
 		return ":="
+	case BANG_EQUAL:
+		return "!="
+	case EQUAL_EQUAL:
+		return "=="
+	case GREATER:
+		return ">"
+	case GREATER_EQ:
+		return ">="
+	case LESS:
+		return "<"
+	case LESS_EQ:
+		return "<="
+	case PLUS:
+		return "+"
 	case MINUS:
 		return "-"
+	case STAR:
+		return "*"
+	case SLASH:
+		return "/"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}

@@ -1,10 +1,13 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/HicaroD/telia-lang/ast"
+	"github.com/HicaroD/telia-lang/lexer"
 	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
 )
@@ -24,7 +27,6 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 		if token == nil || token.Kind == kind.EOF {
 			break
 		}
-
 		switch token.Kind {
 		case kind.FN:
 			fnDecl, err := parser.parseFnDecl()
@@ -42,10 +44,26 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 			astNodes = append(astNodes, externDecl)
 		default:
 			// TODO(errors)
-			return nil, fmt.Errorf("unimplemented: %s", token.Lexeme)
+			return nil, fmt.Errorf("unimplemented on parser: %s", token.Lexeme)
 		}
 	}
 	return astNodes, nil
+}
+
+func ParseExprFrom(expr, filename string) (ast.Expr, error) {
+	reader := bufio.NewReader(strings.NewReader(expr))
+	lex := lexer.New(filename, reader)
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens)
+	exprAst, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return exprAst, nil
 }
 
 func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
@@ -203,8 +221,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 		if err != nil {
 			return nil, err
 		}
-		params = append(params, &ast.Field{Name: name.Lexeme.(string), Type: paramType})
-
+		params = append(params, &ast.Field{Name: name, Type: paramType})
 	}
 
 	closeParen, ok := parser.expect(kind.CLOSE_PAREN)
@@ -323,7 +340,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			}
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
-			idNode, err := parser.parseIdStmt()
+			idNode, err := parser.ParseIdStmt()
 			// TODO(errors)
 			if err != nil {
 				return nil, err
@@ -354,7 +371,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	return &ast.BlockStmt{OpenCurly: openCurly.Position, Statements: statements, CloseCurly: closeCurly.Position}, nil
 }
 
-func (parser *parser) parseIdStmt() (ast.Stmt, error) {
+func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	identifier, ok := parser.expect(kind.ID)
 	// TODO(errors)
 	if !ok {
@@ -369,7 +386,7 @@ func (parser *parser) parseIdStmt() (ast.Stmt, error) {
 
 	switch next.Kind {
 	case kind.OPEN_PAREN:
-		fnCall, err := parser.parseFnCallStmt(identifier.Lexeme.(string))
+		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -485,6 +502,143 @@ func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
+	return parser.parseLogical()
+}
+
+func (parser *parser) parseLogical() (ast.Expr, error) {
+	lhs, err := parser.parseComparasion()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.LOGICAL[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseComparasion()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseComparasion() (ast.Expr, error) {
+	lhs, err := parser.parseTerm()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.COMPARASION[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseTerm()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseTerm() (ast.Expr, error) {
+	lhs, err := parser.parseFactor()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.TERM[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseFactor()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+}
+
+func (parser *parser) parseFactor() (ast.Expr, error) {
+	lhs, err := parser.parseUnary()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: refactor this code, it seems there is a better way of writing this
+	for {
+		next := parser.cursor.peek()
+		if next == nil {
+			break
+		}
+		if _, ok := ast.FACTOR[next.Kind]; ok {
+			parser.cursor.skip()
+			rhs, err := parser.parseUnary()
+			// TODO(errors)
+			if err != nil {
+				return nil, err
+			}
+			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+		} else {
+			break
+		}
+	}
+	return lhs, nil
+
+}
+
+func (parser *parser) parseUnary() (ast.Expr, error) {
+	next := parser.cursor.peek()
+	// TODO(errors)
+	if next == nil {
+		return nil, fmt.Errorf("unable to peek next on parseUnary")
+	}
+
+	if _, ok := ast.UNARY[next.Kind]; ok {
+		parser.cursor.skip()
+		rhs, err := parser.parseUnary()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{Op: next.Kind, Node: rhs}, nil
+	}
+
+	return parser.parsePrimary()
+}
+
+func (parser *parser) parsePrimary() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	if token == nil {
 		return nil, fmt.Errorf("can't peek next token because it is null")
@@ -492,7 +646,22 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	switch token.Kind {
 	case kind.ID:
 		parser.cursor.skip()
+		if parser.cursor.nextIs(kind.OPEN_PAREN) {
+			return parser.parseFnCall(token.Lexeme.(string))
+		}
 		return &ast.IdExpr{Name: token}, nil
+	case kind.OPEN_PAREN:
+		parser.cursor.skip() // (
+		expr, err := parser.parseExpr()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		_, ok := parser.expect(kind.CLOSE_PAREN)
+		if !ok {
+			return nil, fmt.Errorf("expected closing parenthesis")
+		}
+		return expr, nil
 	default:
 		if _, ok := kind.LITERAL_KIND[token.Kind]; ok {
 			parser.cursor.skip()
@@ -502,7 +671,7 @@ func (parser *parser) parseExpr() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseFnCallStmt(fnName string) (*ast.FunctionCallStmt, error) {
+func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCall, error) {
 	_, ok := parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
 	if !ok {
@@ -527,6 +696,5 @@ func (parser *parser) parseFnCallStmt(fnName string) (*ast.FunctionCallStmt, err
 			continue
 		}
 	}
-
-	return &ast.FunctionCallStmt{Name: fnName, Args: callArgs}, nil
+	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
 }

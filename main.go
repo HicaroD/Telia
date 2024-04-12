@@ -27,7 +27,10 @@ func main() {
 
 	reader := bufio.NewReader(file)
 	lex := lexer.New(filename, reader)
-	tokens := lex.Tokenize()
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	parser := parser.New(tokens)
 	astNodes, err := parser.Parse()
@@ -36,8 +39,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sema := sema.New(astNodes)
-	err = sema.Analyze()
+	sema := sema.New()
+	err = sema.Analyze(astNodes)
 	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)

@@ -8,8 +8,8 @@ type Variable struct {
 	Ptr llvm.Value
 }
 
-func NewVariableValue(ty llvm.Type, ptr llvm.Value) Variable {
-	return Variable{Ty: ty, Ptr: ptr}
+func NewVariableValue(ty llvm.Type, ptr llvm.Value) *Variable {
+	return &Variable{Ty: ty, Ptr: ptr}
 }
 
 func (variable Variable) Value() string {
