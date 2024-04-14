@@ -20,7 +20,7 @@ type BlockStmt struct {
 }
 
 func (block BlockStmt) String() string {
-	return "BLOCK"
+	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
 func (block BlockStmt) IsReturn() bool { return false }
 func (block BlockStmt) astNode()       {}

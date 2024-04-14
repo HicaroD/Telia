@@ -184,6 +184,25 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	return &fnDecl, nil
 }
 
+func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
+	reader := bufio.NewReader(strings.NewReader(input))
+
+	lexer := lexer.New(filename, reader)
+	tokens, err := lexer.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	par := New(tokens)
+
+	fnDecl, err := par.parseFnDecl()
+	if err != nil {
+		return nil, err
+	}
+
+	return fnDecl, nil
+}
+
 func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	var params []*ast.Field
 	isVariadic := false

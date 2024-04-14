@@ -8,46 +8,90 @@ import (
 	"github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/telia-lang/scope"
 )
 
-type exprTest struct {
-	expr string
-	node ast.Expr
+type functionDeclTest struct {
+	input string
+	node  *ast.FunctionDecl
 }
 
-func TestFunctionDecl(t *testing.T) {}
+func TestFunctionDecl(t *testing.T) {
+	filename := "test.tt"
+
+	// parent := scope.New[ast.AstNode](nil)
+	// scope := scope.New(parent)
+
+	tests := []functionDeclTest{
+		{
+			input: "fn do_nothing() {}",
+			node: &ast.FunctionDecl{
+				Scope: scope.New(scope.New[ast.AstNode](nil)),
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open:       token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields:     nil,
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 15, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.VOID_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 17, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 18, 1),
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
+			fnDecl, err := parseFnDeclFrom(filename, test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(fnDecl, test.node) {
+				t.Fatalf("\n-------\nexpected:\n%s\n-------\ngot:\n%s\n-------", test.node, fnDecl)
+			}
+		})
+	}
+}
 
 func TestExternDecl(t *testing.T) {}
 
+type exprTest struct {
+	input string
+	node  ast.Expr
+}
+
 func TestLiteralExpr(t *testing.T) {
 	filename := "test.tt"
-	literals := []exprTest{
+	tests := []exprTest{
 		{
-			expr: "1",
-			node: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			input: "1",
+			node:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
 		},
 		{
-			expr: "true",
-			node: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
+			input: "true",
+			node:  &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
 		},
 		{
-			expr: "false",
-			node: &ast.LiteralExpr{Value: "false", Kind: kind.FALSE_BOOL_LITERAL},
+			input: "false",
+			node:  &ast.LiteralExpr{Value: "false", Kind: kind.FALSE_BOOL_LITERAL},
 		},
 		{
-			expr: "\"Hello, world\"",
-			node: &ast.LiteralExpr{Value: "Hello, world", Kind: kind.STRING_LITERAL},
+			input: "\"Hello, world\"",
+			node:  &ast.LiteralExpr{Value: "Hello, world", Kind: kind.STRING_LITERAL},
 		},
 	}
 
-	for _, test := range literals {
-		t.Run(fmt.Sprintf("TestLiteralExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.expr, filename)
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestLiteralExpr('%s')", test.input), func(t *testing.T) {
+			actualNode, err := parseExprFrom(test.input, filename)
 			if err != nil {
-				t.Errorf("TestLiteralExpr('%s'): unexpected error '%v'", test.expr, err)
+				t.Errorf("TestLiteralExpr('%s'): unexpected error '%v'", test.input, err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("TestLiteralExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.expr, test.node, actualNode)
+				t.Errorf("TestLiteralExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.input, test.node, actualNode)
 			}
 		})
 	}
@@ -57,14 +101,14 @@ func TestUnaryExpr(t *testing.T) {
 	filename := "test.tt"
 	unaryExprs := []exprTest{
 		{
-			expr: "-1",
+			input: "-1",
 			node: &ast.UnaryExpr{
 				Op:   kind.MINUS,
 				Node: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
-			expr: "not true",
+			input: "not true",
 			node: &ast.UnaryExpr{
 				Op:   kind.NOT,
 				Node: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
@@ -72,13 +116,13 @@ func TestUnaryExpr(t *testing.T) {
 		},
 	}
 	for _, test := range unaryExprs {
-		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.expr, filename)
+		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
+			actualNode, err := parseExprFrom(test.input, filename)
 			if err != nil {
-				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.expr, err)
+				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.input, err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("TestBinaryExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.expr, test.node, actualNode)
+				t.Errorf("TestBinaryExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.input, test.node, actualNode)
 			}
 		})
 	}
@@ -88,7 +132,7 @@ func TestBinaryExpr(t *testing.T) {
 	filename := "test.tt"
 	binExprs := []exprTest{
 		{
-			expr: "1 + 1",
+			input: "1 + 1",
 			node: &ast.BinaryExpr{
 				Left:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
 				Op:    kind.PLUS,
@@ -96,7 +140,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "2 - 1",
+			input: "2 - 1",
 			node: &ast.BinaryExpr{
 				Left:  &ast.LiteralExpr{Value: 2, Kind: kind.INTEGER_LITERAL},
 				Op:    kind.MINUS,
@@ -104,7 +148,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "5 * 10",
+			input: "5 * 10",
 			node: &ast.BinaryExpr{
 				Left:  &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
 				Op:    kind.STAR,
@@ -112,7 +156,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "10 / 1",
+			input: "10 / 1",
 			node: &ast.BinaryExpr{
 				Left:  &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
 				Op:    kind.SLASH,
@@ -120,7 +164,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "6 / 3 - 1",
+			input: "6 / 3 - 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
@@ -141,7 +185,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "6 / (3 - 1)",
+			input: "6 / (3 - 1)",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 6,
@@ -162,7 +206,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 / (1 + 1)",
+			input: "1 / (1 + 1)",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
 				Op:   kind.SLASH,
@@ -180,7 +224,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 > 1",
+			input: "1 > 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 1,
@@ -194,7 +238,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 >= 1",
+			input: "1 >= 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 1,
@@ -208,7 +252,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 < 1",
+			input: "1 < 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 1,
@@ -222,7 +266,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 <= 1",
+			input: "1 <= 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 1,
@@ -237,7 +281,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			// not 1 > 1 is invalid in Golang
-			expr: "not (1 > 1)",
+			input: "not (1 > 1)",
 			node: &ast.UnaryExpr{
 				Op: kind.NOT,
 				Node: &ast.BinaryExpr{
@@ -254,7 +298,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 > 1 and 1 > 1",
+			input: "1 > 1 and 1 > 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
@@ -282,7 +326,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 > 1 or 1 > 1",
+			input: "1 > 1 or 1 > 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
@@ -310,7 +354,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "celsius*9/5+32",
+			input: "celsius*9/5+32",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
@@ -337,7 +381,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "get_celsius()*9/5+32",
+			input: "get_celsius()*9/5+32",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
@@ -365,7 +409,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 > 1 > 1",
+			input: "1 > 1 > 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
@@ -386,7 +430,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "n == 1",
+			input: "n == 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.IdExpr{
 					Name: token.New("n", kind.ID, token.NewPosition("test.tt", 1, 1)),
@@ -399,7 +443,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "n == 1 or n == 2",
+			input: "n == 1 or n == 2",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.IdExpr{
@@ -425,7 +469,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 + 1 > 2 and 1 == 1",
+			input: "1 + 1 > 2 and 1 == 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
@@ -460,7 +504,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "true and true and true and true",
+			input: "true and true and true and true",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
@@ -488,7 +532,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "(((true and true) and true) and true)",
+			input: "(((true and true) and true) and true)",
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
@@ -516,7 +560,7 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
-			expr: "1 + multiply_by_2(10)",
+			input: "1 + multiply_by_2(10)",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
 					Value: 1,
@@ -537,8 +581,8 @@ func TestBinaryExpr(t *testing.T) {
 	}
 
 	for _, test := range binExprs {
-		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.expr, filename)
+		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
+			actualNode, err := parseExprFrom(test.input, filename)
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}

@@ -38,3 +38,7 @@ func (scope *Scope[V]) Lookup(name string) (V, error) {
 	}
 	return scope.parent.Lookup(name)
 }
+
+func (scope Scope[V]) String() string {
+	return fmt.Sprintf("Scope:\nParent: %v\nCurrent: %v\n", scope.parent, scope.nodes)
+}
