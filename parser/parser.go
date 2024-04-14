@@ -257,11 +257,6 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 		return ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 
-	// // TODO(errors)
-	// if !parser.nextIsPossibleType() {
-	// 	return nil, fmt.Errorf("not a valid function return type annotation")
-	// }
-
 	returnType, err := parser.parseExprType()
 	// TODO(errors)
 	if err != nil {
