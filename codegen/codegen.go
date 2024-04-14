@@ -15,7 +15,7 @@ import (
 
 type codegen struct {
 	universe          *scope.Scope[values.LLVMValue]
-	globalStrLiterals map[string]llvm.Value
+	strLiterals map[string]llvm.Value
 	context           llvm.Context
 	module            llvm.Module
 	builder           llvm.Builder
@@ -38,7 +38,7 @@ func New(astNodes []ast.AstNode) *codegen {
 		module:            module,
 		builder:           builder,
 		astNodes:          astNodes,
-		globalStrLiterals: map[string]llvm.Value{},
+		strLiterals: map[string]llvm.Value{},
 	}
 }
 
@@ -306,12 +306,12 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 			return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
 		case kind.STRING_LITERAL:
 			stringLiteral := currentExpr.Value.(string)
-			globalStrLiteral, ok := codegen.globalStrLiterals[stringLiteral]
+			globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
 			if ok {
 				return globalStrLiteral, nil
 			}
 			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-			codegen.globalStrLiterals[stringLiteral] = globalStrPtr
+			codegen.strLiterals[stringLiteral] = globalStrPtr
 			return globalStrPtr, nil
 		case kind.TRUE_BOOL_LITERAL:
 			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
