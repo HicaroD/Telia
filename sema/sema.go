@@ -42,7 +42,7 @@ func (sema *sema) Analyze(astNodes []ast.AstNode) error {
 				return err
 			}
 		default:
-			fmt.Printf("OTHER AST NODE: %s\n", reflect.TypeOf(astNode))
+			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
 		}
 	}
 	return nil
@@ -56,8 +56,6 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 
 	function.Scope = scope.New(sema.universe)
 	for _, param := range function.Params.Fields {
-		// TODO: insert parameters into the scope,
-		// so the function it can reference to it
 		paramName := param.Name.Lexeme.(string)
 		err := function.Scope.Insert(paramName, param)
 		// TODO(errors)
@@ -102,7 +100,7 @@ func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *as
 				return err
 			}
 		default:
-			log.Fatalf("unimplemented statement: %s", statement)
+			log.Fatalf("unimplemented statement on sema: %s", statement)
 		}
 	}
 	return nil
@@ -141,7 +139,8 @@ func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[as
 	return nil
 }
 
-func AnalyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
+// Useful for testing
+func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	reader := bufio.NewReader(strings.NewReader(input))
 
 	lexer := lexer.New(filename, reader)
@@ -311,7 +310,7 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
 		case kind.INTEGER_LITERAL:
 			switch ty := expectedType.(type) {
-			case *ast.BasicType:
+			case ast.BasicType:
 				// TODO: refactor this
 				// This switch seems unnecessary because it is quite repetitive
 				// There are probably better ways to deal with integer sizes
@@ -344,6 +343,9 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 						log.Fatalf("i64 integer overflow: %d", value)
 					}
 					return ast.BasicType{Kind: kind.I64_TYPE}, nil
+				case kind.VOID_TYPE:
+					// TODO(errors)
+					return nil, fmt.Errorf("mismatched type, expected to be a %s, but got %s", expr, expectedType)
 				default:
 					// TODO(errors)
 					log.Fatalf("expected to be an %s, but got %s", ty, expr.Kind)
@@ -393,11 +395,18 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 		}
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, nil
+	case *ast.VoidExpr:
+		// TODO(errors)
+		if !expectedType.IsVoid() {
+			return nil, fmt.Errorf("expected return type to be '%s'", expectedType)
+		}
+		return expectedType, nil
 	default:
 		// TODO(errors)
-		log.Fatalf("unimplemented: %s", expr)
+		log.Fatalf("unimplemented on getExprType: %s", expr)
 	}
 	// NOTE: this line should be unreachable
+	log.Fatalf("unreachable line at getExprTy")
 	return nil, nil
 }
 

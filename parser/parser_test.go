@@ -42,7 +42,7 @@ func TestLiteralExpr(t *testing.T) {
 
 	for _, test := range literals {
 		t.Run(fmt.Sprintf("TestLiteralExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := ParseExprFrom(test.expr, filename)
+			actualNode, err := parseExprFrom(test.expr, filename)
 			if err != nil {
 				t.Errorf("TestLiteralExpr('%s'): unexpected error '%v'", test.expr, err)
 			}
@@ -73,7 +73,7 @@ func TestUnaryExpr(t *testing.T) {
 	}
 	for _, test := range unaryExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := ParseExprFrom(test.expr, filename)
+			actualNode, err := parseExprFrom(test.expr, filename)
 			if err != nil {
 				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.expr, err)
 			}
@@ -538,7 +538,7 @@ func TestBinaryExpr(t *testing.T) {
 
 	for _, test := range binExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.expr), func(t *testing.T) {
-			actualNode, err := ParseExprFrom(test.expr, filename)
+			actualNode, err := parseExprFrom(test.expr, filename)
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}

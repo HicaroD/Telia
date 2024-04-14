@@ -14,12 +14,12 @@ import (
 )
 
 type codegen struct {
-	universe          *scope.Scope[values.LLVMValue]
+	universe    *scope.Scope[values.LLVMValue]
 	strLiterals map[string]llvm.Value
-	context           llvm.Context
-	module            llvm.Module
-	builder           llvm.Builder
-	astNodes          []ast.AstNode
+	context     llvm.Context
+	module      llvm.Module
+	builder     llvm.Builder
+	astNodes    []ast.AstNode
 }
 
 func New(astNodes []ast.AstNode) *codegen {
@@ -33,11 +33,11 @@ func New(astNodes []ast.AstNode) *codegen {
 	builder := context.NewBuilder()
 
 	return &codegen{
-		universe:          universe,
-		context:           context,
-		module:            module,
-		builder:           builder,
-		astNodes:          astNodes,
+		universe:    universe,
+		context:     context,
+		module:      module,
+		builder:     builder,
+		astNodes:    astNodes,
 		strLiterals: map[string]llvm.Value{},
 	}
 }
@@ -135,30 +135,45 @@ func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LL
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
 		_, err := codegen.generateFunctionCall(scope, statement)
-		if err != nil {
-			return err
-		}
-	case *ast.ReturnStmt:
-		returnValue, err := codegen.getExpr(scope, statement.Value)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		codegen.builder.CreateRet(returnValue)
-		return nil
+	case *ast.ReturnStmt:
+		err := codegen.generateReturnStmt(statement, scope)
+		// TODO(errors)
+		if err != nil {
+			return nil
+		}
 	case *ast.CondStmt:
 		err := codegen.generateCondStmt(scope, function, statement)
+		// TODO(errors)
 		if err != nil {
 			return err
 		}
 	case *ast.VarDeclStmt:
 		err := codegen.generateVariableDecl(statement, scope)
+		// TODO(errors)
 		if err != nil {
 			return err
 		}
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
+	return nil
+}
+
+func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Scope[values.LLVMValue]) error {
+	if ret.Value.IsVoid() {
+		codegen.builder.CreateRetVoid()
+		return nil
+	}
+	returnValue, err := codegen.getExpr(scope, ret.Value)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	codegen.builder.CreateRet(returnValue)
 	return nil
 }
 
@@ -218,7 +233,10 @@ func (codegen *codegen) generateFunctionCall(scope *scope.Scope[values.LLVMValue
 	if err != nil {
 		return llvm.Value{}, err
 	}
-	return codegen.builder.CreateCall(function.Ty, function.Fn, args, "call"), nil
+
+	// NOTE: do I really need to define the name?
+	callName := ""
+	return codegen.builder.CreateCall(function.Ty, function.Fn, args, callName), nil
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
@@ -257,6 +275,8 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 			return codegen.context.Int32Type()
 		case kind.I64_TYPE:
 			return codegen.context.Int64Type()
+		case kind.VOID_TYPE:
+			return codegen.context.VoidType()
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}

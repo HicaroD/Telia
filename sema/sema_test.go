@@ -95,7 +95,7 @@ func TestVarDecl(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
-			varDecl, err := AnalyzeVarDeclFrom(test.input, filename)
+			varDecl, err := analyzeVarDeclFrom(test.input, filename)
 			if err != nil {
 				t.Fatal(err)
 			}

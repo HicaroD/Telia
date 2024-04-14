@@ -38,8 +38,20 @@ var UNARY map[kind.TokenKind]bool = map[kind.TokenKind]bool{
 
 type Expr interface {
 	AstNode
+	IsVoid() bool
 	exprNode()
 }
+
+// Used on empty return
+type VoidExpr struct {
+	Expr
+}
+
+func (void VoidExpr) String() string {
+	return "void"
+}
+func (void VoidExpr) IsVoid() bool { return true }
+func (void VoidExpr) exprNode()    {}
 
 type LiteralExpr struct {
 	Expr
@@ -50,7 +62,8 @@ type LiteralExpr struct {
 func (literal LiteralExpr) String() string {
 	return fmt.Sprintf("%s %s", literal.Kind, literal.Value)
 }
-func (literal LiteralExpr) exprNode() {}
+func (literal LiteralExpr) IsVoid() bool { return false }
+func (literal LiteralExpr) exprNode()    {}
 
 type IdExpr struct {
 	Expr
@@ -60,7 +73,8 @@ type IdExpr struct {
 func (idExpr IdExpr) String() string {
 	return fmt.Sprintf("%s", idExpr.Name)
 }
-func (idExpr IdExpr) exprNode() {}
+func (idExpr IdExpr) IsVoid() bool { return false }
+func (idExpr IdExpr) exprNode()    {}
 
 type UnaryExpr struct {
 	Expr
@@ -71,7 +85,8 @@ type UnaryExpr struct {
 func (unary UnaryExpr) String() string {
 	return fmt.Sprintf("%s %s", unary.Op, unary.Node)
 }
-func (unary UnaryExpr) exprNode() {}
+func (unary UnaryExpr) IsVoid() bool { return false }
+func (unary UnaryExpr) exprNode()    {}
 
 type BinaryExpr struct {
 	Expr
@@ -83,4 +98,5 @@ type BinaryExpr struct {
 func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("(%s) %s (%s)", binExpr.Left, binExpr.Op, binExpr.Right)
 }
-func (binExpr BinaryExpr) exprNode() {}
+func (binExpr BinaryExpr) IsVoid() bool { return false }
+func (binExpr BinaryExpr) exprNode()    {}

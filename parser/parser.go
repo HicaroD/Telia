@@ -50,7 +50,8 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 	return astNodes, nil
 }
 
-func ParseExprFrom(expr, filename string) (ast.Expr, error) {
+// Useful for testing
+func parseExprFrom(expr, filename string) (ast.Expr, error) {
 	reader := bufio.NewReader(strings.NewReader(expr))
 	lex := lexer.New(filename, reader)
 	tokens, err := lex.Tokenize()
@@ -234,7 +235,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 
 func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 	if parser.cursor.nextIs(kind.OPEN_CURLY) {
-		return nil, nil
+		return ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 
 	// TODO(errors)
@@ -328,6 +329,12 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 		switch token.Kind {
 		case kind.RETURN:
 			parser.cursor.skip()
+			if parser.cursor.nextIs(kind.SEMICOLON) {
+				statements = append(statements, &ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}})
+				parser.cursor.skip()
+				break
+			}
+
 			returnValue, err := parser.parseExpr()
 			// TODO(errors)
 			if err != nil {
@@ -411,6 +418,8 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 }
 
 func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
+	// TODO: parse variable declaration with type annotation
+	// Right now I am only parsing variables with type inference
 	_, ok := parser.expect(kind.COLON_EQUAL)
 	if !ok {
 		return nil, fmt.Errorf("expected ':=' at parseVarDecl")
