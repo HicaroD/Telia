@@ -293,7 +293,7 @@ func (parser *parser) nextIsPossibleType() bool {
 		return false
 	}
 	switch token.Kind {
-	case kind.ID:
+	case kind.ID, kind.STAR:
 		return true
 	default:
 		_, isBasicType := kind.BASIC_TYPES[token.Kind]

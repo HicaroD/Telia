@@ -8,7 +8,6 @@ import (
 	"github.com/HicaroD/telia-lang/ast"
 	"github.com/HicaroD/telia-lang/lexer/token"
 	"github.com/HicaroD/telia-lang/lexer/token/kind"
-	"github.com/HicaroD/telia-lang/scope"
 )
 
 type functionDeclTest struct {
@@ -26,7 +25,7 @@ func TestFunctionDecl(t *testing.T) {
 		{
 			input: "fn do_nothing() {}",
 			node: &ast.FunctionDecl{
-				Scope: scope.New(scope.New[ast.AstNode](nil)),
+				Scope: nil,
 				Name:  "do_nothing",
 				Params: &ast.FieldList{
 					Open:       token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
@@ -42,6 +41,339 @@ func TestFunctionDecl(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "fn do_nothing(a bool) {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 21, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.VOID_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 23, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 24, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.VOID_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 30, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 31, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) i8 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.I8_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 33, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 34, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) u8 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.U8_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 33, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 34, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) i16 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.I16_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) u16 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.U16_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) i32 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.I32_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) u32 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.U32_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) i64 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.I64_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) u64 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.U64_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) bool {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.BasicType{Kind: kind.BOOL_TYPE},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 35, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 36, 1),
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a bool, b i32) *i8 {}",
+			node: &ast.FunctionDecl{
+				Scope: nil,
+				Name:  "do_nothing",
+				Params: &ast.FieldList{
+					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: []*ast.Field{
+						{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
+							Type: ast.BasicType{Kind: kind.BOOL_TYPE},
+						},
+						{
+							Name: token.New("b", kind.ID, token.NewPosition(filename, 23, 1)),
+							Type: ast.BasicType{Kind: kind.I32_TYPE},
+						},
+					},
+					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					IsVariadic: false,
+				},
+				RetType: ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 34, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 35, 1),
+				},
+			},
+		},
+		// TODO: test variadic arguments on functions
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
