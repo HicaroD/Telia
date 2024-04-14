@@ -382,6 +382,7 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 		if !reflect.DeepEqual(lhs, rhs) {
 			log.Fatalf("mismatched types: %s %s %s", lhs, expr.Op, rhs)
 		}
+		return lhs, nil
 	case *ast.FunctionCall:
 		err := sema.analyzeFunctionCall(expr, scope)
 		// TODO(errors)
