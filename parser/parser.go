@@ -257,10 +257,10 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 		return ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 
-	// TODO(errors)
-	if !parser.nextIsPossibleType() {
-		return nil, fmt.Errorf("not a valid function return type annotation")
-	}
+	// // TODO(errors)
+	// if !parser.nextIsPossibleType() {
+	// 	return nil, fmt.Errorf("not a valid function return type annotation")
+	// }
 
 	returnType, err := parser.parseExprType()
 	// TODO(errors)
@@ -285,20 +285,6 @@ func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 
 	parser.cursor.skip()
 	return token, true
-}
-
-func (parser *parser) nextIsPossibleType() bool {
-	token := parser.cursor.peek()
-	if token == nil {
-		return false
-	}
-	switch token.Kind {
-	case kind.ID, kind.STAR:
-		return true
-	default:
-		_, isBasicType := kind.BASIC_TYPES[token.Kind]
-		return isBasicType
-	}
 }
 
 func (parser *parser) parseExprType() (ast.ExprType, error) {
