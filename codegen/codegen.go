@@ -29,6 +29,7 @@ func New(astNodes []ast.AstNode) *codegen {
 
 	context := llvm.NewContext()
 	// TODO: properly define the module name
+	// The name of the module could be file name
 	module := context.NewModule("tmpmod")
 	builder := context.NewBuilder()
 
