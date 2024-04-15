@@ -488,6 +488,30 @@ func TestBinaryExpr(t *testing.T) {
 			},
 		},
 		{
+			input: "3 + 4 * 5",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{Value: 3, Kind: kind.INTEGER_LITERAL},
+				Op:   kind.PLUS,
+				Right: &ast.BinaryExpr{
+					Left:  &ast.LiteralExpr{Value: 4, Kind: kind.INTEGER_LITERAL},
+					Op:    kind.STAR,
+					Right: &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+				},
+			},
+		},
+		{
+			input: "3 + (4 * 5)",
+			node: &ast.BinaryExpr{
+				Left: &ast.LiteralExpr{Value: 3, Kind: kind.INTEGER_LITERAL},
+				Op:   kind.PLUS,
+				Right: &ast.BinaryExpr{
+					Left:  &ast.LiteralExpr{Value: 4, Kind: kind.INTEGER_LITERAL},
+					Op:    kind.STAR,
+					Right: &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+				},
+			},
+		},
+		{
 			input: "10 / 1",
 			node: &ast.BinaryExpr{
 				Left:  &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
