@@ -26,7 +26,7 @@ func TestVarDecl(t *testing.T) {
 		},
 		{
 			input:    "age := 18;",
-			ty:       ast.BasicType{Kind: kind.I32_TYPE},
+			ty:       ast.BasicType{Kind: kind.U32_TYPE},
 			inferred: true,
 		},
 		// TODO: analyze more types of operators
@@ -135,25 +135,15 @@ func TestExprInference(t *testing.T) {
 					input: "false",
 					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
 				},
-			},
-		},
-		{
-			scope: &scope.Scope[ast.AstNode]{
-				Parent: nil,
-				Nodes: map[string]ast.AstNode{
-					"a": ast.VarDeclStmt{
-						Name: "a",
-					},
-				},
-			},
-			tests: []struct {
-				input string
-				ty    ast.ExprType
-			}{
 				{
-					input: "true",
-					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+					input: "1",
+					ty:    ast.BasicType{Kind: kind.U32_TYPE},
 				},
+				// TODO: deal with unary expressions
+				// {
+				// 	input: "-1",
+				// 	ty:    ast.BasicType{Kind: kind.I32_TYPE},
+				// },
 			},
 		},
 	}

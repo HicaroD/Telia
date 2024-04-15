@@ -268,13 +268,13 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
-		case kind.I8_TYPE:
+		case kind.I8_TYPE, kind.U8_TYPE:
 			return codegen.context.Int8Type()
-		case kind.I16_TYPE:
+		case kind.I16_TYPE, kind.U16_TYPE:
 			return codegen.context.Int16Type()
-		case kind.I32_TYPE:
+		case kind.I32_TYPE, kind.U32_TYPE:
 			return codegen.context.Int32Type()
-		case kind.I64_TYPE:
+		case kind.I64_TYPE, kind.U64_TYPE:
 			return codegen.context.Int64Type()
 		case kind.VOID_TYPE:
 			return codegen.context.VoidType()

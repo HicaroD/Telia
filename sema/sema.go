@@ -491,9 +491,10 @@ func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 		}
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, nil
-	// TODO: deal with unary expressions
+	case *ast.UnaryExpr:
+		log.Fatalf("unimplemented unary expression on sema")
 	default:
-		log.Fatalf("unimplemented expression on sema: %s", expression)
+		log.Fatalf("unimplemented expression on sema: %s", reflect.TypeOf(expression))
 	}
 	// TODO(errors)
 	// NOTE: this should be unreachable
@@ -502,10 +503,11 @@ func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 }
 
 // TODO: deal with other types of integer
+// TODO: what if it is negative?
 func (sema *sema) inferIntegerType(value int) ast.ExprType {
-	integerType := kind.I32_TYPE
-	if value >= 2147483647 { // Max i32 size
-		integerType = kind.I64_TYPE
+	integerType := kind.U32_TYPE
+	if value > 4_294_967_295 { // Max u32 size
+		integerType = kind.U64_TYPE
 	}
 	// TODO: deal with i64 overflow
 	return ast.BasicType{Kind: integerType}
