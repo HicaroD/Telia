@@ -285,8 +285,6 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
-	case nil:
-		return codegen.context.VoidType()
 	default:
 		log.Fatalf("invalid type: %s", reflect.TypeOf(exprTy))
 	}
@@ -327,6 +325,8 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 			return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
 		case kind.STRING_LITERAL:
 			stringLiteral := currentExpr.Value.(string)
+			// NOTE: huge string literals can affect performance because it
+			// creates a new entry on the map
 			globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
 			if ok {
 				return globalStrLiteral, nil
