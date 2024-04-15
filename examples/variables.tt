@@ -8,6 +8,7 @@ fn main() i32 {
   can_vote := true;
   if can_vote {
     age := 12;
+    can_vote := 10;
     printf("Yes, you can vote because your age is %d", age);
   }
   return 0;

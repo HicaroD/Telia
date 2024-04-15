@@ -6,10 +6,10 @@ import (
 	"log"
 	"strings"
 
-	"github.com/HicaroD/telia-lang/ast"
-	"github.com/HicaroD/telia-lang/lexer"
-	"github.com/HicaroD/telia-lang/lexer/token"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/lexer"
+	"github.com/HicaroD/Telia/lexer/token"
+	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
 type parser struct {
@@ -51,7 +51,7 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 }
 
 // Useful for testing
-func parseExprFrom(expr, filename string) (ast.Expr, error) {
+func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 	reader := bufio.NewReader(strings.NewReader(expr))
 	lex := lexer.New(filename, reader)
 	tokens, err := lex.Tokenize()

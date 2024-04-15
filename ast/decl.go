@@ -3,8 +3,8 @@ package ast
 import (
 	"fmt"
 
-	"github.com/HicaroD/telia-lang/lexer/token"
-	"github.com/HicaroD/telia-lang/scope"
+	"github.com/HicaroD/Telia/lexer/token"
+	"github.com/HicaroD/Telia/scope"
 )
 
 type Decl interface {

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"unicode"
 
-	"github.com/HicaroD/telia-lang/lexer/token"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/Telia/lexer/token"
+	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
 type lexer struct {

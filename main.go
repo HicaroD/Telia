@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/HicaroD/telia-lang/codegen"
-	"github.com/HicaroD/telia-lang/lexer"
-	"github.com/HicaroD/telia-lang/parser"
-	"github.com/HicaroD/telia-lang/sema"
+	"github.com/HicaroD/Telia/codegen"
+	"github.com/HicaroD/Telia/lexer"
+	"github.com/HicaroD/Telia/parser"
+	"github.com/HicaroD/Telia/sema"
 )
 
 func main() {

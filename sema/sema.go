@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/HicaroD/telia-lang/ast"
-	"github.com/HicaroD/telia-lang/lexer"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
-	"github.com/HicaroD/telia-lang/parser"
-	"github.com/HicaroD/telia-lang/scope"
+	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/lexer"
+	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/parser"
+	"github.com/HicaroD/Telia/scope"
 )
 
 type sema struct {
@@ -332,7 +332,7 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 				case kind.I32_TYPE:
 					value := expr.Value.(int)
 					// TODO(errors)
-					if !(value >= -2147483648 && value <= 2147483647) {
+					if !(value >= -2147483648 && value <= 2147483648) {
 						log.Fatalf("i32 integer overflow: %d", value)
 					}
 					return ast.BasicType{Kind: kind.I32_TYPE}, nil
@@ -411,6 +411,20 @@ func (sema *sema) getExprType(exprNode ast.Expr, expectedType ast.ExprType, scop
 	return nil, nil
 }
 
+// Useful for testing
+func analyzeExprType(input, filename string, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
+	expr, err := parser.ParseExprFrom(input, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	exprType, err := New().inferExprType(expr, scope)
+	if err != nil {
+		return nil, err
+	}
+	return exprType, nil
+}
+
 func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
@@ -418,7 +432,8 @@ func (sema *sema) inferExprType(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 		case kind.STRING_LITERAL:
 			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
 		case kind.INTEGER_LITERAL:
-			return sema.inferIntegerType(expression.Value.(int)), nil // TODO: is this correct?
+			// TODO: is this correct?
+			return sema.inferIntegerType(expression.Value.(int)), nil
 		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
 			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
 		default:

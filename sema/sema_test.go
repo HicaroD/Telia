@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/HicaroD/telia-lang/ast"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/scope"
 )
 
 type varTest struct {
@@ -106,5 +107,67 @@ func TestVarDecl(t *testing.T) {
 				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, varDecl.Type)
 			}
 		})
+	}
+}
+
+type exprInferenceTest struct {
+	scope *scope.Scope[ast.AstNode]
+	tests []struct {
+		input string
+		ty    ast.ExprType
+	}
+}
+
+func TestExprInference(t *testing.T) {
+	filename := "test.tt"
+	tests := []exprInferenceTest{
+		{
+			scope: nil,
+			tests: []struct {
+				input string
+				ty    ast.ExprType
+			}{
+				{
+					input: "true",
+					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+				},
+				{
+					input: "false",
+					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+				},
+			},
+		},
+		{
+			scope: &scope.Scope[ast.AstNode]{
+				Parent: nil,
+				Nodes: map[string]ast.AstNode{
+					"a": ast.VarDeclStmt{
+						Name: "a",
+					},
+				},
+			},
+			tests: []struct {
+				input string
+				ty    ast.ExprType
+			}{
+				{
+					input: "true",
+					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		for _, unit := range test.tests {
+			t.Run(fmt.Sprintf("TestExprInference('%s')", unit.input), func(t *testing.T) {
+				actualExprTy, err := analyzeExprType(unit.input, filename, test.scope)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(actualExprTy, unit.ty) {
+					t.Fatalf("\nexpected: %s\ngot: %s\n", unit.ty, actualExprTy)
+				}
+			})
+		}
 	}
 }

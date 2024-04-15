@@ -1,7 +1,7 @@
 package token
 
 import (
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
 // TODO: define lexeme, position and more related to token

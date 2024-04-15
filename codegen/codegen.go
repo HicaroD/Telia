@@ -6,10 +6,10 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/HicaroD/telia-lang/ast"
-	"github.com/HicaroD/telia-lang/codegen/values"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
-	"github.com/HicaroD/telia-lang/scope"
+	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/codegen/values"
+	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/scope"
 	"tinygo.org/x/go-llvm"
 )
 

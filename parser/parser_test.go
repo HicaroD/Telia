@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/HicaroD/telia-lang/ast"
-	"github.com/HicaroD/telia-lang/lexer/token"
-	"github.com/HicaroD/telia-lang/lexer/token/kind"
+	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/lexer/token"
+	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
 type functionDeclTest struct {
@@ -418,7 +418,7 @@ func TestLiteralExpr(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestLiteralExpr('%s')", test.input), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.input, filename)
+			actualNode, err := ParseExprFrom(test.input, filename)
 			if err != nil {
 				t.Errorf("TestLiteralExpr('%s'): unexpected error '%v'", test.input, err)
 			}
@@ -449,7 +449,7 @@ func TestUnaryExpr(t *testing.T) {
 	}
 	for _, test := range unaryExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.input, filename)
+			actualNode, err := ParseExprFrom(test.input, filename)
 			if err != nil {
 				t.Errorf("TestBinaryExpr('%s'): unexpected error '%v'", test.input, err)
 			}
@@ -914,7 +914,7 @@ func TestBinaryExpr(t *testing.T) {
 
 	for _, test := range binExprs {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
-			actualNode, err := parseExprFrom(test.input, filename)
+			actualNode, err := ParseExprFrom(test.input, filename)
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}

@@ -10,7 +10,7 @@ LLVM_FILE=telia.ll
 
 echo "Compiling program"
 go build -tags=llvm16
-./telia-lang $TELIA_FILE
+./Telia $TELIA_FILE
 echo "Generating binary executable"
-clang -Wall $LLVM_FILE
+clang -O3 -Wall $LLVM_FILE
 ./a.out
