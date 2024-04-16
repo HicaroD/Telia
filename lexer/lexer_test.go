@@ -30,10 +30,14 @@ func TestTokenKinds(t *testing.T) {
 
 		// Types
 		{"bool", kind.BOOL_TYPE},
+
+		{"int", kind.INT_TYPE},
 		{"i8", kind.I8_TYPE},
 		{"i16", kind.I16_TYPE},
 		{"i32", kind.I32_TYPE},
 		{"i64", kind.I64_TYPE},
+
+		{"uint", kind.UINT_TYPE},
 		{"u8", kind.U8_TYPE},
 		{"u16", kind.U16_TYPE},
 		{"u32", kind.U32_TYPE},
@@ -170,10 +174,12 @@ func TestIsIdentifier(t *testing.T) {
 		{"else", false},
 
 		{"bool", false},
+		{"int", false},
 		{"i8", false},
 		{"i16", false},
 		{"i32", false},
 		{"i64", false},
+		{"uint", false},
 		{"u8", false},
 		{"u16", false},
 		{"u32", false},

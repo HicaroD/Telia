@@ -268,6 +268,10 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
+		case kind.INT_TYPE, kind.UINT_TYPE:
+			// 32 bits or 64 bits
+			bitSize := exprTy.Kind.BitSize()
+			return codegen.context.IntType(bitSize)
 		case kind.I8_TYPE, kind.U8_TYPE:
 			return codegen.context.Int8Type()
 		case kind.I16_TYPE, kind.U16_TYPE:

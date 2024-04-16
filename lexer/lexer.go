@@ -3,7 +3,6 @@ package lexer
 import (
 	"bufio"
 	"log"
-	"strconv"
 	"unicode"
 
 	"github.com/HicaroD/Telia/lexer/token"
@@ -203,13 +202,7 @@ func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
 	// TODO: deal with floating pointer numbers
 	// if strings.Contains(number, ".") {}
 
-	convertedNumber, err := strconv.Atoi(number)
-	if err != nil {
-		// TODO(errors): unable to convert string to integer
-		log.Fatalf("unable to convert string to integer due to error: '%s'", err)
-	}
-
-	token := token.New(convertedNumber, kind.INTEGER_LITERAL, position)
+	token := token.New(number, kind.INTEGER_LITERAL, position)
 	return token
 }
 

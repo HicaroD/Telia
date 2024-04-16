@@ -400,7 +400,7 @@ func TestLiteralExpr(t *testing.T) {
 	tests := []exprTest{
 		{
 			input: "1",
-			node:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+			node:  &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 		},
 		{
 			input: "true",
@@ -436,7 +436,7 @@ func TestUnaryExpr(t *testing.T) {
 			input: "-1",
 			node: &ast.UnaryExpr{
 				Op:   kind.MINUS,
-				Node: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Node: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
@@ -466,57 +466,57 @@ func TestBinaryExpr(t *testing.T) {
 		{
 			input: "1 + 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Left:  &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 				Op:    kind.PLUS,
-				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Right: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
 			input: "2 - 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: 2, Kind: kind.INTEGER_LITERAL},
+				Left:  &ast.LiteralExpr{Value: "2", Kind: kind.INTEGER_LITERAL},
 				Op:    kind.MINUS,
-				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Right: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
 			input: "5 * 10",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+				Left:  &ast.LiteralExpr{Value: "5", Kind: kind.INTEGER_LITERAL},
 				Op:    kind.STAR,
-				Right: &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
+				Right: &ast.LiteralExpr{Value: "10", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
 			input: "3 + 4 * 5",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: 3, Kind: kind.INTEGER_LITERAL},
+				Left: &ast.LiteralExpr{Value: "3", Kind: kind.INTEGER_LITERAL},
 				Op:   kind.PLUS,
 				Right: &ast.BinaryExpr{
-					Left:  &ast.LiteralExpr{Value: 4, Kind: kind.INTEGER_LITERAL},
+					Left:  &ast.LiteralExpr{Value: "4", Kind: kind.INTEGER_LITERAL},
 					Op:    kind.STAR,
-					Right: &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+					Right: &ast.LiteralExpr{Value: "5", Kind: kind.INTEGER_LITERAL},
 				},
 			},
 		},
 		{
 			input: "3 + (4 * 5)",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: 3, Kind: kind.INTEGER_LITERAL},
+				Left: &ast.LiteralExpr{Value: "3", Kind: kind.INTEGER_LITERAL},
 				Op:   kind.PLUS,
 				Right: &ast.BinaryExpr{
-					Left:  &ast.LiteralExpr{Value: 4, Kind: kind.INTEGER_LITERAL},
+					Left:  &ast.LiteralExpr{Value: "4", Kind: kind.INTEGER_LITERAL},
 					Op:    kind.STAR,
-					Right: &ast.LiteralExpr{Value: 5, Kind: kind.INTEGER_LITERAL},
+					Right: &ast.LiteralExpr{Value: "5", Kind: kind.INTEGER_LITERAL},
 				},
 			},
 		},
 		{
 			input: "10 / 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: 10, Kind: kind.INTEGER_LITERAL},
+				Left:  &ast.LiteralExpr{Value: "10", Kind: kind.INTEGER_LITERAL},
 				Op:    kind.SLASH,
-				Right: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Right: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
@@ -524,18 +524,18 @@ func TestBinaryExpr(t *testing.T) {
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 6,
+						Value: "6",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.SLASH,
 					Right: &ast.LiteralExpr{
-						Value: 3,
+						Value: "3",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.MINUS,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -544,18 +544,18 @@ func TestBinaryExpr(t *testing.T) {
 			input: "6 / (3 - 1)",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 6,
+					Value: "6",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.SLASH,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 3,
+						Value: "3",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.MINUS,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -564,16 +564,16 @@ func TestBinaryExpr(t *testing.T) {
 		{
 			input: "1 / (1 + 1)",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: 1, Kind: kind.INTEGER_LITERAL},
+				Left: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 				Op:   kind.SLASH,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.PLUS,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -583,12 +583,12 @@ func TestBinaryExpr(t *testing.T) {
 			input: "1 > 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.GREATER,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -597,12 +597,12 @@ func TestBinaryExpr(t *testing.T) {
 			input: "1 >= 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.GREATER_EQ,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -611,12 +611,12 @@ func TestBinaryExpr(t *testing.T) {
 			input: "1 < 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.LESS,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -625,12 +625,12 @@ func TestBinaryExpr(t *testing.T) {
 			input: "1 <= 1",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.LESS_EQ,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -642,12 +642,12 @@ func TestBinaryExpr(t *testing.T) {
 				Op: kind.NOT,
 				Node: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -658,24 +658,24 @@ func TestBinaryExpr(t *testing.T) {
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.AND,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -686,24 +686,24 @@ func TestBinaryExpr(t *testing.T) {
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.OR,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -719,19 +719,19 @@ func TestBinaryExpr(t *testing.T) {
 						},
 						Op: kind.STAR,
 						Right: &ast.LiteralExpr{
-							Value: 9,
+							Value: "9",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 					},
 					Op: kind.SLASH,
 					Right: &ast.LiteralExpr{
-						Value: 5,
+						Value: "5",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.PLUS,
 				Right: &ast.LiteralExpr{
-					Value: 32,
+					Value: "32",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -747,19 +747,19 @@ func TestBinaryExpr(t *testing.T) {
 						},
 						Op: kind.STAR,
 						Right: &ast.LiteralExpr{
-							Value: 9,
+							Value: "9",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 					},
 					Op: kind.SLASH,
 					Right: &ast.LiteralExpr{
-						Value: 5,
+						Value: "5",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.PLUS,
 				Right: &ast.LiteralExpr{
-					Value: 32,
+					Value: "32",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -769,18 +769,18 @@ func TestBinaryExpr(t *testing.T) {
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.GREATER,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -793,7 +793,7 @@ func TestBinaryExpr(t *testing.T) {
 				},
 				Op: kind.EQUAL_EQUAL,
 				Right: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 			},
@@ -808,7 +808,7 @@ func TestBinaryExpr(t *testing.T) {
 					Op: kind.EQUAL_EQUAL,
 					Right: &ast.LiteralExpr{
 						Kind:  kind.INTEGER_LITERAL,
-						Value: 1,
+						Value: "1",
 					},
 				},
 				Op: kind.OR,
@@ -819,7 +819,7 @@ func TestBinaryExpr(t *testing.T) {
 					Op: kind.EQUAL_EQUAL,
 					Right: &ast.LiteralExpr{
 						Kind:  kind.INTEGER_LITERAL,
-						Value: 2,
+						Value: "2",
 					},
 				},
 			},
@@ -830,30 +830,30 @@ func TestBinaryExpr(t *testing.T) {
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
-							Value: 1,
+							Value: "1",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: 1,
+							Value: "1",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 					},
 					Op: kind.GREATER,
 					Right: &ast.LiteralExpr{
-						Value: 2,
+						Value: "2",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
 				Op: kind.AND,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 					Op: kind.EQUAL_EQUAL,
 					Right: &ast.LiteralExpr{
-						Value: 1,
+						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,
 					},
 				},
@@ -919,7 +919,7 @@ func TestBinaryExpr(t *testing.T) {
 			input: "1 + multiply_by_2(10)",
 			node: &ast.BinaryExpr{
 				Left: &ast.LiteralExpr{
-					Value: 1,
+					Value: "1",
 					Kind:  kind.INTEGER_LITERAL,
 				},
 				Op: kind.PLUS,
@@ -927,7 +927,7 @@ func TestBinaryExpr(t *testing.T) {
 					Name: "multiply_by_2",
 					Args: []ast.Expr{
 						&ast.LiteralExpr{
-							Value: 10,
+							Value: "10",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 					},

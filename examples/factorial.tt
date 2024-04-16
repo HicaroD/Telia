@@ -2,7 +2,7 @@ extern "C" {
   fn printf(format *i8, ...) i32;
 }
 
-fn factorial(n u32) u32 {
+fn factorial(n int) int {
   if n == 1 {
     return n;
   }

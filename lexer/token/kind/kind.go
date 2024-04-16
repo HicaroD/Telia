@@ -2,6 +2,7 @@ package kind
 
 import (
 	"log"
+	"strconv"
 )
 
 type TokenKind int
@@ -33,15 +34,22 @@ const (
 	OR
 
 	// Types
-	BOOL_TYPE
-	I8_TYPE
-	I16_TYPE
-	I32_TYPE
-	I64_TYPE
-	U8_TYPE
-	U16_TYPE
-	U32_TYPE
-	U64_TYPE
+	BOOL_TYPE // bool
+
+	INT_TYPE // int
+	I8_TYPE  // i8
+	I16_TYPE // i16
+	I32_TYPE // i32
+	I64_TYPE // i64
+
+	UINT_TYPE // uint
+	U8_TYPE   // u8
+	U16_TYPE  // u16
+	U32_TYPE  // u32
+	U64_TYPE  // u64
+
+	// This type is not explicit. We don't have a keyword for this, the absence
+	// of an explicit type means a void type
 	VOID_TYPE
 
 	// (
@@ -110,10 +118,14 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"false": FALSE_BOOL_LITERAL,
 
 	"bool": BOOL_TYPE,
-	"i8":   I8_TYPE,
-	"i16":  I16_TYPE,
-	"i32":  I32_TYPE,
-	"i64":  I64_TYPE,
+
+	"int": INT_TYPE,
+	"i8":  I8_TYPE,
+	"i16": I16_TYPE,
+	"i32": I32_TYPE,
+	"i64": I64_TYPE,
+
+	"uint": UINT_TYPE,
 	"u8":   U8_TYPE,
 	"u16":  U16_TYPE,
 	"u32":  U32_TYPE,
@@ -123,10 +135,12 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	VOID_TYPE: true,
 	BOOL_TYPE: true,
+	INT_TYPE:  true,
 	I8_TYPE:   true,
 	I16_TYPE:  true,
 	I32_TYPE:  true,
 	I64_TYPE:  true,
+	UINT_TYPE: true,
 	U8_TYPE:   true,
 	U16_TYPE:  true,
 	U32_TYPE:  true,
@@ -139,6 +153,36 @@ var LITERAL_KIND map[TokenKind]bool = map[TokenKind]bool{
 	STRING_LITERAL:           true,
 	TRUE_BOOL_LITERAL:        true,
 	FALSE_BOOL_LITERAL:       true,
+}
+
+var NUMERIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
+	INT_TYPE:  true,
+	I8_TYPE:   true,
+	I16_TYPE:  true,
+	I32_TYPE:  true,
+	I64_TYPE:  true,
+	UINT_TYPE: true,
+	U8_TYPE:   true,
+	U16_TYPE:  true,
+	U32_TYPE:  true,
+	U64_TYPE:  true,
+}
+
+func (kind TokenKind) BitSize() int {
+	switch kind {
+	case INT_TYPE, UINT_TYPE:
+		return strconv.IntSize
+	case I8_TYPE, U8_TYPE:
+		return 8
+	case I16_TYPE, U16_TYPE:
+		return 16
+	case I32_TYPE, U32_TYPE:
+		return 32
+	case I64_TYPE, U64_TYPE:
+		return 64
+	default:
+		return -1
+	}
 }
 
 func (kind TokenKind) String() string {
@@ -179,6 +223,8 @@ func (kind TokenKind) String() string {
 		return "or"
 	case BOOL_TYPE:
 		return "bool"
+	case INT_TYPE:
+		return "int"
 	case I8_TYPE:
 		return "i8"
 	case I16_TYPE:
@@ -187,6 +233,8 @@ func (kind TokenKind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
+	case UINT_TYPE:
+		return "uint"
 	case U8_TYPE:
 		return "u8"
 	case U16_TYPE:

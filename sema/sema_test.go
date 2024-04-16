@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 	"github.com/HicaroD/Telia/scope"
 )
@@ -26,7 +27,12 @@ func TestVarDecl(t *testing.T) {
 		},
 		{
 			input:    "age := 18;",
-			ty:       ast.BasicType{Kind: kind.U32_TYPE},
+			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			inferred: true,
+		},
+		{
+			input:    "score := -18;",
+			ty:       ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
 		// TODO: analyze more types of operators
@@ -86,7 +92,6 @@ func TestVarDecl(t *testing.T) {
 			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
-		// TODO: analyze unary expressions
 		// {
 		// 	input:    "is_not_true := not true;",
 		// 	ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
@@ -115,10 +120,11 @@ type exprInferenceTest struct {
 	tests []struct {
 		input string
 		ty    ast.ExprType
+		value ast.Expr
 	}
 }
 
-func TestExprInference(t *testing.T) {
+func TestExprInferenceWithoutContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
@@ -126,31 +132,155 @@ func TestExprInference(t *testing.T) {
 			tests: []struct {
 				input string
 				ty    ast.ExprType
+				value ast.Expr
 			}{
 				{
 					input: "true",
 					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+					value: &ast.LiteralExpr{
+						Value: "true",
+						Kind:  kind.TRUE_BOOL_LITERAL,
+					},
 				},
 				{
 					input: "false",
 					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+					value: &ast.LiteralExpr{
+						Value: "false",
+						Kind:  kind.FALSE_BOOL_LITERAL,
+					},
 				},
 				{
 					input: "1",
-					ty:    ast.BasicType{Kind: kind.U32_TYPE},
+					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					value: &ast.LiteralExpr{
+						Value: "1",
+						Kind:  kind.INTEGER_LITERAL,
+					},
 				},
-				// TODO: deal with unary expressions
-				// {
-				// 	input: "-1",
-				// 	ty:    ast.BasicType{Kind: kind.I32_TYPE},
-				// },
+				{
+					input: "1 + 1",
+					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
+				{
+					input: "-1",
+					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					value: &ast.UnaryExpr{
+						Op: kind.MINUS,
+						Node: &ast.LiteralExpr{
+							Kind:  kind.INTEGER_LITERAL,
+							Value: "1",
+						},
+					},
+				},
+				{
+					input: "-1 + 1",
+					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.UnaryExpr{
+							Op: kind.MINUS,
+							Node: &ast.LiteralExpr{
+								Kind:  kind.INTEGER_LITERAL,
+								Value: "1",
+							},
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
 			},
 		},
 	}
 	for _, test := range tests {
 		for _, unit := range test.tests {
-			t.Run(fmt.Sprintf("TestExprInference('%s')", unit.input), func(t *testing.T) {
-				actualExprTy, err := analyzeExprType(unit.input, filename, test.scope)
+			t.Run(fmt.Sprintf("TestExprInferenceWithoutContext('%s')", unit.input), func(t *testing.T) {
+				actualExpr, actualExprTy, err := inferExprTypeWithoutContext(unit.input, filename, test.scope)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(actualExpr, unit.value) {
+					t.Fatalf("\nexpected expr: %s\ngot expr: %s\n", unit.value, actualExpr)
+				}
+				if !reflect.DeepEqual(actualExprTy, unit.ty) {
+					t.Fatalf("\nexpected ty: %s\ngot ty: %s\n", unit.ty, actualExprTy)
+				}
+			})
+		}
+	}
+}
+
+func TestExprInferenceWithContext(t *testing.T) {
+	filename := "test.tt"
+	tests := []exprInferenceTest{
+		{
+			scope: &scope.Scope[ast.AstNode]{
+				Parent: nil,
+				Nodes: map[string]ast.AstNode{
+					"a": &ast.VarDeclStmt{
+						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						Type: ast.BasicType{Kind: kind.I8_TYPE},
+						Value: ast.LiteralExpr{
+							Kind:  kind.INTEGER_LITERAL,
+							Value: 1,
+						},
+						NeedsInference: false,
+					},
+				},
+			},
+			tests: []struct {
+				input string
+				ty    ast.ExprType
+				value ast.Expr
+			}{
+				{
+					input: "a + 1",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.IdExpr{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: 1,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
+				{
+					input: "1 + a",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: 1,
+							Kind:  kind.INTEGER_LITERAL,
+						},
+						Op: kind.PLUS,
+						Right: &ast.IdExpr{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		for _, unit := range test.tests {
+			t.Run(fmt.Sprintf("TestExprInferenceWithContext('%s')", unit.input), func(t *testing.T) {
+				actualExprTy, err := inferExprTypeWithContext(unit.input, filename, unit.ty, test.scope)
 				if err != nil {
 					t.Fatal(err)
 				}
