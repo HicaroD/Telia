@@ -168,6 +168,17 @@ var NUMERIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	U64_TYPE:  true,
 }
 
+var LOGICAL_OP map[TokenKind]bool = map[TokenKind]bool{
+	AND:         true,
+	OR:          true,
+	BANG_EQUAL:  true,
+	EQUAL_EQUAL: true,
+	GREATER:     true,
+	GREATER_EQ:  true,
+	LESS:        true,
+	LESS_EQ:     true,
+}
+
 func (kind TokenKind) BitSize() int {
 	switch kind {
 	case INT_TYPE, UINT_TYPE:

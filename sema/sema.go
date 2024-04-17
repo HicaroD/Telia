@@ -526,7 +526,7 @@ func (sema *sema) inferBinaryExprType(expression *ast.BinaryExpr, scope *scope.S
 			return lhs, nil
 		}
 	default:
-		if _, ok := ast.LOGICAL_OP[expression.Op]; ok {
+		if _, ok := kind.LOGICAL_OP[expression.Op]; ok {
 			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
 		}
 	}

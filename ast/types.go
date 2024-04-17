@@ -6,17 +6,6 @@ import (
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
-var LOGICAL_OP map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.AND:         true,
-	kind.OR:          true,
-	kind.BANG_EQUAL:  true,
-	kind.EQUAL_EQUAL: true,
-	kind.GREATER:     true,
-	kind.GREATER_EQ:  true,
-	kind.LESS:        true,
-	kind.LESS_EQ:     true,
-}
-
 type ExprType interface {
 	IsVoid() bool
 	IsBoolean() bool
