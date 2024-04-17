@@ -275,31 +275,17 @@ func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *sco
 }
 
 func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) error {
-	inferedExpr, err := sema.inferExprTypeWithoutContext(expr, scope)
+	inferedExprType, err := sema.inferExprTypeWithoutContext(expr, scope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
-	// TODO(errors)
-	if !sema.isValidExprToBeOnIf(inferedExpr) {
-		// TODO(errors)
-		log.Fatalf("invalid non-boolean condition on if statement: %s", inferedExpr)
-	}
-	return nil
-}
 
-func (sema *sema) isValidExprToBeOnIf(exprType ast.ExprType) bool {
-	switch ty := exprType.(type) {
-	case ast.BasicType:
-		switch ty.Kind {
-		case kind.BOOL_TYPE:
-			return true
-		// TODO: deal with binary expressions
-		default:
-			return false
-		}
+	if !inferedExprType.IsBoolean() {
+		log.Fatalf("invalid non-boolean condition on if statement: %s", inferedExprType)
 	}
-	return false
+
+	return nil
 }
 
 // TODO: think about the way I'm inferring or getting the expr type correctly
@@ -405,7 +391,8 @@ func inferExprTypeWithContext(input, filename string, ty ast.ExprType, scope *sc
 		return nil, err
 	}
 
-	exprType, err := New().inferExprTypeWithContext(expr, ty, scope)
+	analyzer := New()
+	exprType, err := analyzer.inferExprTypeWithContext(expr, ty, scope)
 	if err != nil {
 		return nil, err
 	}
