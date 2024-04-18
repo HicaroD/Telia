@@ -300,6 +300,7 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 			case ast.BasicType:
 				value := expression.Value.(string)
 				bitSize := ty.Kind.BitSize()
+				// TODO(errors)
 				if bitSize == -1 {
 					return nil, fmt.Errorf("not a valid numeric type: %s", ty.Kind)
 				}
@@ -315,6 +316,7 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 		}
 	case *ast.IdExpr:
 		symbol, err := scope.Lookup(expression.Name.Lexeme.(string))
+		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -329,6 +331,7 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 		}
 	case *ast.BinaryExpr:
 		ty, err := sema.inferBinaryExprTypeWithContext(expression, expectedType, scope)
+		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -340,10 +343,11 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 			return nil, err
 		}
 		// At this point, function should exists!
-		function, err := scope.Lookup(expression.Name)
-		if err != nil {
-			log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
-		}
+		function, _ := scope.Lookup(expression.Name)
+		// TODO(errors): should never hit inside the if
+		// if err != nil {
+		// 	log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
+		// }
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, nil
 	case *ast.VoidExpr:
@@ -496,7 +500,6 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 }
 
 func (sema *sema) inferBinaryExprTypeWithoutContext(expression *ast.BinaryExpr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, bool, error) {
-
 	lhsType, lhsFoundContext, err := sema.inferExprTypeWithoutContext(expression.Left, scope)
 	// TODO(errors)
 	if err != nil {
