@@ -35,13 +35,16 @@ func TestVarDecl(t *testing.T) {
 			ty:       ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
-		// TODO: analyze more types of operators
-		// {
-		// 	input:    "age := 1 + 1;",
-		// 	ty:       ast.BasicType{Kind: kind.I32_TYPE},
-		// 	inferred: true,
-		// },
-		// TODO: test more types of integer inference before refactoring
+		{
+			input:    "age := 1 + 1;",
+			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			inferred: true,
+		},
+		{
+			input:    "age := 1 - 1;",
+			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			inferred: true,
+		},
 		{
 			input:    "can_vote := true;",
 			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
@@ -92,11 +95,11 @@ func TestVarDecl(t *testing.T) {
 			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
-		// {
-		// 	input:    "is_not_true := not true;",
-		// 	ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
-		// 	inferred: true,
-		// },
+		{
+			input:    "is_not_true := not true;",
+			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			inferred: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -128,7 +131,20 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
-			scope: nil,
+			scope: &scope.Scope[ast.AstNode]{
+				Parent: nil,
+				Nodes: map[string]ast.AstNode{
+					"a": &ast.VarDeclStmt{
+						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						Type: ast.BasicType{Kind: kind.I8_TYPE},
+						Value: ast.LiteralExpr{
+							Kind:  kind.INTEGER_LITERAL,
+							Value: 1,
+						},
+						NeedsInference: false,
+					},
+				},
+			},
 			tests: []struct {
 				input string
 				ty    ast.ExprType
@@ -178,7 +194,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					ty:    ast.BasicType{Kind: kind.INT_TYPE},
 					value: &ast.UnaryExpr{
 						Op: kind.MINUS,
-						Node: &ast.LiteralExpr{
+						Value: &ast.LiteralExpr{
 							Kind:  kind.INTEGER_LITERAL,
 							Value: "1",
 						},
@@ -190,7 +206,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					value: &ast.BinaryExpr{
 						Left: &ast.UnaryExpr{
 							Op: kind.MINUS,
-							Node: &ast.LiteralExpr{
+							Value: &ast.LiteralExpr{
 								Kind:  kind.INTEGER_LITERAL,
 								Value: "1",
 							},
@@ -198,6 +214,76 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
+				{
+					input: "a + 1",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.IdExpr{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+					},
+				},
+				{
+					input: "1 + a",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.LiteralExpr{
+							Value: "1",
+							Kind:  kind.INTEGER_LITERAL,
+						},
+						Op: kind.PLUS,
+						Right: &ast.IdExpr{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 5, 1)),
+						},
+					},
+				},
+				{
+					input: "1 + 2 + a",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.BinaryExpr{
+							Left: &ast.LiteralExpr{
+								Value: "1",
+								Kind:  kind.INTEGER_LITERAL,
+							},
+							Op: kind.PLUS,
+							Right: &ast.LiteralExpr{
+								Value: "2",
+								Kind:  kind.INTEGER_LITERAL,
+							},
+						},
+						Op: kind.PLUS,
+						Right: &ast.IdExpr{
+							Name: token.New("a", kind.ID, token.NewPosition(filename, 9, 1)),
+						},
+					},
+				},
+				{
+					input: "1 + a + 3",
+					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					value: &ast.BinaryExpr{
+						Left: &ast.BinaryExpr{
+							Left: &ast.LiteralExpr{
+								Value: "1",
+								Kind:  kind.INTEGER_LITERAL,
+							},
+							Op: kind.PLUS,
+							Right: &ast.IdExpr{
+								Name: token.New("a", kind.ID, token.NewPosition(filename, 5, 1)),
+							},
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Value: "3",
 							Kind:  kind.INTEGER_LITERAL,
 						},
 					},
@@ -222,6 +308,8 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 		}
 	}
 }
+
+// TODO: test for mismatched types errors
 
 func TestExprInferenceWithContext(t *testing.T) {
 	filename := "test.tt"

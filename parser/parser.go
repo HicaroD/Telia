@@ -641,7 +641,7 @@ func (parser *parser) parseUnary() (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.UnaryExpr{Op: next.Kind, Node: rhs}, nil
+		return &ast.UnaryExpr{Op: next.Kind, Value: rhs}, nil
 	}
 
 	return parser.parsePrimary()

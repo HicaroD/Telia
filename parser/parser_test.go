@@ -435,15 +435,15 @@ func TestUnaryExpr(t *testing.T) {
 		{
 			input: "-1",
 			node: &ast.UnaryExpr{
-				Op:   kind.MINUS,
-				Node: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
+				Op:    kind.MINUS,
+				Value: &ast.LiteralExpr{Value: "1", Kind: kind.INTEGER_LITERAL},
 			},
 		},
 		{
 			input: "not true",
 			node: &ast.UnaryExpr{
-				Op:   kind.NOT,
-				Node: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
+				Op:    kind.NOT,
+				Value: &ast.LiteralExpr{Value: "true", Kind: kind.TRUE_BOOL_LITERAL},
 			},
 		},
 	}
@@ -640,7 +640,7 @@ func TestBinaryExpr(t *testing.T) {
 			input: "not (1 > 1)",
 			node: &ast.UnaryExpr{
 				Op: kind.NOT,
-				Node: &ast.BinaryExpr{
+				Value: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
 						Value: "1",
 						Kind:  kind.INTEGER_LITERAL,

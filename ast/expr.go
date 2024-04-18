@@ -78,12 +78,12 @@ func (idExpr IdExpr) exprNode()    {}
 
 type UnaryExpr struct {
 	Expr
-	Op   kind.TokenKind
-	Node Expr
+	Op    kind.TokenKind
+	Value Expr
 }
 
 func (unary UnaryExpr) String() string {
-	return fmt.Sprintf("%s %s", unary.Op, unary.Node)
+	return fmt.Sprintf("%s %s", unary.Op, unary.Value)
 }
 func (unary UnaryExpr) IsVoid() bool { return false }
 func (unary UnaryExpr) exprNode()    {}
