@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 
 	"github.com/HicaroD/Telia/ast"
 	"github.com/HicaroD/Telia/codegen/values"
@@ -108,7 +109,7 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	if err != nil {
 		return err
 	}
-	// TODO: add parameters
+
 	_, err = codegen.generateBlock(function.Block, fnScope, fnValue)
 	// TODO(errors)
 	if err != nil {
@@ -169,7 +170,7 @@ func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Sco
 		codegen.builder.CreateRetVoid()
 		return nil
 	}
-	returnValue, err := codegen.getExpr(scope, ret.Value)
+	returnValue, err := codegen.getExpr(ret.Value, scope)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -181,7 +182,7 @@ func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Sco
 func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
-	varExpr, err := codegen.getExpr(scope, varDecl.Value)
+	varExpr, err := codegen.getExpr(varDecl.Value, scope)
 
 	// TODO(errors)
 	if err != nil {
@@ -264,7 +265,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) error {
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 	switch exprTy := ty.(type) {
-	case ast.BasicType:
+	case *ast.BasicType:
 		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
@@ -285,7 +286,7 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}
-	case ast.PointerType:
+	case *ast.PointerType:
 		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
@@ -307,7 +308,7 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], expressions []ast.Expr) ([]llvm.Value, error) {
 	values := make([]llvm.Value, len(expressions))
 	for i := range expressions {
-		expr, err := codegen.getExpr(parentScope, expressions[i])
+		expr, err := codegen.getExpr(expressions[i], parentScope)
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -317,35 +318,39 @@ func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], 
 	return values, nil
 }
 
-func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.Expr) (llvm.Value, error) {
+func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMValue]) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
-		switch currentExpr.Kind {
-		case kind.INTEGER_LITERAL:
-			integerLiteral := uint64(currentExpr.Value.(int))
-			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
-		case kind.NEGATIVE_INTEGER_LITERAL:
-			negativeIntegerLiteral := int64(currentExpr.Value.(int))
-			return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
-		case kind.STRING_LITERAL:
-			stringLiteral := currentExpr.Value.(string)
-			// NOTE: huge string literals can affect performance because it
-			// creates a new entry on the map
-			globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
-			if ok {
-				return globalStrLiteral, nil
+		switch ty := currentExpr.Type.(type) {
+		case *ast.BasicType:
+			// TODO: test this
+			integerValue, bitSize, err := codegen.getIntegerValue(currentExpr, ty)
+			if bitSize == -1 {
+				return llvm.Value{}, fmt.Errorf("%s is not a valid literal basic type", ty.Kind)
 			}
-			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-			codegen.strLiterals[stringLiteral] = globalStrPtr
-			return globalStrPtr, nil
-		case kind.TRUE_BOOL_LITERAL:
-			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
-			return trueBoolLiteral, nil
-		case kind.FALSE_BOOL_LITERAL:
-			falseBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 0, false)
-			return falseBoolLiteral, nil
-		default:
-			log.Fatalf("unimplemented literal expr: %s", expr)
+			if err != nil {
+				return llvm.Value{}, err
+			}
+			return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
+		case *ast.PointerType:
+			switch ptrTy := ty.Type.(type) {
+			case *ast.BasicType:
+				switch ptrTy.Kind {
+				case kind.U8_TYPE:
+					stringLiteral := currentExpr.Value.(string)
+					// NOTE: huge string literals can affect performance because it
+					// creates a new entry on the map
+					globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
+					if ok {
+						return globalStrLiteral, nil
+					}
+					globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
+					codegen.strLiterals[stringLiteral] = globalStrPtr
+					return globalStrPtr, nil
+				default:
+					log.Fatalf("unimplemented ptr basic type: %s", ptrTy.Kind)
+				}
+			}
 		}
 	case *ast.IdExpr:
 		varName := currentExpr.Name.Lexeme.(string)
@@ -362,17 +367,19 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 		loadedVariable := codegen.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable, nil
 	case *ast.BinaryExpr:
-		lhs, err := codegen.getExpr(scope, currentExpr.Left)
+		lhs, err := codegen.getExpr(currentExpr.Left, scope)
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("can't generate lhs expr: %s", err)
 		}
-		rhs, err := codegen.getExpr(scope, currentExpr.Right)
+		rhs, err := codegen.getExpr(currentExpr.Right, scope)
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("can't generate rhs expr: %s", err)
 		}
 		switch currentExpr.Op {
+		// TODO: deal with signed or unsigned operations
+		// I'm assuming all unsigned for now
 		case kind.EQUAL_EQUAL:
 			// TODO: there a list of IntPredicate, I could map token kind to these
 			// for code reability
@@ -384,6 +391,14 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 			return codegen.builder.CreateSub(lhs, rhs, ".sub"), nil
 		case kind.PLUS:
 			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
+		case kind.LESS:
+			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt"), nil
+		case kind.LESS_EQ:
+			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple"), nil
+		case kind.GREATER:
+			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt"), nil
+		case kind.GREATER_EQ:
+			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge"), nil
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
@@ -412,13 +427,23 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 	return llvm.Value{}, nil
 }
 
+func (codegen *codegen) getIntegerValue(expr *ast.LiteralExpr, ty *ast.BasicType) (uint64, int, error) {
+	bitSize := ty.Kind.BitSize()
+	if bitSize == -1 {
+		return 0, bitSize, nil
+	}
+	integerLiteral := expr.Value.(string)
+	integerValue, err := strconv.ParseUint(integerLiteral, 10, bitSize)
+	return integerValue, bitSize, err
+}
+
 func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function *values.Function, condStmt *ast.CondStmt) error {
 	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	ifScope := scope.New(parentScope)
-	ifExpr, err := codegen.getExpr(ifScope, condStmt.IfStmt.Expr)
+	ifExpr, err := codegen.getExpr(condStmt.IfStmt.Expr, ifScope)
 	if err != nil {
 		return err
 	}

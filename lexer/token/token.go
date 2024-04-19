@@ -4,7 +4,6 @@ import (
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
-// TODO: define lexeme, position and more related to token
 type Token struct {
 	Lexeme   any
 	Kind     kind.TokenKind

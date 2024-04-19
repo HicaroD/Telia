@@ -48,6 +48,5 @@ type Proto struct {
 	RetType ExprType
 }
 
-// TODO
-func (proto Proto) String() string { return "" }
+func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
 func (proto Proto) astNode()       {}

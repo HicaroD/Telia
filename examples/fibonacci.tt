@@ -1,8 +1,8 @@
 extern "C" {
-  fn printf(format *i8, ...) i32;
+  fn printf(format *u8, ...) i32;
 }
 
-fn fib(n u64) u64 {
+fn fib(n int) int {
   if n <= 1 {
     return n;
   }
@@ -10,7 +10,7 @@ fn fib(n u64) u64 {
 }
 
 fn main() i32 {
-  n := 50;
+  n := 10;
   result := fib(n);
   printf("%d: %d", n, result);
   return 0;

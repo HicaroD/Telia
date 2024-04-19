@@ -3,7 +3,12 @@ extern "C" {
   fn puts(format *u8) i32;
 }
 
+fn no_return() {
+  return;
+  puts("No return");
+}
+
 fn main() i32 {
-  puts("Hello, world 😃");
+  no_return();
   return 0;
 }

@@ -254,7 +254,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 
 func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 	if parser.cursor.nextIs(kind.OPEN_CURLY) {
-		return ast.BasicType{Kind: kind.VOID_TYPE}, nil
+		return &ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 
 	returnType, err := parser.parseExprType()
@@ -265,7 +265,6 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 	return returnType, nil
 }
 
-// TODO: maybe return a boolean for saying if matches or not
 func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 	token := parser.cursor.peek()
 	// TODO(errors)
@@ -297,11 +296,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.PointerType{Type: ty}, nil
+		return &ast.PointerType{Type: ty}, nil
 	default:
 		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
 			parser.cursor.skip()
-			return ast.BasicType{Kind: token.Kind}, nil
+			return &ast.BasicType{Kind: token.Kind}, nil
 		}
 		// TODO(errors)
 		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
@@ -641,7 +640,7 @@ func (parser *parser) parseUnary() (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.UnaryExpr{Op: next.Kind, Node: rhs}, nil
+		return &ast.UnaryExpr{Op: next.Kind, Value: rhs}, nil
 	}
 
 	return parser.parsePrimary()
@@ -674,7 +673,10 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	default:
 		if _, ok := kind.LITERAL_KIND[token.Kind]; ok {
 			parser.cursor.skip()
-			return &ast.LiteralExpr{Kind: token.Kind, Value: token.Lexeme}, nil
+			return &ast.LiteralExpr{
+				Type:  &ast.BasicType{Kind: token.Kind},
+				Value: token.Lexeme,
+			}, nil
 		}
 		return nil, fmt.Errorf("invalid token for expression parsing: %s %s %s", token.Kind, token.Lexeme, token.Position)
 	}

@@ -55,12 +55,12 @@ func (void VoidExpr) exprNode()    {}
 
 type LiteralExpr struct {
 	Expr
-	Kind  kind.TokenKind
+	Type  ExprType
 	Value any
 }
 
 func (literal LiteralExpr) String() string {
-	return fmt.Sprintf("%s %s", literal.Kind, literal.Value)
+	return fmt.Sprintf("%s %s", literal.Type, literal.Value)
 }
 func (literal LiteralExpr) IsVoid() bool { return false }
 func (literal LiteralExpr) exprNode()    {}
@@ -78,12 +78,12 @@ func (idExpr IdExpr) exprNode()    {}
 
 type UnaryExpr struct {
 	Expr
-	Op   kind.TokenKind
-	Node Expr
+	Op    kind.TokenKind
+	Value Expr
 }
 
 func (unary UnaryExpr) String() string {
-	return fmt.Sprintf("%s %s", unary.Op, unary.Node)
+	return fmt.Sprintf("%s %s", unary.Op, unary.Value)
 }
 func (unary UnaryExpr) IsVoid() bool { return false }
 func (unary UnaryExpr) exprNode()    {}
