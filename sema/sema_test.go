@@ -22,7 +22,7 @@ func TestVarDecl(t *testing.T) {
 	tests := []varTest{
 		{
 			input:    `name := "Hicaro";`,
-			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}},
+			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}},
 			inferred: true,
 		},
 		{
@@ -139,7 +139,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
-							Value: 1,
+							Value: "1",
 						},
 						NeedsInference: false,
 					},
@@ -323,7 +323,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
-							Value: 1,
+							Value: "1",
 						},
 						NeedsInference: false,
 					},
@@ -343,7 +343,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 						},
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: 1,
+							Value: "1",
 							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 					},
@@ -353,7 +353,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
-							Value: 1,
+							Value: "1",
 							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 						Op: kind.PLUS,

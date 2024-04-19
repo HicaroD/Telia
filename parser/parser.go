@@ -265,7 +265,6 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 	return returnType, nil
 }
 
-// TODO: maybe return a boolean for saying if matches or not
 func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 	token := parser.cursor.peek()
 	// TODO(errors)

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 
 	"github.com/HicaroD/Telia/ast"
 	"github.com/HicaroD/Telia/codegen/values"
@@ -108,7 +109,7 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	if err != nil {
 		return err
 	}
-	// TODO: add parameters
+
 	_, err = codegen.generateBlock(function.Block, fnScope, fnValue)
 	// TODO(errors)
 	if err != nil {
@@ -169,7 +170,7 @@ func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Sco
 		codegen.builder.CreateRetVoid()
 		return nil
 	}
-	returnValue, err := codegen.getExpr(scope, ret.Value)
+	returnValue, err := codegen.getExpr(ret.Value, scope)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -181,7 +182,7 @@ func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Sco
 func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
-	varExpr, err := codegen.getExpr(scope, varDecl.Value)
+	varExpr, err := codegen.getExpr(varDecl.Value, scope)
 
 	// TODO(errors)
 	if err != nil {
@@ -307,7 +308,7 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], expressions []ast.Expr) ([]llvm.Value, error) {
 	values := make([]llvm.Value, len(expressions))
 	for i := range expressions {
-		expr, err := codegen.getExpr(parentScope, expressions[i])
+		expr, err := codegen.getExpr(expressions[i], parentScope)
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -317,42 +318,67 @@ func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], 
 	return values, nil
 }
 
-func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.Expr) (llvm.Value, error) {
+func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMValue]) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
 		switch ty := currentExpr.Type.(type) {
 		case *ast.BasicType:
-			switch ty.Kind {
-			// TODO: deal with these errors
-			// I could just parse the string, but that would be a waste because
-			// I already did it in the semantic analysis phase
-			case kind.U8_TYPE, kind.I8_TYPE:
-				integerLiteral := currentExpr.Value.(string)
-				return llvm.ConstInt(codegen.context.Int8Type(), integerLiteral, false), nil
-			case kind.U16_TYPE, kind.I16_TYPE:
-				integerLiteral := currentExpr.Value.(string)
-				return llvm.ConstInt(codegen.context.Int16Type(), integerLiteral, false), nil
-			case kind.U32_TYPE, kind.I32_TYPE:
-				integerLiteral := currentExpr.Value.(string)
-				return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
-			case kind.U64_TYPE, kind.I64_TYPE:
-				integerLiteral := currentExpr.Value.(string)
-				return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
-			case kind.BOOL_TYPE:
-				boolLiteral := currentExpr.Value.(string)
-				value := 0
-				if boolLiteral == "true" {
-					value = 1
-				}
-				return llvm.ConstInt(codegen.context.Int1Type(), uint64(value), false), nil
-			default:
-				log.Fatalf("unimplemented literal expr: %s", expr)
+			// TODO: test this
+			integerValue, bitSize, err := codegen.getIntegerValue(currentExpr, ty)
+			if bitSize == -1 {
+				return llvm.Value{}, fmt.Errorf("%s is not a valid literal basic type", ty.Kind)
 			}
+			if err != nil {
+				return llvm.Value{}, err
+			}
+			return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
+
+			// switch ty.Kind {
+			// case kind.INT_TYPE, kind.UINT_TYPE:
+			// 	integerValue, bitSize, err := codegen.getIntegerValue(currentExpr, ty)
+			// 	if err != nil {
+			// 		return llvm.Value{}, err
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
+			// case kind.U8_TYPE, kind.I8_TYPE:
+			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
+			// 	if err != nil {
+			// 		return llvm.Value{}, err
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.Int8Type(), integerValue, false), nil
+			// case kind.U16_TYPE, kind.I16_TYPE:
+			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
+			// 	if err != nil {
+			// 		return llvm.Value{}, err
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.Int16Type(), integerValue, false), nil
+			// case kind.U32_TYPE, kind.I32_TYPE:
+			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
+			// 	if err != nil {
+			// 		return llvm.Value{}, err
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.Int32Type(), integerValue, false), nil
+			// case kind.U64_TYPE, kind.I64_TYPE:
+			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
+			// 	if err != nil {
+			// 		return llvm.Value{}, err
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.Int64Type(), integerValue, false), nil
+			// case kind.BOOL_TYPE:
+			// 	boolLiteral := currentExpr.Value.(string)
+			// 	value := 0
+			// 	if boolLiteral == "true" {
+			// 		value = 1
+			// 	}
+			// 	return llvm.ConstInt(codegen.context.Int1Type(), uint64(value), false), nil
+			// default:
+			// 	log.Fatalf("unimplemented literal expr: %s %s", ty.Kind, reflect.TypeOf(expr))
+			// }
 		case *ast.PointerType:
 			switch ptrTy := ty.Type.(type) {
 			case *ast.BasicType:
 				switch ptrTy.Kind {
-				case kind.I8_TYPE:
+				case kind.U8_TYPE:
 					stringLiteral := currentExpr.Value.(string)
 					// NOTE: huge string literals can affect performance because it
 					// creates a new entry on the map
@@ -383,12 +409,12 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 		loadedVariable := codegen.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable, nil
 	case *ast.BinaryExpr:
-		lhs, err := codegen.getExpr(scope, currentExpr.Left)
+		lhs, err := codegen.getExpr(currentExpr.Left, scope)
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("can't generate lhs expr: %s", err)
 		}
-		rhs, err := codegen.getExpr(scope, currentExpr.Right)
+		rhs, err := codegen.getExpr(currentExpr.Right, scope)
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("can't generate rhs expr: %s", err)
@@ -433,13 +459,23 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 	return llvm.Value{}, nil
 }
 
+func (codegen *codegen) getIntegerValue(expr *ast.LiteralExpr, ty *ast.BasicType) (uint64, int, error) {
+	bitSize := ty.Kind.BitSize()
+	if bitSize == -1 {
+		return 0, bitSize, nil
+	}
+	integerLiteral := expr.Value.(string)
+	integerValue, err := strconv.ParseUint(integerLiteral, 10, bitSize)
+	return integerValue, bitSize, err
+}
+
 func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function *values.Function, condStmt *ast.CondStmt) error {
 	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	ifScope := scope.New(parentScope)
-	ifExpr, err := codegen.getExpr(ifScope, condStmt.IfStmt.Expr)
+	ifExpr, err := codegen.getExpr(condStmt.IfStmt.Expr, ifScope)
 	if err != nil {
 		return err
 	}

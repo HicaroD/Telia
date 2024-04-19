@@ -183,6 +183,8 @@ func (kind TokenKind) BitSize() int {
 	switch kind {
 	case INT_TYPE, UINT_TYPE:
 		return strconv.IntSize
+	case BOOL_TYPE:
+		return 1
 	case I8_TYPE, U8_TYPE:
 		return 8
 	case I16_TYPE, U16_TYPE:

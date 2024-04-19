@@ -56,6 +56,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 	}
 
 	function.Scope = scope.New(sema.universe)
+	// REFACTOR
 	for _, param := range function.Params.Fields {
 		paramName := param.Name.Lexeme.(string)
 		err := function.Scope.Insert(paramName, param)
@@ -240,7 +241,24 @@ func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *sco
 					return err
 				}
 				// TODO(errors)
-				if argType != paramType {
+				if !reflect.DeepEqual(argType, paramType) {
+					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", decl.Name, paramType, argType)
+				}
+			}
+		} else {
+			if len(functionCall.Args) != len(decl.Params.Fields) {
+				log.Fatalf("expected %d arguments, but got %d", len(decl.Params.Fields), len(functionCall.Args))
+			}
+
+			for i := range len(functionCall.Args) {
+				paramType := decl.Params.Fields[i].Type
+				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
+				// TODO(errors)
+				if err != nil {
+					return err
+				}
+				// TODO(errors)
+				if !reflect.DeepEqual(argType, paramType) {
 					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", decl.Name, paramType, argType)
 				}
 			}
@@ -264,6 +282,23 @@ func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *sco
 				// TODO(errors)
 				if !reflect.DeepEqual(argType, paramType) {
 					log.Fatalf("mismatched argument type on prototype '%s', expected %s, but got %s", decl.Name, paramType, argType)
+				}
+			}
+		} else {
+			if len(functionCall.Args) != len(decl.Params.Fields) {
+				log.Fatalf("expected %d arguments, but got %d", len(decl.Params.Fields), len(functionCall.Args))
+			}
+
+			for i := range len(functionCall.Args) {
+				paramType := decl.Params.Fields[i].Type
+				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
+				// TODO(errors)
+				if err != nil {
+					return err
+				}
+				// TODO(errors)
+				if !reflect.DeepEqual(argType, paramType) {
+					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", decl.Name, paramType, argType)
 				}
 			}
 		}
@@ -299,7 +334,9 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 		case *ast.BasicType:
 			switch ty.Kind {
 			case kind.STRING_LITERAL:
-				return &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}}, nil
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
+				expression.Type = finalTy
+				return finalTy, nil
 			case kind.INTEGER_LITERAL, kind.INT_TYPE:
 				switch ty := expectedType.(type) {
 				case *ast.BasicType:
@@ -309,7 +346,7 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 					if bitSize == -1 {
 						return nil, fmt.Errorf("not a valid numeric type: %s", ty.Kind)
 					}
-					_, err := strconv.ParseInt(value, 10, bitSize)
+					_, err := strconv.ParseUint(value, 10, bitSize)
 					// TODO(errors)
 					if err != nil {
 						return nil, fmt.Errorf("kind: %s bitSize: %d - integer overflow %s - error: %s", ty.Kind, bitSize, value, err)
@@ -431,7 +468,7 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 			// language? I don't think *i8 is correct type for this
 			switch ty.Kind {
 			case kind.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}}
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
 				expression.Type = finalTy
 				return finalTy, false, nil
 			case kind.INTEGER_LITERAL:
@@ -610,7 +647,7 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 		return &ast.BasicType{Kind: integerType}, nil
 	}
 
-	return nil, fmt.Errorf("can't parse integer 32 bits: %s", value)
+	return nil, fmt.Errorf("can't parse integer: %s", value)
 }
 
 func (sema *sema) analyzeExternDecl(extern *ast.ExternDecl) error {
