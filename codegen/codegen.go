@@ -332,48 +332,6 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 				return llvm.Value{}, err
 			}
 			return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
-
-			// switch ty.Kind {
-			// case kind.INT_TYPE, kind.UINT_TYPE:
-			// 	integerValue, bitSize, err := codegen.getIntegerValue(currentExpr, ty)
-			// 	if err != nil {
-			// 		return llvm.Value{}, err
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
-			// case kind.U8_TYPE, kind.I8_TYPE:
-			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
-			// 	if err != nil {
-			// 		return llvm.Value{}, err
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.Int8Type(), integerValue, false), nil
-			// case kind.U16_TYPE, kind.I16_TYPE:
-			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
-			// 	if err != nil {
-			// 		return llvm.Value{}, err
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.Int16Type(), integerValue, false), nil
-			// case kind.U32_TYPE, kind.I32_TYPE:
-			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
-			// 	if err != nil {
-			// 		return llvm.Value{}, err
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.Int32Type(), integerValue, false), nil
-			// case kind.U64_TYPE, kind.I64_TYPE:
-			// 	integerValue, _, err := codegen.getIntegerValue(currentExpr, ty)
-			// 	if err != nil {
-			// 		return llvm.Value{}, err
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.Int64Type(), integerValue, false), nil
-			// case kind.BOOL_TYPE:
-			// 	boolLiteral := currentExpr.Value.(string)
-			// 	value := 0
-			// 	if boolLiteral == "true" {
-			// 		value = 1
-			// 	}
-			// 	return llvm.ConstInt(codegen.context.Int1Type(), uint64(value), false), nil
-			// default:
-			// 	log.Fatalf("unimplemented literal expr: %s %s", ty.Kind, reflect.TypeOf(expr))
-			// }
 		case *ast.PointerType:
 			switch ptrTy := ty.Type.(type) {
 			case *ast.BasicType:
@@ -420,6 +378,8 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 			log.Fatalf("can't generate rhs expr: %s", err)
 		}
 		switch currentExpr.Op {
+		// TODO: deal with signed or unsigned operations
+		// I'm assuming all unsigned for now
 		case kind.EQUAL_EQUAL:
 			// TODO: there a list of IntPredicate, I could map token kind to these
 			// for code reability
@@ -431,6 +391,14 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 			return codegen.builder.CreateSub(lhs, rhs, ".sub"), nil
 		case kind.PLUS:
 			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
+		case kind.LESS:
+			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmpeq"), nil
+		case kind.LESS_EQ:
+			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmpeq"), nil
+		case kind.GREATER:
+			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpeq"), nil
+		case kind.GREATER_EQ:
+			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpeq"), nil
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
