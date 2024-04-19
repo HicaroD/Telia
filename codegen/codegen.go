@@ -264,7 +264,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) error {
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 	switch exprTy := ty.(type) {
-	case ast.BasicType:
+	case *ast.BasicType:
 		switch exprTy.Kind {
 		case kind.BOOL_TYPE:
 			return codegen.context.Int1Type()
@@ -285,7 +285,7 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}
-	case ast.PointerType:
+	case *ast.PointerType:
 		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
@@ -323,31 +323,49 @@ func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.E
 		switch ty := currentExpr.Type.(type) {
 		case *ast.BasicType:
 			switch ty.Kind {
-			case kind.INTEGER_LITERAL:
-				integerLiteral := uint64(currentExpr.Value.(int))
+			// TODO: deal with these errors
+			// I could just parse the string, but that would be a waste because
+			// I already did it in the semantic analysis phase
+			case kind.U8_TYPE, kind.I8_TYPE:
+				integerLiteral := currentExpr.Value.(string)
+				return llvm.ConstInt(codegen.context.Int8Type(), integerLiteral, false), nil
+			case kind.U16_TYPE, kind.I16_TYPE:
+				integerLiteral := currentExpr.Value.(string)
+				return llvm.ConstInt(codegen.context.Int16Type(), integerLiteral, false), nil
+			case kind.U32_TYPE, kind.I32_TYPE:
+				integerLiteral := currentExpr.Value.(string)
 				return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
-			case kind.NEGATIVE_INTEGER_LITERAL:
-				negativeIntegerLiteral := int64(currentExpr.Value.(int))
-				return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
-			case kind.STRING_LITERAL:
-				stringLiteral := currentExpr.Value.(string)
-				// NOTE: huge string literals can affect performance because it
-				// creates a new entry on the map
-				globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
-				if ok {
-					return globalStrLiteral, nil
+			case kind.U64_TYPE, kind.I64_TYPE:
+				integerLiteral := currentExpr.Value.(string)
+				return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
+			case kind.BOOL_TYPE:
+				boolLiteral := currentExpr.Value.(string)
+				value := 0
+				if boolLiteral == "true" {
+					value = 1
 				}
-				globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-				codegen.strLiterals[stringLiteral] = globalStrPtr
-				return globalStrPtr, nil
-			case kind.TRUE_BOOL_LITERAL:
-				trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
-				return trueBoolLiteral, nil
-			case kind.FALSE_BOOL_LITERAL:
-				falseBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 0, false)
-				return falseBoolLiteral, nil
+				return llvm.ConstInt(codegen.context.Int1Type(), uint64(value), false), nil
 			default:
 				log.Fatalf("unimplemented literal expr: %s", expr)
+			}
+		case *ast.PointerType:
+			switch ptrTy := ty.Type.(type) {
+			case *ast.BasicType:
+				switch ptrTy.Kind {
+				case kind.I8_TYPE:
+					stringLiteral := currentExpr.Value.(string)
+					// NOTE: huge string literals can affect performance because it
+					// creates a new entry on the map
+					globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
+					if ok {
+						return globalStrLiteral, nil
+					}
+					globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
+					codegen.strLiterals[stringLiteral] = globalStrPtr
+					return globalStrPtr, nil
+				default:
+					log.Fatalf("unimplemented ptr basic type: %s", ptrTy.Kind)
+				}
 			}
 		}
 	case *ast.IdExpr:
