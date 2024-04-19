@@ -320,32 +320,35 @@ func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], 
 func (codegen *codegen) getExpr(scope *scope.Scope[values.LLVMValue], expr ast.Expr) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
-		switch currentExpr.Kind {
-		case kind.INTEGER_LITERAL:
-			integerLiteral := uint64(currentExpr.Value.(int))
-			return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
-		case kind.NEGATIVE_INTEGER_LITERAL:
-			negativeIntegerLiteral := int64(currentExpr.Value.(int))
-			return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
-		case kind.STRING_LITERAL:
-			stringLiteral := currentExpr.Value.(string)
-			// NOTE: huge string literals can affect performance because it
-			// creates a new entry on the map
-			globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
-			if ok {
-				return globalStrLiteral, nil
+		switch ty := currentExpr.Type.(type) {
+		case *ast.BasicType:
+			switch ty.Kind {
+			case kind.INTEGER_LITERAL:
+				integerLiteral := uint64(currentExpr.Value.(int))
+				return llvm.ConstInt(codegen.context.Int32Type(), integerLiteral, false), nil
+			case kind.NEGATIVE_INTEGER_LITERAL:
+				negativeIntegerLiteral := int64(currentExpr.Value.(int))
+				return llvm.ConstInt(codegen.context.Int32Type(), uint64(negativeIntegerLiteral), false), nil
+			case kind.STRING_LITERAL:
+				stringLiteral := currentExpr.Value.(string)
+				// NOTE: huge string literals can affect performance because it
+				// creates a new entry on the map
+				globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
+				if ok {
+					return globalStrLiteral, nil
+				}
+				globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
+				codegen.strLiterals[stringLiteral] = globalStrPtr
+				return globalStrPtr, nil
+			case kind.TRUE_BOOL_LITERAL:
+				trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
+				return trueBoolLiteral, nil
+			case kind.FALSE_BOOL_LITERAL:
+				falseBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 0, false)
+				return falseBoolLiteral, nil
+			default:
+				log.Fatalf("unimplemented literal expr: %s", expr)
 			}
-			globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-			codegen.strLiterals[stringLiteral] = globalStrPtr
-			return globalStrPtr, nil
-		case kind.TRUE_BOOL_LITERAL:
-			trueBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 1, false)
-			return trueBoolLiteral, nil
-		case kind.FALSE_BOOL_LITERAL:
-			falseBoolLiteral := llvm.ConstInt(codegen.context.Int1Type(), 0, false)
-			return falseBoolLiteral, nil
-		default:
-			log.Fatalf("unimplemented literal expr: %s", expr)
 		}
 	case *ast.IdExpr:
 		varName := currentExpr.Name.Lexeme.(string)

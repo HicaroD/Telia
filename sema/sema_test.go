@@ -22,88 +22,88 @@ func TestVarDecl(t *testing.T) {
 	tests := []varTest{
 		{
 			input:    `name := "Hicaro";`,
-			ty:       ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}},
+			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}},
 			inferred: true,
 		},
 		{
 			input:    "age := 18;",
-			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "score := -18;",
-			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 + 1;",
-			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 - 1;",
-			ty:       ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := true;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := false;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := false;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_greater := 2 > 1;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_greater_or_eq := 2 >= 1;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_lesser := 2 < 1;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_lesser_or_eq := 2 <= 1;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_eq := 2 == 1;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_true := true and true;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_true := true or true;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_not_true := not true;",
-			ty:       ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestVarDecl('%s')", test.input), func(t *testing.T) {
 			varDecl, err := analyzeVarDeclFrom(test.input, filename)
 			if err != nil {
 				t.Fatal(err)
@@ -136,9 +136,9 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				Nodes: map[string]ast.AstNode{
 					"a": &ast.VarDeclStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
-						Type: ast.BasicType{Kind: kind.I8_TYPE},
+						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 							Value: 1,
 						},
 						NeedsInference: false,
@@ -152,75 +152,75 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 			}{
 				{
 					input: "true",
-					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "true",
-						Kind:  kind.TRUE_BOOL_LITERAL,
+						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
 					},
 				},
 				{
 					input: "false",
-					ty:    ast.BasicType{Kind: kind.BOOL_TYPE},
+					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "false",
-						Kind:  kind.FALSE_BOOL_LITERAL,
+						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
 					},
 				},
 				{
 					input: "1",
-					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "1",
-						Kind:  kind.INTEGER_LITERAL,
+						Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 					},
 				},
 				{
 					input: "1 + 1",
-					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: "1",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "-1",
-					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
 					value: &ast.UnaryExpr{
 						Op: kind.MINUS,
 						Value: &ast.LiteralExpr{
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 							Value: "1",
 						},
 					},
 				},
 				{
 					input: "-1 + 1",
-					ty:    ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.UnaryExpr{
 							Op: kind.MINUS,
 							Value: &ast.LiteralExpr{
-								Kind:  kind.INTEGER_LITERAL,
+								Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 								Value: "1",
 							},
 						},
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "a + 1",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
@@ -228,17 +228,17 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 						},
 					},
 				},
 				{
 					input: "1 + a",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: "1",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 						},
 						Op: kind.PLUS,
 						Right: &ast.IdExpr{
@@ -248,17 +248,17 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				},
 				{
 					input: "1 + 2 + a",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
 								Value: "1",
-								Kind:  kind.INTEGER_LITERAL,
+								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 							},
 							Op: kind.PLUS,
 							Right: &ast.LiteralExpr{
 								Value: "2",
-								Kind:  kind.INTEGER_LITERAL,
+								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 							},
 						},
 						Op: kind.PLUS,
@@ -269,12 +269,12 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				},
 				{
 					input: "1 + a + 3",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
 								Value: "1",
-								Kind:  kind.INTEGER_LITERAL,
+								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 							},
 							Op: kind.PLUS,
 							Right: &ast.IdExpr{
@@ -284,7 +284,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "3",
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 						},
 					},
 				},
@@ -320,9 +320,9 @@ func TestExprInferenceWithContext(t *testing.T) {
 				Nodes: map[string]ast.AstNode{
 					"a": &ast.VarDeclStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
-						Type: ast.BasicType{Kind: kind.I8_TYPE},
+						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
 							Value: 1,
 						},
 						NeedsInference: false,
@@ -336,7 +336,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 			}{
 				{
 					input: "a + 1",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
@@ -344,17 +344,17 @@ func TestExprInferenceWithContext(t *testing.T) {
 						Op: kind.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: 1,
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "1 + a",
-					ty:    ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: 1,
-							Kind:  kind.INTEGER_LITERAL,
+							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
 						},
 						Op: kind.PLUS,
 						Right: &ast.IdExpr{

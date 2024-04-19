@@ -125,10 +125,13 @@ func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[as
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 		// TODO: what do I assert here in order to make it right?
-		_, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, scope)
+		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, scope)
 		// TODO(errors): Deal with type mismatch
 		if err != nil {
 			return err
+		}
+		if !reflect.DeepEqual(varDecl.Type, exprTy) {
+			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
 		}
 	}
 
@@ -292,27 +295,40 @@ func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.ExprType, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
 	switch expression := exprNode.(type) {
 	case *ast.LiteralExpr:
-		switch expression.Kind {
-		case kind.STRING_LITERAL:
-			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, nil
-		case kind.INTEGER_LITERAL:
-			switch ty := expectedType.(type) {
-			case ast.BasicType:
-				value := expression.Value.(string)
-				bitSize := ty.Kind.BitSize()
-				// TODO(errors)
-				if bitSize == -1 {
-					return nil, fmt.Errorf("not a valid numeric type: %s", ty.Kind)
+		switch ty := expression.Type.(type) {
+		case *ast.BasicType:
+			switch ty.Kind {
+			case kind.STRING_LITERAL:
+				return &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}}, nil
+			case kind.INTEGER_LITERAL, kind.INT_TYPE:
+				switch ty := expectedType.(type) {
+				case *ast.BasicType:
+					value := expression.Value.(string)
+					bitSize := ty.Kind.BitSize()
+					// TODO(errors)
+					if bitSize == -1 {
+						return nil, fmt.Errorf("not a valid numeric type: %s", ty.Kind)
+					}
+					_, err := strconv.ParseInt(value, 10, bitSize)
+					// TODO(errors)
+					if err != nil {
+						return nil, fmt.Errorf("kind: %s bitSize: %d - integer overflow %s - error: %s", ty.Kind, bitSize, value, err)
+					}
+					finalTy := &ast.BasicType{Kind: ty.Kind}
+					expression.Type = finalTy
+					return finalTy, nil
+				default:
+					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
 				}
-				_, err := strconv.ParseInt(value, 10, bitSize)
-				// TODO(errors)
-				if err != nil {
-					return nil, fmt.Errorf("kind: %s bitSize: %d - integer overflow %s - error: %s", ty.Kind, bitSize, value, err)
-				}
-				return ast.BasicType{Kind: ty.Kind}, nil
+			case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+				expression.Type = finalTy
+				return finalTy, nil
+			default:
+				log.Fatalf("unimplemented basic type kind: %s", ty.Kind)
 			}
-		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
-			return ast.BasicType{Kind: kind.BOOL_TYPE}, nil
+		default:
+			log.Fatalf("unimplemented literal expr type on inferExprTypeWithContext: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
 		symbol, err := scope.Lookup(expression.Name.Lexeme.(string))
@@ -342,12 +358,7 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 		if err != nil {
 			return nil, err
 		}
-		// At this point, function should exists!
 		function, _ := scope.Lookup(expression.Name)
-		// TODO(errors): should never hit inside the if
-		// if err != nil {
-		// 	log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
-		// }
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, nil
 	case *ast.VoidExpr:
@@ -368,11 +379,14 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 				return nil, fmt.Errorf("can't use - operator on a non-numeric value")
 			}
 			return unaryExprType, nil
+		default:
+			log.Fatalf("unimplemented unary expr operator: %s", reflect.TypeOf(expression.Op))
 		}
 	default:
 		// TODO(errors)
 		log.Fatalf("unimplemented on getExprType: %s", reflect.TypeOf(expression))
 	}
+
 	// NOTE: this line should be unreachable
 	log.Fatalf("unreachable line at getExprTy")
 	return nil, nil
@@ -411,21 +425,31 @@ func inferExprTypeWithContext(input, filename string, ty ast.ExprType, scope *sc
 func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, bool, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
-		switch expression.Kind {
-		// TODO: what if I want a defined string type on my programming
-		// language? I don't think *i8 is correct type for this
-		case kind.STRING_LITERAL:
-			return ast.PointerType{Type: ast.BasicType{Kind: kind.I8_TYPE}}, false, nil
-		case kind.INTEGER_LITERAL:
-			ty, err := sema.inferIntegerType(expression.Value.(string))
-			if err != nil {
-				return nil, false, err
+		switch ty := expression.Type.(type) {
+		case *ast.BasicType:
+			// TODO: what if I want a defined string type on my programming
+			// language? I don't think *i8 is correct type for this
+			switch ty.Kind {
+			case kind.STRING_LITERAL:
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}}
+				expression.Type = finalTy
+				return finalTy, false, nil
+			case kind.INTEGER_LITERAL:
+				ty, err := sema.inferIntegerType(expression.Value.(string))
+				if err != nil {
+					return nil, false, err
+				}
+				expression.Type = ty
+				return ty, false, nil
+			case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+				expression.Type = finalTy
+				return finalTy, false, nil
+			default:
+				log.Fatalf("unimplemented literal expr: %s", expression)
 			}
-			return ty, false, nil
-		case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
-			return ast.BasicType{Kind: kind.BOOL_TYPE}, false, nil
 		default:
-			log.Fatalf("unimplemented literal expr: %s", expression)
+			log.Fatalf("unimplemented literal expr type: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
 		variableName := expression.Name.Lexeme.(string)
@@ -448,13 +472,19 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 		case kind.MINUS:
 			switch unaryExpr := expression.Value.(type) {
 			case *ast.LiteralExpr:
-				if unaryExpr.Kind == kind.INTEGER_LITERAL {
-					integerType, err := sema.inferIntegerType(unaryExpr.Value.(string))
-					// TODO(errors)
-					if err != nil {
-						return nil, false, err
+				switch unaryTy := unaryExpr.Type.(type) {
+				case *ast.BasicType:
+					if unaryTy.Kind == kind.INTEGER_LITERAL {
+						integerType, err := sema.inferIntegerType(unaryExpr.Value.(string))
+						// TODO(errors)
+						if err != nil {
+							return nil, false, err
+						}
+						unaryExpr.Type = integerType
+						return integerType, false, nil
 					}
-					return integerType, false, nil
+				default:
+					log.Fatalf("unimplemented unary expr type: %s", unaryExpr)
 				}
 			}
 		case kind.NOT:
@@ -495,7 +525,7 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 	}
 	// TODO(errors)
 	// NOTE: this should be unreachable
-	log.Fatalf("UNREACHABLE - inferExprType")
+	log.Fatalf("UNREACHABLE - inferExprType: %s", reflect.TypeOf(expr))
 	return nil, false, nil
 }
 
@@ -540,7 +570,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(expression *ast.BinaryExpr, 
 		}
 	default:
 		if _, ok := kind.LOGICAL_OP[expression.Op]; ok {
-			return ast.BasicType{Kind: kind.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
+			return &ast.BasicType{Kind: kind.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
 		}
 	}
 	// TODO
@@ -572,12 +602,12 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 
 	_, err := strconv.ParseUint(value, base, 32)
 	if err == nil {
-		return ast.BasicType{Kind: integerType}, nil
+		return &ast.BasicType{Kind: integerType}, nil
 	}
 
 	_, err = strconv.ParseUint(value, base, 64)
 	if err == nil {
-		return ast.BasicType{Kind: integerType}, nil
+		return &ast.BasicType{Kind: integerType}, nil
 	}
 
 	return nil, fmt.Errorf("can't parse integer 32 bits: %s", value)
