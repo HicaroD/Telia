@@ -154,7 +154,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					input: "true",
 					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
 					value: &ast.LiteralExpr{
-						Value: "true",
+						Value: "1",
 						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
 					},
 				},
@@ -162,7 +162,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					input: "false",
 					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
 					value: &ast.LiteralExpr{
-						Value: "false",
+						Value: "0",
 						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
 					},
 				},

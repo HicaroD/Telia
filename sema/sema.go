@@ -357,9 +357,15 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 				default:
 					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
 				}
-			case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
+			case kind.TRUE_BOOL_LITERAL:
 				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
 				expression.Type = finalTy
+				expression.Value = "1"
+				return finalTy, nil
+			case kind.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+				expression.Type = finalTy
+				expression.Value = "0"
 				return finalTy, nil
 			default:
 				log.Fatalf("unimplemented basic type kind: %s", ty.Kind)
@@ -478,9 +484,15 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 				}
 				expression.Type = ty
 				return ty, false, nil
-			case kind.TRUE_BOOL_LITERAL, kind.FALSE_BOOL_LITERAL:
+			case kind.TRUE_BOOL_LITERAL:
 				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
 				expression.Type = finalTy
+				expression.Value = "1"
+				return finalTy, false, nil
+			case kind.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+				expression.Type = finalTy
+				expression.Value = "0"
 				return finalTy, false, nil
 			default:
 				log.Fatalf("unimplemented literal expr: %s", expression)
