@@ -392,13 +392,13 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 		case kind.PLUS:
 			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
 		case kind.LESS:
-			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmpeq"), nil
+			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt"), nil
 		case kind.LESS_EQ:
-			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmpeq"), nil
+			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple"), nil
 		case kind.GREATER:
-			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpeq"), nil
+			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt"), nil
 		case kind.GREATER_EQ:
-			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpeq"), nil
+			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge"), nil
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
