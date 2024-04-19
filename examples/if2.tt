@@ -1,6 +1,6 @@
 extern "C" {
-  fn printf(format *i8, ...) i32;
-  fn puts(format *i8) i32;
+  fn printf(format *u8, ...) i32;
+  fn puts(format *u8) i32;
 }
 
 fn main() i32 {
