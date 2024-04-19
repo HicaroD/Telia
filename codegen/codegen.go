@@ -419,6 +419,8 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 		default:
 			log.Fatalf("unimplemented value: %s %s", expr, reflect.TypeOf(sym))
 		}
+	case *ast.UnaryExpr:
+		log.Fatalf("unimplemented unary expr: %s", expr)
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
