@@ -253,3 +253,9 @@ func TestIsLiteral(t *testing.T) {
 		})
 	}
 }
+
+type lexicalErrors struct {
+}
+
+func TestLexicalErrors(t *testing.T) {
+}
