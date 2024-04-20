@@ -644,22 +644,17 @@ func (sema *sema) inferBinaryExprTypeWithContext(expression *ast.BinaryExpr, exp
 	return lhsType, nil
 }
 
-// TODO: deal with other types of integer
 func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 	integerType := kind.INT_TYPE
 	base := 10
+	intSize := strconv.IntSize
 
-	_, err := strconv.ParseUint(value, base, 32)
+	_, err := strconv.ParseUint(value, base, intSize)
 	if err == nil {
 		return &ast.BasicType{Kind: integerType}, nil
 	}
 
-	_, err = strconv.ParseUint(value, base, 64)
-	if err == nil {
-		return &ast.BasicType{Kind: integerType}, nil
-	}
-
-	return nil, fmt.Errorf("can't parse integer: %s", value)
+	return nil, fmt.Errorf("can't parse integer literal: %s", value)
 }
 
 func (sema *sema) analyzeExternDecl(extern *ast.ExternDecl) error {
