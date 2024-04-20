@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to open file: %s due to error '%s'", filename, err)
 	}
+	defer file.Close()
 
 	reader := bufio.NewReader(file)
 	lex := lexer.New(filename, reader)
