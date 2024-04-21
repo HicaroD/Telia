@@ -27,7 +27,15 @@ func (scope *Scope[V]) Insert(name string, element V) error {
 	return nil
 }
 
-func (scope *Scope[V]) Lookup(name string) (V, error) {
+func (scope *Scope[V]) LookupCurrentScope(name string) (V, error) {
+	if node, ok := scope.Nodes[name]; ok {
+		return node, nil
+	}
+	var empty V
+	return empty, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
+}
+
+func (scope *Scope[V]) LookupAcrossScopes(name string) (V, error) {
 	if node, ok := scope.Nodes[name]; ok {
 		return node, nil
 	}
@@ -36,7 +44,7 @@ func (scope *Scope[V]) Lookup(name string) (V, error) {
 		var empty V
 		return empty, fmt.Errorf("%s: %s", ERR_SYMBOL_NOT_FOUND_ON_SCOPE, name)
 	}
-	return scope.Parent.Lookup(name)
+	return scope.Parent.LookupAcrossScopes(name)
 }
 
 func (scope Scope[V]) String() string {

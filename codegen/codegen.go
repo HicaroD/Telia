@@ -245,7 +245,7 @@ func (codegen *codegen) generateFunctionCall(
 	scope *scope.Scope[values.LLVMValue],
 	functionCall *ast.FunctionCall,
 ) (llvm.Value, error) {
-	symbol, err := scope.Lookup(functionCall.Name)
+	symbol, err := scope.LookupAcrossScopes(functionCall.Name)
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
@@ -382,7 +382,7 @@ func (codegen *codegen) getExpr(
 		}
 	case *ast.IdExpr:
 		varName := currentExpr.Name.Lexeme.(string)
-		symbol, err := scope.Lookup(varName)
+		symbol, err := scope.LookupAcrossScopes(varName)
 		// TODO(errors)
 		if err != nil {
 			return llvm.Value{}, err
@@ -431,7 +431,7 @@ func (codegen *codegen) getExpr(
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
 	case *ast.FunctionCall:
-		symbol, err := scope.Lookup(currentExpr.Name)
+		symbol, err := scope.LookupAcrossScopes(currentExpr.Name)
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("at this point of code generation, every symbol should be located")

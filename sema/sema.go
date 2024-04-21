@@ -112,13 +112,13 @@ func (sema *sema) analyzeBlock(
 	return nil
 }
 
-func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[ast.AstNode]) error {
+func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, currentScope *scope.Scope[ast.AstNode]) error {
 	if varDecl.NeedsInference {
 		// TODO(errors): need a test for it
 		if varDecl.Type != nil {
 			log.Fatalf("needs inference, but variable already has a type: %s", varDecl.Type)
 		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, scope)
+		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -130,7 +130,7 @@ func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[as
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 		// TODO: what do I assert here in order to make it right?
-		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, scope)
+		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
 		// TODO(errors): Deal with type mismatch
 		if err != nil {
 			return err
@@ -141,7 +141,8 @@ func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[as
 	}
 
 	varName := varDecl.Name.Lexeme.(string)
-	err := scope.Insert(varName, varDecl)
+	err := currentScope.Insert(varName, varDecl)
+	// TODO(errors): symbol already defined on scope
 	if err != nil {
 		return err
 	}
@@ -228,7 +229,7 @@ func (sema *sema) analyzeFunctionCall(
 	functionCall *ast.FunctionCall,
 	scope *scope.Scope[ast.AstNode],
 ) error {
-	function, err := scope.Lookup(functionCall.Name)
+	function, err := scope.LookupAcrossScopes(functionCall.Name)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -389,7 +390,7 @@ func (sema *sema) inferExprTypeWithContext(
 			log.Fatalf("unimplemented literal expr type on inferExprTypeWithContext: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
-		symbol, err := scope.Lookup(expression.Name.Lexeme.(string))
+		symbol, err := scope.LookupAcrossScopes(expression.Name.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -416,7 +417,7 @@ func (sema *sema) inferExprTypeWithContext(
 		if err != nil {
 			return nil, err
 		}
-		function, _ := scope.Lookup(expression.Name)
+		function, _ := scope.LookupAcrossScopes(expression.Name)
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, nil
 	case *ast.VoidExpr:
@@ -527,7 +528,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 	case *ast.IdExpr:
 		variableName := expression.Name.Lexeme.(string)
-		variable, err := scope.Lookup(variableName)
+		variable, err := scope.LookupAcrossScopes(variableName)
 		// TODO(errors)
 		if err != nil {
 			return nil, false, err
@@ -588,7 +589,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 			return nil, false, err
 		}
 		// At this point, function should exists!
-		function, err := scope.Lookup(expression.Name)
+		function, err := scope.LookupAcrossScopes(expression.Name)
 		if err != nil {
 			log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
 		}
