@@ -119,7 +119,11 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	return err
 }
 
-func (codegen *codegen) generateBlock(stmts *ast.BlockStmt, scope *scope.Scope[values.LLVMValue], function *values.Function) (bool, error) {
+func (codegen *codegen) generateBlock(
+	stmts *ast.BlockStmt,
+	scope *scope.Scope[values.LLVMValue],
+	function *values.Function,
+) (bool, error) {
 	for i := range stmts.Statements {
 		stmt := stmts.Statements[i]
 		err := codegen.generateStmt(stmt, scope, function)
@@ -133,7 +137,11 @@ func (codegen *codegen) generateBlock(stmts *ast.BlockStmt, scope *scope.Scope[v
 	return false, nil
 }
 
-func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LLVMValue], function *values.Function) error {
+func (codegen *codegen) generateStmt(
+	stmt ast.Stmt,
+	scope *scope.Scope[values.LLVMValue],
+	function *values.Function,
+) error {
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
 		_, err := codegen.generateFunctionCall(scope, statement)
@@ -165,7 +173,10 @@ func (codegen *codegen) generateStmt(stmt ast.Stmt, scope *scope.Scope[values.LL
 	return nil
 }
 
-func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateReturnStmt(
+	ret *ast.ReturnStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
 	if ret.Value.IsVoid() {
 		codegen.builder.CreateRetVoid()
 		return nil
@@ -179,7 +190,10 @@ func (codegen *codegen) generateReturnStmt(ret *ast.ReturnStmt, scope *scope.Sco
 	return nil
 }
 
-func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateVariableDecl(
+	varDecl *ast.VarDeclStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
 	varExpr, err := codegen.getExpr(varDecl.Value, scope)
@@ -203,7 +217,12 @@ func (codegen *codegen) generateVariableDecl(varDecl *ast.VarDeclStmt, scope *sc
 	return nil
 }
 
-func (codegen *codegen) generateParameters(fnValue *values.Function, functionNode *ast.FunctionDecl, fnScope *scope.Scope[values.LLVMValue], paramsTypes []llvm.Type) error {
+func (codegen *codegen) generateParameters(
+	fnValue *values.Function,
+	functionNode *ast.FunctionDecl,
+	fnScope *scope.Scope[values.LLVMValue],
+	paramsTypes []llvm.Type,
+) error {
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		paramName := functionNode.Params.Fields[i].Name.Lexeme.(string)
 		paramType := paramsTypes[i]
@@ -222,7 +241,10 @@ func (codegen *codegen) generateParameters(fnValue *values.Function, functionNod
 	return nil
 }
 
-func (codegen *codegen) generateFunctionCall(scope *scope.Scope[values.LLVMValue], functionCall *ast.FunctionCall) (llvm.Value, error) {
+func (codegen *codegen) generateFunctionCall(
+	scope *scope.Scope[values.LLVMValue],
+	functionCall *ast.FunctionCall,
+) (llvm.Value, error) {
 	symbol, err := scope.Lookup(functionCall.Name)
 	// TODO(errors)
 	if err != nil {
@@ -305,7 +327,10 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 	return types
 }
 
-func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], expressions []ast.Expr) ([]llvm.Value, error) {
+func (codegen *codegen) getExprList(
+	parentScope *scope.Scope[values.LLVMValue],
+	expressions []ast.Expr,
+) ([]llvm.Value, error) {
 	values := make([]llvm.Value, len(expressions))
 	for i := range expressions {
 		expr, err := codegen.getExpr(expressions[i], parentScope)
@@ -318,7 +343,10 @@ func (codegen *codegen) getExprList(parentScope *scope.Scope[values.LLVMValue], 
 	return values, nil
 }
 
-func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMValue]) (llvm.Value, error) {
+func (codegen *codegen) getExpr(
+	expr ast.Expr,
+	scope *scope.Scope[values.LLVMValue],
+) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
 		switch ty := currentExpr.Type.(type) {
@@ -429,7 +457,10 @@ func (codegen *codegen) getExpr(expr ast.Expr, scope *scope.Scope[values.LLVMVal
 	return llvm.Value{}, nil
 }
 
-func (codegen *codegen) getIntegerValue(expr *ast.LiteralExpr, ty *ast.BasicType) (uint64, int, error) {
+func (codegen *codegen) getIntegerValue(
+	expr *ast.LiteralExpr,
+	ty *ast.BasicType,
+) (uint64, int, error) {
 	bitSize := ty.Kind.BitSize()
 	if bitSize == -1 {
 		return 0, bitSize, nil
@@ -439,7 +470,11 @@ func (codegen *codegen) getIntegerValue(expr *ast.LiteralExpr, ty *ast.BasicType
 	return integerValue, bitSize, err
 }
 
-func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMValue], function *values.Function, condStmt *ast.CondStmt) error {
+func (codegen *codegen) generateCondStmt(
+	parentScope *scope.Scope[values.LLVMValue],
+	function *values.Function,
+	condStmt *ast.CondStmt,
+) error {
 	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
@@ -468,7 +503,11 @@ func (codegen *codegen) generateCondStmt(parentScope *scope.Scope[values.LLVMVal
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
 		elseScope := scope.New(parentScope)
-		elseStoppedOnReturn, err := codegen.generateBlock(condStmt.ElseStmt.Block, elseScope, function)
+		elseStoppedOnReturn, err := codegen.generateBlock(
+			condStmt.ElseStmt.Block,
+			elseScope,
+			function,
+		)
 		// TODO(errors)
 		if err != nil {
 			return err

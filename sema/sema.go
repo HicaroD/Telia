@@ -74,7 +74,11 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 	return nil
 }
 
-func (sema *sema) analyzeBlock(currentScope *scope.Scope[ast.AstNode], block *ast.BlockStmt, returnTy ast.ExprType) error {
+func (sema *sema) analyzeBlock(
+	currentScope *scope.Scope[ast.AstNode],
+	block *ast.BlockStmt,
+	returnTy ast.ExprType,
+) error {
 	for i := range block.Statements {
 		switch statement := block.Statements[i].(type) {
 		case *ast.FunctionCall:
@@ -174,7 +178,11 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	return varDecl, nil
 }
 
-func (sema *sema) analyzeCondStmt(condStmt *ast.CondStmt, returnTy ast.ExprType, outterScope *scope.Scope[ast.AstNode]) error {
+func (sema *sema) analyzeCondStmt(
+	condStmt *ast.CondStmt,
+	returnTy ast.ExprType,
+	outterScope *scope.Scope[ast.AstNode],
+) error {
 	ifScope := scope.New(outterScope)
 
 	err := sema.analyzeIfExpr(condStmt.IfStmt.Expr, outterScope)
@@ -216,7 +224,10 @@ func (sema *sema) analyzeCondStmt(condStmt *ast.CondStmt, returnTy ast.ExprType,
 	return nil
 }
 
-func (sema *sema) analyzeFunctionCall(functionCall *ast.FunctionCall, scope *scope.Scope[ast.AstNode]) error {
+func (sema *sema) analyzeFunctionCall(
+	functionCall *ast.FunctionCall,
+	scope *scope.Scope[ast.AstNode],
+) error {
 	function, err := scope.Lookup(functionCall.Name)
 	// TODO(errors)
 	if err != nil {
@@ -327,7 +338,11 @@ func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 }
 
 // TODO: think about the way I'm inferring or getting the expr type correctly
-func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.ExprType, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
+func (sema *sema) inferExprTypeWithContext(
+	exprNode ast.Expr,
+	expectedType ast.ExprType,
+	scope *scope.Scope[ast.AstNode],
+) (ast.ExprType, error) {
 	switch expression := exprNode.(type) {
 	case *ast.LiteralExpr:
 		switch ty := expression.Type.(type) {
@@ -436,7 +451,10 @@ func (sema *sema) inferExprTypeWithContext(exprNode ast.Expr, expectedType ast.E
 }
 
 // Useful for testing
-func inferExprTypeWithoutContext(input, filename string, scope *scope.Scope[ast.AstNode]) (ast.Expr, ast.ExprType, error) {
+func inferExprTypeWithoutContext(
+	input, filename string,
+	scope *scope.Scope[ast.AstNode],
+) (ast.Expr, ast.ExprType, error) {
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
 		return nil, nil, err
@@ -451,7 +469,11 @@ func inferExprTypeWithoutContext(input, filename string, scope *scope.Scope[ast.
 }
 
 // Useful for testing
-func inferExprTypeWithContext(input, filename string, ty ast.ExprType, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
+func inferExprTypeWithContext(
+	input, filename string,
+	ty ast.ExprType,
+	scope *scope.Scope[ast.AstNode],
+) (ast.ExprType, error) {
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
 		return nil, err
@@ -465,7 +487,10 @@ func inferExprTypeWithContext(input, filename string, ty ast.ExprType, scope *sc
 	return exprType, nil
 }
 
-func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, bool, error) {
+func (sema *sema) inferExprTypeWithoutContext(
+	expr ast.Expr,
+	scope *scope.Scope[ast.AstNode],
+) (ast.ExprType, bool, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
 		switch ty := expression.Type.(type) {
@@ -578,7 +603,10 @@ func (sema *sema) inferExprTypeWithoutContext(expr ast.Expr, scope *scope.Scope[
 	return nil, false, nil
 }
 
-func (sema *sema) inferBinaryExprTypeWithoutContext(expression *ast.BinaryExpr, scope *scope.Scope[ast.AstNode]) (ast.ExprType, bool, error) {
+func (sema *sema) inferBinaryExprTypeWithoutContext(
+	expression *ast.BinaryExpr,
+	scope *scope.Scope[ast.AstNode],
+) (ast.ExprType, bool, error) {
 	lhsType, lhsFoundContext, err := sema.inferExprTypeWithoutContext(expression.Left, scope)
 	// TODO(errors)
 	if err != nil {
@@ -627,7 +655,11 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(expression *ast.BinaryExpr, 
 	return nil, false, nil
 }
 
-func (sema *sema) inferBinaryExprTypeWithContext(expression *ast.BinaryExpr, expectedType ast.ExprType, scope *scope.Scope[ast.AstNode]) (ast.ExprType, error) {
+func (sema *sema) inferBinaryExprTypeWithContext(
+	expression *ast.BinaryExpr,
+	expectedType ast.ExprType,
+	scope *scope.Scope[ast.AstNode],
+) (ast.ExprType, error) {
 	lhsType, err := sema.inferExprTypeWithContext(expression.Left, expectedType, scope)
 	if err != nil {
 		return nil, err

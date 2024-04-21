@@ -22,7 +22,14 @@ type FunctionDecl struct {
 }
 
 func (fnDecl FunctionDecl) String() string {
-	return fmt.Sprintf("Scope: %s\nName: %s\nParams: %s\nRetType: %s\nBlock: %s\n", fnDecl.Scope, fnDecl.Name, fnDecl.Params, fnDecl.RetType, fnDecl.Block)
+	return fmt.Sprintf(
+		"Scope: %s\nName: %s\nParams: %s\nRetType: %s\nBlock: %s\n",
+		fnDecl.Scope,
+		fnDecl.Name,
+		fnDecl.Params,
+		fnDecl.RetType,
+		fnDecl.Block,
+	)
 }
 func (fnDecl FunctionDecl) astNode()  {}
 func (fnDecl FunctionDecl) declNode() {}

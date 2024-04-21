@@ -180,7 +180,13 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnDecl := ast.FunctionDecl{Scope: nil, Name: name.Lexeme.(string), Params: params, Block: block, RetType: returnType}
+	fnDecl := ast.FunctionDecl{
+		Scope:   nil,
+		Name:    name.Lexeme.(string),
+		Params:  params,
+		Block:   block,
+		RetType: returnType,
+	}
 	return &fnDecl, nil
 }
 
@@ -249,7 +255,12 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected ')'")
 	}
-	return &ast.FieldList{Open: openParen, Fields: params, Close: closeParen, IsVariadic: isVariadic}, nil
+	return &ast.FieldList{
+		Open:       openParen,
+		Fields:     params,
+		Close:      closeParen,
+		IsVariadic: isVariadic,
+	}, nil
 }
 
 func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
@@ -329,7 +340,10 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 		case kind.RETURN:
 			parser.cursor.skip()
 			if parser.cursor.nextIs(kind.SEMICOLON) {
-				statements = append(statements, &ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}})
+				statements = append(
+					statements,
+					&ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}},
+				)
 				parser.cursor.skip()
 				break
 			}
@@ -364,7 +378,11 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			}
 			statements = append(statements, condStmt)
 		default:
-			return nil, fmt.Errorf("invalid token for statement parsing: %s %s", token.Kind, token.Lexeme)
+			return nil, fmt.Errorf(
+				"invalid token for statement parsing: %s %s",
+				token.Kind,
+				token.Lexeme,
+			)
 		}
 	}
 
@@ -374,7 +392,11 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 		return nil, fmt.Errorf("expected '}'")
 	}
 
-	return &ast.BlockStmt{OpenCurly: openCurly.Position, Statements: statements, CloseCurly: closeCurly.Position}, nil
+	return &ast.BlockStmt{
+		OpenCurly:  openCurly.Position,
+		Statements: statements,
+		CloseCurly: closeCurly.Position,
+	}, nil
 }
 
 func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
@@ -491,7 +513,10 @@ func (parser *parser) parseElifConds() ([]*ast.IfElifCond, error) {
 		if err != nil {
 			return nil, err
 		}
-		elifConds = append(elifConds, &ast.IfElifCond{If: &elifToken.Position, Expr: elifExpr, Block: elifBlock})
+		elifConds = append(
+			elifConds,
+			&ast.IfElifCond{If: &elifToken.Position, Expr: elifExpr, Block: elifBlock},
+		)
 	}
 	return elifConds, nil
 }
@@ -678,7 +703,12 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 				Value: token.Lexeme,
 			}, nil
 		}
-		return nil, fmt.Errorf("invalid token for expression parsing: %s %s %s", token.Kind, token.Lexeme, token.Position)
+		return nil, fmt.Errorf(
+			"invalid token for expression parsing: %s %s %s",
+			token.Kind,
+			token.Lexeme,
+			token.Position,
+		)
 	}
 }
 

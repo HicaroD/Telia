@@ -24,9 +24,13 @@ func TestFunctionDecl(t *testing.T) {
 				Scope: nil,
 				Name:  "do_nothing",
 				Params: &ast.FieldList{
-					Open:       token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields:     nil,
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 15, 1)),
+					Open:   token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Fields: nil,
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 15, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.VOID_TYPE},
@@ -50,7 +54,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.BOOL_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 21, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 21, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.VOID_TYPE},
@@ -78,7 +86,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.VOID_TYPE},
@@ -106,7 +118,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.I8_TYPE},
@@ -134,7 +150,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.U8_TYPE},
@@ -162,7 +182,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.I16_TYPE},
@@ -190,7 +214,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.U16_TYPE},
@@ -218,7 +246,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.I32_TYPE},
@@ -246,7 +278,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.U32_TYPE},
@@ -274,7 +310,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.I64_TYPE},
@@ -302,7 +342,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.U64_TYPE},
@@ -330,7 +374,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.BasicType{Kind: kind.BOOL_TYPE},
@@ -358,7 +406,11 @@ func TestFunctionDecl(t *testing.T) {
 							Type: &ast.BasicType{Kind: kind.I32_TYPE},
 						},
 					},
-					Close:      token.New(nil, kind.CLOSE_PAREN, token.NewPosition(filename, 28, 1)),
+					Close: token.New(
+						nil,
+						kind.CLOSE_PAREN,
+						token.NewPosition(filename, 28, 1),
+					),
 					IsVariadic: false,
 				},
 				RetType: &ast.PointerType{Type: &ast.BasicType{Kind: kind.I8_TYPE}},
@@ -400,15 +452,24 @@ func TestLiteralExpr(t *testing.T) {
 		},
 		{
 			input: "true",
-			node:  &ast.LiteralExpr{Value: "true", Type: &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL}},
+			node: &ast.LiteralExpr{
+				Value: "true",
+				Type:  &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL},
+			},
 		},
 		{
 			input: "false",
-			node:  &ast.LiteralExpr{Value: "false", Type: &ast.BasicType{Kind: kind.FALSE_BOOL_LITERAL}},
+			node: &ast.LiteralExpr{
+				Value: "false",
+				Type:  &ast.BasicType{Kind: kind.FALSE_BOOL_LITERAL},
+			},
 		},
 		{
 			input: "\"Hello, world\"",
-			node:  &ast.LiteralExpr{Value: "Hello, world", Type: &ast.BasicType{Kind: kind.STRING_LITERAL}},
+			node: &ast.LiteralExpr{
+				Value: "Hello, world",
+				Type:  &ast.BasicType{Kind: kind.STRING_LITERAL},
+			},
 		},
 	}
 
@@ -419,7 +480,12 @@ func TestLiteralExpr(t *testing.T) {
 				t.Errorf("TestLiteralExpr('%s'): unexpected error '%v'", test.input, err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("TestLiteralExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.input, test.node, actualNode)
+				t.Errorf(
+					"TestLiteralExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n",
+					test.input,
+					test.node,
+					actualNode,
+				)
 			}
 		})
 	}
@@ -431,15 +497,21 @@ func TestUnaryExpr(t *testing.T) {
 		{
 			input: "-1",
 			node: &ast.UnaryExpr{
-				Op:    kind.MINUS,
-				Value: &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+				Op: kind.MINUS,
+				Value: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
 			},
 		},
 		{
 			input: "not true",
 			node: &ast.UnaryExpr{
-				Op:    kind.NOT,
-				Value: &ast.LiteralExpr{Value: "true", Type: &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL}},
+				Op: kind.NOT,
+				Value: &ast.LiteralExpr{
+					Value: "true",
+					Type:  &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL},
+				},
 			},
 		},
 	}
@@ -450,7 +522,12 @@ func TestUnaryExpr(t *testing.T) {
 				t.Errorf("TestUnaryExpr('%s'): unexpected error '%v'", test.input, err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("TestUnaryExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n", test.input, test.node, actualNode)
+				t.Errorf(
+					"TestUnaryExpr('%s'): expression node differs\nexpected: '%v', but got '%v'\n",
+					test.input,
+					test.node,
+					actualNode,
+				)
 			}
 		})
 	}
@@ -462,57 +539,99 @@ func TestBinaryExpr(t *testing.T) {
 		{
 			input: "1 + 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:    kind.PLUS,
-				Right: &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+				Left: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.PLUS,
+				Right: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
 			},
 		},
 		{
 			input: "2 - 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: "2", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:    kind.MINUS,
-				Right: &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+				Left: &ast.LiteralExpr{
+					Value: "2",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.MINUS,
+				Right: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
 			},
 		},
 		{
 			input: "5 * 10",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: "5", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:    kind.STAR,
-				Right: &ast.LiteralExpr{Value: "10", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+				Left: &ast.LiteralExpr{
+					Value: "5",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.STAR,
+				Right: &ast.LiteralExpr{
+					Value: "10",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
 			},
 		},
 		{
 			input: "3 + 4 * 5",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: "3", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:   kind.PLUS,
+				Left: &ast.LiteralExpr{
+					Value: "3",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.PLUS,
 				Right: &ast.BinaryExpr{
-					Left:  &ast.LiteralExpr{Value: "4", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-					Op:    kind.STAR,
-					Right: &ast.LiteralExpr{Value: "5", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+					Left: &ast.LiteralExpr{
+						Value: "4",
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					},
+					Op: kind.STAR,
+					Right: &ast.LiteralExpr{
+						Value: "5",
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					},
 				},
 			},
 		},
 		{
 			input: "3 + (4 * 5)",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: "3", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:   kind.PLUS,
+				Left: &ast.LiteralExpr{
+					Value: "3",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.PLUS,
 				Right: &ast.BinaryExpr{
-					Left:  &ast.LiteralExpr{Value: "4", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-					Op:    kind.STAR,
-					Right: &ast.LiteralExpr{Value: "5", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+					Left: &ast.LiteralExpr{
+						Value: "4",
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					},
+					Op: kind.STAR,
+					Right: &ast.LiteralExpr{
+						Value: "5",
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					},
 				},
 			},
 		},
 		{
 			input: "10 / 1",
 			node: &ast.BinaryExpr{
-				Left:  &ast.LiteralExpr{Value: "10", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:    kind.SLASH,
-				Right: &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
+				Left: &ast.LiteralExpr{
+					Value: "10",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.SLASH,
+				Right: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
 			},
 		},
 		{
@@ -560,8 +679,11 @@ func TestBinaryExpr(t *testing.T) {
 		{
 			input: "1 / (1 + 1)",
 			node: &ast.BinaryExpr{
-				Left: &ast.LiteralExpr{Value: "1", Type: &ast.BasicType{Kind: kind.INTEGER_LITERAL}},
-				Op:   kind.SLASH,
+				Left: &ast.LiteralExpr{
+					Value: "1",
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+				},
+				Op: kind.SLASH,
 				Right: &ast.BinaryExpr{
 					Left: &ast.LiteralExpr{
 						Value: "1",
@@ -939,7 +1061,13 @@ func TestBinaryExpr(t *testing.T) {
 				t.Errorf("unexpected error '%v'", err)
 			}
 			if !reflect.DeepEqual(test.node, actualNode) {
-				t.Errorf("expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n", test.node, reflect.TypeOf(test.node), actualNode, reflect.TypeOf(actualNode))
+				t.Errorf(
+					"expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n",
+					test.node,
+					reflect.TypeOf(test.node),
+					actualNode,
+					reflect.TypeOf(actualNode),
+				)
 			}
 		})
 	}

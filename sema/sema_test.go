@@ -109,7 +109,11 @@ func TestVarDecl(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !(varDecl.NeedsInference && test.inferred) {
-				t.Fatalf("inference error, expected %v, but got %v", test.inferred, varDecl.NeedsInference)
+				t.Fatalf(
+					"inference error, expected %v, but got %v",
+					test.inferred,
+					varDecl.NeedsInference,
+				)
 			}
 			if !reflect.DeepEqual(varDecl.Type, test.ty) {
 				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, varDecl.Type)
@@ -293,18 +297,25 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 	}
 	for _, test := range tests {
 		for _, unit := range test.tests {
-			t.Run(fmt.Sprintf("TestExprInferenceWithoutContext('%s')", unit.input), func(t *testing.T) {
-				actualExpr, actualExprTy, err := inferExprTypeWithoutContext(unit.input, filename, test.scope)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !reflect.DeepEqual(actualExpr, unit.value) {
-					t.Fatalf("\nexpected expr: %s\ngot expr: %s\n", unit.value, actualExpr)
-				}
-				if !reflect.DeepEqual(actualExprTy, unit.ty) {
-					t.Fatalf("\nexpected ty: %s\ngot ty: %s\n", unit.ty, actualExprTy)
-				}
-			})
+			t.Run(
+				fmt.Sprintf("TestExprInferenceWithoutContext('%s')", unit.input),
+				func(t *testing.T) {
+					actualExpr, actualExprTy, err := inferExprTypeWithoutContext(
+						unit.input,
+						filename,
+						test.scope,
+					)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(actualExpr, unit.value) {
+						t.Fatalf("\nexpected expr: %s\ngot expr: %s\n", unit.value, actualExpr)
+					}
+					if !reflect.DeepEqual(actualExprTy, unit.ty) {
+						t.Fatalf("\nexpected ty: %s\ngot ty: %s\n", unit.ty, actualExprTy)
+					}
+				},
+			)
 		}
 	}
 }
@@ -367,15 +378,23 @@ func TestExprInferenceWithContext(t *testing.T) {
 	}
 	for _, test := range tests {
 		for _, unit := range test.tests {
-			t.Run(fmt.Sprintf("TestExprInferenceWithContext('%s')", unit.input), func(t *testing.T) {
-				actualExprTy, err := inferExprTypeWithContext(unit.input, filename, unit.ty, test.scope)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !reflect.DeepEqual(actualExprTy, unit.ty) {
-					t.Fatalf("\nexpected: %s\ngot: %s\n", unit.ty, actualExprTy)
-				}
-			})
+			t.Run(
+				fmt.Sprintf("TestExprInferenceWithContext('%s')", unit.input),
+				func(t *testing.T) {
+					actualExprTy, err := inferExprTypeWithContext(
+						unit.input,
+						filename,
+						unit.ty,
+						test.scope,
+					)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(actualExprTy, unit.ty) {
+						t.Fatalf("\nexpected: %s\ngot: %s\n", unit.ty, actualExprTy)
+					}
+				},
+			)
 		}
 	}
 }

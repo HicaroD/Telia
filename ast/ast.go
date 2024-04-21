@@ -19,7 +19,15 @@ type FieldList struct {
 }
 
 func (fieldList FieldList) String() string {
-	return fmt.Sprintf("\n'%s' %s\n%s\nIsVariadic: %t\n'%s' %s\n", fieldList.Open.Kind, fieldList.Open.Position, fieldList.Fields, fieldList.IsVariadic, fieldList.Close.Kind, fieldList.Close.Position)
+	return fmt.Sprintf(
+		"\n'%s' %s\n%s\nIsVariadic: %t\n'%s' %s\n",
+		fieldList.Open.Kind,
+		fieldList.Open.Position,
+		fieldList.Fields,
+		fieldList.IsVariadic,
+		fieldList.Close.Kind,
+		fieldList.Close.Position,
+	)
 }
 
 type Field struct {

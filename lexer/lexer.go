@@ -164,7 +164,9 @@ func (lex *lexer) getToken(character rune) *token.Token {
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
-			identifier := lex.cursor.readWhile(func(chr rune) bool { return unicode.IsNumber(chr) || unicode.IsLetter(chr) || chr == '_' })
+			identifier := lex.cursor.readWhile(
+				func(chr rune) bool { return unicode.IsNumber(chr) || unicode.IsLetter(chr) || chr == '_' },
+			)
 			token := lex.classifyIdentifier(identifier, position)
 			return token
 		} else if unicode.IsNumber(character) {
@@ -197,7 +199,9 @@ func (lex *lexer) getStringLiteral() *token.Token {
 }
 
 func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
-	number := lex.cursor.readWhile(func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' })
+	number := lex.cursor.readWhile(
+		func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' },
+	)
 
 	// TODO: deal with floating pointer numbers
 	// if strings.Contains(number, ".") {}

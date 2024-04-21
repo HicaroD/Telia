@@ -130,13 +130,21 @@ func TestTokenPos(t *testing.T) {
 			}
 
 			if len(tokenResult) != len(test.positions) {
-				t.Errorf("expected len(tokenResult) == len(expectedPos.positions), expected %d, but got %d", len(tokenResult), len(test.positions))
+				t.Errorf(
+					"expected len(tokenResult) == len(expectedPos.positions), expected %d, but got %d",
+					len(tokenResult),
+					len(test.positions),
+				)
 			}
 
 			for i, expectedPos := range test.positions {
 				actualPos := tokenResult[i].Position
 				if expectedPos != actualPos {
-					t.Errorf("expected token position to be the same, expected %q, but got %q", expectedPos, actualPos)
+					t.Errorf(
+						"expected token position to be the same, expected %q, but got %q",
+						expectedPos,
+						actualPos,
+					)
 				}
 			}
 		})
