@@ -256,6 +256,8 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			parser.cursor.skip()
 
 			if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
+				// TODO(errors):
+				// "fn name(a int, ...,) {}" because of the comma
 				unexpectedDotDotDot := collector.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: ... is only allowed at the end of parameter list",
