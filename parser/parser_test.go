@@ -1086,7 +1086,7 @@ type semanticErrorTest struct {
 	diags []collector.Diag
 }
 
-func TestSemanticErrors(t *testing.T) {
+func TestSyntaxErrors(t *testing.T) {
 	filename := "test.tt"
 	tests := []semanticErrorTest{
 		{
@@ -1148,20 +1148,20 @@ func TestSemanticErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestSyntaxErrors('%s')", test.input), func(t *testing.T) {
 			diagCollector := collector.New()
 			reader := bufio.NewReader(strings.NewReader(test.input))
 
 			lex := lexer.New(filename, reader, diagCollector)
 			tokens, err := lex.Tokenize()
 			if err != nil {
-				t.Fatal("unexpected lexical errors on semantic analysis stage")
+				t.Fatalf("unexpected lexical errors: %s", err)
 			}
 
 			parser := New(tokens, diagCollector)
 			_, err = parser.Parse()
 			if err == nil {
-				t.Fatal("expected to have semantic errors, but got nothing")
+				t.Fatal("expected to have syntax errors, but got nothing")
 			}
 
 			if err != nil && len(parser.diagCollector.Diags) == 0 {
