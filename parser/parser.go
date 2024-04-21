@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/collector"
 	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
@@ -52,8 +53,11 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 
 // Useful for testing
 func ParseExprFrom(expr, filename string) (ast.Expr, error) {
+	diagCollector := collector.New()
+
 	reader := bufio.NewReader(strings.NewReader(expr))
-	lex := lexer.New(filename, reader)
+	lex := lexer.New(filename, reader, diagCollector)
+
 	tokens, err := lex.Tokenize()
 	if err != nil {
 		return nil, err
@@ -191,9 +195,11 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
+	diagCollector := collector.New()
+
 	reader := bufio.NewReader(strings.NewReader(input))
 
-	lexer := lexer.New(filename, reader)
+	lexer := lexer.New(filename, reader, diagCollector)
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/HicaroD/Telia/codegen"
+	"github.com/HicaroD/Telia/collector"
 	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/parser"
 	"github.com/HicaroD/Telia/sema"
@@ -26,11 +27,13 @@ func main() {
 	}
 	defer file.Close()
 
+	diagCollector := collector.New()
 	reader := bufio.NewReader(file)
-	lex := lexer.New(filename, reader)
+
+	lex := lexer.New(filename, reader, diagCollector)
 	tokens, err := lex.Tokenize()
 	if err != nil {
-		log.Fatal(err)
+		os.Exit(1)
 	}
 
 	parser := parser.New(tokens)

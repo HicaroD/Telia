@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/collector"
 	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 	"github.com/HicaroD/Telia/parser"
@@ -112,7 +113,10 @@ func (sema *sema) analyzeBlock(
 	return nil
 }
 
-func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, currentScope *scope.Scope[ast.AstNode]) error {
+func (sema *sema) analyzeVarDecl(
+	varDecl *ast.VarDeclStmt,
+	currentScope *scope.Scope[ast.AstNode],
+) error {
 	if varDecl.NeedsInference {
 		// TODO(errors): need a test for it
 		if varDecl.Type != nil {
@@ -151,9 +155,11 @@ func (sema *sema) analyzeVarDecl(varDecl *ast.VarDeclStmt, currentScope *scope.S
 
 // Useful for testing
 func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
-	reader := bufio.NewReader(strings.NewReader(input))
+	diagCollector := collector.New()
 
-	lexer := lexer.New(filename, reader)
+	reader := bufio.NewReader(strings.NewReader(input))
+	lexer := lexer.New(filename, reader, diagCollector)
+
 	tokens, err := lexer.Tokenize()
 	if err != nil {
 		return nil, err

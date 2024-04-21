@@ -2,9 +2,10 @@ package lexer
 
 import (
 	"bufio"
-	"log"
+	"fmt"
 	"unicode"
 
+	"github.com/HicaroD/Telia/collector"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
@@ -12,10 +13,12 @@ import (
 type lexer struct {
 	filename string
 	cursor   *cursor
+
+	diagCollector *collector.DiagCollector
 }
 
-func New(filename string, reader *bufio.Reader) *lexer {
-	return &lexer{filename: filename, cursor: new(filename, reader)}
+func New(filename string, reader *bufio.Reader, diagCollector *collector.DiagCollector) *lexer {
+	return &lexer{filename: filename, cursor: new(filename, reader), diagCollector: diagCollector}
 }
 
 func (lex *lexer) Tokenize() ([]*token.Token, error) {
@@ -26,72 +29,90 @@ func (lex *lexer) Tokenize() ([]*token.Token, error) {
 		if !ok {
 			break
 		}
-		token := lex.getToken(character)
+		token, err := lex.getToken(character)
+		if err != nil {
+			return nil, err
+		}
 		tokens = append(tokens, token)
 	}
 	tokens = append(tokens, lex.consumeToken(nil, kind.EOF))
 	return tokens, nil
 }
 
-func (lex *lexer) getToken(character rune) *token.Token {
+func (lex *lexer) getToken(character rune) (*token.Token, error) {
 	switch character {
 	case '(':
 		token := lex.consumeToken(nil, kind.OPEN_PAREN)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case ')':
 		token := lex.consumeToken(nil, kind.CLOSE_PAREN)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '{':
 		token := lex.consumeToken(nil, kind.OPEN_CURLY)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '}':
 		token := lex.consumeToken(nil, kind.CLOSE_CURLY)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '"':
-		return lex.getStringLiteral()
+		stringLiteral, err := lex.getStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		return stringLiteral, nil
 	case ',':
 		token := lex.consumeToken(nil, kind.COMMA)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case ';':
 		token := lex.consumeToken(nil, kind.SEMICOLON)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '+':
 		token := lex.consumeToken(nil, kind.PLUS)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '-':
 		token := lex.consumeToken(nil, kind.MINUS)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '*':
 		token := lex.consumeToken(nil, kind.STAR)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '/':
 		token := lex.consumeToken(nil, kind.SLASH)
 		lex.cursor.skip()
-		return token
+		return token, nil
 	case '!':
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip()
 
+		invalidCharacter := collector.Diag{
+			Code: collector.ERR_INVALID_CHARACTER,
+			Message: fmt.Sprintf(
+				"%s:%d:%d: invalid character !",
+				tokenPosition.Filename,
+				tokenPosition.Line,
+				tokenPosition.Column,
+			),
+		}
+
 		next, ok := lex.cursor.peek()
-		// TODO(errors)
 		if !ok {
-			log.Fatal("invalid '!' token")
+			lex.diagCollector.ReportAndSave(invalidCharacter)
+			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
 			lex.cursor.skip()
-			return token.New(nil, kind.BANG_EQUAL, tokenPosition)
+			return token.New(nil, kind.BANG_EQUAL, tokenPosition), nil
 		}
-		// TODO(errors)
-		log.Fatal("invalid '!' token")
+
+		lex.diagCollector.ReportAndSave(invalidCharacter)
+		return nil, collector.COMPILER_ERROR_FOUND
 	case '>':
 		tokenKind := kind.GREATER
 		tokenPosition := lex.cursor.Position()
@@ -99,11 +120,11 @@ func (lex *lexer) getToken(character rune) *token.Token {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.GREATER_EQ
-		return token.New(nil, tokenKind, tokenPosition)
+		return token.New(nil, tokenKind, tokenPosition), nil
 	case '<':
 		tokenKind := kind.LESS
 		tokenPosition := lex.cursor.Position()
@@ -111,11 +132,11 @@ func (lex *lexer) getToken(character rune) *token.Token {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.LESS_EQ
-		return token.New(nil, tokenKind, tokenPosition)
+		return token.New(nil, tokenKind, tokenPosition), nil
 	case '=':
 		tokenKind := kind.EQUAL
 		tokenPosition := lex.cursor.Position()
@@ -123,11 +144,11 @@ func (lex *lexer) getToken(character rune) *token.Token {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.EQUAL_EQUAL
-		return token.New(nil, tokenKind, tokenPosition)
+		return token.New(nil, tokenKind, tokenPosition), nil
 	case '.':
 		tokenKind := kind.DOT
 		tokenPosition := lex.cursor.Position()
@@ -135,32 +156,44 @@ func (lex *lexer) getToken(character rune) *token.Token {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '.' {
-			return token.New(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT
 
 		next, ok = lex.cursor.peek()
 		if !ok || next != '.' {
-			return token.New(nil, tokenKind, tokenPosition)
+			return token.New(nil, tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT_DOT
-		return token.New(nil, tokenKind, tokenPosition)
+		return token.New(nil, tokenKind, tokenPosition), nil
 	case ':':
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip() // :
+
+		invalidCharacter := collector.Diag{
+			Code: collector.ERR_INVALID_CHARACTER,
+			Message: fmt.Sprintf(
+				"%s:%d:%d: invalid character :",
+				tokenPosition.Filename,
+				tokenPosition.Line,
+				tokenPosition.Column,
+			),
+		}
+
 		next, ok := lex.cursor.peek()
 		if !ok {
-			// TODO(errors)
-			log.Fatal("invalid ':' character") // EOF
+			lex.diagCollector.ReportAndSave(invalidCharacter)
+			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
 			lex.cursor.skip() // =
-			return token.New(nil, kind.COLON_EQUAL, tokenPosition)
+			return token.New(nil, kind.COLON_EQUAL, tokenPosition), nil
 		}
-		// TODO(errors)
-		log.Fatal("invalid ':' character")
+
+		lex.diagCollector.ReportAndSave(invalidCharacter)
+		return nil, collector.COMPILER_ERROR_FOUND
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
@@ -168,19 +201,22 @@ func (lex *lexer) getToken(character rune) *token.Token {
 				func(chr rune) bool { return unicode.IsNumber(chr) || unicode.IsLetter(chr) || chr == '_' },
 			)
 			token := lex.classifyIdentifier(identifier, position)
-			return token
+			return token, nil
 		} else if unicode.IsNumber(character) {
-			return lex.getNumberLiteral(position)
+			return lex.getNumberLiteral(position), nil
 		} else {
-			// TODO(errors): invalid character
-			log.Fatalf("invalid character: '%c' at %s", character, lex.cursor.Position())
+			tokenPosition := lex.cursor.Position()
+			invalidCharacter := collector.Diag{
+				Code:    collector.ERR_INVALID_CHARACTER,
+				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, character),
+			}
+			lex.diagCollector.ReportAndSave(invalidCharacter)
+			return nil, collector.COMPILER_ERROR_FOUND
 		}
 	}
-	// TODO(errors): invalid character
-	return lex.consumeToken(nil, kind.INVALID)
 }
 
-func (lex *lexer) getStringLiteral() *token.Token {
+func (lex *lexer) getStringLiteral() (*token.Token, error) {
 	position := lex.cursor.Position()
 
 	lex.cursor.skip() // "
@@ -188,14 +224,23 @@ func (lex *lexer) getStringLiteral() *token.Token {
 
 	currentCharacter, ok := lex.cursor.peek()
 	if !ok {
-		// TODO(errors): deal with unterminated string literal error
-		log.Fatal("unterminated string literal error")
+		unterminatedStringLiteral := collector.Diag{
+			Code: collector.ERR_UNTERMINATED_STRING_LITERAL,
+			Message: fmt.Sprintf(
+				"%s:%d:%d: unterminated string literal",
+				position.Filename,
+				position.Line,
+				position.Column,
+			),
+		}
+		lex.diagCollector.ReportAndSave(unterminatedStringLiteral)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 	if currentCharacter == '"' {
 		lex.cursor.skip()
 	}
 
-	return token.New(strLiteral, kind.STRING_LITERAL, position)
+	return token.New(strLiteral, kind.STRING_LITERAL, position), nil
 }
 
 func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
