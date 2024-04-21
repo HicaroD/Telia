@@ -275,7 +275,7 @@ func TestIsLiteral(t *testing.T) {
 	}
 }
 
-type lexicalErrors struct {
+type lexicalErrorTest struct {
 	input string
 	diags []collector.Diag
 }
@@ -283,12 +283,11 @@ type lexicalErrors struct {
 func TestLexicalErrors(t *testing.T) {
 	filename := "test.tt"
 
-	tests := []lexicalErrors{
+	tests := []lexicalErrorTest{
 		{
 			input: "!",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_INVALID_CHARACTER,
 					Message: "test.tt:1:1: invalid character !",
 				},
 			},
@@ -297,7 +296,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: "!!",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_INVALID_CHARACTER,
 					Message: "test.tt:1:1: invalid character !",
 				},
 			},
@@ -306,7 +304,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: ":",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_INVALID_CHARACTER,
 					Message: "test.tt:1:1: invalid character :",
 				},
 			},
@@ -315,7 +312,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: "::",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_INVALID_CHARACTER,
 					Message: "test.tt:1:1: invalid character :",
 				},
 			},
@@ -324,7 +320,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: "?",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_INVALID_CHARACTER,
 					Message: "test.tt:1:1: invalid character ?",
 				},
 			},
@@ -333,7 +328,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: "\"Unterminated string literal here",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_UNTERMINATED_STRING_LITERAL,
 					Message: "test.tt:1:1: unterminated string literal",
 				},
 			},
@@ -342,7 +336,6 @@ func TestLexicalErrors(t *testing.T) {
 			input: "\"",
 			diags: []collector.Diag{
 				{
-					Code:    collector.ERR_UNTERMINATED_STRING_LITERAL,
 					Message: "test.tt:1:1: unterminated string literal",
 				},
 			},
@@ -362,7 +355,7 @@ func TestLexicalErrors(t *testing.T) {
 
 			if len(test.diags) != len(lex.diagCollector.Diags) {
 				t.Fatalf(
-					"expected to have %d diags, but got %d",
+					"expected to have %d diag(s), but got %d",
 					len(test.diags),
 					len(lex.diagCollector.Diags),
 				)

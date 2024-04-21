@@ -201,7 +201,7 @@ func (kind TokenKind) BitSize() int {
 func (kind TokenKind) String() string {
 	switch kind {
 	case EOF:
-		return "EOF"
+		return "end of file"
 	case INVALID:
 		return "INVALID"
 	case ID:

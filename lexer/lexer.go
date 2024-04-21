@@ -92,7 +92,6 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		lex.cursor.skip()
 
 		invalidCharacter := collector.Diag{
-			Code: collector.ERR_INVALID_CHARACTER,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: invalid character !",
 				tokenPosition.Filename,
@@ -173,7 +172,6 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		lex.cursor.skip() // :
 
 		invalidCharacter := collector.Diag{
-			Code: collector.ERR_INVALID_CHARACTER,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: invalid character :",
 				tokenPosition.Filename,
@@ -207,7 +205,6 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		} else {
 			tokenPosition := lex.cursor.Position()
 			invalidCharacter := collector.Diag{
-				Code:    collector.ERR_INVALID_CHARACTER,
 				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, character),
 			}
 			lex.diagCollector.ReportAndSave(invalidCharacter)
@@ -225,7 +222,6 @@ func (lex *lexer) getStringLiteral() (*token.Token, error) {
 	currentCharacter, ok := lex.cursor.peek()
 	if !ok {
 		unterminatedStringLiteral := collector.Diag{
-			Code: collector.ERR_UNTERMINATED_STRING_LITERAL,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: unterminated string literal",
 				position.Filename,

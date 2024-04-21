@@ -14,11 +14,12 @@ import (
 )
 
 type parser struct {
-	cursor *cursor
+	diagCollector *collector.DiagCollector
+	cursor        *cursor
 }
 
-func New(tokens []*token.Token) *parser {
-	return &parser{cursor: newCursor(tokens)}
+func New(tokens []*token.Token, diagCollector *collector.DiagCollector) *parser {
+	return &parser{cursor: newCursor(tokens), diagCollector: diagCollector}
 }
 
 func (parser *parser) Parse() ([]ast.AstNode, error) {
@@ -31,14 +32,12 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 		switch token.Kind {
 		case kind.FN:
 			fnDecl, err := parser.parseFnDecl()
-			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
 			astNodes = append(astNodes, fnDecl)
 		case kind.EXTERN:
 			externDecl, err := parser.parseExternDecl()
-			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
@@ -63,7 +62,7 @@ func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 		return nil, err
 	}
 
-	parser := New(tokens)
+	parser := New(tokens, diagCollector)
 	exprAst, err := parser.parseExpr()
 	if err != nil {
 		return nil, err
@@ -136,7 +135,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, err
 	}
 
-	returnType, err := parser.parseExprType()
+	returnType, err := parser.parseFnReturnType()
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -155,15 +154,25 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	var err error
 
 	_, ok := parser.expect(kind.FN)
-	// TODO(errors)
+	// TODO(errors): this should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'fn'")
 	}
 
 	name, ok := parser.expect(kind.ID)
-	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected an identifier")
+		pos := name.Position
+		expectedIdentifier := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected name, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				name.Kind,
+			),
+		}
+		parser.diagCollector.ReportAndSave(expectedIdentifier)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	params, err := parser.parseFunctionParams()
@@ -205,9 +214,8 @@ func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	par := New(tokens)
-
-	fnDecl, err := par.parseFnDecl()
+	parser := New(tokens, diagCollector)
+	fnDecl, err := parser.parseFnDecl()
 	if err != nil {
 		return nil, err
 	}
@@ -220,47 +228,104 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	isVariadic := false
 
 	openParen, ok := parser.expect(kind.OPEN_PAREN)
-	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected '('")
+		pos := openParen.Position
+		expectedOpenParen := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected (, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				openParen.Kind,
+			),
+		}
+		parser.diagCollector.ReportAndSave(expectedOpenParen)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	for {
-		if parser.cursor.nextIs(kind.DOT_DOT_DOT) {
-			isVariadic = true
-			parser.cursor.skip()
-			// TODO(errors)
-			if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
-				return nil, fmt.Errorf("... is not at the end of function parameters")
-			}
-			break
-		}
 		if parser.cursor.nextIs(kind.CLOSE_PAREN) {
 			break
 		}
+		if parser.cursor.nextIs(kind.DOT_DOT_DOT) {
+			isVariadic = true
+
+			tok := parser.cursor.peek()
+			pos := tok.Position
+
+			parser.cursor.skip()
+
+			if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
+				unexpectedDotDotDot := collector.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: ... is only allowed at the end of parameter list",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+					),
+				}
+				parser.diagCollector.ReportAndSave(unexpectedDotDotDot)
+				return nil, collector.COMPILER_ERROR_FOUND
+			}
+			break
+		}
+
+		name, ok := parser.expect(kind.ID)
+		if !ok {
+			pos := name.Position
+			expectedCloseParenOrId := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected name or ), not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Kind,
+				),
+			}
+			parser.diagCollector.ReportAndSave(expectedCloseParenOrId)
+			return nil, collector.COMPILER_ERROR_FOUND
+		}
+		paramType, err := parser.parseExprType()
+		if err != nil {
+			tok := parser.cursor.peek()
+			pos := tok.Position
+			expectedParamType := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected parameter type for '%s', not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Lexeme,
+					tok.Kind,
+				),
+			}
+			parser.diagCollector.ReportAndSave(expectedParamType)
+			return nil, collector.COMPILER_ERROR_FOUND
+		}
+		params = append(params, &ast.Field{Name: name, Type: paramType})
+
 		if parser.cursor.nextIs(kind.COMMA) {
 			parser.cursor.skip() // ,
 			continue
 		}
-
-		name, ok := parser.expect(kind.ID)
-		// TODO(errors): unable to parse identifier
-		if !ok {
-			return nil, fmt.Errorf("expected an identifier")
-		}
-		paramType, err := parser.parseExprType()
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
-		params = append(params, &ast.Field{Name: name, Type: paramType})
 	}
 
 	closeParen, ok := parser.expect(kind.CLOSE_PAREN)
-	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected ')'")
+		pos := closeParen.Position
+		expectedCloseParen := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected ), not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				closeParen.Kind,
+			),
+		}
+		parser.diagCollector.ReportAndSave(expectedCloseParen)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
+
 	return &ast.FieldList{
 		Open:       openParen,
 		Fields:     params,
@@ -275,35 +340,35 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 	}
 
 	returnType, err := parser.parseExprType()
-	// TODO(errors)
 	if err != nil {
-		return nil, err
+		tok := parser.cursor.peek()
+		pos := tok.Position
+		expectedReturnTy := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected type or {, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				tok.Kind,
+			),
+		}
+		parser.diagCollector.ReportAndSave(expectedReturnTy)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 	return returnType, nil
 }
 
 func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 	token := parser.cursor.peek()
-	// TODO(errors)
-	if token == nil {
-		return nil, false
-	}
-
-	// TODO(errors)
 	if token.Kind != expectedKind {
 		return token, false
 	}
-
 	parser.cursor.skip()
 	return token, true
 }
 
 func (parser *parser) parseExprType() (ast.ExprType, error) {
 	token := parser.cursor.peek()
-	// TODO(errors)
-	if token == nil {
-		return nil, fmt.Errorf("can't peek next token because it is nil")
-	}
 
 	switch token.Kind {
 	case kind.STAR:
@@ -319,6 +384,10 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			parser.cursor.skip()
 			return &ast.BasicType{Kind: token.Kind}, nil
 		}
+
+		// TODO: deal with other types, such as struct, enums and more in the
+		// future
+
 		// TODO(errors)
 		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
 	}
@@ -326,18 +395,16 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 
 func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	openCurly, ok := parser.expect(kind.OPEN_CURLY)
-	// TODO(errors)
+	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
+
 	var statements []ast.Stmt
 
+Statements:
 	for {
 		token := parser.cursor.peek()
-		// TODO(errors)
-		if token == nil {
-			return nil, fmt.Errorf("can't peek next token because it is null")
-		}
 		if token.Kind == kind.CLOSE_CURLY {
 			break
 		}
@@ -359,11 +426,13 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			_, ok = parser.expect(kind.SEMICOLON)
 			// TODO(errors)
 			if !ok {
 				return nil, fmt.Errorf("expected ';'")
 			}
+
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
 			idNode, err := parser.ParseIdStmt()
@@ -371,31 +440,40 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			_, ok = parser.expect(kind.SEMICOLON)
 			// TODO(errors)
 			if !ok {
 				return nil, fmt.Errorf("expected ';'")
 			}
+
 			statements = append(statements, idNode)
 		case kind.IF:
 			condStmt, err := parser.parseCondStmt()
 			if err != nil {
 				return nil, err
 			}
+
 			statements = append(statements, condStmt)
 		default:
-			return nil, fmt.Errorf(
-				"invalid token for statement parsing: %s %s",
-				token.Kind,
-				token.Lexeme,
-			)
+			break Statements
 		}
 	}
 
 	closeCurly, ok := parser.expect(kind.CLOSE_CURLY)
-	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected '}'")
+		pos := closeCurly.Position
+		expectedStatementOrCloseCurly := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected statement or }, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				closeCurly.Kind,
+			),
+		}
+		parser.diagCollector.ReportAndSave(expectedStatementOrCloseCurly)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.BlockStmt{

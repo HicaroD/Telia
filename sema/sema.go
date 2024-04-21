@@ -165,7 +165,7 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 		return nil, err
 	}
 
-	par := parser.New(tokens)
+	par := parser.New(tokens, diagCollector)
 	idStmt, err := par.ParseIdStmt()
 	if err != nil {
 		return nil, err

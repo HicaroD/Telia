@@ -36,11 +36,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	parser := parser.New(tokens)
+	parser := parser.New(tokens, diagCollector)
 	astNodes, err := parser.Parse()
-	// TODO(errors)
 	if err != nil {
-		log.Fatal(err)
+		os.Exit(1)
 	}
 
 	sema := sema.New()

@@ -1,11 +1,15 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/collector"
+	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
@@ -1076,3 +1080,107 @@ func TestBinaryExpr(t *testing.T) {
 func TestFuncCallStmt(t *testing.T) {}
 
 func TestIfStmt(t *testing.T) {}
+
+type semanticErrorTest struct {
+	input string
+	diags []collector.Diag
+}
+
+func TestSemanticErrors(t *testing.T) {
+	filename := "test.tt"
+	tests := []semanticErrorTest{
+		{
+			input: "fn (){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:4: expected name, not (",
+				},
+			},
+		},
+		{
+			input: "fn name){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected (, not )",
+				},
+			},
+		},
+		{
+			input: "fn name({}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:9: expected name or ), not {",
+				},
+			},
+		},
+		{
+			input: "fn name(a, b int){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected parameter type for 'a', not ,",
+				},
+			},
+		},
+		{
+			input: "fn name(a int, ..., b int){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:16: ... is only allowed at the end of parameter list",
+				},
+			},
+		},
+		{
+			input: "fn name() }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:11: expected type or {, not }",
+				},
+			},
+		},
+		{
+			input: "fn name() {",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:12: expected statement or }, not end of file",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
+			diagCollector := collector.New()
+			reader := bufio.NewReader(strings.NewReader(test.input))
+
+			lex := lexer.New(filename, reader, diagCollector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatal("unexpected lexical errors on semantic analysis stage")
+			}
+
+			parser := New(tokens, diagCollector)
+			_, err = parser.Parse()
+			if err == nil {
+				t.Fatal("expected to have semantic errors, but got nothing")
+			}
+
+			if err != nil && len(parser.diagCollector.Diags) == 0 {
+				t.Fatalf(
+					"semantic error detected, but diagnostic collector is empty.\nError: %s",
+					err,
+				)
+			}
+
+			if len(test.diags) != len(parser.diagCollector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d",
+					len(test.diags),
+					len(parser.diagCollector.Diags),
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.diagCollector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.diagCollector)
+			}
+		})
+	}
+}
