@@ -439,8 +439,25 @@ func TestFunctionDecl(t *testing.T) {
 		})
 	}
 }
-
-func TestExternDecl(t *testing.T) {}
+// TODO: test extern declarations
+// type externDeclTest struct {
+// 	input string
+// 	node  *ast.ExternDecl
+// }
+//
+// func TestExternDecl(t *testing.T) {
+// 	filename := "test.tt"
+// 	tests := []externDeclTest{
+// 		{
+// 			input: "extern libc {}",
+// 		},
+// 	}
+//
+// 	for _, test := range tests {
+// 		t.Run(fmt.Sprintf("TestExternDecl('%s')", test.input), func(t *testing.T) {
+// 		})
+// 	}
+// }
 
 type exprTest struct {
 	input string
@@ -1229,16 +1246,14 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: // no formatting
-			`
-			extern libc {
+			`extern libc {
 				fn method();
 			}`,
 			diags: nil, // no errors
 		},
 		{
 			input: // no formatting
-			`
-			extern libc {
+			`extern libc {
 				fn method() i8;
 			}`,
 			diags: nil, // no errors
