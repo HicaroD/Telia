@@ -17,7 +17,6 @@ const (
 
 	// Literals
 	INTEGER_LITERAL
-	NEGATIVE_INTEGER_LITERAL
 	STRING_LITERAL
 	TRUE_BOOL_LITERAL
 	FALSE_BOOL_LITERAL
@@ -149,7 +148,6 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 
 var LITERAL_KIND map[TokenKind]bool = map[TokenKind]bool{
 	INTEGER_LITERAL:          true,
-	NEGATIVE_INTEGER_LITERAL: true,
 	STRING_LITERAL:           true,
 	TRUE_BOOL_LITERAL:        true,
 	FALSE_BOOL_LITERAL:       true,
@@ -205,13 +203,11 @@ func (kind TokenKind) String() string {
 	case INVALID:
 		return "INVALID"
 	case ID:
-		return "ID"
+		return "identifier"
 	case INTEGER_LITERAL:
-		return "INTEGER_LITERAL"
-	case NEGATIVE_INTEGER_LITERAL:
-		return "NEGATIVE_INTEGER_LITERAL"
+		return "integer literal"
 	case STRING_LITERAL:
-		return "STRING_LITERAL"
+		return "string literal"
 	case TRUE_BOOL_LITERAL:
 		return "true"
 	case FALSE_BOOL_LITERAL:
@@ -257,7 +253,7 @@ func (kind TokenKind) String() string {
 	case U64_TYPE:
 		return "u64"
 	case VOID_TYPE:
-		return "VOID"
+		return "void"
 	case OPEN_PAREN:
 		return "("
 	case CLOSE_PAREN:
