@@ -1081,6 +1081,11 @@ func TestFuncCallStmt(t *testing.T) {}
 
 func TestIfStmt(t *testing.T) {}
 
+type syntaxErrorTest struct {
+	input string
+	diags []collector.Diag
+}
+
 func TestSyntaxErrorsOnFunctionDecl(t *testing.T) {
 	filename := "test.tt"
 	tests := []syntaxErrorTest{
@@ -1184,64 +1189,114 @@ func TestSyntaxErrorsOnFunctionDecl(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestSyntaxErrorsOnFunctionDecl('%s')", test.input), func(t *testing.T) {
-			CheckSyntaxErrors(t, filename, test)
+			diagCollector := collector.New()
+			reader := bufio.NewReader(strings.NewReader(test.input))
+
+			lex := lexer.New(filename, reader, diagCollector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			parser := New(tokens, diagCollector)
+			_, err = parser.Parse()
+			if err == nil {
+				t.Fatal("expected to have syntax errors, but got nothing")
+			}
+
+			if err != nil && len(parser.Collector.Diags) == 0 {
+				t.Fatalf(
+					"error detected, but diagnostic collector is empty.\nError: %s",
+					err,
+				)
+			}
+
+			if len(test.diags) != len(parser.Collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d",
+					len(test.diags),
+					len(parser.Collector.Diags),
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			}
 		})
 	}
 }
 
-func TestSyntaxErrorsOnStatement(t *testing.T) {
+func TestSyntaxErrorsOnBlock(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []syntaxErrorTest{
 		{
-			input: "",
-			diags: []collector.Diag{},
+			input: "{",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:2: expected statement or }, not end of file",
+				},
+			},
 		},
+		{
+			input: `{
+			return
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected expression or ;, not }",
+				},
+			},
+		},
+		{
+			input: `{
+			return
+			`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected expression or ;, not end of file",
+				},
+			},
+		},
+		{
+			input: `{
+			return 10
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected ; at the end of statement, not }",
+				},
+			},
+		},
+		// TODO: deal with id statement, such as function calls and variable declarations
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestSyntaxErrorsOnStatement('%s')", test.input), func(t *testing.T) {
-			CheckSyntaxErrors(t, filename, test)
+		t.Run(fmt.Sprintf("TestSyntaxErrorsOnBlock('%s')", test.input), func(t *testing.T) {
+			collector := collector.New()
+
+			reader := bufio.NewReader(strings.NewReader(test.input))
+			lex := lexer.New(filename, reader, collector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			parser := New(tokens, collector)
+			_, err = parser.parseBlock()
+			if err == nil {
+				t.Fatal("expected to have syntax errors, but got nothing")
+			}
+
+			if len(test.diags) != len(parser.Collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d",
+					len(test.diags),
+					len(parser.Collector.Diags),
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			}
 		})
-	}
-}
-
-type syntaxErrorTest struct {
-	input string
-	diags []collector.Diag
-}
-
-func CheckSyntaxErrors(t *testing.T, filename string, test syntaxErrorTest) {
-	diagCollector := collector.New()
-	reader := bufio.NewReader(strings.NewReader(test.input))
-
-	lex := lexer.New(filename, reader, diagCollector)
-	tokens, err := lex.Tokenize()
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	parser := New(tokens, diagCollector)
-	_, err = parser.Parse()
-	if err == nil {
-		t.Fatal("expected to have syntax errors, but got nothing")
-	}
-
-	if err != nil && len(parser.Collector.Diags) == 0 {
-		t.Fatalf(
-			"error detected, but diagnostic collector is empty.\nError: %s",
-			err,
-		)
-	}
-
-	if len(test.diags) != len(parser.Collector.Diags) {
-		t.Fatalf(
-			"expected to have %d diag(s), but got %d",
-			len(test.diags),
-			len(parser.Collector.Diags),
-		)
-	}
-	if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
-		t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
 	}
 }

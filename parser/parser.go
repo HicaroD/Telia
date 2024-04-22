@@ -26,7 +26,7 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 	var astNodes []ast.AstNode
 	for {
 		token := parser.cursor.peek()
-		if token == nil || token.Kind == kind.EOF {
+		if token.Kind == kind.EOF {
 			break
 		}
 		switch token.Kind {
@@ -99,10 +99,6 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 		prototypes = append(prototypes, proto)
 
 		token := parser.cursor.peek()
-		// TODO(errors)
-		if token == nil {
-			return nil, fmt.Errorf("can't peek next token")
-		}
 		if token.Kind == kind.CLOSE_CURLY {
 			break
 		}
@@ -424,15 +420,26 @@ Statements:
 			}
 
 			returnValue, err := parser.parseExpr()
-			// TODO(errors)
 			if err != nil {
-				return nil, err
+				tok := parser.cursor.peek()
+				pos := tok.Position
+
+				expectedSemicolon := collector.Diag{
+					Message: fmt.Sprintf("%s:%d:%d: expected expression or ;, not %s", pos.Filename, pos.Line, pos.Column, tok.Kind),
+				}
+				parser.Collector.ReportAndSave(expectedSemicolon)
+
+				return nil, collector.COMPILER_ERROR_FOUND
 			}
 
-			_, ok = parser.expect(kind.SEMICOLON)
-			// TODO(errors)
+			semicolon, ok := parser.expect(kind.SEMICOLON)
 			if !ok {
-				return nil, fmt.Errorf("expected ';'")
+				pos := semicolon.Position
+				expectedSemicolon := collector.Diag{
+					Message: fmt.Sprintf("%s:%d:%d: expected ; at the end of statement, not %s", pos.Filename, pos.Line, pos.Column, semicolon.Kind),
+				}
+				parser.Collector.ReportAndSave(expectedSemicolon)
+				return nil, collector.COMPILER_ERROR_FOUND
 			}
 
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
@@ -443,10 +450,15 @@ Statements:
 				return nil, err
 			}
 
-			_, ok = parser.expect(kind.SEMICOLON)
+			semicolon, ok := parser.expect(kind.SEMICOLON)
 			// TODO(errors)
 			if !ok {
-				return nil, fmt.Errorf("expected ';'")
+				pos := semicolon.Position
+				expectedSemicolon := collector.Diag{
+					Message: fmt.Sprintf("%s:%d:%d: expected ; at the end of statement, not %s", pos.Filename, pos.Line, pos.Column, semicolon.Kind),
+				}
+				parser.Collector.ReportAndSave(expectedSemicolon)
+				return nil, collector.COMPILER_ERROR_FOUND
 			}
 
 			statements = append(statements, idNode)
@@ -487,16 +499,12 @@ Statements:
 
 func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	identifier, ok := parser.expect(kind.ID)
-	// TODO(errors)
+	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected identifier")
 	}
 
 	next := parser.cursor.peek()
-	// TODO(errors)
-	if next == nil {
-		return nil, fmt.Errorf("invalid id statement")
-	}
 
 	switch next.Kind {
 	case kind.OPEN_PAREN:
@@ -634,9 +642,6 @@ func (parser *parser) parseLogical() (ast.Expr, error) {
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := parser.cursor.peek()
-		if next == nil {
-			break
-		}
 		if _, ok := ast.LOGICAL[next.Kind]; ok {
 			parser.cursor.skip()
 			rhs, err := parser.parseComparasion()
@@ -662,9 +667,6 @@ func (parser *parser) parseComparasion() (ast.Expr, error) {
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := parser.cursor.peek()
-		if next == nil {
-			break
-		}
 		if _, ok := ast.COMPARASION[next.Kind]; ok {
 			parser.cursor.skip()
 			rhs, err := parser.parseTerm()
@@ -690,9 +692,6 @@ func (parser *parser) parseTerm() (ast.Expr, error) {
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := parser.cursor.peek()
-		if next == nil {
-			break
-		}
 		if _, ok := ast.TERM[next.Kind]; ok {
 			parser.cursor.skip()
 			rhs, err := parser.parseFactor()
@@ -718,9 +717,6 @@ func (parser *parser) parseFactor() (ast.Expr, error) {
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := parser.cursor.peek()
-		if next == nil {
-			break
-		}
 		if _, ok := ast.FACTOR[next.Kind]; ok {
 			parser.cursor.skip()
 			rhs, err := parser.parseUnary()
@@ -739,11 +735,6 @@ func (parser *parser) parseFactor() (ast.Expr, error) {
 
 func (parser *parser) parseUnary() (ast.Expr, error) {
 	next := parser.cursor.peek()
-	// TODO(errors)
-	if next == nil {
-		return nil, fmt.Errorf("unable to peek next on parseUnary")
-	}
-
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		parser.cursor.skip()
 		rhs, err := parser.parseUnary()
@@ -759,9 +750,6 @@ func (parser *parser) parseUnary() (ast.Expr, error) {
 
 func (parser *parser) parsePrimary() (ast.Expr, error) {
 	token := parser.cursor.peek()
-	if token == nil {
-		return nil, fmt.Errorf("can't peek next token because it is null")
-	}
 	switch token.Kind {
 	case kind.ID:
 		parser.cursor.skip()

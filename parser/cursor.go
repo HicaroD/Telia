@@ -32,7 +32,7 @@ func (cursor *cursor) skip() {
 
 func (cursor *cursor) nextIs(expectedKind kind.TokenKind) bool {
 	token := cursor.peek()
-	return token != nil && token.Kind == expectedKind
+	return token.Kind == expectedKind
 }
 
 func (cursor *cursor) isOutOfBound() bool {
