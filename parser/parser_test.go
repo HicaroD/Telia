@@ -1,11 +1,15 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/collector"
+	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
@@ -436,7 +440,25 @@ func TestFunctionDecl(t *testing.T) {
 	}
 }
 
-func TestExternDecl(t *testing.T) {}
+// TODO: test extern declarations
+// type externDeclTest struct {
+// 	input string
+// 	node  *ast.ExternDecl
+// }
+//
+// func TestExternDecl(t *testing.T) {
+// 	filename := "test.tt"
+// 	tests := []externDeclTest{
+// 		{
+// 			input: "extern libc {}",
+// 		},
+// 	}
+//
+// 	for _, test := range tests {
+// 		t.Run(fmt.Sprintf("TestExternDecl('%s')", test.input), func(t *testing.T) {
+// 		})
+// 	}
+// }
 
 type exprTest struct {
 	input string
@@ -1076,3 +1098,411 @@ func TestBinaryExpr(t *testing.T) {
 func TestFuncCallStmt(t *testing.T) {}
 
 func TestIfStmt(t *testing.T) {}
+
+type syntaxErrorTest struct {
+	input string
+	diags []collector.Diag
+}
+
+func TestSyntaxErrors(t *testing.T) {
+	filename := "test.tt"
+	tests := []syntaxErrorTest{
+		{
+			input: "{",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "if",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "elif",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "else",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		// Function declaration
+		{
+			input: "fn name(){}",
+			diags: nil, // no errors,
+		},
+		{
+			input: "fn (){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:4: expected name, not (",
+				},
+			},
+		},
+		{
+			input: "fn",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:3: expected name, not end of file",
+				},
+			},
+		},
+		{
+			input: "fn name){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected (, not )",
+				},
+			},
+		},
+		{
+			input: "fn name",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected (, not end of file",
+				},
+			},
+		},
+		{
+			input: "fn name({}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:9: expected parameter or ), not {",
+				},
+			},
+		},
+		{
+			input: "fn name(",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:9: expected parameter or ), not end of file",
+				},
+			},
+		},
+		{
+			input: "fn name(a, b int){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected parameter type for 'a', not ,",
+				},
+			},
+		},
+		{
+			input: "fn name(a",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected parameter type for 'a', not end of file",
+				},
+			},
+		},
+		{
+			input: "fn name(a int, ..., b int){}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:16: ... is only allowed at the end of parameter list",
+				},
+			},
+		},
+		{
+			input: "fn name() }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:11: expected type or {, not }",
+				},
+			},
+		},
+		{
+			input: "fn name()",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected type or {, not end of file",
+				},
+			},
+		},
+		{
+			input: "fn name() {",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:12: expected statement or }, not end of file",
+				},
+			},
+		},
+		// External declarations
+		{
+			input: "extern libc {}",
+			diags: nil, // no errors
+		},
+		{
+			input: // no formatting
+			`extern libc {
+				fn method();
+			}`,
+			diags: nil, // no errors
+		},
+		{
+			input: // no formatting
+			`extern libc {
+				fn method() i8;
+			}`,
+			diags: nil, // no errors
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn method() {}
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
+				},
+			},
+		},
+		{
+			input: "extern {}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected name, not {",
+				},
+			},
+		},
+		{
+			input: "extern libc }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: expected {, not }",
+				},
+			},
+		},
+		{
+			input: "extern libc {",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:14: expected prototype or }, not end of file",
+				},
+			},
+		},
+		{
+			input: "extern libc",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:12: expected {, not end of file",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn method() {}
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn ();
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:7: expected name, not (",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name();`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:14: expected prototype or }, not end of file",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name);
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:11: expected (, not )",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:12: expected parameter or ), not ;",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a);
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:13: expected parameter type for 'a', not )",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:13: expected parameter type for 'a', not ;",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a int;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:17: expected parameter or ), not ;",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestSyntaxErrors('%s')", test.input), func(t *testing.T) {
+			diagCollector := collector.New()
+			reader := bufio.NewReader(strings.NewReader(test.input))
+
+			lex := lexer.New(filename, reader, diagCollector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			parser := New(tokens, diagCollector)
+			_, err = parser.Parse()
+
+			if err != nil && len(parser.Collector.Diags) == 0 {
+				t.Fatalf(
+					"error detected, but diagnostic collector is empty.\nError: %s",
+					err,
+				)
+			}
+
+			if len(test.diags) != len(parser.Collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
+					len(test.diags),
+					len(parser.Collector.Diags),
+					parser.Collector.Diags,
+					test.diags,
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			}
+		})
+	}
+}
+
+func TestSyntaxErrorsOnBlock(t *testing.T) {
+	filename := "test.tt"
+
+	tests := []syntaxErrorTest{
+		{
+			input: "{",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:2: expected statement or }, not end of file",
+				},
+			},
+		},
+		{
+			input: `{
+			return
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected expression or ;, not }",
+				},
+			},
+		},
+		{
+			input: `{
+			return
+			`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected expression or ;, not end of file",
+				},
+			},
+		},
+		{
+			input: `{
+			return 10
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:3:4: expected ; at the end of statement, not }",
+				},
+			},
+		},
+		// TODO: deal with id statement, such as function calls and variable
+		// declarations
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestSyntaxErrorsOnBlock('%s')", test.input), func(t *testing.T) {
+			collector := collector.New()
+
+			reader := bufio.NewReader(strings.NewReader(test.input))
+			lex := lexer.New(filename, reader, collector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			parser := New(tokens, collector)
+			_, err = parser.parseBlock()
+			if err == nil {
+				t.Fatal("expected to have syntax errors, but got nothing")
+			}
+
+			if len(test.diags) != len(parser.Collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
+					len(test.diags),
+					len(parser.Collector.Diags),
+					parser.Collector.Diags,
+					test.diags,
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			}
+		})
+	}
+}

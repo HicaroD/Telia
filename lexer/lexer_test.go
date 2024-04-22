@@ -3,9 +3,11 @@ package lexer
 import (
 	"bufio"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/HicaroD/Telia/collector"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
@@ -69,8 +71,11 @@ func TestTokenKinds(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenKind('%q')", test.lexeme), func(t *testing.T) {
+			diagCollector := collector.New()
+
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
-			lexer := New(filename, reader)
+			lexer := New(filename, reader, diagCollector)
+
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -118,8 +123,11 @@ func TestTokenPos(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenPos(%q)", test.input), func(t *testing.T) {
+			diagCollector := collector.New()
+
 			reader := bufio.NewReader(strings.NewReader(test.input))
-			lexer := New(filename, reader)
+			lexer := New(filename, reader, diagCollector)
+
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -196,8 +204,11 @@ func TestIsIdentifier(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsIdentifier('%q')", test.lexeme), func(t *testing.T) {
+			diagCollector := collector.New()
+
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
-			lexer := New(filename, reader)
+			lexer := New(filename, reader, diagCollector)
+
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -242,8 +253,10 @@ func TestIsLiteral(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsLiteral('%q')", test.lexeme), func(t *testing.T) {
+			diagCollector := collector.New()
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
-			lexer := New(filename, reader)
+
+			lexer := New(filename, reader, diagCollector)
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -262,8 +275,95 @@ func TestIsLiteral(t *testing.T) {
 	}
 }
 
-type lexicalErrors struct {
+type lexicalErrorTest struct {
+	input string
+	diags []collector.Diag
 }
 
 func TestLexicalErrors(t *testing.T) {
+	filename := "test.tt"
+
+	tests := []lexicalErrorTest{
+		{
+			input: "!",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: invalid character !",
+				},
+			},
+		},
+		{
+			input: "!!",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: invalid character !",
+				},
+			},
+		},
+		{
+			input: ":",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: invalid character :",
+				},
+			},
+		},
+		{
+			input: "::",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: invalid character :",
+				},
+			},
+		},
+		{
+			input: "?",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: invalid character ?",
+				},
+			},
+		},
+		{
+			input: "\"Unterminated string literal here",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unterminated string literal",
+				},
+			},
+		},
+		{
+			input: "\"",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unterminated string literal",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestLexicalErrors('%s')", test.input), func(t *testing.T) {
+			diagCollector := collector.New()
+			reader := bufio.NewReader(strings.NewReader(test.input))
+
+			lex := New(filename, reader, diagCollector)
+			_, err := lex.Tokenize()
+			if err == nil {
+				t.Fatal("expected to have lexical errors, but got nothing")
+			}
+
+			if len(test.diags) != len(lex.collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d",
+					len(test.diags),
+					len(lex.collector.Diags),
+				)
+			}
+
+			if !reflect.DeepEqual(test.diags, lex.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, lex.collector)
+			}
+		})
+	}
 }

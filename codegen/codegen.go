@@ -15,12 +15,13 @@ import (
 )
 
 type codegen struct {
+	context llvm.Context
+	module  llvm.Module
+	builder llvm.Builder
+
+	astNodes    []ast.AstNode
 	universe    *scope.Scope[values.LLVMValue]
 	strLiterals map[string]llvm.Value
-	context     llvm.Context
-	module      llvm.Module
-	builder     llvm.Builder
-	astNodes    []ast.AstNode
 }
 
 func New(astNodes []ast.AstNode) *codegen {

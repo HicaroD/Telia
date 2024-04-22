@@ -14,23 +14,15 @@ func newCursor(tokens []*token.Token) *cursor {
 	return &cursor{offset: 0, tokens: tokens}
 }
 
-// TODO: When it is outbound, just don't update the cursor,
-// return the EOF, so I can check
 func (cursor *cursor) peek() *token.Token {
-	if cursor.isOutOfBound() {
-		return nil
-	}
 	return cursor.tokens[cursor.offset]
 }
 
-// TODO: When it is outbound, just don't update the cursor,
-// return the EOF, so I can check
 func (cursor *cursor) next() *token.Token {
-	if cursor.isOutOfBound() {
-		return nil
-	}
 	token := cursor.tokens[cursor.offset]
-	cursor.offset++
+	if !cursor.isOutOfBound() {
+		cursor.offset++
+	}
 	return token
 }
 
@@ -40,7 +32,7 @@ func (cursor *cursor) skip() {
 
 func (cursor *cursor) nextIs(expectedKind kind.TokenKind) bool {
 	token := cursor.peek()
-	return token != nil && token.Kind == expectedKind
+	return token.Kind == expectedKind
 }
 
 func (cursor *cursor) isOutOfBound() bool {
