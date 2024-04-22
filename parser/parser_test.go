@@ -1164,22 +1164,22 @@ func TestSyntaxErrors(t *testing.T) {
 				t.Fatal("expected to have syntax errors, but got nothing")
 			}
 
-			if err != nil && len(parser.diagCollector.Diags) == 0 {
+			if err != nil && len(parser.collector.Diags) == 0 {
 				t.Fatalf(
 					"semantic error detected, but diagnostic collector is empty.\nError: %s",
 					err,
 				)
 			}
 
-			if len(test.diags) != len(parser.diagCollector.Diags) {
+			if len(test.diags) != len(parser.collector.Diags) {
 				t.Fatalf(
 					"expected to have %d diag(s), but got %d",
 					len(test.diags),
-					len(parser.diagCollector.Diags),
+					len(parser.collector.Diags),
 				)
 			}
-			if !reflect.DeepEqual(test.diags, parser.diagCollector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.diagCollector)
+			if !reflect.DeepEqual(test.diags, parser.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.collector)
 			}
 		})
 	}

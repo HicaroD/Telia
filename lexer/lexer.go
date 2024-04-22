@@ -11,14 +11,13 @@ import (
 )
 
 type lexer struct {
-	filename string
-	cursor   *cursor
-
-	diagCollector *collector.DiagCollector
+	filename  string
+	collector *collector.DiagCollector
+	cursor    *cursor
 }
 
 func New(filename string, reader *bufio.Reader, diagCollector *collector.DiagCollector) *lexer {
-	return &lexer{filename: filename, cursor: new(filename, reader), diagCollector: diagCollector}
+	return &lexer{filename: filename, cursor: new(filename, reader), collector: diagCollector}
 }
 
 func (lex *lexer) Tokenize() ([]*token.Token, error) {
@@ -102,7 +101,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok {
-			lex.diagCollector.ReportAndSave(invalidCharacter)
+			lex.collector.ReportAndSave(invalidCharacter)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
@@ -110,7 +109,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 			return token.New(nil, kind.BANG_EQUAL, tokenPosition), nil
 		}
 
-		lex.diagCollector.ReportAndSave(invalidCharacter)
+		lex.collector.ReportAndSave(invalidCharacter)
 		return nil, collector.COMPILER_ERROR_FOUND
 	case '>':
 		tokenKind := kind.GREATER
@@ -182,7 +181,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok {
-			lex.diagCollector.ReportAndSave(invalidCharacter)
+			lex.collector.ReportAndSave(invalidCharacter)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
@@ -190,7 +189,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 			return token.New(nil, kind.COLON_EQUAL, tokenPosition), nil
 		}
 
-		lex.diagCollector.ReportAndSave(invalidCharacter)
+		lex.collector.ReportAndSave(invalidCharacter)
 		return nil, collector.COMPILER_ERROR_FOUND
 	default:
 		position := lex.cursor.Position()
@@ -207,7 +206,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 			invalidCharacter := collector.Diag{
 				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, character),
 			}
-			lex.diagCollector.ReportAndSave(invalidCharacter)
+			lex.collector.ReportAndSave(invalidCharacter)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 	}
@@ -229,7 +228,7 @@ func (lex *lexer) getStringLiteral() (*token.Token, error) {
 				position.Column,
 			),
 		}
-		lex.diagCollector.ReportAndSave(unterminatedStringLiteral)
+		lex.collector.ReportAndSave(unterminatedStringLiteral)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 	if currentCharacter == '"' {

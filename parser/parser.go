@@ -14,12 +14,12 @@ import (
 )
 
 type parser struct {
-	diagCollector *collector.DiagCollector
-	cursor        *cursor
+	collector *collector.DiagCollector
+	cursor    *cursor
 }
 
 func New(tokens []*token.Token, diagCollector *collector.DiagCollector) *parser {
-	return &parser{cursor: newCursor(tokens), diagCollector: diagCollector}
+	return &parser{cursor: newCursor(tokens), collector: diagCollector}
 }
 
 func (parser *parser) Parse() ([]ast.AstNode, error) {
@@ -171,7 +171,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 				name.Kind,
 			),
 		}
-		parser.diagCollector.ReportAndSave(expectedIdentifier)
+		parser.collector.ReportAndSave(expectedIdentifier)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
@@ -239,7 +239,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				openParen.Kind,
 			),
 		}
-		parser.diagCollector.ReportAndSave(expectedOpenParen)
+		parser.collector.ReportAndSave(expectedOpenParen)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
@@ -266,7 +266,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 						pos.Column,
 					),
 				}
-				parser.diagCollector.ReportAndSave(unexpectedDotDotDot)
+				parser.collector.ReportAndSave(unexpectedDotDotDot)
 				return nil, collector.COMPILER_ERROR_FOUND
 			}
 			break
@@ -284,7 +284,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 					name.Kind,
 				),
 			}
-			parser.diagCollector.ReportAndSave(expectedCloseParenOrId)
+			parser.collector.ReportAndSave(expectedCloseParenOrId)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		paramType, err := parser.parseExprType()
@@ -301,7 +301,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 					tok.Kind,
 				),
 			}
-			parser.diagCollector.ReportAndSave(expectedParamType)
+			parser.collector.ReportAndSave(expectedParamType)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		params = append(params, &ast.Field{Name: name, Type: paramType})
@@ -324,7 +324,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				closeParen.Kind,
 			),
 		}
-		parser.diagCollector.ReportAndSave(expectedCloseParen)
+		parser.collector.ReportAndSave(expectedCloseParen)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
@@ -354,7 +354,7 @@ func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
 				tok.Kind,
 			),
 		}
-		parser.diagCollector.ReportAndSave(expectedReturnTy)
+		parser.collector.ReportAndSave(expectedReturnTy)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 	return returnType, nil
@@ -474,7 +474,7 @@ Statements:
 				closeCurly.Kind,
 			),
 		}
-		parser.diagCollector.ReportAndSave(expectedStatementOrCloseCurly)
+		parser.collector.ReportAndSave(expectedStatementOrCloseCurly)
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 

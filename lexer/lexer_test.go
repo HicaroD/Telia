@@ -353,16 +353,16 @@ func TestLexicalErrors(t *testing.T) {
 				t.Fatal("expected to have lexical errors, but got nothing")
 			}
 
-			if len(test.diags) != len(lex.diagCollector.Diags) {
+			if len(test.diags) != len(lex.collector.Diags) {
 				t.Fatalf(
 					"expected to have %d diag(s), but got %d",
 					len(test.diags),
-					len(lex.diagCollector.Diags),
+					len(lex.collector.Diags),
 				)
 			}
 
-			if !reflect.DeepEqual(test.diags, lex.diagCollector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, lex.diagCollector)
+			if !reflect.DeepEqual(test.diags, lex.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, lex.collector)
 			}
 		})
 	}
