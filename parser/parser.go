@@ -43,8 +43,17 @@ func (parser *parser) Parse() ([]ast.AstNode, error) {
 			}
 			astNodes = append(astNodes, externDecl)
 		default:
-			// TODO(errors)
-			return nil, fmt.Errorf("unimplemented on parser: %s", token.Lexeme)
+			pos := token.Position
+			unexpectedTokenOnGlobalScope := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: unexpected non-declaration statement on global scope",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+				),
+			}
+			parser.Collector.ReportAndSave(unexpectedTokenOnGlobalScope)
+			return nil, collector.COMPILER_ERROR_FOUND
 		}
 	}
 	return astNodes, nil

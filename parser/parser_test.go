@@ -1086,9 +1086,49 @@ type syntaxErrorTest struct {
 	diags []collector.Diag
 }
 
-func TestSyntaxErrorsOnFunctionDecl(t *testing.T) {
+func TestSyntaxErrors(t *testing.T) {
 	filename := "test.tt"
 	tests := []syntaxErrorTest{
+		{
+			input: "{",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "if",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "elif",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "else",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
+		{
+			input: "if",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
+				},
+			},
+		},
 		{
 			input: "fn (){}",
 			diags: []collector.Diag{
@@ -1188,7 +1228,7 @@ func TestSyntaxErrorsOnFunctionDecl(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestSyntaxErrorsOnFunctionDecl('%s')", test.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestSyntaxErrors('%s')", test.input), func(t *testing.T) {
 			diagCollector := collector.New()
 			reader := bufio.NewReader(strings.NewReader(test.input))
 
