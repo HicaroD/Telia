@@ -1243,6 +1243,81 @@ func TestSyntaxErrors(t *testing.T) {
 			}`,
 			diags: nil, // no errors
 		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn method() {}
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
+				},
+			},
+		},
+		{
+			input: "extern {}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected name, not {",
+				},
+			},
+		},
+		{
+			input: "extern libc }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: expected {, not }",
+				},
+			},
+		},
+		{
+			input: "extern libc {",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:14: expected prototype or }, not end of file",
+				},
+			},
+		},
+		{
+			input: "extern libc",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:12: expected {, not end of file",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn method() {}
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn ();
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:7: expected name, not (",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name();`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:14: expected prototype or }, not end of file",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

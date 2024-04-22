@@ -86,16 +86,36 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 		return nil, fmt.Errorf("expected 'extern'")
 	}
 
-	externName, ok := parser.expect(kind.ID)
-	// TODO(errors)
+	name, ok := parser.expect(kind.ID)
 	if !ok {
-		return nil, fmt.Errorf("expected identifier")
+		pos := name.Position
+		expectedName := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected name, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				name.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedName)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
-	_, ok = parser.expect(kind.OPEN_CURLY)
-	// TODO(errors)
+	openCurly, ok := parser.expect(kind.OPEN_CURLY)
 	if !ok {
-		return nil, fmt.Errorf("expected '{'")
+		pos := openCurly.Position
+		expectedOpenCurly := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected {, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				openCurly.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedOpenCurly)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	var prototypes []*ast.Proto
@@ -105,55 +125,89 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 		}
 
 		proto, err := parser.parsePrototype()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
 		prototypes = append(prototypes, proto)
-
-		token := parser.cursor.peek()
-		if token.Kind == kind.CLOSE_CURLY {
-			break
-		}
 	}
 
-	_, ok = parser.expect(kind.CLOSE_CURLY)
-	// TODO(errors)
+	closeCurly, ok := parser.expect(kind.CLOSE_CURLY)
+	// QUESTION: will it ever false?
 	if !ok {
-		return nil, fmt.Errorf("expected '}'")
+		pos := closeCurly.Position
+		expectedCloseCurly := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected }, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				closeCurly.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedCloseCurly)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
-	return &ast.ExternDecl{Scope: nil, Name: externName, Prototypes: prototypes}, nil
+
+	return &ast.ExternDecl{Scope: nil, Name: name, Prototypes: prototypes}, nil
 }
 
 func (parser *parser) parsePrototype() (*ast.Proto, error) {
-	_, ok := parser.expect(kind.FN)
-	// TODO(errors)
+	fn, ok := parser.expect(kind.FN)
 	if !ok {
-		return nil, fmt.Errorf("expected 'fn'")
+		pos := fn.Position
+		expectedCloseCurly := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected prototype or }, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				fn.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedCloseCurly)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	name, ok := parser.expect(kind.ID)
-	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected an identifier")
+		pos := name.Position
+		expectedName := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected name, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				name.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedName)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	params, err := parser.parseFunctionParams()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	returnType, err := parser.parseReturnType( /*isPrototype=*/ true)
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(errors)
-	_, ok = parser.expect(kind.SEMICOLON)
+	semicolon, ok := parser.expect(kind.SEMICOLON)
 	if !ok {
-		return nil, fmt.Errorf("expected ';'")
+		pos := semicolon.Position
+		expectedSemicolon := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected ; at the end of prototype, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				semicolon.Kind,
+			),
+		}
+		parser.Collector.ReportAndSave(expectedSemicolon)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.Proto{Name: name.Lexeme.(string), Params: params, RetType: returnType}, nil
