@@ -812,10 +812,18 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	switch token.Kind {
 	case kind.ID:
 		parser.cursor.skip()
-		if parser.cursor.nextIs(kind.OPEN_PAREN) {
+
+		idExpr := &ast.IdExpr{Name: token}
+
+		next := parser.cursor.peek()
+		switch next.Kind {
+		case kind.OPEN_PAREN:
 			return parser.parseFnCall(token.Lexeme.(string))
+		case kind.DOT:
+			fieldAccess := parser.parseFieldAccess(idExpr)
+			return fieldAccess, nil
 		}
-		return &ast.IdExpr{Name: token}, nil
+		return idExpr, nil
 	case kind.OPEN_PAREN:
 		parser.cursor.skip() // (
 		expr, err := parser.parseExpr()
@@ -871,4 +879,20 @@ func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCall, error) {
 		}
 	}
 	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
+}
+
+func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccessExpr {
+	_, ok := parser.expect(kind.DOT)
+	// TODO(errors): should never hit
+	if !ok {
+		log.Fatal("expect a dot")
+	}
+
+	right, err := parser.parsePrimary()
+	// TODO(errors)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &ast.FieldAccessExpr{Left: left, Right: right}
 }

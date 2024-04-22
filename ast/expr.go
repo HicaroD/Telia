@@ -71,10 +71,22 @@ type IdExpr struct {
 }
 
 func (idExpr IdExpr) String() string {
-	return fmt.Sprintf("%s", idExpr.Name)
+	return idExpr.Name.Lexeme.(string)
 }
 func (idExpr IdExpr) IsVoid() bool { return false }
 func (idExpr IdExpr) exprNode()    {}
+
+type FieldAccessExpr struct {
+	Expr
+	Left  Expr
+	Right Expr
+}
+
+func (fieldAcess FieldAccessExpr) String() string {
+	return fmt.Sprintf("%s.%s", fieldAcess.Left, fieldAcess.Right)
+}
+func (fieldAccess FieldAccessExpr) IsVoid() bool { return false }
+func (fieldAccess FieldAccessExpr) exprNode()    {}
 
 type UnaryExpr struct {
 	Expr

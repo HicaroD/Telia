@@ -515,7 +515,7 @@ func TestLiteralExpr(t *testing.T) {
 
 func TestUnaryExpr(t *testing.T) {
 	filename := "test.tt"
-	unaryExprs := []exprTest{
+	tests := []exprTest{
 		{
 			input: "-1",
 			node: &ast.UnaryExpr{
@@ -537,7 +537,7 @@ func TestUnaryExpr(t *testing.T) {
 			},
 		},
 	}
-	for _, test := range unaryExprs {
+	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestUnaryExpr('%s')", test.input), func(t *testing.T) {
 			actualNode, err := ParseExprFrom(test.input, filename)
 			if err != nil {
@@ -557,7 +557,7 @@ func TestUnaryExpr(t *testing.T) {
 
 func TestBinaryExpr(t *testing.T) {
 	filename := "test.tt"
-	binExprs := []exprTest{
+	tests := []exprTest{
 		{
 			input: "1 + 1",
 			node: &ast.BinaryExpr{
@@ -1076,7 +1076,58 @@ func TestBinaryExpr(t *testing.T) {
 		},
 	}
 
-	for _, test := range binExprs {
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
+			actualNode, err := ParseExprFrom(test.input, filename)
+			if err != nil {
+				t.Errorf("unexpected error '%v'", err)
+			}
+			if !reflect.DeepEqual(test.node, actualNode) {
+				t.Errorf(
+					"expression node differs\nexpected: '%v' '%v'\ngot:      '%v' '%v'\n",
+					test.node,
+					reflect.TypeOf(test.node),
+					actualNode,
+					reflect.TypeOf(actualNode),
+				)
+			}
+		})
+	}
+}
+
+func TestFieldAccessExpr(t *testing.T) {
+	filename := "test.tt"
+	tests := []exprTest{
+		{
+			input: "first.second.third",
+			node: &ast.FieldAccessExpr{
+				Left: &ast.IdExpr{
+					Name: token.New("first", kind.ID, token.NewPosition(filename, 1, 1)),
+				},
+				Right: &ast.FieldAccessExpr{
+					Left: &ast.IdExpr{
+						Name: token.New("second", kind.ID, token.NewPosition(filename, 7, 1)),
+					},
+					Right: &ast.IdExpr{
+						Name: token.New("third", kind.ID, token.NewPosition(filename, 14, 1)),
+					},
+				},
+			},
+		},
+		{
+			input: "first.second",
+			node: &ast.FieldAccessExpr{
+				Left: &ast.IdExpr{
+					Name: token.New("first", kind.ID, token.NewPosition(filename, 1, 1)),
+				},
+				Right: &ast.IdExpr{
+					Name: token.New("second", kind.ID, token.NewPosition(filename, 7, 1)),
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestBinaryExpr('%s')", test.input), func(t *testing.T) {
 			actualNode, err := ParseExprFrom(test.input, filename)
 			if err != nil {
