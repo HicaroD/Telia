@@ -312,10 +312,8 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 		}
 		if parser.cursor.nextIs(kind.DOT_DOT_DOT) {
 			isVariadic = true
-
 			tok := parser.cursor.peek()
 			pos := tok.Position
-
 			parser.cursor.skip()
 
 			if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
@@ -340,7 +338,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			pos := name.Position
 			expectedCloseParenOrId := collector.Diag{
 				Message: fmt.Sprintf(
-					"%s:%d:%d: expected name or ), not %s",
+					"%s:%d:%d: expected parameter or ), not %s",
 					pos.Filename,
 					pos.Line,
 					pos.Column,

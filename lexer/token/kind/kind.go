@@ -147,10 +147,10 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 }
 
 var LITERAL_KIND map[TokenKind]bool = map[TokenKind]bool{
-	INTEGER_LITERAL:          true,
-	STRING_LITERAL:           true,
-	TRUE_BOOL_LITERAL:        true,
-	FALSE_BOOL_LITERAL:       true,
+	INTEGER_LITERAL:    true,
+	STRING_LITERAL:     true,
+	TRUE_BOOL_LITERAL:  true,
+	FALSE_BOOL_LITERAL: true,
 }
 
 var NUMERIC_TYPES map[TokenKind]bool = map[TokenKind]bool{

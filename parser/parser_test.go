@@ -439,6 +439,7 @@ func TestFunctionDecl(t *testing.T) {
 		})
 	}
 }
+
 // TODO: test extern declarations
 // type externDeclTest struct {
 // 	input string
@@ -1179,7 +1180,7 @@ func TestSyntaxErrors(t *testing.T) {
 			input: "fn name({}",
 			diags: []collector.Diag{
 				{
-					Message: "test.tt:1:9: expected name or ), not {",
+					Message: "test.tt:1:9: expected parameter or ), not {",
 				},
 			},
 		},
@@ -1187,7 +1188,7 @@ func TestSyntaxErrors(t *testing.T) {
 			input: "fn name(",
 			diags: []collector.Diag{
 				{
-					Message: "test.tt:1:9: expected name or ), not end of file",
+					Message: "test.tt:1:9: expected parameter or ), not end of file",
 				},
 			},
 		},
@@ -1330,6 +1331,61 @@ func TestSyntaxErrors(t *testing.T) {
 			diags: []collector.Diag{
 				{
 					Message: "test.tt:2:14: expected prototype or }, not end of file",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name);
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:11: expected (, not )",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:12: expected parameter or ), not ;",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a);
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:13: expected parameter type for 'a', not )",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:13: expected parameter type for 'a', not ;",
+				},
+			},
+		},
+		{
+			input: // no formatting
+			`extern libc {
+			fn name(a int;
+			}`,
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:17: expected parameter or ), not ;",
 				},
 			},
 		},
