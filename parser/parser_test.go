@@ -1081,105 +1081,100 @@ func TestFuncCallStmt(t *testing.T) {}
 
 func TestIfStmt(t *testing.T) {}
 
-type semanticErrorTest struct {
-	input string
-	diags []collector.Diag
-}
-
-func TestSyntaxErrors(t *testing.T) {
+func TestSyntaxErrorsOnFunctionDecl(t *testing.T) {
 	filename := "test.tt"
-	tests := []semanticErrorTest{
+	tests := []SyntaxErrorTest{
 		{
-			input: "fn (){}",
-			diags: []collector.Diag{
+			Input: "fn (){}",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:4: expected name, not (",
 				},
 			},
 		},
 		{
-			input: "fn",
-			diags: []collector.Diag{
+			Input: "fn",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:3: expected name, not end of file",
 				},
 			},
 		},
 		{
-			input: "fn name){}",
-			diags: []collector.Diag{
+			Input: "fn name){}",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:8: expected (, not )",
 				},
 			},
 		},
 		{
-			input: "fn name",
-			diags: []collector.Diag{
+			Input: "fn name",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:8: expected (, not end of file",
 				},
 			},
 		},
 		{
-			input: "fn name({}",
-			diags: []collector.Diag{
+			Input: "fn name({}",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:9: expected name or ), not {",
 				},
 			},
 		},
 		{
-			input: "fn name(",
-			diags: []collector.Diag{
+			Input: "fn name(",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:9: expected name or ), not end of file",
 				},
 			},
 		},
 		{
-			input: "fn name(a, b int){}",
-			diags: []collector.Diag{
+			Input: "fn name(a, b int){}",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:10: expected parameter type for 'a', not ,",
 				},
 			},
 		},
 		{
-			input: "fn name(a",
-			diags: []collector.Diag{
+			Input: "fn name(a",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:10: expected parameter type for 'a', not end of file",
 				},
 			},
 		},
 		{
-			input: "fn name(a int, ..., b int){}",
-			diags: []collector.Diag{
+			Input: "fn name(a int, ..., b int){}",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:16: ... is only allowed at the end of parameter list",
 				},
 			},
 		},
 		{
-			input: "fn name() }",
-			diags: []collector.Diag{
+			Input: "fn name() }",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:11: expected type or {, not }",
 				},
 			},
 		},
 		{
-			input: "fn name()",
-			diags: []collector.Diag{
+			Input: "fn name()",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:10: expected type or {, not end of file",
 				},
 			},
 		},
 		{
-			input: "fn name() {",
-			diags: []collector.Diag{
+			Input: "fn name() {",
+			Diags: []collector.Diag{
 				{
 					Message: "test.tt:1:12: expected statement or }, not end of file",
 				},
@@ -1188,39 +1183,65 @@ func TestSyntaxErrors(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestSyntaxErrors('%s')", test.input), func(t *testing.T) {
-			diagCollector := collector.New()
-			reader := bufio.NewReader(strings.NewReader(test.input))
-
-			lex := lexer.New(filename, reader, diagCollector)
-			tokens, err := lex.Tokenize()
-			if err != nil {
-				t.Fatalf("unexpected lexical errors: %s", err)
-			}
-
-			parser := New(tokens, diagCollector)
-			_, err = parser.Parse()
-			if err == nil {
-				t.Fatal("expected to have syntax errors, but got nothing")
-			}
-
-			if err != nil && len(parser.collector.Diags) == 0 {
-				t.Fatalf(
-					"semantic error detected, but diagnostic collector is empty.\nError: %s",
-					err,
-				)
-			}
-
-			if len(test.diags) != len(parser.collector.Diags) {
-				t.Fatalf(
-					"expected to have %d diag(s), but got %d",
-					len(test.diags),
-					len(parser.collector.Diags),
-				)
-			}
-			if !reflect.DeepEqual(test.diags, parser.collector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.collector)
-			}
+		t.Run(fmt.Sprintf("TestSyntaxErrorsOnFunctionDecl('%s')", test.Input), func(t *testing.T) {
+			CheckSyntaxErrors(t, filename, test)
 		})
+	}
+}
+
+func TestSyntaxErrorsOnStatement(t *testing.T) {
+	filename := "test.tt"
+
+	tests := []SyntaxErrorTest{
+		{
+			Input: "",
+			Diags: []collector.Diag{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestSyntaxErrorsOnStatement('%s')", test.Input), func(t *testing.T) {
+			CheckSyntaxErrors(t, filename, test)
+		})
+	}
+}
+
+type SyntaxErrorTest struct {
+	Input string
+	Diags []collector.Diag
+}
+
+func CheckSyntaxErrors(t *testing.T, filename string, test SyntaxErrorTest) {
+	diagCollector := collector.New()
+	reader := bufio.NewReader(strings.NewReader(test.Input))
+
+	lex := lexer.New(filename, reader, diagCollector)
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	parser := New(tokens, diagCollector)
+	_, err = parser.Parse()
+	if err == nil {
+		t.Fatal("expected to have syntax errors, but got nothing")
+	}
+
+	if err != nil && len(parser.Collector.Diags) == 0 {
+		t.Fatalf(
+			"error detected, but diagnostic collector is empty.\nError: %s",
+			err,
+		)
+	}
+
+	if len(test.Diags) != len(parser.Collector.Diags) {
+		t.Fatalf(
+			"expected to have %d diag(s), but got %d",
+			len(test.Diags),
+			len(parser.Collector.Diags),
+		)
+	}
+	if !reflect.DeepEqual(test.Diags, parser.Collector.Diags) {
+		t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.Diags, parser.Collector)
 	}
 }
