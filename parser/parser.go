@@ -81,15 +81,15 @@ func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 
 func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	_, ok := parser.expect(kind.EXTERN)
-	// TODO(errors)
+	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'extern'")
 	}
 
-	externName, ok := parser.expect(kind.STRING_LITERAL)
+	externName, ok := parser.expect(kind.ID)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected string literal")
+		return nil, fmt.Errorf("expected identifier")
 	}
 
 	_, ok = parser.expect(kind.OPEN_CURLY)
@@ -100,6 +100,10 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 
 	var prototypes []*ast.Proto
 	for {
+		if parser.cursor.nextIs(kind.CLOSE_CURLY) {
+			break
+		}
+
 		proto, err := parser.parsePrototype()
 		// TODO(errors)
 		if err != nil {
@@ -140,7 +144,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, err
 	}
 
-	returnType, err := parser.parseFnReturnType()
+	returnType, err := parser.parseReturnType( /*isPrototype=*/ true)
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -186,7 +190,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	returnType, err := parser.parseFnReturnType()
+	returnType, err := parser.parseReturnType( /*isPrototype=*/ false)
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -341,8 +345,9 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	}, nil
 }
 
-func (parser *parser) parseFnReturnType() (ast.ExprType, error) {
-	if parser.cursor.nextIs(kind.OPEN_CURLY) {
+func (parser *parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
+	if (isPrototype && parser.cursor.nextIs(kind.SEMICOLON)) ||
+		parser.cursor.nextIs(kind.OPEN_CURLY) {
 		return &ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 

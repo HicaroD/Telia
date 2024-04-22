@@ -1121,13 +1121,10 @@ func TestSyntaxErrors(t *testing.T) {
 				},
 			},
 		},
+		// Function declaration
 		{
-			input: "if",
-			diags: []collector.Diag{
-				{
-					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
-				},
-			},
+			input: "fn name(){}",
+			diags: nil, // no errors,
 		},
 		{
 			input: "fn (){}",
@@ -1225,6 +1222,27 @@ func TestSyntaxErrors(t *testing.T) {
 				},
 			},
 		},
+		// External declarations
+		{
+			input: "extern libc {}",
+			diags: nil, // no errors
+		},
+		{
+			input: // no formatting
+			`
+			extern libc {
+				fn method();
+			}`,
+			diags: nil, // no errors
+		},
+		{
+			input: // no formatting
+			`
+			extern libc {
+				fn method() i8;
+			}`,
+			diags: nil, // no errors
+		},
 	}
 
 	for _, test := range tests {
@@ -1240,9 +1258,6 @@ func TestSyntaxErrors(t *testing.T) {
 
 			parser := New(tokens, diagCollector)
 			_, err = parser.Parse()
-			if err == nil {
-				t.Fatal("expected to have syntax errors, but got nothing")
-			}
 
 			if err != nil && len(parser.Collector.Diags) == 0 {
 				t.Fatalf(
@@ -1253,9 +1268,11 @@ func TestSyntaxErrors(t *testing.T) {
 
 			if len(test.diags) != len(parser.Collector.Diags) {
 				t.Fatalf(
-					"expected to have %d diag(s), but got %d",
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
 					len(test.diags),
 					len(parser.Collector.Diags),
+					parser.Collector.Diags,
+					test.diags,
 				)
 			}
 			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
@@ -1330,9 +1347,11 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 
 			if len(test.diags) != len(parser.Collector.Diags) {
 				t.Fatalf(
-					"expected to have %d diag(s), but got %d",
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
 					len(test.diags),
 					len(parser.Collector.Diags),
+					parser.Collector.Diags,
+					test.diags,
 				)
 			}
 			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
