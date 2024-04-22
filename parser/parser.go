@@ -239,19 +239,16 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	}
 
 	params, err := parser.parseFunctionParams()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	returnType, err := parser.parseReturnType( /*isPrototype=*/ false)
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	block, err := parser.parseBlock()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +435,6 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 	case kind.STAR:
 		parser.cursor.skip() // *
 		ty, err := parser.parseExprType()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -448,12 +444,7 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			parser.cursor.skip()
 			return &ast.BasicType{Kind: token.Kind}, nil
 		}
-
-		// TODO: deal with other types, such as struct, enums and more in the
-		// future
-
-		// TODO(errors)
-		return nil, fmt.Errorf("token %s %s is not a proper type", token.Kind, token.Lexeme)
+		return nil, collector.COMPILER_ERROR_FOUND
 	}
 }
 
