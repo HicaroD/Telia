@@ -1,4 +1,4 @@
-extern "C" {
+extern C {
   fn puts(format *u8) i32;
 }
 
