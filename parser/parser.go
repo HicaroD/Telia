@@ -535,6 +535,8 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
 	// TODO: parse variable declaration with type annotation
 	// Right now I am only parsing variables with type inference
+
+	// TODO(errors): should never hit
 	_, ok := parser.expect(kind.COLON_EQUAL)
 	if !ok {
 		return nil, fmt.Errorf("expected ':=' at parseVarDecl")

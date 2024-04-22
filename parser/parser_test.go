@@ -1267,7 +1267,8 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 				},
 			},
 		},
-		// TODO: deal with id statement, such as function calls and variable declarations
+		// TODO: deal with id statement, such as function calls and variable
+		// declarations
 	}
 
 	for _, test := range tests {
