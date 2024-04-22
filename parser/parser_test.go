@@ -1098,10 +1098,26 @@ func TestSyntaxErrors(t *testing.T) {
 			},
 		},
 		{
+			input: "fn",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:3: expected name, not end of file",
+				},
+			},
+		},
+		{
 			input: "fn name){}",
 			diags: []collector.Diag{
 				{
 					Message: "test.tt:1:8: expected (, not )",
+				},
+			},
+		},
+		{
+			input: "fn name",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:8: expected (, not end of file",
 				},
 			},
 		},
@@ -1114,10 +1130,26 @@ func TestSyntaxErrors(t *testing.T) {
 			},
 		},
 		{
+			input: "fn name(",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:9: expected name or ), not end of file",
+				},
+			},
+		},
+		{
 			input: "fn name(a, b int){}",
 			diags: []collector.Diag{
 				{
 					Message: "test.tt:1:10: expected parameter type for 'a', not ,",
+				},
+			},
+		},
+		{
+			input: "fn name(a",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected parameter type for 'a', not end of file",
 				},
 			},
 		},
@@ -1134,6 +1166,14 @@ func TestSyntaxErrors(t *testing.T) {
 			diags: []collector.Diag{
 				{
 					Message: "test.tt:1:11: expected type or {, not }",
+				},
+			},
+		},
+		{
+			input: "fn name()",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:10: expected type or {, not end of file",
 				},
 			},
 		},
