@@ -38,6 +38,16 @@ func (sema *sema) Analyze(astNodes []ast.Node) error {
 				return err
 			}
 		case *ast.ExternDecl:
+			externScope := scope.New(sema.universe)
+			for i := range astNode.Prototypes {
+				err := externScope.Insert(astNode.Prototypes[i].Name, astNode.Prototypes[i])
+				// TODO(errors)
+				if err != nil {
+					return err
+				}
+			}
+			astNode.Scope = externScope
+			// REFACTOR: make it simpler to get the lexeme
 			err := sema.universe.Insert(astNode.Name.Lexeme.(string), astNode)
 			if err != nil {
 				return err
@@ -51,19 +61,16 @@ func (sema *sema) Analyze(astNodes []ast.Node) error {
 
 func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 	err := sema.universe.Insert(function.Name, function)
+	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
 	function.Scope = scope.New(sema.universe)
-	// REFACTOR
-	for _, param := range function.Params.Fields {
-		paramName := param.Name.Lexeme.(string)
-		err := function.Scope.Insert(paramName, param)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+	err = sema.addParametersToScope(function.Params, function.Scope)
+	// TODO(errors)
+	if err != nil {
+		return err
 	}
 
 	err = sema.analyzeBlock(function.Scope, function.Block, function.RetType)
@@ -74,39 +81,52 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 	return nil
 }
 
+func (sema *sema) addParametersToScope(params *ast.FieldList, scope *scope.Scope[ast.Node]) error {
+	for _, param := range params.Fields {
+		// REFACTOR: make it simpler to get the lexeme
+		paramName := param.Name.Lexeme.(string)
+		err := scope.Insert(paramName, param)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (sema *sema) analyzeBlock(
-	currentScope *scope.Scope[ast.Node],
+	scope *scope.Scope[ast.Node],
 	block *ast.BlockStmt,
 	returnTy ast.ExprType,
 ) error {
 	for i := range block.Statements {
 		switch statement := block.Statements[i].(type) {
 		case *ast.FunctionCall:
-			err := sema.analyzeFunctionCall(statement, currentScope)
+			err := sema.analyzeFunctionCall(statement, scope)
 			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.VarDeclStmt:
-			err := sema.analyzeVarDecl(statement, currentScope)
+			err := sema.analyzeVarDecl(statement, scope)
 			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.CondStmt:
-			err := sema.analyzeCondStmt(statement, returnTy, currentScope)
+			err := sema.analyzeCondStmt(statement, returnTy, scope)
 			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.ReturnStmt:
-			_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, currentScope)
+			_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
 			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.FieldAccess:
-			err := sema.analyzeFieldAccessExpr(statement, currentScope)
+			err := sema.analyzeFieldAccessExpr(statement, scope)
 			// TODO(errors)
 			if err != nil {
 				return err
@@ -149,6 +169,7 @@ func (sema *sema) analyzeVarDecl(
 		}
 	}
 
+	// REFACTOR: make it simpler to get the lexeme
 	varName := varDecl.Name.Lexeme.(string)
 	err := currentScope.Insert(varName, varDecl)
 	// TODO(errors): symbol already defined on scope
@@ -245,6 +266,7 @@ func (sema *sema) analyzeFunctionCall(
 	if err != nil {
 		return err
 	}
+
 	// REFACTOR: basically the same code for function decl and
 	// prototypes
 	switch decl := function.(type) {
@@ -255,7 +277,6 @@ func (sema *sema) analyzeFunctionCall(
 			if len(functionCall.Args) < minimumNumberOfArgs {
 				log.Fatalf("the number of args is lesser than the minimum number of parameters")
 			}
-
 			for i := range minimumNumberOfArgs {
 				paramType := decl.Params.Fields[i].Type
 				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
@@ -272,7 +293,6 @@ func (sema *sema) analyzeFunctionCall(
 			if len(functionCall.Args) != len(decl.Params.Fields) {
 				log.Fatalf("expected %d arguments, but got %d", len(decl.Params.Fields), len(functionCall.Args))
 			}
-
 			for i := range len(functionCall.Args) {
 				paramType := decl.Params.Fields[i].Type
 				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
@@ -287,51 +307,47 @@ func (sema *sema) analyzeFunctionCall(
 			}
 		}
 		// TODO: deal with non variadic functions
-	case *ast.Proto:
-		if decl.Params.IsVariadic {
-			minimumNumberOfArgs := len(decl.Params.Fields)
-			// TODO(errors)
-			if len(functionCall.Args) < minimumNumberOfArgs {
-				log.Fatalf("the number of args is lesser than the minimum number of parameters")
-			}
-
-			for i := range minimumNumberOfArgs {
-				paramType := decl.Params.Fields[i].Type
-				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
-				// TODO(errors)
-				if err != nil {
-					return err
-				}
-				// TODO(errors)
-				if !reflect.DeepEqual(argType, paramType) {
-					log.Fatalf("mismatched argument type on prototype '%s', expected %s, but got %s", decl.Name, paramType, argType)
-				}
-			}
-		} else {
-			if len(functionCall.Args) != len(decl.Params.Fields) {
-				log.Fatalf("expected %d arguments, but got %d", len(decl.Params.Fields), len(functionCall.Args))
-			}
-
-			for i := range len(functionCall.Args) {
-				paramType := decl.Params.Fields[i].Type
-				argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
-				// TODO(errors)
-				if err != nil {
-					return err
-				}
-				// TODO(errors)
-				if !reflect.DeepEqual(argType, paramType) {
-					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", decl.Name, paramType, argType)
-				}
-			}
-		}
-		// TODO: deal with non variadic prototypes
+	// case *ast.Proto:
+	// 	if decl.Params.IsVariadic {
+	// 		minimumNumberOfArgs := len(decl.Params.Fields)
+	// 		// TODO(errors)
+	// 		if len(functionCall.Args) < minimumNumberOfArgs {
+	// 			log.Fatalf("the number of args is lesser than the minimum number of parameters")
+	// 		}
+	// 		for i := range minimumNumberOfArgs {
+	// 			paramType := decl.Params.Fields[i].Type
+	// 			argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
+	// 			// TODO(errors)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			// TODO(errors)
+	// 			if !reflect.DeepEqual(argType, paramType) {
+	// 				log.Fatalf("mismatched argument type on prototype '%s', expected %s, but got %s", decl.Name, paramType, argType)
+	// 			}
+	// 		}
+	// 	} else {
+	// 		if len(functionCall.Args) != len(decl.Params.Fields) {
+	// 			log.Fatalf("expected %d arguments, but got %d", len(decl.Params.Fields), len(functionCall.Args))
+	// 		}
+	// 		for i := range len(functionCall.Args) {
+	// 			paramType := decl.Params.Fields[i].Type
+	// 			argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
+	// 			// TODO(errors)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			// TODO(errors)
+	// 			if !reflect.DeepEqual(argType, paramType) {
+	// 				log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", decl.Name, paramType, argType)
+	// 			}
+	// 		}
+	// 	}
+	// TODO: deal with non variadic prototypes
 	default:
 		// TODO(errors)
 		log.Fatalf("expected symbol to be a function or proto, not %s", reflect.TypeOf(function))
 	}
-
-	// TODO: add function scope, but don't forget to check for redeclarations
 	return nil
 }
 
@@ -401,6 +417,7 @@ func (sema *sema) inferExprTypeWithContext(
 			log.Fatalf("unimplemented literal expr type on inferExprTypeWithContext: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
+		// REFACTOR: make it simpler to get the lexeme
 		symbol, err := scope.LookupAcrossScopes(expression.Name.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
@@ -538,6 +555,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 			log.Fatalf("unimplemented literal expr type: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
+		// REFACTOR: make it simpler to get the lexeme
 		variableName := expression.Name.Lexeme.(string)
 		variable, err := scope.LookupAcrossScopes(variableName)
 		// TODO(errors)
@@ -702,12 +720,15 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 	return nil, fmt.Errorf("can't parse integer literal: %s", value)
 }
 
-func (sema *sema) analyzeFieldAccessExpr(fieldAccess *ast.FieldAccess, scope *scope.Scope[ast.Node]) error {
+func (sema *sema) analyzeFieldAccessExpr(
+	fieldAccess *ast.FieldAccess,
+	scope *scope.Scope[ast.Node],
+) error {
 	if !fieldAccess.Left.IsId() {
 		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
 	}
 
-	// TODO: refactor this
+	// REFACTOR: make it simpler to get the lexeme
 	id := fieldAccess.Left.(*ast.IdExpr).Name.Lexeme.(string)
 
 	symbol, err := scope.LookupAcrossScopes(id)
@@ -718,20 +739,80 @@ func (sema *sema) analyzeFieldAccessExpr(fieldAccess *ast.FieldAccess, scope *sc
 
 	switch sym := symbol.(type) {
 	case *ast.ExternDecl:
-		if call, ok := fieldAccess.Right.(*ast.FunctionCall); ok {
-			for i := range sym.Prototypes {
-				if sym.Prototypes[i].Name == call.Name {
-					goto Success
-				}
+		switch right := fieldAccess.Right.(type) {
+		case *ast.FunctionCall:
+			err := sema.analyzePrototypeCall(right, scope, sym)
+			if err != nil {
+				return err
 			}
+		default:
 			// TODO(errors)
-			return fmt.Errorf("prototype '%s' on '%s' not found", call.Name, sym.Name.Lexeme.(string))
-		} else {
-			// TODO(errors)
-			return fmt.Errorf("invalid expression %s when accessing field", call)
+			return fmt.Errorf("invalid expression %s when accessing field", right)
 		}
 	}
+	// Success:
+	return nil
+}
 
-Success:
+func (sema *sema) analyzePrototypeCall(
+	prototypeCall *ast.FunctionCall,
+	callScope *scope.Scope[ast.Node],
+	extern *ast.ExternDecl,
+) error {
+	prototype, err := extern.Scope.LookupCurrentScope(prototypeCall.Name)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+
+	if proto, ok := prototype.(*ast.Proto); ok {
+		if proto.Params.IsVariadic {
+			minimumNumberOfArgs := len(proto.Params.Fields)
+			// TODO(errors)
+			if len(prototypeCall.Args) < minimumNumberOfArgs {
+				log.Fatalf("the number of args is lesser than the minimum number of parameters")
+			}
+			for i := range minimumNumberOfArgs {
+				paramType := proto.Params.Fields[i].Type
+				argType, err := sema.inferExprTypeWithContext(
+					prototypeCall.Args[i],
+					paramType,
+					callScope,
+				)
+				// TODO(errors)
+				if err != nil {
+					return err
+				}
+				// TODO(errors)
+				if !reflect.DeepEqual(argType, paramType) {
+					log.Fatalf(
+						"mismatched argument type on prototype '%s', expected %s, but got %s",
+						proto.Name,
+						paramType,
+						argType,
+					)
+				}
+			}
+		} else {
+			if len(prototypeCall.Args) != len(proto.Params.Fields) {
+				log.Fatalf("expected %d arguments, but got %d", len(proto.Params.Fields), len(prototypeCall.Args))
+			}
+			for i := range len(prototypeCall.Args) {
+				paramType := proto.Params.Fields[i].Type
+				argType, err := sema.inferExprTypeWithContext(prototypeCall.Args[i], paramType, callScope)
+				// TODO(errors)
+				if err != nil {
+					return err
+				}
+				// TODO(errors)
+				if !reflect.DeepEqual(argType, paramType) {
+					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", proto.Name, paramType, argType)
+				}
+			}
+		}
+	} else {
+		// TODO(errors)
+		log.Fatalf("%s needs to be a prototype", proto)
+	}
 	return nil
 }

@@ -77,6 +77,7 @@ type IdExpr struct {
 }
 
 func (idExpr IdExpr) String() string {
+	// Make it simpler to get lexeme
 	return idExpr.Name.Lexeme.(string)
 }
 func (idExpr IdExpr) IsId() bool          { return true }

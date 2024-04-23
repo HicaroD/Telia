@@ -3,7 +3,12 @@ extern libc {
   fn puts(format *u8) i32;
 }
 
+fn print(message *u8) {
+  libc.puts(message);
+  return;
+}
+
 fn main() i32 {
-  libc.puts("Hello, world 😃");
+  print("Hello, world 😃");
   return 0;
 }

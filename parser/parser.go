@@ -210,6 +210,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
+	// REFACTOR: make it simpler to get the lexeme
 	return &ast.Proto{Name: name.Lexeme.(string), Params: params, RetType: returnType}, nil
 }
 
@@ -254,7 +255,8 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	}
 
 	fnDecl := ast.FunctionDecl{
-		Scope:   nil,
+		Scope: nil,
+		// REFACTOR: make it simpler to get the lexeme
 		Name:    name.Lexeme.(string),
 		Params:  params,
 		Block:   block,
@@ -565,6 +567,7 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 
 	switch next.Kind {
 	case kind.OPEN_PAREN:
+		// REFACTOR: make it simpler to get the lexeme
 		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
 		// TODO(errors)
 		if err != nil {
@@ -822,6 +825,7 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 		next := parser.cursor.peek()
 		switch next.Kind {
 		case kind.OPEN_PAREN:
+			// REFACTOR: make it simpler to get the lexeme
 			return parser.parseFnCall(token.Lexeme.(string))
 		case kind.DOT:
 			fieldAccess := parser.parseFieldAccess(idExpr)
