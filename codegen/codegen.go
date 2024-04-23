@@ -268,9 +268,7 @@ func (codegen *codegen) generateFunctionCall(
 		return llvm.Value{}, err
 	}
 
-	// NOTE: do I really need to define the name?
-	callName := ""
-	return codegen.builder.CreateCall(function.Ty, function.Fn, args, callName), nil
+	return codegen.builder.CreateCall(function.Ty, function.Fn, args, ""), nil
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
@@ -563,13 +561,16 @@ func (codegen *codegen) generateFieldAccessStmt(
 		switch right := fieldAccess.Right.(type) {
 		case *ast.FunctionCall:
 			_, err := codegen.generatePrototypeCall(left, right, scope)
+			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		default:
+			// TODO(errors)
 			return fmt.Errorf("unimplemented %s on field access statement", right)
 		}
 	default:
+		// TODO(errors)
 		return fmt.Errorf("unimplemented %s on extern", left)
 	}
 	return nil
@@ -580,18 +581,18 @@ func (codegen *codegen) generatePrototypeCall(
 	call *ast.FunctionCall,
 	callScope *scope.Scope[values.LLVMValue],
 ) (llvm.Value, error) {
-	// Get the prototype from extern (extern scope)
 	prototype, err := extern.Scope.LookupCurrentScope(call.Name)
+	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
 	}
+
 	proto := prototype.(*values.Function)
-	// Get list of expressions (call scope)
 	args, err := codegen.getExprList(callScope, call.Args)
+	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
 	}
-	// Generate call
-	callName := ""
-	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, callName), nil
+
+	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
 }
