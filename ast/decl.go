@@ -8,13 +8,13 @@ import (
 )
 
 type Decl interface {
-	AstNode
+	Node
 	declNode()
 }
 
 type FunctionDecl struct {
 	Decl
-	Scope   *scope.Scope[AstNode]
+	Scope   *scope.Scope[Node]
 	Name    string
 	Params  *FieldList
 	RetType ExprType
@@ -36,7 +36,7 @@ func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
 	Decl
-	Scope      *scope.Scope[AstNode]
+	Scope      *scope.Scope[Node]
 	Name       *token.Token
 	Prototypes []*Proto
 }
@@ -49,7 +49,7 @@ func (extern ExternDecl) declNode() {}
 
 // NOTE: Proto implementing AstNode is temporary
 type Proto struct {
-	AstNode
+	Node
 	Name    string
 	Params  *FieldList
 	RetType ExprType

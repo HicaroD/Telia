@@ -6,7 +6,7 @@ import (
 	"github.com/HicaroD/Telia/lexer/token"
 )
 
-type AstNode interface {
+type Node interface {
 	astNode()
 }
 
@@ -31,7 +31,7 @@ func (fieldList FieldList) String() string {
 }
 
 type Field struct {
-	AstNode
+	Node
 	Name *token.Token
 	Type ExprType
 }

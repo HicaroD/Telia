@@ -22,8 +22,8 @@ func New(tokens []*token.Token, diagCollector *collector.DiagCollector) *parser 
 	return &parser{cursor: newCursor(tokens), Collector: diagCollector}
 }
 
-func (parser *parser) Parse() ([]ast.AstNode, error) {
-	var astNodes []ast.AstNode
+func (parser *parser) Parse() ([]ast.Node, error) {
+	var astNodes []ast.Node
 	for {
 		token := parser.cursor.peek()
 		if token.Kind == kind.EOF {
@@ -577,6 +577,10 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 			return nil, err
 		}
 		return varDecl, nil
+	case kind.DOT:
+		idExpr := &ast.IdExpr{Name: identifier}
+		fieldAccessing := parser.parseFieldAccess(idExpr)
+		return fieldAccessing, nil
 	// TODO: variable reassignment
 	case kind.EQUAL:
 		log.Fatalf("unimplemented var reassigment")
@@ -881,7 +885,7 @@ func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCall, error) {
 	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
 }
 
-func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccessExpr {
+func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccess {
 	_, ok := parser.expect(kind.DOT)
 	// TODO(errors): should never hit
 	if !ok {
@@ -894,5 +898,5 @@ func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccessExpr {
 		log.Fatal(err)
 	}
 
-	return &ast.FieldAccessExpr{Left: left, Right: right}
+	return &ast.FieldAccess{Left: left, Right: right}
 }

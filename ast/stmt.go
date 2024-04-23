@@ -7,7 +7,7 @@ import (
 )
 
 type Stmt interface {
-	AstNode
+	Node
 	IsReturn() bool
 	stmtNode()
 }

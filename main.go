@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"os"
 
@@ -33,12 +34,14 @@ func main() {
 	lex := lexer.New(filename, reader, diagCollector)
 	tokens, err := lex.Tokenize()
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	parser := parser.New(tokens, diagCollector)
 	astNodes, err := parser.Parse()
 	if err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 

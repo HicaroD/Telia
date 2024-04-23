@@ -123,7 +123,7 @@ func TestVarDecl(t *testing.T) {
 }
 
 type exprInferenceTest struct {
-	scope *scope.Scope[ast.AstNode]
+	scope *scope.Scope[ast.Node]
 	tests []struct {
 		input string
 		ty    ast.ExprType
@@ -135,9 +135,9 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
-			scope: &scope.Scope[ast.AstNode]{
+			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
-				Nodes: map[string]ast.AstNode{
+				Nodes: map[string]ast.Node{
 					"a": &ast.VarDeclStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
@@ -326,9 +326,9 @@ func TestExprInferenceWithContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
-			scope: &scope.Scope[ast.AstNode]{
+			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
-				Nodes: map[string]ast.AstNode{
+				Nodes: map[string]ast.Node{
 					"a": &ast.VarDeclStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},

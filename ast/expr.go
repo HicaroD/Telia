@@ -37,8 +37,10 @@ var UNARY map[kind.TokenKind]bool = map[kind.TokenKind]bool{
 }
 
 type Expr interface {
-	AstNode
+	Node
+	IsId() bool
 	IsVoid() bool
+	IsFieldAccess() bool
 	exprNode()
 }
 
@@ -50,8 +52,10 @@ type VoidExpr struct {
 func (void VoidExpr) String() string {
 	return "void"
 }
-func (void VoidExpr) IsVoid() bool { return true }
-func (void VoidExpr) exprNode()    {}
+func (void VoidExpr) IsId() bool          { return false }
+func (void VoidExpr) IsVoid() bool        { return true }
+func (void VoidExpr) IsFieldAccess() bool { return false }
+func (void VoidExpr) exprNode()           {}
 
 type LiteralExpr struct {
 	Expr
@@ -62,8 +66,10 @@ type LiteralExpr struct {
 func (literal LiteralExpr) String() string {
 	return fmt.Sprintf("%s %s", literal.Type, literal.Value)
 }
-func (literal LiteralExpr) IsVoid() bool { return false }
-func (literal LiteralExpr) exprNode()    {}
+func (literal LiteralExpr) IsId() bool          { return false }
+func (literal LiteralExpr) IsVoid() bool        { return false }
+func (literal LiteralExpr) IsFieldAccess() bool { return false }
+func (literal LiteralExpr) exprNode()           {}
 
 type IdExpr struct {
 	Expr
@@ -73,20 +79,27 @@ type IdExpr struct {
 func (idExpr IdExpr) String() string {
 	return idExpr.Name.Lexeme.(string)
 }
-func (idExpr IdExpr) IsVoid() bool { return false }
-func (idExpr IdExpr) exprNode()    {}
+func (idExpr IdExpr) IsId() bool          { return true }
+func (idExpr IdExpr) IsVoid() bool        { return false }
+func (idExpr IdExpr) IsFieldAccess() bool { return false }
+func (idExpr IdExpr) exprNode()           {}
 
-type FieldAccessExpr struct {
+type FieldAccess struct {
+	Stmt
 	Expr
 	Left  Expr
 	Right Expr
 }
 
-func (fieldAcess FieldAccessExpr) String() string {
-	return fmt.Sprintf("%s.%s", fieldAcess.Left, fieldAcess.Right)
+func (fieldAccess FieldAccess) String() string {
+	return fmt.Sprintf("%s.%s", fieldAccess.Left, fieldAccess.Right)
 }
-func (fieldAccess FieldAccessExpr) IsVoid() bool { return false }
-func (fieldAccess FieldAccessExpr) exprNode()    {}
+func (fieldAccess FieldAccess) IsId() bool          { return false }
+func (fieldAccess FieldAccess) IsReturn() bool      { return false }
+func (fieldAccess FieldAccess) IsFieldAccess() bool { return true }
+func (fieldAccess FieldAccess) astNode()            {}
+func (fieldAccess FieldAccess) stmtNode()           {}
+func (fieldAccess FieldAccess) exprNode()           {}
 
 type UnaryExpr struct {
 	Expr
@@ -97,8 +110,10 @@ type UnaryExpr struct {
 func (unary UnaryExpr) String() string {
 	return fmt.Sprintf("%s %s", unary.Op, unary.Value)
 }
-func (unary UnaryExpr) IsVoid() bool { return false }
-func (unary UnaryExpr) exprNode()    {}
+func (unary UnaryExpr) IsId() bool          { return false }
+func (unary UnaryExpr) IsVoid() bool        { return false }
+func (unary UnaryExpr) IsFieldAccess() bool { return false }
+func (unary UnaryExpr) exprNode()           {}
 
 type BinaryExpr struct {
 	Expr
@@ -110,5 +125,7 @@ type BinaryExpr struct {
 func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("(%s) %s (%s)", binExpr.Left, binExpr.Op, binExpr.Right)
 }
-func (binExpr BinaryExpr) IsVoid() bool { return false }
-func (binExpr BinaryExpr) exprNode()    {}
+func (binExpr BinaryExpr) IsId() bool          { return false }
+func (binExpr BinaryExpr) IsVoid() bool        { return false }
+func (binExpr BinaryExpr) IsFieldAccess() bool { return false }
+func (binExpr BinaryExpr) exprNode()           {}

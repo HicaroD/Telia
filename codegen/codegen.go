@@ -19,12 +19,12 @@ type codegen struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	astNodes    []ast.AstNode
+	astNodes    []ast.Node
 	universe    *scope.Scope[values.LLVMValue]
 	strLiterals map[string]llvm.Value
 }
 
-func New(astNodes []ast.AstNode) *codegen {
+func New(astNodes []ast.Node) *codegen {
 	// parent of universe scope is nil
 	var nilScope *scope.Scope[values.LLVMValue] = nil
 	universe := scope.New(nilScope)
@@ -168,6 +168,11 @@ func (codegen *codegen) generateStmt(
 		if err != nil {
 			return err
 		}
+	case *ast.FieldAccess:
+		err := codegen.generateFieldAccessStmt(statement, scope)
+		if err != nil {
+			return err
+		}
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
@@ -265,25 +270,36 @@ func (codegen *codegen) generateFunctionCall(
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
+	var err error
+
+	scope := scope.New(codegen.universe)
+
 	for i := range external.Prototypes {
-		err := codegen.generatePrototype(external.Prototypes[i])
+		prototype, err := codegen.generatePrototype(external.Prototypes[i])
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+
+		err = scope.Insert(external.Prototypes[i].Name, prototype)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
 	}
-	return nil
+
+	externDecl := values.NewExtern(scope)
+	err = codegen.universe.Insert(external.Name.Lexeme.(string), externDecl)
+	return err
 }
 
-func (codegen *codegen) generatePrototype(prototype *ast.Proto) error {
-	returnType := codegen.getType(prototype.RetType)
+func (codegen *codegen) generatePrototype(prototype *ast.Proto) (*values.Function, error) {
+	returnTy := codegen.getType(prototype.RetType)
 	paramsTypes := codegen.getFieldListTypes(prototype.Params)
-	functionType := llvm.FunctionType(returnType, paramsTypes, prototype.Params.IsVariadic)
-	functionValue := llvm.AddFunction(codegen.module, prototype.Name, functionType)
-
-	function := values.NewFunctionValue(functionValue, functionType, nil)
-	err := codegen.universe.Insert(prototype.Name, function)
-	return err
+	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
+	protoValue := llvm.AddFunction(codegen.module, prototype.Name, ty)
+	proto := values.NewFunctionValue(protoValue, ty, nil)
+	return proto, nil
 }
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
@@ -520,5 +536,22 @@ func (codegen *codegen) generateCondStmt(
 		codegen.builder.CreateBr(endBlock)
 	}
 	codegen.builder.SetInsertPointAtEnd(endBlock)
+	return nil
+}
+
+func (codegen *codegen) generateFieldAccessStmt(fieldAccess *ast.FieldAccess, scope *scope.Scope[values.LLVMValue]) error {
+	id := fieldAccess.Left.(*ast.IdExpr).Name.Lexeme.(string)
+	symbol, err := scope.LookupAcrossScopes(id)
+	// TODO(errors): should not be a problem, sema needs to caught this errors
+	if err != nil {
+		log.Fatal("panic: ", err)
+	}
+	switch sym := symbol.(type) {
+	case *values.Extern:
+		_, err := codegen.getExpr(fieldAccess.Right, sym.Scope)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

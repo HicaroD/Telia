@@ -1,9 +1,9 @@
-extern C {
+extern libc {
   fn printf(format *u8, ...) i32;
   fn puts(format *u8) i32;
 }
 
 fn main() i32 {
-  puts("Hello, world 😃");
+  libc.puts("Hello, world 😃");
   return 0;
 }

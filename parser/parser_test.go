@@ -1100,11 +1100,11 @@ func TestFieldAccessExpr(t *testing.T) {
 	tests := []exprTest{
 		{
 			input: "first.second.third",
-			node: &ast.FieldAccessExpr{
+			node: &ast.FieldAccess{
 				Left: &ast.IdExpr{
 					Name: token.New("first", kind.ID, token.NewPosition(filename, 1, 1)),
 				},
-				Right: &ast.FieldAccessExpr{
+				Right: &ast.FieldAccess{
 					Left: &ast.IdExpr{
 						Name: token.New("second", kind.ID, token.NewPosition(filename, 7, 1)),
 					},
@@ -1116,7 +1116,7 @@ func TestFieldAccessExpr(t *testing.T) {
 		},
 		{
 			input: "first.second",
-			node: &ast.FieldAccessExpr{
+			node: &ast.FieldAccess{
 				Left: &ast.IdExpr{
 					Name: token.New("first", kind.ID, token.NewPosition(filename, 1, 1)),
 				},

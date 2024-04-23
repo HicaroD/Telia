@@ -17,18 +17,18 @@ import (
 )
 
 type sema struct {
-	universe *scope.Scope[ast.AstNode]
+	universe *scope.Scope[ast.Node]
 }
 
 func New() *sema {
 	// "universe" scope does not have any parent, it is the root of the tree of
 	// scopes
-	var nilScope *scope.Scope[ast.AstNode] = nil
+	var nilScope *scope.Scope[ast.Node] = nil
 	universe := scope.New(nilScope)
 	return &sema{universe}
 }
 
-func (sema *sema) Analyze(astNodes []ast.AstNode) error {
+func (sema *sema) Analyze(astNodes []ast.Node) error {
 	for i := range astNodes {
 		switch astNode := astNodes[i].(type) {
 		case *ast.FunctionDecl:
@@ -38,8 +38,7 @@ func (sema *sema) Analyze(astNodes []ast.AstNode) error {
 				return err
 			}
 		case *ast.ExternDecl:
-			err := sema.analyzeExternDecl(astNode)
-			// TODO(errors)
+			err := sema.universe.Insert(astNode.Name.Lexeme.(string), astNode)
 			if err != nil {
 				return err
 			}
@@ -76,7 +75,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 }
 
 func (sema *sema) analyzeBlock(
-	currentScope *scope.Scope[ast.AstNode],
+	currentScope *scope.Scope[ast.Node],
 	block *ast.BlockStmt,
 	returnTy ast.ExprType,
 ) error {
@@ -106,6 +105,12 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
+		case *ast.FieldAccess:
+			err := sema.analyzeFieldAccessExpr(statement, currentScope)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
 		default:
 			log.Fatalf("unimplemented statement on sema: %s", statement)
 		}
@@ -115,7 +120,7 @@ func (sema *sema) analyzeBlock(
 
 func (sema *sema) analyzeVarDecl(
 	varDecl *ast.VarDeclStmt,
-	currentScope *scope.Scope[ast.AstNode],
+	currentScope *scope.Scope[ast.Node],
 ) error {
 	if varDecl.NeedsInference {
 		// TODO(errors): need a test for it
@@ -174,7 +179,7 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 
 	sema := New()
 
-	parent := scope.New[ast.AstNode](nil)
+	parent := scope.New[ast.Node](nil)
 	scope := scope.New(parent)
 
 	err = sema.analyzeVarDecl(varDecl, scope)
@@ -188,7 +193,7 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 func (sema *sema) analyzeCondStmt(
 	condStmt *ast.CondStmt,
 	returnTy ast.ExprType,
-	outterScope *scope.Scope[ast.AstNode],
+	outterScope *scope.Scope[ast.Node],
 ) error {
 	ifScope := scope.New(outterScope)
 
@@ -233,7 +238,7 @@ func (sema *sema) analyzeCondStmt(
 
 func (sema *sema) analyzeFunctionCall(
 	functionCall *ast.FunctionCall,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) error {
 	function, err := scope.LookupAcrossScopes(functionCall.Name)
 	// TODO(errors)
@@ -330,7 +335,7 @@ func (sema *sema) analyzeFunctionCall(
 	return nil
 }
 
-func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) error {
+func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.Node]) error {
 	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
 	// TODO(errors)
 	if err != nil {
@@ -348,7 +353,7 @@ func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.AstNode]) 
 func (sema *sema) inferExprTypeWithContext(
 	exprNode ast.Expr,
 	expectedType ast.ExprType,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, error) {
 	switch expression := exprNode.(type) {
 	case *ast.LiteralExpr:
@@ -460,7 +465,7 @@ func (sema *sema) inferExprTypeWithContext(
 // Useful for testing
 func inferExprTypeWithoutContext(
 	input, filename string,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.Expr, ast.ExprType, error) {
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
@@ -479,7 +484,7 @@ func inferExprTypeWithoutContext(
 func inferExprTypeWithContext(
 	input, filename string,
 	ty ast.ExprType,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, error) {
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
@@ -496,7 +501,7 @@ func inferExprTypeWithContext(
 
 func (sema *sema) inferExprTypeWithoutContext(
 	expr ast.Expr,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, bool, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
@@ -610,9 +615,10 @@ func (sema *sema) inferExprTypeWithoutContext(
 	return nil, false, nil
 }
 
+// TODO: refactor this algorithm
 func (sema *sema) inferBinaryExprTypeWithoutContext(
 	expression *ast.BinaryExpr,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, bool, error) {
 	lhsType, lhsFoundContext, err := sema.inferExprTypeWithoutContext(expression.Left, scope)
 	// TODO(errors)
@@ -665,7 +671,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 func (sema *sema) inferBinaryExprTypeWithContext(
 	expression *ast.BinaryExpr,
 	expectedType ast.ExprType,
-	scope *scope.Scope[ast.AstNode],
+	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, error) {
 	lhsType, err := sema.inferExprTypeWithContext(expression.Left, expectedType, scope)
 	if err != nil {
@@ -696,23 +702,36 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 	return nil, fmt.Errorf("can't parse integer literal: %s", value)
 }
 
-func (sema *sema) analyzeExternDecl(extern *ast.ExternDecl) error {
-	err := sema.universe.Insert(extern.Name.Lexeme.(string), extern)
+func (sema *sema) analyzeFieldAccessExpr(fieldAccess *ast.FieldAccess, scope *scope.Scope[ast.Node]) error {
+	if !fieldAccess.Left.IsId() {
+		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
+	}
+
+	// TODO: refactor this
+	id := fieldAccess.Left.(*ast.IdExpr).Name.Lexeme.(string)
+
+	symbol, err := scope.LookupAcrossScopes(id)
+	// TODO(errors)
 	if err != nil {
 		return err
 	}
-	extern.Scope = scope.New(sema.universe)
-	// NOTE: this move is temporary, the idea is to access prototypes
-	// methods using something like "libc.printf()" where libc is the name
-	// of extern block and "printf" is one of the functions defined inside
-	// the "libc" extern block
-	// I'm only adding to Universe for testing purposes
-	for i := range extern.Prototypes {
-		err := sema.universe.Insert(extern.Prototypes[i].Name, extern.Prototypes[i])
-		// TODO(errors)
-		if err != nil {
-			return err
+
+	switch sym := symbol.(type) {
+	case *ast.ExternDecl:
+		if call, ok := fieldAccess.Right.(*ast.FunctionCall); ok {
+			for i := range sym.Prototypes {
+				if sym.Prototypes[i].Name == call.Name {
+					goto Success
+				}
+			}
+			// TODO(errors)
+			return fmt.Errorf("prototype '%s' on '%s' not found", call.Name, sym.Name.Lexeme.(string))
+		} else {
+			// TODO(errors)
+			return fmt.Errorf("invalid expression %s when accessing field", call)
 		}
 	}
+
+Success:
 	return nil
 }
