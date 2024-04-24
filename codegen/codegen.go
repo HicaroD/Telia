@@ -94,12 +94,12 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	returnType := codegen.getType(function.RetType)
 	paramsTypes := codegen.getFieldListTypes(function.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
-	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
+	functionValue := llvm.AddFunction(codegen.module, function.Name.Name(), functionType)
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
 	fnValue := values.NewFunctionValue(functionValue, functionType, &functionBlock)
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
 
-	err := codegen.universe.Insert(function.Name, fnValue)
+	err := codegen.universe.Insert(function.Name.Name(), fnValue)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -217,7 +217,7 @@ func (codegen *codegen) generateVariableDecl(
 		Ptr: varPtr,
 	}
 	// REFACTOR: make it simpler to get the lexeme
-	err = scope.Insert(varDecl.Name.Lexeme.(string), &variable)
+	err = scope.Insert(varDecl.Name.Name(), &variable)
 
 	// TODO(errors)
 	if err != nil {
@@ -234,7 +234,7 @@ func (codegen *codegen) generateParameters(
 ) error {
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		// REFACTOR: make it simpler to get the lexeme
-		paramName := functionNode.Params.Fields[i].Name.Lexeme.(string)
+		paramName := functionNode.Params.Fields[i].Name.Name()
 		paramType := paramsTypes[i]
 		paramPtr := codegen.builder.CreateAlloca(paramType, ".param")
 		codegen.builder.CreateStore(paramPtrValue, paramPtr)
@@ -255,7 +255,7 @@ func (codegen *codegen) generateFunctionCall(
 	scope *scope.Scope[values.LLVMValue],
 	functionCall *ast.FunctionCall,
 ) (llvm.Value, error) {
-	symbol, err := scope.LookupAcrossScopes(functionCall.Name)
+	symbol, err := scope.LookupAcrossScopes(functionCall.Name.Name())
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
@@ -283,7 +283,7 @@ func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 			return err
 		}
 
-		err = scope.Insert(external.Prototypes[i].Name, prototype)
+		err = scope.Insert(external.Prototypes[i].Name.Name(), prototype)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -292,7 +292,7 @@ func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 
 	externDecl := values.NewExtern(scope)
 	// REFACTOR: make it simpler to get the lexeme
-	err = codegen.universe.Insert(external.Name.Lexeme.(string), externDecl)
+	err = codegen.universe.Insert(external.Name.Name(), externDecl)
 	return err
 }
 
@@ -300,7 +300,7 @@ func (codegen *codegen) generatePrototype(prototype *ast.Proto) (*values.Functio
 	returnTy := codegen.getType(prototype.RetType)
 	paramsTypes := codegen.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
-	protoValue := llvm.AddFunction(codegen.module, prototype.Name, ty)
+	protoValue := llvm.AddFunction(codegen.module, prototype.Name.Name(), ty)
 	proto := values.NewFunctionValue(protoValue, ty, nil)
 	return proto, nil
 }
@@ -385,7 +385,7 @@ func (codegen *codegen) getExpr(
 			case *ast.BasicType:
 				switch ptrTy.Kind {
 				case kind.U8_TYPE:
-					stringLiteral := currentExpr.Value.(string)
+					stringLiteral := currentExpr.Value
 					// NOTE: huge string literals can affect performance because it
 					// creates a new entry on the map
 					globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
@@ -402,7 +402,7 @@ func (codegen *codegen) getExpr(
 		}
 	case *ast.IdExpr:
 		// REFACTOR: make it simpler to get the lexeme
-		varName := currentExpr.Name.Lexeme.(string)
+		varName := currentExpr.Name.Name()
 		symbol, err := scope.LookupAcrossScopes(varName)
 		// TODO(errors)
 		if err != nil {
@@ -452,7 +452,7 @@ func (codegen *codegen) getExpr(
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
 	case *ast.FunctionCall:
-		symbol, err := scope.LookupAcrossScopes(currentExpr.Name)
+		symbol, err := scope.LookupAcrossScopes(currentExpr.Name.Name())
 		// TODO(errors)
 		if err != nil {
 			log.Fatalf("at this point of code generation, every symbol should be located")
@@ -486,7 +486,7 @@ func (codegen *codegen) getIntegerValue(
 	if bitSize == -1 {
 		return 0, bitSize, nil
 	}
-	integerLiteral := expr.Value.(string)
+	integerLiteral := expr.Value
 	integerValue, err := strconv.ParseUint(integerLiteral, 10, bitSize)
 	return integerValue, bitSize, err
 }
@@ -548,7 +548,8 @@ func (codegen *codegen) generateFieldAccessStmt(
 	scope *scope.Scope[values.LLVMValue],
 ) error {
 	// REFACTOR: make it simpler to get the lexeme
-	id := fieldAccess.Left.(*ast.IdExpr).Name.Lexeme.(string)
+	idExpr := fieldAccess.Left.(*ast.IdExpr)
+	id := idExpr.Name.Name()
 
 	symbol, err := scope.LookupAcrossScopes(id)
 	// TODO(errors): should not be a problem, sema needs to caught this errors
@@ -581,7 +582,7 @@ func (codegen *codegen) generatePrototypeCall(
 	call *ast.FunctionCall,
 	callScope *scope.Scope[values.LLVMValue],
 ) (llvm.Value, error) {
-	prototype, err := extern.Scope.LookupCurrentScope(call.Name)
+	prototype, err := extern.Scope.LookupCurrentScope(call.Name.Name())
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
