@@ -47,7 +47,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sema := sema.New()
+	sema := sema.New(diagCollector)
 	err = sema.Analyze(astNodes)
 	// TODO(errors)
 	if err != nil {
