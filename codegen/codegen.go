@@ -36,11 +36,12 @@ func New(astNodes []ast.Node) *codegen {
 	builder := context.NewBuilder()
 
 	return &codegen{
-		universe:    universe,
-		context:     context,
-		module:      module,
-		builder:     builder,
+		context: context,
+		module:  module,
+		builder: builder,
+
 		astNodes:    astNodes,
+		universe:    universe,
 		strLiterals: map[string]llvm.Value{},
 	}
 }
@@ -70,6 +71,7 @@ func (codegen *codegen) Generate() error {
 }
 
 func (codegen *codegen) generateBitcodeFile() error {
+	// TODO: properly set the name of generated file
 	filename := "telia.ll"
 	file, err := os.Create(filename)
 	// TODO(errors)
@@ -95,6 +97,7 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	functionValue := llvm.AddFunction(codegen.module, function.Name, functionType)
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
 	fnValue := values.NewFunctionValue(functionValue, functionType, &functionBlock)
+	codegen.builder.SetInsertPointAtEnd(functionBlock)
 
 	err := codegen.universe.Insert(function.Name, fnValue)
 	// TODO(errors)
@@ -103,8 +106,6 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 	}
 
 	fnScope := scope.New(codegen.universe)
-
-	codegen.builder.SetInsertPointAtEnd(functionBlock)
 	err = codegen.generateParameters(fnValue, function, fnScope, paramsTypes)
 	// TODO(errors)
 	if err != nil {
@@ -170,6 +171,7 @@ func (codegen *codegen) generateStmt(
 		}
 	case *ast.FieldAccess:
 		err := codegen.generateFieldAccessStmt(statement, scope)
+		// TODO(errors)
 		if err != nil {
 			return err
 		}
@@ -214,6 +216,7 @@ func (codegen *codegen) generateVariableDecl(
 		Ty:  varTy,
 		Ptr: varPtr,
 	}
+	// REFACTOR: make it simpler to get the lexeme
 	err = scope.Insert(varDecl.Name.Lexeme.(string), &variable)
 
 	// TODO(errors)
@@ -230,6 +233,7 @@ func (codegen *codegen) generateParameters(
 	paramsTypes []llvm.Type,
 ) error {
 	for i, paramPtrValue := range fnValue.Fn.Params() {
+		// REFACTOR: make it simpler to get the lexeme
 		paramName := functionNode.Params.Fields[i].Name.Lexeme.(string)
 		paramType := paramsTypes[i]
 		paramPtr := codegen.builder.CreateAlloca(paramType, ".param")
@@ -264,9 +268,7 @@ func (codegen *codegen) generateFunctionCall(
 		return llvm.Value{}, err
 	}
 
-	// NOTE: do I really need to define the name?
-	callName := ""
-	return codegen.builder.CreateCall(function.Ty, function.Fn, args, callName), nil
+	return codegen.builder.CreateCall(function.Ty, function.Fn, args, ""), nil
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
@@ -289,6 +291,7 @@ func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 	}
 
 	externDecl := values.NewExtern(scope)
+	// REFACTOR: make it simpler to get the lexeme
 	err = codegen.universe.Insert(external.Name.Lexeme.(string), externDecl)
 	return err
 }
@@ -398,6 +401,7 @@ func (codegen *codegen) getExpr(
 			}
 		}
 	case *ast.IdExpr:
+		// REFACTOR: make it simpler to get the lexeme
 		varName := currentExpr.Name.Lexeme.(string)
 		symbol, err := scope.LookupAcrossScopes(varName)
 		// TODO(errors)
@@ -458,7 +462,7 @@ func (codegen *codegen) getExpr(
 			fnCall, err := codegen.generateFunctionCall(scope, currentExpr)
 			// TODO(errors)
 			if err != nil {
-				return llvm.Value{}, nil
+				return llvm.Value{}, err
 			}
 			return fnCall, nil
 		default:
@@ -539,19 +543,56 @@ func (codegen *codegen) generateCondStmt(
 	return nil
 }
 
-func (codegen *codegen) generateFieldAccessStmt(fieldAccess *ast.FieldAccess, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateFieldAccessStmt(
+	fieldAccess *ast.FieldAccess,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	// REFACTOR: make it simpler to get the lexeme
 	id := fieldAccess.Left.(*ast.IdExpr).Name.Lexeme.(string)
+
 	symbol, err := scope.LookupAcrossScopes(id)
 	// TODO(errors): should not be a problem, sema needs to caught this errors
 	if err != nil {
 		log.Fatal("panic: ", err)
 	}
-	switch sym := symbol.(type) {
+
+	switch left := symbol.(type) {
 	case *values.Extern:
-		_, err := codegen.getExpr(fieldAccess.Right, sym.Scope)
-		if err != nil {
-			return err
+		switch right := fieldAccess.Right.(type) {
+		case *ast.FunctionCall:
+			_, err := codegen.generatePrototypeCall(left, right, scope)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
+		default:
+			// TODO(errors)
+			return fmt.Errorf("unimplemented %s on field access statement", right)
 		}
+	default:
+		// TODO(errors)
+		return fmt.Errorf("unimplemented %s on extern", left)
 	}
 	return nil
+}
+
+func (codegen *codegen) generatePrototypeCall(
+	extern *values.Extern,
+	call *ast.FunctionCall,
+	callScope *scope.Scope[values.LLVMValue],
+) (llvm.Value, error) {
+	prototype, err := extern.Scope.LookupCurrentScope(call.Name)
+	// TODO(errors)
+	if err != nil {
+		return llvm.Value{}, err
+	}
+
+	proto := prototype.(*values.Function)
+	args, err := codegen.getExprList(callScope, call.Args)
+	// TODO(errors)
+	if err != nil {
+		return llvm.Value{}, err
+	}
+
+	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
 }

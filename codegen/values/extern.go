@@ -6,7 +6,7 @@ import (
 
 type Extern struct {
 	LLVMValue
-	Scope      *scope.Scope[LLVMValue]
+	Scope *scope.Scope[LLVMValue]
 }
 
 func NewExtern(scope *scope.Scope[LLVMValue]) *Extern {
