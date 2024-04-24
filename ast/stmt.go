@@ -57,7 +57,7 @@ func (ret ReturnStmt) stmtNode()      {}
 type FunctionCall struct {
 	Stmt
 	Expr
-	Name string
+	Name *token.Token
 	Args []Expr
 }
 

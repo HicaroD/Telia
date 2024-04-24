@@ -60,7 +60,7 @@ func (void VoidExpr) exprNode()           {}
 type LiteralExpr struct {
 	Expr
 	Type  ExprType
-	Value any
+	Value string
 }
 
 func (literal LiteralExpr) String() string {
@@ -78,7 +78,7 @@ type IdExpr struct {
 
 func (idExpr IdExpr) String() string {
 	// Make it simpler to get lexeme
-	return idExpr.Name.Lexeme.(string)
+	return idExpr.Name.Lexeme
 }
 func (idExpr IdExpr) IsId() bool          { return true }
 func (idExpr IdExpr) IsVoid() bool        { return false }
