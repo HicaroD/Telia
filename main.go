@@ -33,6 +33,7 @@ func main() {
 
 	lex := lexer.New(filename, reader, diagCollector)
 	tokens, err := lex.Tokenize()
+	// TODO(errors)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -40,6 +41,7 @@ func main() {
 
 	parser := parser.New(tokens, diagCollector)
 	astNodes, err := parser.Parse()
+	// TODO(errors)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
