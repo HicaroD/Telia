@@ -304,9 +304,10 @@ func (sema *sema) analyzeFunctionCall(
 		log.Fatalf("expected symbol to be a function or proto, not %s", reflect.TypeOf(function))
 	}
 
-	if len(functionCall.Args) < len(decl.Params.Fields) {
+	if len(functionCall.Args) != len(decl.Params.Fields) {
 		pos := functionCall.Name.Position
-		// TODO(errors): show which arguments and which types we expect
+		// TODO(errors): show which arguments were passed and which types we
+		// were expecting
 		notEnoughArguments := collector.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: not enough arguments in call to '%s'",
@@ -319,6 +320,7 @@ func (sema *sema) analyzeFunctionCall(
 		sema.collector.ReportAndSave(notEnoughArguments)
 		return collector.COMPILER_ERROR_FOUND
 	}
+
 	for i := range len(functionCall.Args) {
 		paramType := decl.Params.Fields[i].Type
 		argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
