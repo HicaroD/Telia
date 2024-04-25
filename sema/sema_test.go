@@ -414,6 +414,15 @@ func TestSemanticErrors(t *testing.T) {
 
 	tests := []semanticErrorTest{
 		{
+			input: "extern libc { fn puts(); fn puts(); }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:1:29: prototype 'puts' already declared on extern 'libc'",
+				},
+			},
+		},
+		{
 			input: "fn do_nothing() {}\nfn do_nothing() {}",
 			diags: []collector.Diag{
 				{

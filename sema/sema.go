@@ -42,8 +42,15 @@ func (sema *sema) Analyze(nodes []ast.Node) error {
 			for i := range astNode.Prototypes {
 				prototypeName := astNode.Prototypes[i].Name.Name()
 				err := externScope.Insert(prototypeName, astNode.Prototypes[i])
-				// TODO(errors): deal with prototype redeclaration
 				if err != nil {
+					if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+						pos := astNode.Prototypes[i].Name.Position
+						prototypeRedeclaration := collector.Diag{
+							Message: fmt.Sprintf("%s:%d:%d: prototype '%s' already declared on extern '%s'", pos.Filename, pos.Line, pos.Column, prototypeName, astNode.Name.Name()),
+						}
+						sema.collector.ReportAndSave(prototypeRedeclaration)
+						return collector.COMPILER_ERROR_FOUND
+					}
 					return err
 				}
 			}
@@ -273,6 +280,7 @@ func (sema *sema) analyzeCondStmt(
 		if err != nil {
 			return err
 		}
+
 		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
 		// TODO(errors)
 		if err != nil {
