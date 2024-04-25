@@ -464,6 +464,22 @@ func TestSemanticErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "fn main() { foo(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: function 'foo' not defined on scope",
+				},
+			},
+		},
+		{
+			input: "fn main() { a := 1; a(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:21: 'a' is not callable",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {

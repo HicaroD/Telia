@@ -330,18 +330,41 @@ func (sema *sema) analyzeCondStmt(
 
 func (sema *sema) analyzeFunctionCall(
 	functionCall *ast.FunctionCall,
-	scope *scope.Scope[ast.Node],
+	currentScope *scope.Scope[ast.Node],
 ) error {
-	function, err := scope.LookupAcrossScopes(functionCall.Name.Name())
-	// TODO(errors)
+	function, err := currentScope.LookupAcrossScopes(functionCall.Name.Name())
 	if err != nil {
+		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			pos := functionCall.Name.Position
+			functionNotDefined := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: function '%s' not defined on scope",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					functionCall.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(functionNotDefined)
+			return collector.COMPILER_ERROR_FOUND
+		}
 		return err
 	}
 
 	decl, ok := function.(*ast.FunctionDecl)
-	// TODO(errors)
 	if !ok {
-		log.Fatalf("expected symbol to be a function, not %s", reflect.TypeOf(function))
+		pos := functionCall.Name.Position
+		notCallable := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: '%s' is not callable",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				functionCall.Name.Name(),
+			),
+		}
+		sema.collector.ReportAndSave(notCallable)
+		return collector.COMPILER_ERROR_FOUND
 	}
 
 	if len(functionCall.Args) != len(decl.Params.Fields) {
@@ -363,7 +386,7 @@ func (sema *sema) analyzeFunctionCall(
 
 	for i := range len(functionCall.Args) {
 		paramType := decl.Params.Fields[i].Type
-		argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, scope)
+		argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, currentScope)
 		if err != nil {
 			return err
 		}
