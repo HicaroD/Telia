@@ -776,7 +776,7 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 
 func (sema *sema) analyzeFieldAccessExpr(
 	fieldAccess *ast.FieldAccess,
-	scope *scope.Scope[ast.Node],
+	currentScope *scope.Scope[ast.Node],
 ) error {
 	if !fieldAccess.Left.IsId() {
 		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
@@ -785,9 +785,22 @@ func (sema *sema) analyzeFieldAccessExpr(
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
-	symbol, err := scope.LookupAcrossScopes(id)
-	// TODO(errors)
+	symbol, err := currentScope.LookupAcrossScopes(id)
 	if err != nil {
+		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			pos := idExpr.Name.Position
+			symbolNotDefined := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: '%s' not defined on scope",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					id,
+				),
+			}
+			sema.collector.ReportAndSave(symbolNotDefined)
+			return collector.COMPILER_ERROR_FOUND
+		}
 		return err
 	}
 
@@ -795,7 +808,7 @@ func (sema *sema) analyzeFieldAccessExpr(
 	case *ast.ExternDecl:
 		switch right := fieldAccess.Right.(type) {
 		case *ast.FunctionCall:
-			err := sema.analyzePrototypeCall(right, scope, sym)
+			err := sema.analyzePrototypeCall(right, currentScope, sym)
 			if err != nil {
 				return err
 			}
@@ -804,7 +817,6 @@ func (sema *sema) analyzeFieldAccessExpr(
 			return fmt.Errorf("invalid expression %s when accessing field", right)
 		}
 	}
-	// Success:
 	return nil
 }
 

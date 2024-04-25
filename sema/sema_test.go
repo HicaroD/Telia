@@ -480,6 +480,14 @@ func TestSemanticErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "fn main() { libc.printf(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: 'libc' not defined on scope",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
