@@ -34,21 +34,22 @@ func (sema *sema) Analyze(nodes []ast.Node) error {
 		switch astNode := nodes[i].(type) {
 		case *ast.FunctionDecl:
 			err := sema.analyzeFnDecl(astNode)
-			// TODO(errors)
 			if err != nil {
 				return err
 			}
 		case *ast.ExternDecl:
 			externScope := scope.New(sema.universe)
 			for i := range astNode.Prototypes {
-				err := externScope.Insert(astNode.Prototypes[i].Name.Name(), astNode.Prototypes[i])
-				// TODO(errors)
+				prototypeName := astNode.Prototypes[i].Name.Name()
+				err := externScope.Insert(prototypeName, astNode.Prototypes[i])
+				// TODO(errors): deal with prototype redeclaration
 				if err != nil {
 					return err
 				}
 			}
 			astNode.Scope = externScope
 			err := sema.universe.Insert(astNode.Name.Name(), astNode)
+			// TODO(errors): deal with extern redeclaration
 			if err != nil {
 				return err
 			}
@@ -227,7 +228,10 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	varDecl := idStmt.(*ast.VarDeclStmt)
+	varDecl, ok := idStmt.(*ast.VarDeclStmt)
+	if !ok {
+		return nil, fmt.Errorf("unable to cast %s to *ast.VarDeclStmt", reflect.TypeOf(varDecl))
+	}
 
 	sema := New(diagCollector)
 
