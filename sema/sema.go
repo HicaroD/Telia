@@ -38,38 +38,59 @@ func (sema *sema) Analyze(nodes []ast.Node) error {
 				return err
 			}
 		case *ast.ExternDecl:
-			externScope := scope.New(sema.universe)
-			for i := range astNode.Prototypes {
-				prototypeName := astNode.Prototypes[i].Name.Name()
-				err := externScope.Insert(prototypeName, astNode.Prototypes[i])
-				if err != nil {
-					if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-						pos := astNode.Prototypes[i].Name.Position
-						prototypeRedeclaration := collector.Diag{
-							Message: fmt.Sprintf("%s:%d:%d: prototype '%s' already declared on extern '%s'", pos.Filename, pos.Line, pos.Column, prototypeName, astNode.Name.Name()),
-						}
-						sema.collector.ReportAndSave(prototypeRedeclaration)
-						return collector.COMPILER_ERROR_FOUND
-					}
-					return err
-				}
-			}
-			astNode.Scope = externScope
-			err := sema.universe.Insert(astNode.Name.Name(), astNode)
+			err := sema.analyzeExtern(astNode)
 			if err != nil {
-				if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-					pos := astNode.Name.Position
-					prototypeRedeclaration := collector.Diag{
-						Message: fmt.Sprintf("%s:%d:%d: extern '%s' already declared on scope", pos.Filename, pos.Line, pos.Column, astNode.Name.Name()),
-					}
-					sema.collector.ReportAndSave(prototypeRedeclaration)
-					return collector.COMPILER_ERROR_FOUND
-				}
 				return err
 			}
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
 		}
+	}
+	return nil
+}
+
+func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
+	externScope := scope.New(sema.universe)
+	for i := range extern.Prototypes {
+		prototypeName := extern.Prototypes[i].Name.Name()
+		err := externScope.Insert(prototypeName, extern.Prototypes[i])
+		if err != nil {
+			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				pos := extern.Prototypes[i].Name.Position
+				prototypeRedeclaration := collector.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						prototypeName,
+						extern.Name.Name(),
+					),
+				}
+				sema.collector.ReportAndSave(prototypeRedeclaration)
+				return collector.COMPILER_ERROR_FOUND
+			}
+			return err
+		}
+	}
+	extern.Scope = externScope
+	err := sema.universe.Insert(extern.Name.Name(), extern)
+	if err != nil {
+		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			pos := extern.Name.Position
+			prototypeRedeclaration := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: extern '%s' already declared on scope",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					extern.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(prototypeRedeclaration)
+			return collector.COMPILER_ERROR_FOUND
+		}
+		return err
 	}
 	return nil
 }
