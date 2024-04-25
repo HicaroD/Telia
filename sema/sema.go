@@ -171,7 +171,6 @@ func (sema *sema) analyzeBlock(
 		switch statement := block.Statements[i].(type) {
 		case *ast.FunctionCall:
 			err := sema.analyzeFunctionCall(statement, scope)
-			// TODO(errors)
 			if err != nil {
 				return err
 			}
