@@ -22,8 +22,8 @@ type sema struct {
 }
 
 func New(collector *collector.DiagCollector) *sema {
-	// "universe" scope does not have any parent, it is the root of the tree of
-	// scopes
+	// "universe" scope does not have any parent, it is the
+	// root of the tree of scopes
 	var nilScope *scope.Scope[ast.Node] = nil
 	universe := scope.New(nilScope)
 	return &sema{collector, universe}
