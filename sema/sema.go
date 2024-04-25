@@ -341,7 +341,7 @@ func (sema *sema) analyzeFunctionCall(
 	decl, ok := function.(*ast.FunctionDecl)
 	// TODO(errors)
 	if !ok {
-		log.Fatalf("expected symbol to be a function or proto, not %s", reflect.TypeOf(function))
+		log.Fatalf("expected symbol to be a function, not %s", reflect.TypeOf(function))
 	}
 
 	if len(functionCall.Args) != len(decl.Params.Fields) {
