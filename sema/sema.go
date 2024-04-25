@@ -56,8 +56,15 @@ func (sema *sema) Analyze(nodes []ast.Node) error {
 			}
 			astNode.Scope = externScope
 			err := sema.universe.Insert(astNode.Name.Name(), astNode)
-			// TODO(errors): deal with extern redeclaration
 			if err != nil {
+				if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+					pos := astNode.Name.Position
+					prototypeRedeclaration := collector.Diag{
+						Message: fmt.Sprintf("%s:%d:%d: extern '%s' already declared on scope", pos.Filename, pos.Line, pos.Column, astNode.Name.Name()),
+					}
+					sema.collector.ReportAndSave(prototypeRedeclaration)
+					return collector.COMPILER_ERROR_FOUND
+				}
 				return err
 			}
 		default:

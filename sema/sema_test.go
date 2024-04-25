@@ -423,6 +423,15 @@ func TestSemanticErrors(t *testing.T) {
 			},
 		},
 		{
+			input: "extern libc { }\nextern libc { }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:2:8: extern 'libc' already declared on scope",
+				},
+			},
+		},
+		{
 			input: "fn do_nothing() {}\nfn do_nothing() {}",
 			diags: []collector.Diag{
 				{
