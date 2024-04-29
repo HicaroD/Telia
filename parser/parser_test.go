@@ -425,7 +425,7 @@ func TestFunctionDecl(t *testing.T) {
 				},
 			},
 		},
-		// TODO: test variadic arguments on functions
+		// TODO(tests): test variadic arguments on functions
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
@@ -440,7 +440,7 @@ func TestFunctionDecl(t *testing.T) {
 	}
 }
 
-// TODO: test extern declarations
+// TODO(tests)
 // type externDeclTest struct {
 // 	input string
 // 	node  *ast.ExternDecl
@@ -1150,8 +1150,98 @@ func TestFieldAccessExpr(t *testing.T) {
 	}
 }
 
+// TODO(tests)
+type varDeclTest struct {
+	input   string
+	varDecl *ast.VarDeclStmt
+}
+
+func TestVarDecl(t *testing.T) {
+	filename := "test.tt"
+	tests := []varDeclTest{
+		{
+			input: "age := 10;",
+			varDecl: &ast.VarDeclStmt{
+				Name:           token.New("age", kind.ID, token.NewPosition(filename, 1, 1)),
+				Type:           nil,
+				NeedsInference: true,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
+				},
+			},
+		},
+		// {
+		// 	input: "a, b := 10, 10;",
+		// 	varDecl: &ast.VarDeclStmt{
+		// 		Name:           token.New("can_vote", kind.ID, token.NewPosition(filename, 1, 1)),
+		// 		Type:           nil,
+		// 		NeedsInference: true,
+		// 		Value: &ast.LiteralExpr{
+		// 			Type:  &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL},
+		// 			Value: "true",
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	input: "u8 score := 10;",
+		// 	varDecl: &ast.VarDeclStmt{
+		// 		Name:           token.New("score", kind.ID, token.NewPosition(filename, 1, 1)),
+		// 		Type:           ast.BasicType{Kind: kind.U8_TYPE},
+		// 		NeedsInference: false,
+		// 		Value: &ast.LiteralExpr{
+		// 			Type:  ast.BasicType{Kind: kind.U8_TYPE},
+		// 			Value: "10",
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	input: "int age := 10;",
+		// 	varDecl: &ast.VarDeclStmt{
+		// 		Name:           token.New("age", kind.ID, token.NewPosition(filename, 1, 1)),
+		// 		Type:           ast.BasicType{Kind: kind.INT_TYPE},
+		// 		NeedsInference: false,
+		// 		Value: &ast.LiteralExpr{
+		// 			Type:  ast.BasicType{Kind: kind.INT_TYPE},
+		// 			Value: "10",
+		// 		},
+		// 	},
+		// },
+		// This code is not valid semantically (depends!), but
+		// the parser needs to be able to analyze it.
+		// {
+		// 	input: "SomeType score := 10;",
+		// 	varDecl: &ast.VarDeclStmt{
+		// 		Name:           token.New("score", kind.ID, token.NewPosition(filename, 1, 1)),
+		// 		Type:           ast.BasicType{Kind: kind.U8_TYPE},
+		// 		NeedsInference: false,
+		// 		Value: &ast.LiteralExpr{
+		// 			Type:  ast.BasicType{Kind: kind.U8_TYPE},
+		// 			Value: "10",
+		// 		},
+		// 	},
+		// },
+		// TODO: deal with multiple variables
+		// a, b := 11, 10;
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestVarDecl('%s')", test.input), func(t *testing.T) {
+			varDecl, err := parseVarDecl(filename, test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(varDecl, test.varDecl) {
+				t.Fatalf("\nexp: %s\ngot: %s\n", test.varDecl, varDecl)
+			}
+		})
+	}
+}
+
+// TODO(tests)
 func TestFuncCallStmt(t *testing.T) {}
 
+// TODO(tests)
 func TestIfStmt(t *testing.T) {}
 
 type syntaxErrorTest struct {
@@ -1525,7 +1615,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 				},
 			},
 		},
-		// TODO: deal with id statement, such as function calls and variable
+		// TODO(tests): deal with id statement, such as function calls and variable
 		// declarations
 	}
 

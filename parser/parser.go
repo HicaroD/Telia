@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	"github.com/HicaroD/Telia/ast"
@@ -501,7 +502,7 @@ Statements:
 
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
-			idNode, err := parser.ParseIdStmt()
+			idStmt, err := parser.ParseIdStmt()
 			// TODO(errors)
 			if err != nil {
 				return nil, err
@@ -518,7 +519,7 @@ Statements:
 				return nil, collector.COMPILER_ERROR_FOUND
 			}
 
-			statements = append(statements, idNode)
+			statements = append(statements, idStmt)
 		case kind.IF:
 			condStmt, err := parser.parseCondStmt()
 			if err != nil {
@@ -562,38 +563,26 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	}
 
 	next := parser.cursor.peek()
-
 	switch next.Kind {
 	case kind.OPEN_PAREN:
 		fnCall, err := parser.parseFnCall(identifier)
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
-		return fnCall, nil
+		return fnCall, err
 	case kind.COLON_EQUAL:
 		varDecl, err := parser.parseVarDecl(identifier)
-		if err != nil {
-			return nil, err
-		}
-		return varDecl, nil
+		return varDecl, err
 	case kind.DOT:
 		idExpr := &ast.IdExpr{Name: identifier}
 		fieldAccessing := parser.parseFieldAccess(idExpr)
 		return fieldAccessing, nil
-	// TODO: variable reassignment
-	case kind.EQUAL:
-		log.Fatalf("unimplemented var reassigment")
-	// TODO(errors)
 	default:
 		return nil, fmt.Errorf("unable to parse id statement: %s", next)
 	}
 	// TODO(errors)
-	log.Fatalf("should be unreachable - parseIdStmt")
-	return nil, nil
+	// log.Fatalf("should be unreachable - parseIdStmt")
+	// return nil, nil
 }
 
-func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
+func (parser *parser) parseVarDecl(name *token.Token) (*ast.VarDeclStmt, error) {
 	// TODO: parse variable declaration with type annotation
 	// Right now I am only parsing variables with type inference
 
@@ -607,7 +596,32 @@ func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, e
 	if err != nil {
 		return nil, err
 	}
-	return &ast.VarDeclStmt{Name: identifier, Type: nil, Value: varExpr, NeedsInference: true}, nil
+
+	return &ast.VarDeclStmt{Name: name, Type: nil, Value: varExpr, NeedsInference: true}, nil
+}
+
+// Useful for testing
+func parseVarDecl(filename, input string) (*ast.VarDeclStmt, error) {
+	diagCollector := collector.New()
+
+	reader := bufio.NewReader(strings.NewReader(input))
+	lex := lexer.New(filename, reader, diagCollector)
+
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens, diagCollector)
+	stmt, err := parser.ParseIdStmt()
+	if err != nil {
+		return nil, err
+	}
+	varDecl, ok := stmt.(*ast.VarDeclStmt)
+	if !ok {
+		return nil, fmt.Errorf("%s - statement is not a variable: %s\n", stmt, reflect.TypeOf(stmt))
+	}
+	return varDecl, nil
 }
 
 func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
@@ -891,12 +905,10 @@ func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccess {
 	if !ok {
 		log.Fatal("expect a dot")
 	}
-
 	right, err := parser.parsePrimary()
 	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return &ast.FieldAccess{Left: left, Right: right}
 }
