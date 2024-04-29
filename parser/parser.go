@@ -431,7 +431,6 @@ func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 
 func (parser *parser) parseExprType() (ast.ExprType, error) {
 	token := parser.cursor.peek()
-
 	switch token.Kind {
 	case kind.STAR:
 		parser.cursor.skip() // *
@@ -440,8 +439,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			return nil, err
 		}
 		return &ast.PointerType{Type: ty}, nil
+	case kind.ID:
+		parser.cursor.skip()
+		return &ast.IdType{Name: token}, nil
 	default:
-		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
+		if token.Kind.IsBasicType() {
 			parser.cursor.skip()
 			return &ast.BasicType{Kind: token.Kind}, nil
 		}
@@ -556,52 +558,113 @@ Statements:
 }
 
 func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
-	identifier, ok := parser.expect(kind.ID)
-	// TODO(errors): should never hit
-	if !ok {
-		return nil, fmt.Errorf("expected identifier")
-	}
-
-	next := parser.cursor.peek()
-	switch next.Kind {
+	aheadId := parser.cursor.peekN(1)
+	switch aheadId.Kind {
 	case kind.OPEN_PAREN:
-		fnCall, err := parser.parseFnCall(identifier)
+		fnCall, err := parser.parseFnCall()
 		return fnCall, err
 	case kind.COLON_EQUAL:
-		varDecl, err := parser.parseVarDecl(identifier)
+		varDecl, err := parser.parseVar()
 		return varDecl, err
 	case kind.DOT:
-		idExpr := &ast.IdExpr{Name: identifier}
-		fieldAccessing := parser.parseFieldAccess(idExpr)
+		fieldAccessing := parser.parseFieldAccess()
 		return fieldAccessing, nil
 	default:
-		return nil, fmt.Errorf("unable to parse id statement: %s", next)
+		return parser.parseVar()
 	}
-	// TODO(errors)
-	// log.Fatalf("should be unreachable - parseIdStmt")
-	// return nil, nil
 }
 
-func (parser *parser) parseVarDecl(name *token.Token) (*ast.VarDeclStmt, error) {
-	// TODO: parse variable declaration with type annotation
-	// Right now I am only parsing variables with type inference
+func (parser *parser) parseVar() (*ast.MultiVarStmt, error) {
+	variables := make([]*ast.VarDeclStmt, 0)
+	isDecl := false
 
-	// TODO(errors): should never hit
-	_, ok := parser.expect(kind.COLON_EQUAL)
-	if !ok {
-		return nil, fmt.Errorf("expected ':=' at parseVarDecl")
+VarDecl:
+	for {
+		name, ok := parser.expect(kind.ID)
+		// TODO(errors)
+		if !ok {
+			return nil, fmt.Errorf("expected ID")
+		}
+
+		variable := &ast.VarDeclStmt{
+			Name:           name,
+			Type:           nil,
+			Value:          nil,
+			NeedsInference: true,
+		}
+		variables = append(variables, variable)
+
+		next := parser.cursor.peek()
+		switch next.Kind {
+		case kind.COLON_EQUAL, kind.EQUAL:
+			parser.cursor.skip() // := or =
+			isDecl = next.Kind == kind.COLON_EQUAL
+			break VarDecl
+		case kind.COMMA:
+			parser.cursor.skip()
+			continue
+		}
+
+		ty, err := parser.parseExprType()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		variable.Type = ty
+		variable.NeedsInference = false
+
+		next = parser.cursor.peek()
+		switch next.Kind {
+		case kind.COLON_EQUAL, kind.EQUAL:
+			parser.cursor.skip()
+			isDecl = next.Kind == kind.COLON_EQUAL
+			break VarDecl
+		case kind.COMMA:
+			parser.cursor.skip()
+			continue
+		}
 	}
 
-	varExpr, err := parser.parseExpr()
+	// TODO: in the future, kind.SEMICOLON will probably be a newline
+	exprs, err := parser.parseExprList(kind.SEMICOLON)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ast.VarDeclStmt{Name: name, Type: nil, Value: varExpr, NeedsInference: true}, nil
+	// TODO(errors)
+	if len(variables) != len(exprs) {
+		return nil, fmt.Errorf("%d != %d", len(variables), len(exprs))
+	}
+	for i := range variables {
+		variables[i].Value = exprs[i]
+	}
+
+	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
+}
+
+func (parser *parser) parseExprList(end kind.TokenKind) ([]ast.Expr, error) {
+	var exprs []ast.Expr
+	for {
+		if parser.cursor.nextIs(end) {
+			break
+		}
+		expr, err := parser.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		exprs = append(exprs, expr)
+
+		if parser.cursor.nextIs(kind.COMMA) {
+			parser.cursor.skip()
+			continue
+		}
+	}
+	return exprs, nil
 }
 
 // Useful for testing
-func parseVarDecl(filename, input string) (*ast.VarDeclStmt, error) {
+func parseVarDecl(filename, input string) (*ast.MultiVarStmt, error) {
 	diagCollector := collector.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -617,9 +680,13 @@ func parseVarDecl(filename, input string) (*ast.VarDeclStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	varDecl, ok := stmt.(*ast.VarDeclStmt)
+	varDecl, ok := stmt.(*ast.MultiVarStmt)
 	if !ok {
-		return nil, fmt.Errorf("%s - statement is not a variable: %s\n", stmt, reflect.TypeOf(stmt))
+		return nil, fmt.Errorf(
+			"%s - statement is not a multi variable: %s\n",
+			stmt,
+			reflect.TypeOf(stmt),
+		)
 	}
 	return varDecl, nil
 }
@@ -829,18 +896,18 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	switch token.Kind {
 	case kind.ID:
-		parser.cursor.skip()
-
 		idExpr := &ast.IdExpr{Name: token}
 
-		next := parser.cursor.peek()
+		next := parser.cursor.peekN(1)
 		switch next.Kind {
 		case kind.OPEN_PAREN:
-			return parser.parseFnCall(token)
+			return parser.parseFnCall()
 		case kind.DOT:
-			fieldAccess := parser.parseFieldAccess(idExpr)
+			fieldAccess := parser.parseFieldAccess()
 			return fieldAccess, nil
 		}
+
+		parser.cursor.skip()
 		return idExpr, nil
 	case kind.OPEN_PAREN:
 		parser.cursor.skip() // (
@@ -871,40 +938,47 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseFnCall(fnName *token.Token) (*ast.FunctionCall, error) {
-	_, ok := parser.expect(kind.OPEN_PAREN)
+func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
+	name, ok := parser.expect(kind.ID)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected 'id'")
+	}
+
+	_, ok = parser.expect(kind.OPEN_PAREN)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	var callArgs []ast.Expr
-	for {
-		if parser.cursor.nextIs(kind.CLOSE_PAREN) {
-			parser.cursor.skip()
-			break
-		}
-		expr, err := parser.parseExpr()
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
-		callArgs = append(callArgs, expr)
-
-		if parser.cursor.nextIs(kind.COMMA) {
-			parser.cursor.skip()
-			continue
-		}
+	args, err := parser.parseExprList(kind.CLOSE_PAREN)
+	if err != nil {
+		return nil, err
 	}
-	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
+
+	_, ok = parser.expect(kind.CLOSE_PAREN)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected ')'")
+	}
+
+	return &ast.FunctionCall{Name: name, Args: args}, nil
 }
 
-func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccess {
-	_, ok := parser.expect(kind.DOT)
+func (parser *parser) parseFieldAccess() *ast.FieldAccess {
+	id, ok := parser.expect(kind.ID)
+	// TODO(errors): should never hit
+	if !ok {
+		log.Fatal("expected ID")
+	}
+	left := &ast.IdExpr{Name: id}
+
+	_, ok = parser.expect(kind.DOT)
 	// TODO(errors): should never hit
 	if !ok {
 		log.Fatal("expect a dot")
 	}
+
 	right, err := parser.parsePrimary()
 	// TODO(errors)
 	if err != nil {

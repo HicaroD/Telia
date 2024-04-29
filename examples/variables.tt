@@ -1,15 +1,15 @@
-extern C {
+extern libc {
   fn printf(format *u8, ...) i32;
   fn puts(format *u8) i32;
 }
 
 fn main() i32 {
-  age := 18;
-  can_vote := true;
+  age, can_vote int := 18, true;
+
   if can_vote {
-    age := 12;
-    can_vote := 10;
-    printf("Yes, you can vote because your age is %d", age);
+    age, can_vote := 12, 10;
+    libc.printf("Yes, you can vote because your age is %d", age);
   }
+
   return 0;
 }

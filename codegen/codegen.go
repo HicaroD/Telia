@@ -163,8 +163,8 @@ func (codegen *codegen) generateStmt(
 		if err != nil {
 			return err
 		}
-	case *ast.VarDeclStmt:
-		err := codegen.generateVariableDecl(statement, scope)
+	case *ast.MultiVarStmt:
+		err := codegen.generateVar(statement, scope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -198,7 +198,24 @@ func (codegen *codegen) generateReturnStmt(
 	return nil
 }
 
-func (codegen *codegen) generateVariableDecl(
+func (codegen *codegen) generateVar(
+	varDecl *ast.MultiVarStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	if varDecl.IsDecl {
+		for i := range varDecl.Variables {
+			err := codegen.generateVarDecl(varDecl.Variables[i], scope)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		log.Fatal("unimplemented var redeclaration on codegen")
+	}
+	return nil
+}
+
+func (codegen *codegen) generateVarDecl(
 	varDecl *ast.VarDeclStmt,
 	scope *scope.Scope[values.LLVMValue],
 ) error {

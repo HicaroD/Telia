@@ -1150,83 +1150,132 @@ func TestFieldAccessExpr(t *testing.T) {
 	}
 }
 
-// TODO(tests)
 type varDeclTest struct {
 	input   string
-	varDecl *ast.VarDeclStmt
+	varDecl *ast.MultiVarStmt
 }
 
-func TestVarDecl(t *testing.T) {
+func TestVar(t *testing.T) {
 	filename := "test.tt"
 	tests := []varDeclTest{
 		{
 			input: "age := 10;",
-			varDecl: &ast.VarDeclStmt{
-				Name:           token.New("age", kind.ID, token.NewPosition(filename, 1, 1)),
-				Type:           nil,
-				NeedsInference: true,
-				Value: &ast.LiteralExpr{
-					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-					Value: "10",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"age",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
 				},
 			},
 		},
-		// {
-		// 	input: "a, b := 10, 10;",
-		// 	varDecl: &ast.VarDeclStmt{
-		// 		Name:           token.New("can_vote", kind.ID, token.NewPosition(filename, 1, 1)),
-		// 		Type:           nil,
-		// 		NeedsInference: true,
-		// 		Value: &ast.LiteralExpr{
-		// 			Type:  &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL},
-		// 			Value: "true",
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	input: "u8 score := 10;",
-		// 	varDecl: &ast.VarDeclStmt{
-		// 		Name:           token.New("score", kind.ID, token.NewPosition(filename, 1, 1)),
-		// 		Type:           ast.BasicType{Kind: kind.U8_TYPE},
-		// 		NeedsInference: false,
-		// 		Value: &ast.LiteralExpr{
-		// 			Type:  ast.BasicType{Kind: kind.U8_TYPE},
-		// 			Value: "10",
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	input: "int age := 10;",
-		// 	varDecl: &ast.VarDeclStmt{
-		// 		Name:           token.New("age", kind.ID, token.NewPosition(filename, 1, 1)),
-		// 		Type:           ast.BasicType{Kind: kind.INT_TYPE},
-		// 		NeedsInference: false,
-		// 		Value: &ast.LiteralExpr{
-		// 			Type:  ast.BasicType{Kind: kind.INT_TYPE},
-		// 			Value: "10",
-		// 		},
-		// 	},
-		// },
+		{
+			input: "score u8 := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"score",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		{
+			input: "age int := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"age",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           &ast.BasicType{Kind: kind.INT_TYPE},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
 		// This code is not valid semantically (depends!), but
 		// the parser needs to be able to analyze it.
-		// {
-		// 	input: "SomeType score := 10;",
-		// 	varDecl: &ast.VarDeclStmt{
-		// 		Name:           token.New("score", kind.ID, token.NewPosition(filename, 1, 1)),
-		// 		Type:           ast.BasicType{Kind: kind.U8_TYPE},
-		// 		NeedsInference: false,
-		// 		Value: &ast.LiteralExpr{
-		// 			Type:  ast.BasicType{Kind: kind.U8_TYPE},
-		// 			Value: "10",
-		// 		},
-		// 	},
-		// },
-		// TODO: deal with multiple variables
-		// a, b := 11, 10;
+		{
+			input: "score SomeType := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"score",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type: &ast.IdType{
+							Name: token.New("SomeType", kind.ID, token.NewPosition(filename, 7, 1)),
+						},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		{
+			input: "a, b := 10, 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+					{
+						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestVarDecl('%s')", test.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
 			varDecl, err := parseVarDecl(filename, test.input)
 			if err != nil {
 				t.Fatal(err)

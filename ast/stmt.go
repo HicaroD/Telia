@@ -26,6 +26,19 @@ func (block BlockStmt) IsReturn() bool { return false }
 func (block BlockStmt) astNode()       {}
 func (block BlockStmt) stmtNode()      {}
 
+type MultiVarStmt struct {
+	Stmt
+	IsDecl    bool
+	Variables []*VarDeclStmt
+}
+
+func (multi MultiVarStmt) String() string {
+	return fmt.Sprintf("Multi: %v %v", multi.IsDecl, multi.Variables)
+}
+func (multi MultiVarStmt) IsReturn() bool { return false }
+func (multi MultiVarStmt) astNode()       {}
+func (multi MultiVarStmt) stmtNode()      {}
+
 type VarDeclStmt struct {
 	Stmt
 	Name           *token.Token

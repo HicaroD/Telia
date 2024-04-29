@@ -18,6 +18,13 @@ func (cursor *cursor) peek() *token.Token {
 	return cursor.tokens[cursor.offset]
 }
 
+func (cursor *cursor) peekN(n int) *token.Token {
+	if cursor.offset+n < len(cursor.tokens) {
+		return cursor.tokens[cursor.offset+n]
+	}
+	return cursor.tokens[len(cursor.tokens)-1]
+}
+
 func (cursor *cursor) next() *token.Token {
 	token := cursor.tokens[cursor.offset]
 	if !cursor.isOutOfBound() {

@@ -174,7 +174,7 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
-		case *ast.VarDeclStmt:
+		case *ast.MultiVarStmt:
 			err := sema.analyzeVarDecl(statement, scope)
 			// TODO(errors)
 			if err != nil {
@@ -206,47 +206,53 @@ func (sema *sema) analyzeBlock(
 }
 
 func (sema *sema) analyzeVarDecl(
-	varDecl *ast.VarDeclStmt,
+	multi *ast.MultiVarStmt,
 	currentScope *scope.Scope[ast.Node],
 ) error {
-	if varDecl.NeedsInference {
-		// TODO(errors): need a test for it
-		if varDecl.Type != nil {
-			log.Fatalf("needs inference, but variable already has a type: %s", varDecl.Type)
+	for i := range multi.Variables {
+		varDecl := multi.Variables[i]
+		if varDecl.NeedsInference {
+			// TODO(errors): need a test for it
+			if varDecl.Type != nil {
+				return fmt.Errorf(
+					"needs inference, but variable already has a type: %s",
+					varDecl.Type,
+				)
+			}
+			exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
+			varDecl.Type = exprType
+		} else {
+			// TODO(errors)
+			if varDecl.Type == nil {
+				log.Fatalf("variable does not have a type and it said it does not need inference")
+			}
+			// TODO: what do I assert here in order to make it right?
+			exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
+			// TODO(errors): Deal with type mismatch
+			if err != nil {
+				return err
+			}
+			if !reflect.DeepEqual(varDecl.Type, exprTy) {
+				return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
+			}
 		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
-		varDecl.Type = exprType
-	} else {
-		// TODO(errors)
-		if varDecl.Type == nil {
-			log.Fatalf("variable does not have a type and it said it does not need inference")
-		}
-		// TODO: what do I assert here in order to make it right?
-		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
-		// TODO(errors): Deal with type mismatch
-		if err != nil {
-			return err
-		}
-		if !reflect.DeepEqual(varDecl.Type, exprTy) {
-			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
-		}
-	}
 
-	varName := varDecl.Name.Name()
-	err := currentScope.Insert(varName, varDecl)
-	// TODO(errors): symbol already defined on scope
-	if err != nil {
-		return err
+		varName := varDecl.Name.Name()
+		err := currentScope.Insert(varName, varDecl)
+		// TODO(errors): symbol already defined on scope
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // Useful for testing
-func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
+func analyzeVarDeclFrom(input, filename string) (*ast.MultiVarStmt, error) {
 	diagCollector := collector.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -262,7 +268,7 @@ func analyzeVarDeclFrom(input, filename string) (*ast.VarDeclStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	varDecl, ok := idStmt.(*ast.VarDeclStmt)
+	varDecl, ok := idStmt.(*ast.MultiVarStmt)
 	if !ok {
 		return nil, fmt.Errorf("unable to cast %s to *ast.VarDeclStmt", reflect.TypeOf(varDecl))
 	}
