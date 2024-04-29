@@ -643,28 +643,8 @@ VarDecl:
 	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
 }
 
-func (parser *parser) parseExprList(end kind.TokenKind) ([]ast.Expr, error) {
-	var exprs []ast.Expr
-	for {
-		if parser.cursor.nextIs(end) {
-			break
-		}
-		expr, err := parser.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		exprs = append(exprs, expr)
-
-		if parser.cursor.nextIs(kind.COMMA) {
-			parser.cursor.skip()
-			continue
-		}
-	}
-	return exprs, nil
-}
-
 // Useful for testing
-func parseVarDecl(filename, input string) (*ast.MultiVarStmt, error) {
+func parseVar(filename, input string) (*ast.MultiVarStmt, error) {
 	diagCollector := collector.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -936,6 +916,26 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 			token.Position,
 		)
 	}
+}
+
+func (parser *parser) parseExprList(end kind.TokenKind) ([]ast.Expr, error) {
+	var exprs []ast.Expr
+	for {
+		if parser.cursor.nextIs(end) {
+			break
+		}
+		expr, err := parser.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		exprs = append(exprs, expr)
+
+		if parser.cursor.nextIs(kind.COMMA) {
+			parser.cursor.skip()
+			continue
+		}
+	}
+	return exprs, nil
 }
 
 func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {

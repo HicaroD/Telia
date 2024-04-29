@@ -1276,7 +1276,7 @@ func TestVar(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
-			varDecl, err := parseVarDecl(filename, test.input)
+			varDecl, err := parseVar(filename, test.input)
 			if err != nil {
 				t.Fatal(err)
 			}
