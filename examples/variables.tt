@@ -4,7 +4,7 @@ extern libc {
 }
 
 fn main() i32 {
-  age, can_vote int := 18, true;
+  age, can_vote := 18, true;
 
   if can_vote {
     age, can_vote := 12, 10;
