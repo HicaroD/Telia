@@ -1,4 +1,4 @@
-extern C {
+extern libc {
   fn printf(format *u8, ...) i32;
 }
 
@@ -12,6 +12,6 @@ fn fib(n int) int {
 fn main() i32 {
   n := 10;
   result := fib(n);
-  printf("%d: %d", n, result);
+  libc.printf("%d: %d", n, result);
   return 0;
 }
