@@ -301,13 +301,11 @@ func (sema *sema) analyzeCondStmt(
 
 	for i := range condStmt.ElifStmts {
 		elifScope := scope.New(outterScope)
-
 		err := sema.analyzeIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-
 		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
 		// TODO(errors)
 		if err != nil {

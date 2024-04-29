@@ -22,7 +22,7 @@ type varTest struct {
 	inferred bool
 }
 
-func TestVarDecl(t *testing.T) {
+func TestVarDeclForInference(t *testing.T) {
 	filename := "test.tt"
 	tests := []varTest{
 		{
@@ -105,10 +105,11 @@ func TestVarDecl(t *testing.T) {
 			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
+		// TODO: test variable decl with explicit type annotation
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestVarDecl('%s')", test.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
 			varDecl, err := analyzeVarDeclFrom(test.input, filename)
 			if err != nil {
 				t.Fatal(err)
