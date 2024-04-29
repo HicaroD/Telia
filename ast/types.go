@@ -3,6 +3,7 @@ package ast
 import (
 	"fmt"
 
+	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
 )
 
@@ -28,6 +29,19 @@ func (basicType BasicType) IsVoid() bool    { return basicType.Kind == kind.VOID
 func (basicType BasicType) exprTypeNode()   {}
 func (basicType BasicType) String() string {
 	return basicType.Kind.String()
+}
+
+type IdType struct {
+	ExprType
+	Name *token.Token
+}
+
+func (idType IdType) IsNumeric() bool { return false }
+func (idType IdType) IsBoolean() bool { return false }
+func (idType IdType) IsVoid() bool    { return false }
+func (idType IdType) exprTypeNode()   {}
+func (idType IdType) String() string {
+	return fmt.Sprintf("IdType: %s", idType.Name.Lexeme)
 }
 
 type PointerType struct {
