@@ -35,7 +35,7 @@ type VarDeclStmt struct {
 }
 
 func (variable VarDeclStmt) String() string {
-	return fmt.Sprintf("Variable: %s", variable.Name)
+	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
 }
 func (variable VarDeclStmt) IsReturn() bool { return false }
 func (variable VarDeclStmt) astNode()       {}
