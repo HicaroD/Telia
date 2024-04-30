@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	"github.com/HicaroD/Telia/ast"
@@ -210,8 +211,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
 
-	// REFACTOR: make it simpler to get the lexeme
-	return &ast.Proto{Name: name.Lexeme.(string), Params: params, RetType: returnType}, nil
+	return &ast.Proto{Name: name, Params: params, RetType: returnType}, nil
 }
 
 func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
@@ -255,9 +255,8 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	}
 
 	fnDecl := ast.FunctionDecl{
-		Scope: nil,
-		// REFACTOR: make it simpler to get the lexeme
-		Name:    name.Lexeme.(string),
+		Scope:   nil,
+		Name:    name,
 		Params:  params,
 		Block:   block,
 		RetType: returnType,
@@ -432,7 +431,6 @@ func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 
 func (parser *parser) parseExprType() (ast.ExprType, error) {
 	token := parser.cursor.peek()
-
 	switch token.Kind {
 	case kind.STAR:
 		parser.cursor.skip() // *
@@ -441,8 +439,11 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			return nil, err
 		}
 		return &ast.PointerType{Type: ty}, nil
+	case kind.ID:
+		parser.cursor.skip()
+		return &ast.IdType{Name: token}, nil
 	default:
-		if _, ok := kind.BASIC_TYPES[token.Kind]; ok {
+		if token.Kind.IsBasicType() {
 			parser.cursor.skip()
 			return &ast.BasicType{Kind: token.Kind}, nil
 		}
@@ -503,7 +504,7 @@ Statements:
 
 			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
 		case kind.ID:
-			idNode, err := parser.ParseIdStmt()
+			idStmt, err := parser.ParseIdStmt()
 			// TODO(errors)
 			if err != nil {
 				return nil, err
@@ -520,7 +521,7 @@ Statements:
 				return nil, collector.COMPILER_ERROR_FOUND
 			}
 
-			statements = append(statements, idNode)
+			statements = append(statements, idStmt)
 		case kind.IF:
 			condStmt, err := parser.parseCondStmt()
 			if err != nil {
@@ -557,60 +558,117 @@ Statements:
 }
 
 func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
-	identifier, ok := parser.expect(kind.ID)
-	// TODO(errors): should never hit
-	if !ok {
-		return nil, fmt.Errorf("expected identifier")
-	}
-
-	next := parser.cursor.peek()
-
-	switch next.Kind {
+	aheadId := parser.cursor.peekN(1)
+	switch aheadId.Kind {
 	case kind.OPEN_PAREN:
-		// REFACTOR: make it simpler to get the lexeme
-		fnCall, err := parser.parseFnCall(identifier.Lexeme.(string))
+		fnCall, err := parser.parseFnCall()
+		return fnCall, err
+	case kind.COLON_EQUAL:
+		varDecl, err := parser.parseVar()
+		return varDecl, err
+	case kind.DOT:
+		fieldAccessing := parser.parseFieldAccess()
+		return fieldAccessing, nil
+	default:
+		return parser.parseVar()
+	}
+}
+
+func (parser *parser) parseVar() (*ast.MultiVarStmt, error) {
+	variables := make([]*ast.VarDeclStmt, 0)
+	isDecl := false
+
+VarDecl:
+	for {
+		name, ok := parser.expect(kind.ID)
+		// TODO(errors)
+		if !ok {
+			return nil, fmt.Errorf("expected ID")
+		}
+
+		variable := &ast.VarDeclStmt{
+			Name:           name,
+			Type:           nil,
+			Value:          nil,
+			NeedsInference: true,
+		}
+		variables = append(variables, variable)
+
+		next := parser.cursor.peek()
+		switch next.Kind {
+		case kind.COLON_EQUAL, kind.EQUAL:
+			parser.cursor.skip() // := or =
+			isDecl = next.Kind == kind.COLON_EQUAL
+			break VarDecl
+		case kind.COMMA:
+			parser.cursor.skip()
+			continue
+		}
+
+		ty, err := parser.parseExprType()
 		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
-		return fnCall, nil
-	case kind.COLON_EQUAL:
-		varDecl, err := parser.parseVarDecl(identifier)
-		if err != nil {
-			return nil, err
+		variable.Type = ty
+		variable.NeedsInference = false
+
+		next = parser.cursor.peek()
+		switch next.Kind {
+		case kind.COLON_EQUAL, kind.EQUAL:
+			parser.cursor.skip()
+			isDecl = next.Kind == kind.COLON_EQUAL
+			break VarDecl
+		case kind.COMMA:
+			parser.cursor.skip()
+			continue
 		}
-		return varDecl, nil
-	case kind.DOT:
-		idExpr := &ast.IdExpr{Name: identifier}
-		fieldAccessing := parser.parseFieldAccess(idExpr)
-		return fieldAccessing, nil
-	// TODO: variable reassignment
-	case kind.EQUAL:
-		log.Fatalf("unimplemented var reassigment")
-	// TODO(errors)
-	default:
-		return nil, fmt.Errorf("unable to parse id statement: %s", next)
-	}
-	// TODO(errors)
-	log.Fatalf("should be unreachable - parseIdStmt")
-	return nil, nil
-}
-
-func (parser *parser) parseVarDecl(identifier *token.Token) (*ast.VarDeclStmt, error) {
-	// TODO: parse variable declaration with type annotation
-	// Right now I am only parsing variables with type inference
-
-	// TODO(errors): should never hit
-	_, ok := parser.expect(kind.COLON_EQUAL)
-	if !ok {
-		return nil, fmt.Errorf("expected ':=' at parseVarDecl")
 	}
 
-	varExpr, err := parser.parseExpr()
+	// TODO: in the future, kind.SEMICOLON will probably be a newline
+	exprs, err := parser.parseExprList(kind.SEMICOLON)
+	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.VarDeclStmt{Name: identifier, Type: nil, Value: varExpr, NeedsInference: true}, nil
+
+	// TODO(errors)
+	if len(variables) != len(exprs) {
+		return nil, fmt.Errorf("%d != %d", len(variables), len(exprs))
+	}
+	for i := range variables {
+		variables[i].Value = exprs[i]
+	}
+
+	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
+}
+
+// Useful for testing
+func parseVar(filename, input string) (*ast.MultiVarStmt, error) {
+	diagCollector := collector.New()
+
+	reader := bufio.NewReader(strings.NewReader(input))
+	lex := lexer.New(filename, reader, diagCollector)
+
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens, diagCollector)
+	stmt, err := parser.ParseIdStmt()
+	if err != nil {
+		return nil, err
+	}
+	varDecl, ok := stmt.(*ast.MultiVarStmt)
+	if !ok {
+		return nil, fmt.Errorf(
+			"%s - statement is not a multi variable: %s\n",
+			stmt,
+			reflect.TypeOf(stmt),
+		)
+	}
+	return varDecl, nil
 }
 
 func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
@@ -818,19 +876,18 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	token := parser.cursor.peek()
 	switch token.Kind {
 	case kind.ID:
-		parser.cursor.skip()
-
 		idExpr := &ast.IdExpr{Name: token}
 
-		next := parser.cursor.peek()
+		next := parser.cursor.peekN(1)
 		switch next.Kind {
 		case kind.OPEN_PAREN:
-			// REFACTOR: make it simpler to get the lexeme
-			return parser.parseFnCall(token.Lexeme.(string))
+			return parser.parseFnCall()
 		case kind.DOT:
-			fieldAccess := parser.parseFieldAccess(idExpr)
+			fieldAccess := parser.parseFieldAccess()
 			return fieldAccess, nil
 		}
+
+		parser.cursor.skip()
 		return idExpr, nil
 	case kind.OPEN_PAREN:
 		parser.cursor.skip() // (
@@ -861,36 +918,62 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseFnCall(fnName string) (*ast.FunctionCall, error) {
-	_, ok := parser.expect(kind.OPEN_PAREN)
-	// TODO(errors)
-	if !ok {
-		return nil, fmt.Errorf("expected '('")
-	}
-
-	var callArgs []ast.Expr
+func (parser *parser) parseExprList(end kind.TokenKind) ([]ast.Expr, error) {
+	var exprs []ast.Expr
 	for {
-		if parser.cursor.nextIs(kind.CLOSE_PAREN) {
-			parser.cursor.skip()
+		if parser.cursor.nextIs(end) {
 			break
 		}
 		expr, err := parser.parseExpr()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
-		callArgs = append(callArgs, expr)
+		exprs = append(exprs, expr)
 
 		if parser.cursor.nextIs(kind.COMMA) {
 			parser.cursor.skip()
 			continue
 		}
 	}
-	return &ast.FunctionCall{Name: fnName, Args: callArgs}, nil
+	return exprs, nil
 }
 
-func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccess {
-	_, ok := parser.expect(kind.DOT)
+func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
+	name, ok := parser.expect(kind.ID)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected 'id'")
+	}
+
+	_, ok = parser.expect(kind.OPEN_PAREN)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected '('")
+	}
+
+	args, err := parser.parseExprList(kind.CLOSE_PAREN)
+	if err != nil {
+		return nil, err
+	}
+
+	_, ok = parser.expect(kind.CLOSE_PAREN)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected ')'")
+	}
+
+	return &ast.FunctionCall{Name: name, Args: args}, nil
+}
+
+func (parser *parser) parseFieldAccess() *ast.FieldAccess {
+	id, ok := parser.expect(kind.ID)
+	// TODO(errors): should never hit
+	if !ok {
+		log.Fatal("expected ID")
+	}
+	left := &ast.IdExpr{Name: id}
+
+	_, ok = parser.expect(kind.DOT)
 	// TODO(errors): should never hit
 	if !ok {
 		log.Fatal("expect a dot")
@@ -901,6 +984,5 @@ func (parser *parser) parseFieldAccess(left ast.Expr) *ast.FieldAccess {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return &ast.FieldAccess{Left: left, Right: right}
 }

@@ -5,11 +5,18 @@ import (
 )
 
 type Token struct {
-	Lexeme   any
+	Lexeme   string
 	Kind     kind.TokenKind
 	Position Position
 }
 
-func New(lexeme any, kind kind.TokenKind, position Position) *Token {
+func New(lexeme string, kind kind.TokenKind, position Position) *Token {
 	return &Token{Lexeme: lexeme, Kind: kind, Position: position}
+}
+
+func (token *Token) Name() string {
+	if token.Kind == kind.ID {
+		return token.Lexeme
+	}
+	return token.Kind.String()
 }

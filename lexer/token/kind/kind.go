@@ -196,6 +196,11 @@ func (kind TokenKind) BitSize() int {
 	}
 }
 
+func (kind TokenKind) IsBasicType() bool {
+	_, ok := BASIC_TYPES[kind]
+	return ok
+}
+
 func (kind TokenKind) String() string {
 	switch kind {
 	case EOF:

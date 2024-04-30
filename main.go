@@ -33,25 +33,23 @@ func main() {
 
 	lex := lexer.New(filename, reader, diagCollector)
 	tokens, err := lex.Tokenize()
-	// TODO(errors)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Errors found during compilation ", err)
 		os.Exit(1)
 	}
 
 	parser := parser.New(tokens, diagCollector)
 	astNodes, err := parser.Parse()
-	// TODO(errors)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Errors found during compilation: ", err)
 		os.Exit(1)
 	}
 
-	sema := sema.New()
+	sema := sema.New(diagCollector)
 	err = sema.Analyze(astNodes)
-	// TODO(errors)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Errors found during compilation: ", err)
+		os.Exit(1)
 	}
 
 	codegen := codegen.New(astNodes)

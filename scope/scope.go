@@ -21,7 +21,7 @@ func New[V any](parent *Scope[V]) *Scope[V] {
 
 func (scope *Scope[V]) Insert(name string, element V) error {
 	if _, ok := scope.Nodes[name]; ok {
-		return fmt.Errorf("%s: %s", ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE, name)
+		return ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE
 	}
 	scope.Nodes[name] = element
 	return nil
@@ -42,7 +42,7 @@ func (scope *Scope[V]) LookupAcrossScopes(name string) (V, error) {
 	if scope.Parent == nil {
 		// HACK
 		var empty V
-		return empty, fmt.Errorf("%s: %s", ERR_SYMBOL_NOT_FOUND_ON_SCOPE, name)
+		return empty, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
 	}
 	return scope.Parent.LookupAcrossScopes(name)
 }

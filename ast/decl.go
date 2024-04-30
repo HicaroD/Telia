@@ -15,7 +15,7 @@ type Decl interface {
 type FunctionDecl struct {
 	Decl
 	Scope   *scope.Scope[Node]
-	Name    string
+	Name    *token.Token
 	Params  *FieldList
 	RetType ExprType
 	Block   *BlockStmt
@@ -50,7 +50,7 @@ func (extern ExternDecl) declNode() {}
 // NOTE: Proto implementing AstNode is temporary
 type Proto struct {
 	Node
-	Name    string
+	Name    *token.Token
 	Params  *FieldList
 	RetType ExprType
 }

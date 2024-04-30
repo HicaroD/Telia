@@ -26,6 +26,19 @@ func (block BlockStmt) IsReturn() bool { return false }
 func (block BlockStmt) astNode()       {}
 func (block BlockStmt) stmtNode()      {}
 
+type MultiVarStmt struct {
+	Stmt
+	IsDecl    bool
+	Variables []*VarDeclStmt
+}
+
+func (multi MultiVarStmt) String() string {
+	return fmt.Sprintf("Multi: %v %v", multi.IsDecl, multi.Variables)
+}
+func (multi MultiVarStmt) IsReturn() bool { return false }
+func (multi MultiVarStmt) astNode()       {}
+func (multi MultiVarStmt) stmtNode()      {}
+
 type VarDeclStmt struct {
 	Stmt
 	Name           *token.Token
@@ -35,7 +48,7 @@ type VarDeclStmt struct {
 }
 
 func (variable VarDeclStmt) String() string {
-	return fmt.Sprintf("Variable: %s", variable.Name)
+	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
 }
 func (variable VarDeclStmt) IsReturn() bool { return false }
 func (variable VarDeclStmt) astNode()       {}
@@ -57,7 +70,7 @@ func (ret ReturnStmt) stmtNode()      {}
 type FunctionCall struct {
 	Stmt
 	Expr
-	Name string
+	Name *token.Token
 	Args []Expr
 }
 

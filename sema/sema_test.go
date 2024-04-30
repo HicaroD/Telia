@@ -1,13 +1,18 @@
 package sema
 
 import (
+	"bufio"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/ast"
+	"github.com/HicaroD/Telia/collector"
+	"github.com/HicaroD/Telia/lexer"
 	"github.com/HicaroD/Telia/lexer/token"
 	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/parser"
 	"github.com/HicaroD/Telia/scope"
 )
 
@@ -17,7 +22,7 @@ type varTest struct {
 	inferred bool
 }
 
-func TestVarDecl(t *testing.T) {
+func TestVarDeclForInference(t *testing.T) {
 	filename := "test.tt"
 	tests := []varTest{
 		{
@@ -100,23 +105,26 @@ func TestVarDecl(t *testing.T) {
 			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
 			inferred: true,
 		},
+		// TODO: test variable decl with explicit type annotation
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestVarDecl('%s')", test.input), func(t *testing.T) {
-			varDecl, err := analyzeVarDeclFrom(test.input, filename)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !(varDecl.NeedsInference && test.inferred) {
-				t.Fatalf(
-					"inference error, expected %v, but got %v",
-					test.inferred,
-					varDecl.NeedsInference,
-				)
-			}
-			if !reflect.DeepEqual(varDecl.Type, test.ty) {
-				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, varDecl.Type)
+		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
+			multi, err := analyzeVarDeclFrom(test.input, filename)
+			for _, variable := range multi.Variables {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !(variable.NeedsInference && test.inferred) {
+					t.Fatalf(
+						"inference error, expected %v, but got %v",
+						test.inferred,
+						variable.NeedsInference,
+					)
+				}
+				if !reflect.DeepEqual(variable.Type, test.ty) {
+					t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
+				}
 			}
 		})
 	}
@@ -396,5 +404,127 @@ func TestExprInferenceWithContext(t *testing.T) {
 				},
 			)
 		}
+	}
+}
+
+type semanticErrorTest struct {
+	input string
+	diags []collector.Diag
+}
+
+func TestSemanticErrors(t *testing.T) {
+	filename := "test.tt"
+
+	tests := []semanticErrorTest{
+		{
+			input: "extern libc { fn puts(); fn puts(); }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:1:29: prototype 'puts' already declared on extern 'libc'",
+				},
+			},
+		},
+		{
+			input: "extern libc { }\nextern libc { }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:2:8: extern 'libc' already declared on scope",
+				},
+			},
+		},
+		{
+			input: "fn do_nothing() {}\nfn do_nothing() {}",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:2:4: function 'do_nothing' already declared on scope",
+				},
+			},
+		},
+		{
+			input: "fn do_nothing(a int, a int) {}",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1: parameter 'a' already declared on function 'do_nothing'",
+				},
+			},
+		},
+		{
+			input: "fn foo(a int, b int) {}\nfn main() { foo(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:2:13: not enough arguments in call to 'foo'",
+				},
+			},
+		},
+		{
+			input: "fn foo(a int) {}\nfn main() { foo(\"hello\"); }",
+			diags: []collector.Diag{
+				{
+					Message: "can't use *u8 on argument of type int",
+				},
+			},
+		},
+		{
+			input: "fn main() { foo(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: function 'foo' not defined on scope",
+				},
+			},
+		},
+		{
+			input: "fn main() { a := 1; a(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:21: 'a' is not callable",
+				},
+			},
+		},
+		{
+			input: "fn main() { libc.printf(); }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:13: 'libc' not defined on scope",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
+			collector := collector.New()
+
+			reader := bufio.NewReader(strings.NewReader(test.input))
+			lex := lexer.New(filename, reader, collector)
+			tokens, err := lex.Tokenize()
+			if err != nil {
+				t.Fatal("unexpected lexical error: ", err)
+			}
+
+			parser := parser.New(tokens, collector)
+			nodes, err := parser.Parse()
+			if err != nil {
+				t.Fatal("unexpected syntax error: ", err)
+			}
+
+			sema := New(collector)
+			err = sema.Analyze(nodes)
+			if err == nil {
+				t.Fatal("expected to have semantic error, but err == nil")
+			}
+
+			if len(collector.Diags) != len(test.diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
+					len(test.diags),
+					len(sema.collector.Diags),
+					sema.collector.Diags,
+					test.diags,
+				)
+			}
+		})
 	}
 }

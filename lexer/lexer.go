@@ -34,26 +34,26 @@ func (lex *lexer) Tokenize() ([]*token.Token, error) {
 		}
 		tokens = append(tokens, token)
 	}
-	tokens = append(tokens, lex.consumeToken(nil, kind.EOF))
+	tokens = append(tokens, lex.consumeToken("", kind.EOF))
 	return tokens, nil
 }
 
 func (lex *lexer) getToken(character rune) (*token.Token, error) {
 	switch character {
 	case '(':
-		token := lex.consumeToken(nil, kind.OPEN_PAREN)
+		token := lex.consumeToken("", kind.OPEN_PAREN)
 		lex.cursor.skip()
 		return token, nil
 	case ')':
-		token := lex.consumeToken(nil, kind.CLOSE_PAREN)
+		token := lex.consumeToken("", kind.CLOSE_PAREN)
 		lex.cursor.skip()
 		return token, nil
 	case '{':
-		token := lex.consumeToken(nil, kind.OPEN_CURLY)
+		token := lex.consumeToken("", kind.OPEN_CURLY)
 		lex.cursor.skip()
 		return token, nil
 	case '}':
-		token := lex.consumeToken(nil, kind.CLOSE_CURLY)
+		token := lex.consumeToken("", kind.CLOSE_CURLY)
 		lex.cursor.skip()
 		return token, nil
 	case '"':
@@ -63,27 +63,27 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		}
 		return stringLiteral, nil
 	case ',':
-		token := lex.consumeToken(nil, kind.COMMA)
+		token := lex.consumeToken("", kind.COMMA)
 		lex.cursor.skip()
 		return token, nil
 	case ';':
-		token := lex.consumeToken(nil, kind.SEMICOLON)
+		token := lex.consumeToken("", kind.SEMICOLON)
 		lex.cursor.skip()
 		return token, nil
 	case '+':
-		token := lex.consumeToken(nil, kind.PLUS)
+		token := lex.consumeToken("", kind.PLUS)
 		lex.cursor.skip()
 		return token, nil
 	case '-':
-		token := lex.consumeToken(nil, kind.MINUS)
+		token := lex.consumeToken("", kind.MINUS)
 		lex.cursor.skip()
 		return token, nil
 	case '*':
-		token := lex.consumeToken(nil, kind.STAR)
+		token := lex.consumeToken("", kind.STAR)
 		lex.cursor.skip()
 		return token, nil
 	case '/':
-		token := lex.consumeToken(nil, kind.SLASH)
+		token := lex.consumeToken("", kind.SLASH)
 		lex.cursor.skip()
 		return token, nil
 	case '!':
@@ -106,7 +106,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		}
 		if next == '=' {
 			lex.cursor.skip()
-			return token.New(nil, kind.BANG_EQUAL, tokenPosition), nil
+			return token.New("", kind.BANG_EQUAL, tokenPosition), nil
 		}
 
 		lex.collector.ReportAndSave(invalidCharacter)
@@ -118,11 +118,11 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition), nil
+			return token.New("", tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.GREATER_EQ
-		return token.New(nil, tokenKind, tokenPosition), nil
+		return token.New("", tokenKind, tokenPosition), nil
 	case '<':
 		tokenKind := kind.LESS
 		tokenPosition := lex.cursor.Position()
@@ -130,11 +130,11 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition), nil
+			return token.New("", tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.LESS_EQ
-		return token.New(nil, tokenKind, tokenPosition), nil
+		return token.New("", tokenKind, tokenPosition), nil
 	case '=':
 		tokenKind := kind.EQUAL
 		tokenPosition := lex.cursor.Position()
@@ -142,11 +142,11 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '=' {
-			return token.New(nil, tokenKind, tokenPosition), nil
+			return token.New("", tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // =
 		tokenKind = kind.EQUAL_EQUAL
-		return token.New(nil, tokenKind, tokenPosition), nil
+		return token.New("", tokenKind, tokenPosition), nil
 	case '.':
 		tokenKind := kind.DOT
 		tokenPosition := lex.cursor.Position()
@@ -154,18 +154,18 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 
 		next, ok := lex.cursor.peek()
 		if !ok || next != '.' {
-			return token.New(nil, tokenKind, tokenPosition), nil
+			return token.New("", tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT
 
 		next, ok = lex.cursor.peek()
 		if !ok || next != '.' {
-			return token.New(nil, tokenKind, tokenPosition), nil
+			return token.New("", tokenKind, tokenPosition), nil
 		}
 		lex.cursor.skip() // .
 		tokenKind = kind.DOT_DOT_DOT
-		return token.New(nil, tokenKind, tokenPosition), nil
+		return token.New("", tokenKind, tokenPosition), nil
 	case ':':
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip() // :
@@ -186,7 +186,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		}
 		if next == '=' {
 			lex.cursor.skip() // =
-			return token.New(nil, kind.COLON_EQUAL, tokenPosition), nil
+			return token.New("", kind.COLON_EQUAL, tokenPosition), nil
 		}
 
 		lex.collector.ReportAndSave(invalidCharacter)
@@ -258,6 +258,6 @@ func (lex *lexer) classifyIdentifier(identifier string, position token.Position)
 	return token.New(identifier, kind.ID, position)
 }
 
-func (lex *lexer) consumeToken(lexeme any, kind kind.TokenKind) *token.Token {
+func (lex *lexer) consumeToken(lexeme string, kind kind.TokenKind) *token.Token {
 	return token.New(lexeme, kind, lex.cursor.Position())
 }

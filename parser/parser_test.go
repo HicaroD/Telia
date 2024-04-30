@@ -26,12 +26,12 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing() {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open:   token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open:   token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: nil,
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 15, 1),
 					),
@@ -49,9 +49,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool) {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -59,7 +59,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 21, 1),
 					),
@@ -77,9 +77,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -91,7 +91,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -109,9 +109,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) i8 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -123,7 +123,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -141,9 +141,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) u8 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -155,7 +155,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -173,9 +173,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) i16 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -187,7 +187,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -205,9 +205,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) u16 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -219,7 +219,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -237,9 +237,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) i32 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -251,7 +251,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -269,9 +269,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) u32 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -283,7 +283,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -301,9 +301,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) i64 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -315,7 +315,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -333,9 +333,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) u64 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -347,7 +347,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -365,9 +365,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) bool {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -379,7 +379,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -397,9 +397,9 @@ func TestFunctionDecl(t *testing.T) {
 			input: "fn do_nothing(a bool, b i32) *i8 {}",
 			node: &ast.FunctionDecl{
 				Scope: nil,
-				Name:  "do_nothing",
+				Name:  token.New("do_nothing", kind.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
-					Open: token.New(nil, kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
+					Open: token.New("", kind.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Field{
 						{
 							Name: token.New("a", kind.ID, token.NewPosition(filename, 15, 1)),
@@ -411,7 +411,7 @@ func TestFunctionDecl(t *testing.T) {
 						},
 					},
 					Close: token.New(
-						nil,
+						"",
 						kind.CLOSE_PAREN,
 						token.NewPosition(filename, 28, 1),
 					),
@@ -425,7 +425,7 @@ func TestFunctionDecl(t *testing.T) {
 				},
 			},
 		},
-		// TODO: test variadic arguments on functions
+		// TODO(tests): test variadic arguments on functions
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
@@ -440,7 +440,7 @@ func TestFunctionDecl(t *testing.T) {
 	}
 }
 
-// TODO: test extern declarations
+// TODO(tests)
 // type externDeclTest struct {
 // 	input string
 // 	node  *ast.ExternDecl
@@ -882,7 +882,11 @@ func TestBinaryExpr(t *testing.T) {
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
 						Left: &ast.FunctionCall{
-							Name: "get_celsius",
+							Name: token.New(
+								"get_celsius",
+								kind.ID,
+								token.NewPosition(filename, 1, 1),
+							),
 							Args: nil,
 						},
 						Op: kind.STAR,
@@ -1064,7 +1068,7 @@ func TestBinaryExpr(t *testing.T) {
 				},
 				Op: kind.PLUS,
 				Right: &ast.FunctionCall{
-					Name: "multiply_by_2",
+					Name: token.New("multiply_by_2", kind.ID, token.NewPosition(filename, 5, 1)),
 					Args: []ast.Expr{
 						&ast.LiteralExpr{
 							Value: "10",
@@ -1146,8 +1150,147 @@ func TestFieldAccessExpr(t *testing.T) {
 	}
 }
 
+type varDeclTest struct {
+	input   string
+	varDecl *ast.MultiVarStmt
+}
+
+func TestVar(t *testing.T) {
+	filename := "test.tt"
+	tests := []varDeclTest{
+		{
+			input: "age := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"age",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		{
+			input: "score u8 := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"score",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		{
+			input: "age int := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"age",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type:           &ast.BasicType{Kind: kind.INT_TYPE},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		// This code is not valid semantically (depends!), but
+		// the parser needs to be able to analyze it.
+		{
+			input: "score SomeType := 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name: token.New(
+							"score",
+							kind.ID,
+							token.NewPosition(filename, 1, 1),
+						),
+						Type: &ast.IdType{
+							Name: token.New("SomeType", kind.ID, token.NewPosition(filename, 7, 1)),
+						},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+		{
+			input: "a, b := 10, 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: true,
+				Variables: []*ast.VarDeclStmt{
+					{
+						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+					{
+						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
+			varDecl, err := parseVar(filename, test.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(varDecl, test.varDecl) {
+				t.Fatalf("\nexp: %s\ngot: %s\n", test.varDecl, varDecl)
+			}
+		})
+	}
+}
+
+// TODO(tests)
 func TestFuncCallStmt(t *testing.T) {}
 
+// TODO(tests)
 func TestIfStmt(t *testing.T) {}
 
 type syntaxErrorTest struct {
@@ -1521,7 +1664,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 				},
 			},
 		},
-		// TODO: deal with id statement, such as function calls and variable
+		// TODO(tests): deal with id statement, such as function calls and variable
 		// declarations
 	}
 
