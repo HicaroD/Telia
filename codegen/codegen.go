@@ -216,7 +216,7 @@ func (codegen *codegen) generateVar(
 }
 
 func (codegen *codegen) generateVarDecl(
-	varDecl *ast.VarDeclStmt,
+	varDecl *ast.VarStmt,
 	scope *scope.Scope[values.LLVMValue],
 ) error {
 	varTy := codegen.getType(varDecl.Type)

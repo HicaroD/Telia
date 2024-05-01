@@ -146,7 +146,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
-					"a": &ast.VarDeclStmt{
+					"a": &ast.VarStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
@@ -337,7 +337,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
-					"a": &ast.VarDeclStmt{
+					"a": &ast.VarStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"reflect"
 	"strings"
 
 	"github.com/HicaroD/Telia/ast"
@@ -451,6 +450,51 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 	}
 }
 
+func (parser *parser) parseSingleStmt() (ast.Stmt, error) {
+	token := parser.cursor.peek()
+	switch token.Kind {
+	case kind.RETURN:
+		parser.cursor.skip()
+		returnStmt := &ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}}
+		if parser.cursor.nextIs(kind.SEMICOLON) {
+			// parser.cursor.skip()
+			return returnStmt, nil
+		}
+		returnValue, err := parser.parseExpr()
+		if err != nil {
+			tok := parser.cursor.peek()
+			pos := tok.Position
+			expectedSemicolon := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected expression or ;, not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					tok.Kind,
+				),
+			}
+			parser.Collector.ReportAndSave(expectedSemicolon)
+			return nil, collector.COMPILER_ERROR_FOUND
+		}
+		returnStmt.Value = returnValue
+		return returnStmt, nil
+	case kind.ID:
+		idStmt, err := parser.ParseIdStmt()
+		// TODO(errors)
+		return idStmt, err
+	case kind.IF:
+		condStmt, err := parser.parseCondStmt()
+		// TODO(errors)
+		return condStmt, err
+	case kind.FOR:
+		forLoop, err := parser.parseForLoop()
+		// TODO(errors)
+		return forLoop, err
+	default:
+		return nil, nil
+	}
+}
+
 func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	openCurly, ok := parser.expect(kind.OPEN_CURLY)
 	// TODO(errors): should never hit
@@ -460,77 +504,37 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 
 	var statements []ast.Stmt
 
-Statements:
 	for {
 		token := parser.cursor.peek()
 		if token.Kind == kind.CLOSE_CURLY {
 			break
 		}
 
-		switch token.Kind {
-		case kind.RETURN:
-			parser.cursor.skip()
-			if parser.cursor.nextIs(kind.SEMICOLON) {
-				statements = append(
-					statements,
-					&ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}},
-				)
-				parser.cursor.skip()
-				break
-			}
+		stmt, err := parser.parseSingleStmt()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
 
-			returnValue, err := parser.parseExpr()
-			if err != nil {
-				tok := parser.cursor.peek()
-				pos := tok.Position
-
-				expectedSemicolon := collector.Diag{
-					Message: fmt.Sprintf("%s:%d:%d: expected expression or ;, not %s", pos.Filename, pos.Line, pos.Column, tok.Kind),
-				}
-				parser.Collector.ReportAndSave(expectedSemicolon)
-
-				return nil, collector.COMPILER_ERROR_FOUND
-			}
-
+		if stmt != nil {
+			statements = append(statements, stmt)
 			semicolon, ok := parser.expect(kind.SEMICOLON)
 			if !ok {
 				pos := semicolon.Position
 				expectedSemicolon := collector.Diag{
-					Message: fmt.Sprintf("%s:%d:%d: expected ; at the end of statement, not %s", pos.Filename, pos.Line, pos.Column, semicolon.Kind),
+					Message: fmt.Sprintf(
+						"%s:%d:%d: expected ; at the end of statement, not %s",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						semicolon.Kind,
+					),
 				}
 				parser.Collector.ReportAndSave(expectedSemicolon)
 				return nil, collector.COMPILER_ERROR_FOUND
 			}
-
-			statements = append(statements, &ast.ReturnStmt{Return: token, Value: returnValue})
-		case kind.ID:
-			idStmt, err := parser.ParseIdStmt()
-			// TODO(errors)
-			if err != nil {
-				return nil, err
-			}
-
-			semicolon, ok := parser.expect(kind.SEMICOLON)
-			// TODO(errors)
-			if !ok {
-				pos := semicolon.Position
-				expectedSemicolon := collector.Diag{
-					Message: fmt.Sprintf("%s:%d:%d: expected ; at the end of statement, not %s", pos.Filename, pos.Line, pos.Column, semicolon.Kind),
-				}
-				parser.Collector.ReportAndSave(expectedSemicolon)
-				return nil, collector.COMPILER_ERROR_FOUND
-			}
-
-			statements = append(statements, idStmt)
-		case kind.IF:
-			condStmt, err := parser.parseCondStmt()
-			if err != nil {
-				return nil, err
-			}
-
-			statements = append(statements, condStmt)
-		default:
-			break Statements
+		} else {
+			break
 		}
 	}
 
@@ -563,9 +567,6 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	case kind.OPEN_PAREN:
 		fnCall, err := parser.parseFnCall()
 		return fnCall, err
-	case kind.COLON_EQUAL:
-		varDecl, err := parser.parseVar()
-		return varDecl, err
 	case kind.DOT:
 		fieldAccessing := parser.parseFieldAccess()
 		return fieldAccessing, nil
@@ -574,8 +575,8 @@ func (parser *parser) ParseIdStmt() (ast.Stmt, error) {
 	}
 }
 
-func (parser *parser) parseVar() (*ast.MultiVarStmt, error) {
-	variables := make([]*ast.VarDeclStmt, 0)
+func (parser *parser) parseVar() (ast.Stmt, error) {
+	variables := make([]*ast.VarStmt, 0)
 	isDecl := false
 
 VarDecl:
@@ -586,7 +587,7 @@ VarDecl:
 			return nil, fmt.Errorf("expected ID")
 		}
 
-		variable := &ast.VarDeclStmt{
+		variable := &ast.VarStmt{
 			Name:           name,
 			Type:           nil,
 			Value:          nil,
@@ -616,7 +617,7 @@ VarDecl:
 		next = parser.cursor.peek()
 		switch next.Kind {
 		case kind.COLON_EQUAL, kind.EQUAL:
-			parser.cursor.skip()
+			parser.cursor.skip() // := or =
 			isDecl = next.Kind == kind.COLON_EQUAL
 			break VarDecl
 		case kind.COMMA:
@@ -625,8 +626,7 @@ VarDecl:
 		}
 	}
 
-	// TODO: in the future, kind.SEMICOLON will probably be a newline
-	exprs, err := parser.parseExprList(kind.SEMICOLON)
+	exprs, err := parser.parseExprList([]kind.TokenKind{kind.SEMICOLON, kind.CLOSE_PAREN})
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -639,12 +639,11 @@ VarDecl:
 	for i := range variables {
 		variables[i].Value = exprs[i]
 	}
-
 	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
 }
 
 // Useful for testing
-func parseVar(filename, input string) (*ast.MultiVarStmt, error) {
+func parseVarFrom(filename, input string) (ast.Stmt, error) {
 	diagCollector := collector.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -660,15 +659,7 @@ func parseVar(filename, input string) (*ast.MultiVarStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	varDecl, ok := stmt.(*ast.MultiVarStmt)
-	if !ok {
-		return nil, fmt.Errorf(
-			"%s - statement is not a multi variable: %s\n",
-			stmt,
-			reflect.TypeOf(stmt),
-		)
-	}
-	return varDecl, nil
+	return stmt, nil
 }
 
 func (parser *parser) parseCondStmt() (*ast.CondStmt, error) {
@@ -918,12 +909,16 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseExprList(end kind.TokenKind) ([]ast.Expr, error) {
+func (parser *parser) parseExprList(possibleEnds []kind.TokenKind) ([]ast.Expr, error) {
 	var exprs []ast.Expr
+Var:
 	for {
-		if parser.cursor.nextIs(end) {
-			break
+		for _, end := range possibleEnds {
+			if parser.cursor.nextIs(end) {
+				break Var
+			}
 		}
+
 		expr, err := parser.parseExpr()
 		if err != nil {
 			return nil, err
@@ -951,7 +946,7 @@ func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	args, err := parser.parseExprList(kind.CLOSE_PAREN)
+	args, err := parser.parseExprList([]kind.TokenKind{kind.CLOSE_PAREN})
 	if err != nil {
 		return nil, err
 	}
@@ -985,4 +980,77 @@ func (parser *parser) parseFieldAccess() *ast.FieldAccess {
 		log.Fatal(err)
 	}
 	return &ast.FieldAccess{Left: left, Right: right}
+}
+
+func (parser *parser) parseForLoop() (*ast.ForLoop, error) {
+	_, ok := parser.expect(kind.FOR)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected 'for'")
+	}
+
+	_, ok = parser.expect(kind.OPEN_PAREN)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected '('")
+	}
+
+	init, err := parser.parseSingleStmt()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	_, ok = parser.expect(kind.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected ';'")
+	}
+
+	cond, err := parser.parseExpr()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	_, ok = parser.expect(kind.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected ';'")
+	}
+
+	update, err := parser.parseSingleStmt()
+	// TODO(errors)
+	if err != nil {
+		return nil, err
+	}
+
+	_, ok = parser.expect(kind.CLOSE_PAREN)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected ')'")
+	}
+
+	block, err := parser.parseBlock()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block}, nil
+}
+
+// Useful for testing
+func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
+	diagCollector := collector.New()
+
+	reader := bufio.NewReader(strings.NewReader(input))
+	lex := lexer.New(filename, reader, diagCollector)
+
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens, diagCollector)
+	forLoop, err := parser.parseForLoop()
+	return forLoop, err
 }

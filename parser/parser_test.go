@@ -440,6 +440,96 @@ func TestFunctionDecl(t *testing.T) {
 	}
 }
 
+type forLoopTest struct {
+	input string
+	node  *ast.ForLoop
+}
+
+func TestForLoop(t *testing.T) {
+	filename := "test.tt"
+	tests := []forLoopTest{
+		{
+			input: "for (i := 0; i < 10; i = i + 1) {}",
+			node: &ast.ForLoop{
+				Init: &ast.MultiVarStmt{
+					IsDecl: true,
+					Variables: []*ast.VarStmt{
+						{
+							Name: token.New(
+								"i",
+								kind.ID,
+								token.NewPosition(filename, 6, 1),
+							),
+							Type:           nil,
+							NeedsInference: true,
+							Value: &ast.LiteralExpr{
+								Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+								Value: "0",
+							},
+						},
+					},
+				},
+				Cond: &ast.BinaryExpr{
+					Left: &ast.IdExpr{
+						Name: token.New("i", kind.ID, token.NewPosition(filename, 14, 1)),
+					},
+					Op: kind.LESS,
+					Right: &ast.LiteralExpr{
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+						Value: "10",
+					},
+				},
+				Update: &ast.MultiVarStmt{
+					IsDecl: false,
+					Variables: []*ast.VarStmt{
+						{
+							Name: token.New(
+								"i",
+								kind.ID,
+								token.NewPosition(filename, 22, 1),
+							),
+							Type:           nil,
+							NeedsInference: true,
+							Value: &ast.BinaryExpr{
+								Left: &ast.IdExpr{
+									Name: token.New(
+										"i",
+										kind.ID,
+										token.NewPosition(filename, 26, 1),
+									),
+								},
+								Op: kind.PLUS,
+								Right: &ast.LiteralExpr{
+									Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+									Value: "1",
+								},
+							},
+						},
+					},
+				},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 33, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 34, 1),
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestForLoop('%s')", test.input), func(t *testing.T) {
+			forLoop, err := ParseForLoopFrom(test.input, filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(forLoop, test.node) {
+				t.Fatalf("\nexp: %s\ngot: %s\n", test.node, forLoop)
+			}
+		})
+	}
+}
+
 // TODO(tests)
 // type externDeclTest struct {
 // 	input string
@@ -1162,7 +1252,7 @@ func TestVar(t *testing.T) {
 			input: "age := 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: true,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name: token.New(
 							"age",
@@ -1183,7 +1273,7 @@ func TestVar(t *testing.T) {
 			input: "score u8 := 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: true,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name: token.New(
 							"score",
@@ -1204,7 +1294,7 @@ func TestVar(t *testing.T) {
 			input: "age int := 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: true,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name: token.New(
 							"age",
@@ -1227,7 +1317,7 @@ func TestVar(t *testing.T) {
 			input: "score SomeType := 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: true,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name: token.New(
 							"score",
@@ -1250,7 +1340,7 @@ func TestVar(t *testing.T) {
 			input: "a, b := 10, 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: true,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
@@ -1276,7 +1366,7 @@ func TestVar(t *testing.T) {
 			input: "a, b = 10, 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: false,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
@@ -1302,7 +1392,7 @@ func TestVar(t *testing.T) {
 			input: "a = 10;",
 			varDecl: &ast.MultiVarStmt{
 				IsDecl: false,
-				Variables: []*ast.VarDeclStmt{
+				Variables: []*ast.VarStmt{
 					{
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
@@ -1319,7 +1409,7 @@ func TestVar(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
-			varDecl, err := parseVar(filename, test.input)
+			varDecl, err := parseVarFrom(filename, test.input)
 			if err != nil {
 				t.Fatal(err)
 			}

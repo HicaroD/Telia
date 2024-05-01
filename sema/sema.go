@@ -268,6 +268,7 @@ func analyzeVarDeclFrom(input, filename string) (*ast.MultiVarStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	varDecl, ok := idStmt.(*ast.MultiVarStmt)
 	if !ok {
 		return nil, fmt.Errorf("unable to cast %s to *ast.VarDeclStmt", reflect.TypeOf(varDecl))
@@ -479,7 +480,7 @@ func (sema *sema) inferExprTypeWithContext(
 			return nil, err
 		}
 		switch symTy := symbol.(type) {
-		case *ast.VarDeclStmt:
+		case *ast.VarStmt:
 			return symTy.Type, nil
 		case *ast.Field:
 			return symTy.Type, nil
@@ -622,7 +623,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 
 		switch node := variable.(type) {
-		case *ast.VarDeclStmt:
+		case *ast.VarStmt:
 			return node.Type, true, nil
 		case *ast.Field:
 			return node.Type, true, nil
