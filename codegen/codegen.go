@@ -630,7 +630,10 @@ func (codegen *codegen) generatePrototypeCall(
 	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
 }
 
-func (codegen *codegen) generateForLoop(forLoop *ast.ForLoop, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateForLoop(
+	forLoop *ast.ForLoop,
+	scope *scope.Scope[values.LLVMValue],
+) error {
 	log.Fatal("unimplemented for loop on code generation")
 	return nil
 }
