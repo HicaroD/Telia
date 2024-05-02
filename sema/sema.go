@@ -198,6 +198,11 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
+		case *ast.ForLoop:
+			err := sema.analyzeForLoop(statement, scope)
+			if err != nil {
+				return err
+			}
 		default:
 			log.Fatalf("unimplemented statement on sema: %s", statement)
 		}
@@ -885,5 +890,9 @@ func (sema *sema) analyzePrototypeCall(
 		// TODO(errors)
 		log.Fatalf("%s needs to be a prototype", proto)
 	}
+	return nil
+}
+
+func (sema *sema) analyzeForLoop(forLoop *ast.ForLoop, scope *scope.Scope[ast.Node]) error {
 	return nil
 }
