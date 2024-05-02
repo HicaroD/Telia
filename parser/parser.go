@@ -450,14 +450,14 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 	}
 }
 
-func (parser *parser) parseSingleStmt() (ast.Stmt, error) {
+func (parser *parser) parseStmt() (ast.Stmt, error) {
 	token := parser.cursor.peek()
 	switch token.Kind {
 	case kind.RETURN:
 		parser.cursor.skip()
 		returnStmt := &ast.ReturnStmt{Return: token, Value: &ast.VoidExpr{}}
 		if parser.cursor.nextIs(kind.SEMICOLON) {
-			// parser.cursor.skip()
+			parser.cursor.skip()
 			return returnStmt, nil
 		}
 		returnValue, err := parser.parseExpr()
@@ -477,9 +477,45 @@ func (parser *parser) parseSingleStmt() (ast.Stmt, error) {
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
+
+		_, ok := parser.expect(kind.SEMICOLON)
+		if !ok {
+			tok := parser.cursor.peek()
+			pos := tok.Position
+			expectedSemicolon := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected ; at the end of statement, not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					tok.Kind,
+				),
+			}
+			parser.Collector.ReportAndSave(expectedSemicolon)
+			return nil, collector.COMPILER_ERROR_FOUND
+		}
+
 		return returnStmt, nil
 	case kind.ID:
 		idStmt, err := parser.ParseIdStmt()
+		if err != nil {
+			return nil, err
+		}
+		semicolon, ok := parser.expect(kind.SEMICOLON)
+		if !ok {
+			pos := semicolon.Position
+			expectedSemicolon := collector.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected ; at the end of statement, not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					semicolon.Kind,
+				),
+			}
+			parser.Collector.ReportAndSave(expectedSemicolon)
+			return nil, collector.COMPILER_ERROR_FOUND
+		}
 		// TODO(errors)
 		return idStmt, err
 	case kind.IF:
@@ -510,7 +546,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			break
 		}
 
-		stmt, err := parser.parseSingleStmt()
+		stmt, err := parser.parseStmt()
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -518,21 +554,6 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 
 		if stmt != nil {
 			statements = append(statements, stmt)
-			semicolon, ok := parser.expect(kind.SEMICOLON)
-			if !ok {
-				pos := semicolon.Position
-				expectedSemicolon := collector.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: expected ; at the end of statement, not %s",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-						semicolon.Kind,
-					),
-				}
-				parser.Collector.ReportAndSave(expectedSemicolon)
-				return nil, collector.COMPILER_ERROR_FOUND
-			}
 		} else {
 			break
 		}
@@ -995,7 +1016,7 @@ func (parser *parser) parseForLoop() (*ast.ForLoop, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	init, err := parser.parseSingleStmt()
+	init, err := parser.parseVar()
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -1019,7 +1040,7 @@ func (parser *parser) parseForLoop() (*ast.ForLoop, error) {
 		return nil, fmt.Errorf("expected ';'")
 	}
 
-	update, err := parser.parseSingleStmt()
+	update, err := parser.parseVar()
 	// TODO(errors)
 	if err != nil {
 		return nil, err
