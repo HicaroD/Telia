@@ -3,7 +3,8 @@ extern libc {
 }
 
 fn main() i32 {
-  negative := -10;
-  libc.printf("%d", negative);
+  negative := 10;
+  libc.printf("%d\n", -negative);
+  libc.printf("%d\n", negative);
   return 0;
 }
