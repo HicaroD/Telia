@@ -498,7 +498,7 @@ func (codegen *codegen) getExpr(
 			if err != nil {
 				return llvm.Value{}, err
 			}
-			return llvm.ConstNeg(expr), nil
+			return codegen.builder.CreateNeg(expr, ".neg"), nil
 		default:
 			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
 		}
