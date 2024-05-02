@@ -175,6 +175,11 @@ func (codegen *codegen) generateStmt(
 		if err != nil {
 			return err
 		}
+	case *ast.ForLoop:
+		err := codegen.generateForLoop(statement, scope)
+		if err != nil {
+			return err
+		}
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
@@ -486,7 +491,17 @@ func (codegen *codegen) getExpr(
 			log.Fatalf("unimplemented value: %s %s", expr, reflect.TypeOf(sym))
 		}
 	case *ast.UnaryExpr:
-		log.Fatalf("unimplemented unary expr: %s", expr)
+		switch currentExpr.Op {
+		case kind.MINUS:
+			expr, err := codegen.getExpr(currentExpr.Value, scope)
+			// TODO(errors)
+			if err != nil {
+				return llvm.Value{}, err
+			}
+			return llvm.ConstNeg(expr), nil
+		default:
+			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
+		}
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
@@ -613,4 +628,9 @@ func (codegen *codegen) generatePrototypeCall(
 	}
 
 	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
+}
+
+func (codegen *codegen) generateForLoop(forLoop *ast.ForLoop, scope *scope.Scope[values.LLVMValue]) error {
+	log.Fatal("unimplemented for loop on code generation")
+	return nil
 }
