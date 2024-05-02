@@ -1,0 +1,9 @@
+extern libc {
+  fn printf(format *u8, ...) i32;
+}
+
+fn main() i32 {
+  negative := -10;
+  libc.printf("%d", negative);
+  return 0;
+}
