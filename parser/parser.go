@@ -526,6 +526,9 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 		forLoop, err := parser.parseForLoop()
 		// TODO(errors)
 		return forLoop, err
+	case kind.WHILE:
+		whileLoop, err := parser.parseWhileLoop()
+		return whileLoop, err
 	default:
 		return nil, nil
 	}
@@ -1080,4 +1083,39 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 	parser := New(tokens, diagCollector)
 	forLoop, err := parser.parseForLoop()
 	return forLoop, err
+}
+
+func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
+	diagCollector := collector.New()
+
+	reader := bufio.NewReader(strings.NewReader(input))
+	lex := lexer.New(filename, reader, diagCollector)
+
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens, diagCollector)
+	whileLoop, err := parser.parseWhileLoop()
+	return whileLoop, err
+}
+
+func (parser *parser) parseWhileLoop() (*ast.WhileLoop, error) {
+	_, ok := parser.expect(kind.WHILE)
+	// TODO(errors): should never hit
+	if !ok {
+		return nil, fmt.Errorf("expected 'while'")
+	}
+
+	expr, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := parser.parseBlock()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.WhileLoop{Cond: expr, Block: block}, nil
 }

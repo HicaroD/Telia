@@ -522,6 +522,44 @@ func TestForLoop(t *testing.T) {
 	}
 }
 
+type whileLoopTest struct {
+	input string
+	node  *ast.WhileLoop
+}
+
+func TestWhileLoop(t *testing.T) {
+	filename := "test.tt"
+	tests := []*whileLoopTest{
+		{
+			input: "while true {}",
+			node: &ast.WhileLoop{
+				Cond: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.TRUE_BOOL_LITERAL},
+					Value: "true",
+				},
+				Block: &ast.BlockStmt{
+					OpenCurly:  token.NewPosition(filename, 12, 1),
+					Statements: nil,
+					CloseCurly: token.NewPosition(filename, 13, 1),
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestWhileLoop('%s')", test.input), func(t *testing.T) {
+			whileLoop, err := ParseWhileLoopFrom(test.input, filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(whileLoop, test.node) {
+				t.Fatalf("\nexp: %s\ngot: %s\n", test.node, whileLoop)
+			}
+		})
+	}
+}
+
 // TODO(tests)
 // type externDeclTest struct {
 // 	input string

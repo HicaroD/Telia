@@ -166,6 +166,9 @@ func (codegen *codegen) generateStmt(
 	case *ast.ForLoop:
 		err := codegen.generateForLoop(statement, function, scope)
 		return err
+	case *ast.WhileLoop:
+		err := codegen.generateWhileLoop(statement, function, scope)
+		return err
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
@@ -679,6 +682,36 @@ func (codegen *codegen) generateForLoop(
 	}
 
 	codegen.builder.CreateBr(forInitBlock)
+
+	codegen.builder.SetInsertPointAtEnd(endBlock)
+	return nil
+}
+
+func (codegen *codegen) generateWhileLoop(
+	whileLoop *ast.WhileLoop,
+	function *values.Function,
+	parentScope *scope.Scope[values.LLVMValue],
+) error {
+	whileScope := scope.New(parentScope)
+
+	whileInitBlock := llvm.AddBasicBlock(function.Fn, ".whileinit")
+	whileBodyBlock := llvm.AddBasicBlock(function.Fn, ".whilebody")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".whileend")
+
+	codegen.builder.CreateBr(whileInitBlock)
+	codegen.builder.SetInsertPointAtEnd(whileInitBlock)
+	expr, err := codegen.getExpr(whileLoop.Cond, whileScope)
+	if err != nil {
+		return err
+	}
+	codegen.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
+
+	codegen.builder.SetInsertPointAtEnd(whileBodyBlock)
+	_, err = codegen.generateBlock(whileLoop.Block, whileScope, function)
+	if err != nil {
+		return err
+	}
+	codegen.builder.CreateBr(whileInitBlock)
 
 	codegen.builder.SetInsertPointAtEnd(endBlock)
 	return nil
