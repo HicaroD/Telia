@@ -612,6 +612,7 @@ VarDecl:
 			Name:           name,
 			Type:           nil,
 			Value:          nil,
+			Decl:           true,
 			NeedsInference: true,
 		}
 		variables = append(variables, variable)
@@ -659,6 +660,11 @@ VarDecl:
 	}
 	for i := range variables {
 		variables[i].Value = exprs[i]
+		variables[i].Decl = isDecl
+	}
+
+	if len(variables) == 1 {
+		return variables[0], nil
 	}
 	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
 }

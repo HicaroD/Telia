@@ -451,22 +451,18 @@ func TestForLoop(t *testing.T) {
 		{
 			input: "for (i := 0; i < 10; i = i + 1) {}",
 			node: &ast.ForLoop{
-				Init: &ast.MultiVarStmt{
-					IsDecl: true,
-					Variables: []*ast.VarStmt{
-						{
-							Name: token.New(
-								"i",
-								kind.ID,
-								token.NewPosition(filename, 6, 1),
-							),
-							Type:           nil,
-							NeedsInference: true,
-							Value: &ast.LiteralExpr{
-								Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-								Value: "0",
-							},
-						},
+				Init: &ast.VarStmt{
+					Decl: true,
+					Name: token.New(
+						"i",
+						kind.ID,
+						token.NewPosition(filename, 6, 1),
+					),
+					Type:           nil,
+					NeedsInference: true,
+					Value: &ast.LiteralExpr{
+						Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+						Value: "0",
 					},
 				},
 				Cond: &ast.BinaryExpr{
@@ -479,31 +475,27 @@ func TestForLoop(t *testing.T) {
 						Value: "10",
 					},
 				},
-				Update: &ast.MultiVarStmt{
-					IsDecl: false,
-					Variables: []*ast.VarStmt{
-						{
+				Update: &ast.VarStmt{
+					Decl: false,
+					Name: token.New(
+						"i",
+						kind.ID,
+						token.NewPosition(filename, 22, 1),
+					),
+					Type:           nil,
+					NeedsInference: true,
+					Value: &ast.BinaryExpr{
+						Left: &ast.IdExpr{
 							Name: token.New(
 								"i",
 								kind.ID,
-								token.NewPosition(filename, 22, 1),
+								token.NewPosition(filename, 26, 1),
 							),
-							Type:           nil,
-							NeedsInference: true,
-							Value: &ast.BinaryExpr{
-								Left: &ast.IdExpr{
-									Name: token.New(
-										"i",
-										kind.ID,
-										token.NewPosition(filename, 26, 1),
-									),
-								},
-								Op: kind.PLUS,
-								Right: &ast.LiteralExpr{
-									Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-									Value: "1",
-								},
-							},
+						},
+						Op: kind.PLUS,
+						Right: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "1",
 						},
 					},
 				},
@@ -1242,7 +1234,7 @@ func TestFieldAccessExpr(t *testing.T) {
 
 type varDeclTest struct {
 	input   string
-	varDecl *ast.MultiVarStmt
+	varDecl ast.Stmt
 }
 
 func TestVar(t *testing.T) {
@@ -1250,64 +1242,52 @@ func TestVar(t *testing.T) {
 	tests := []varDeclTest{
 		{
 			input: "age := 10;",
-			varDecl: &ast.MultiVarStmt{
-				IsDecl: true,
-				Variables: []*ast.VarStmt{
-					{
-						Name: token.New(
-							"age",
-							kind.ID,
-							token.NewPosition(filename, 1, 1),
-						),
-						Type:           nil,
-						NeedsInference: true,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
-					},
+			varDecl: &ast.VarStmt{
+				Decl: true,
+				Name: token.New(
+					"age",
+					kind.ID,
+					token.NewPosition(filename, 1, 1),
+				),
+				Type:           nil,
+				NeedsInference: true,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
 				},
 			},
 		},
 		{
 			input: "score u8 := 10;",
-			varDecl: &ast.MultiVarStmt{
-				IsDecl: true,
-				Variables: []*ast.VarStmt{
-					{
-						Name: token.New(
-							"score",
-							kind.ID,
-							token.NewPosition(filename, 1, 1),
-						),
-						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
-						NeedsInference: false,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
-					},
+			varDecl: &ast.VarStmt{
+				Decl: true,
+				Name: token.New(
+					"score",
+					kind.ID,
+					token.NewPosition(filename, 1, 1),
+				),
+				Type:           &ast.BasicType{Kind: kind.U8_TYPE},
+				NeedsInference: false,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
 				},
 			},
 		},
 		{
 			input: "age int := 10;",
-			varDecl: &ast.MultiVarStmt{
-				IsDecl: true,
-				Variables: []*ast.VarStmt{
-					{
-						Name: token.New(
-							"age",
-							kind.ID,
-							token.NewPosition(filename, 1, 1),
-						),
-						Type:           &ast.BasicType{Kind: kind.INT_TYPE},
-						NeedsInference: false,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
-					},
+			varDecl: &ast.VarStmt{
+				Decl: true,
+				Name: token.New(
+					"age",
+					kind.ID,
+					token.NewPosition(filename, 1, 1),
+				),
+				Type:           &ast.BasicType{Kind: kind.INT_TYPE},
+				NeedsInference: false,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
 				},
 			},
 		},
@@ -1315,24 +1295,20 @@ func TestVar(t *testing.T) {
 		// the parser needs to be able to analyze it.
 		{
 			input: "score SomeType := 10;",
-			varDecl: &ast.MultiVarStmt{
-				IsDecl: true,
-				Variables: []*ast.VarStmt{
-					{
-						Name: token.New(
-							"score",
-							kind.ID,
-							token.NewPosition(filename, 1, 1),
-						),
-						Type: &ast.IdType{
-							Name: token.New("SomeType", kind.ID, token.NewPosition(filename, 7, 1)),
-						},
-						NeedsInference: false,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
-					},
+			varDecl: &ast.VarStmt{
+				Decl: true,
+				Name: token.New(
+					"score",
+					kind.ID,
+					token.NewPosition(filename, 1, 1),
+				),
+				Type: &ast.IdType{
+					Name: token.New("SomeType", kind.ID, token.NewPosition(filename, 7, 1)),
+				},
+				NeedsInference: false,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
 				},
 			},
 		},
@@ -1342,6 +1318,7 @@ func TestVar(t *testing.T) {
 				IsDecl: true,
 				Variables: []*ast.VarStmt{
 					{
+						Decl:           true,
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
@@ -1351,6 +1328,7 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
+						Decl:           true,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           nil,
 						NeedsInference: true,
@@ -1390,18 +1368,14 @@ func TestVar(t *testing.T) {
 		},
 		{
 			input: "a = 10;",
-			varDecl: &ast.MultiVarStmt{
-				IsDecl: false,
-				Variables: []*ast.VarStmt{
-					{
-						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
-						Type:           nil,
-						NeedsInference: true,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
-					},
+			varDecl: &ast.VarStmt{
+				Decl:           false,
+				Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+				Type:           nil,
+				NeedsInference: true,
+				Value: &ast.LiteralExpr{
+					Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+					Value: "10",
 				},
 			},
 		},

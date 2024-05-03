@@ -39,4 +39,4 @@ type Field struct {
 func (field Field) String() string {
 	return fmt.Sprintf("Name: %s\nType: %s", field.Name, field.Type)
 }
-func (field Field) astNode() {}
+func (field Field) astNode()            {}
