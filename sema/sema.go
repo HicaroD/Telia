@@ -943,9 +943,20 @@ func (sema *sema) analyzePrototypeCall(
 	extern *ast.ExternDecl,
 ) error {
 	prototype, err := extern.Scope.LookupCurrentScope(prototypeCall.Name.Name())
-	// TODO(errors)
 	if err != nil {
-		return err
+		pos := prototypeCall.Name.Position
+		prototypeNotFound := collector.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: function '%s' not declared on extern '%s'",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				prototypeCall.Name.Name(),
+				extern.Name.Name(),
+			),
+		}
+		sema.collector.ReportAndSave(prototypeNotFound)
+		return collector.COMPILER_ERROR_FOUND
 	}
 
 	if proto, ok := prototype.(*ast.Proto); ok {

@@ -1,5 +1,5 @@
 extern libc {
-  fn puts(format *u8) i32;
+  fn printf(format *u8) i32;
 }
 
 fn main() i32 {
