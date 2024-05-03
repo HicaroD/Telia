@@ -40,6 +40,7 @@ func (multi MultiVarStmt) stmtNode()      {}
 
 type VarStmt struct {
 	Stmt
+	Decl           bool
 	Name           *token.Token
 	Type           ExprType
 	Value          Expr

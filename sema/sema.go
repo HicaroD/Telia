@@ -203,6 +203,11 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
+		case *ast.VarStmt:
+			err := sema.analyzeVar(statement, scope)
+			if err != nil {
+				return err
+			}
 		default:
 			log.Fatalf("unimplemented statement on sema: %s", statement)
 		}
@@ -211,44 +216,63 @@ func (sema *sema) analyzeBlock(
 }
 
 func (sema *sema) analyzeVarDecl(
+	variable ast.Stmt,
+	currentScope *scope.Scope[ast.Node],
+) error {
+	switch varStmt := variable.(type) {
+	case *ast.MultiVarStmt:
+		err := sema.analyzeMultiVar(varStmt, currentScope)
+		return err
+	case *ast.VarStmt:
+		err := sema.analyzeVar(varStmt, currentScope)
+		return err
+	}
+	return nil
+}
+
+func (sema *sema) analyzeMultiVar(
 	multi *ast.MultiVarStmt,
 	currentScope *scope.Scope[ast.Node],
 ) error {
-	for i := range multi.Variables {
-		varDecl := multi.Variables[i]
-		if varDecl.NeedsInference {
-			// TODO(errors): need a test for it
-			if varDecl.Type != nil {
-				return fmt.Errorf(
-					"needs inference, but variable already has a type: %s",
-					varDecl.Type,
-				)
-			}
-			exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
-			// TODO(errors)
+	// TODO: refactor this code
+	// It is pretty repetitive, but I need tests before refactoring
+	if multi.IsDecl {
+		allVariablesDefined := true
+		for i := range multi.Variables {
+			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
 			if err != nil {
+				if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+					allVariablesDefined = false
+					break
+				}
 				return err
 			}
-			varDecl.Type = exprType
-		} else {
-			// TODO(errors)
-			if varDecl.Type == nil {
-				log.Fatalf("variable does not have a type and it said it does not need inference")
-			}
-			// TODO: what do I assert here in order to make it right?
-			exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
-			// TODO(errors): Deal with type mismatch
+			multi.Variables[i].Decl = false
+		}
+		// TODO(errors)
+		if allVariablesDefined {
+			return fmt.Errorf("all variables are already defined, consider using = instead of :=")
+		}
+	} else {
+		allVariablesDefined := true
+		for i := range multi.Variables {
+			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
 			if err != nil {
+				if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+					allVariablesDefined = false
+					break
+				}
 				return err
-			}
-			if !reflect.DeepEqual(varDecl.Type, exprTy) {
-				return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
 			}
 		}
-
-		varName := varDecl.Name.Name()
-		err := currentScope.Insert(varName, varDecl)
-		// TODO(errors): symbol already defined on scope
+		// TODO(errors)
+		if !allVariablesDefined {
+			return fmt.Errorf("not all variables are defined, consider using := instead of =")
+		}
+	}
+	for i := range multi.Variables {
+		err := sema.analyzeVariableType(multi.Variables[i], currentScope)
+		// TODO(errors)
 		if err != nil {
 			return err
 		}
@@ -256,8 +280,80 @@ func (sema *sema) analyzeVarDecl(
 	return nil
 }
 
+func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *scope.Scope[ast.Node]) error {
+	if variable.Decl {
+		// Não pode existir antes
+		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
+		// TODO(errors)
+		if err != nil {
+			if err != scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				return fmt.Errorf("'%s' already exists on the current scope", variable.Name.Name())
+			}
+		}
+	} else {
+		// Deve existir antes
+		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
+		// TODO(errors)
+		if err != nil {
+			if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				return fmt.Errorf("'%s' does not exists on the current scope", variable.Name.Name())
+			}
+		}
+	}
+
+	err := sema.analyzeVariableType(variable, currentScope)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sema *sema) analyzeVariableType(
+	varDecl *ast.VarStmt,
+	currentScope *scope.Scope[ast.Node],
+) error {
+	if varDecl.NeedsInference {
+		// TODO(errors): need a test for it
+		if varDecl.Type != nil {
+			return fmt.Errorf(
+				"needs inference, but variable already has a type: %s",
+				varDecl.Type,
+			)
+		}
+		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+		varDecl.Type = exprType
+	} else {
+		// TODO(errors)
+		if varDecl.Type == nil {
+			log.Fatalf("variable does not have a type and it said it does not need inference")
+		}
+		// TODO: what do I assert here in order to make it right?
+		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
+		// TODO(errors): Deal with type mismatch
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(varDecl.Type, exprTy) {
+			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
+		}
+	}
+
+	varName := varDecl.Name.Name()
+	err := currentScope.Insert(varName, varDecl)
+	// TODO(errors): symbol already defined on scope
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Useful for testing
-func analyzeVarDeclFrom(input, filename string) (*ast.MultiVarStmt, error) {
+func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	diagCollector := collector.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -269,14 +365,9 @@ func analyzeVarDeclFrom(input, filename string) (*ast.MultiVarStmt, error) {
 	}
 
 	par := parser.New(tokens, diagCollector)
-	idStmt, err := par.ParseIdStmt()
+	varStmt, err := par.ParseIdStmt()
 	if err != nil {
 		return nil, err
-	}
-
-	varDecl, ok := idStmt.(*ast.MultiVarStmt)
-	if !ok {
-		return nil, fmt.Errorf("unable to cast %s to *ast.VarDeclStmt", reflect.TypeOf(varDecl))
 	}
 
 	sema := New(diagCollector)
@@ -284,12 +375,12 @@ func analyzeVarDeclFrom(input, filename string) (*ast.MultiVarStmt, error) {
 	parent := scope.New[ast.Node](nil)
 	scope := scope.New(parent)
 
-	err = sema.analyzeVarDecl(varDecl, scope)
+	err = sema.analyzeVarDecl(varStmt, scope)
 	if err != nil {
 		return nil, err
 	}
 
-	return varDecl, nil
+	return varStmt, nil
 }
 
 func (sema *sema) analyzeCondStmt(

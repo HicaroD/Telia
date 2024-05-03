@@ -110,21 +110,25 @@ func TestVarDeclForInference(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
-			multi, err := analyzeVarDeclFrom(test.input, filename)
-			for _, variable := range multi.Variables {
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !(variable.NeedsInference && test.inferred) {
-					t.Fatalf(
-						"inference error, expected %v, but got %v",
-						test.inferred,
-						variable.NeedsInference,
-					)
-				}
-				if !reflect.DeepEqual(variable.Type, test.ty) {
-					t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
-				}
+			varStmt, err := analyzeVarDeclFrom(test.input, filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			variable, ok := varStmt.(*ast.VarStmt)
+			if !ok {
+				t.Fatalf("unable to cast %s to *ast.VarStmt", reflect.TypeOf(varStmt))
+			}
+
+			if !(variable.NeedsInference && test.inferred) {
+				t.Fatalf(
+					"inference error, expected %v, but got %v",
+					test.inferred,
+					variable.NeedsInference,
+				)
+			}
+			if !reflect.DeepEqual(variable.Type, test.ty) {
+				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
 			}
 		})
 	}
