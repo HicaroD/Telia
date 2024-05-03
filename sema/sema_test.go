@@ -451,7 +451,7 @@ func TestSemanticErrors(t *testing.T) {
 			input: "fn do_nothing(a int, a int) {}",
 			diags: []collector.Diag{
 				{
-					Message: "test.tt:1: parameter 'a' already declared on function 'do_nothing'",
+					Message: "test.tt:1:22: parameter 'a' already declared on function 'do_nothing'",
 				},
 			},
 		},
@@ -495,6 +495,39 @@ func TestSemanticErrors(t *testing.T) {
 				},
 			},
 		},
+		// Multiple variables
+		{
+			input: "fn main() { a, b := 10, 10; }",
+			diags: nil, // no errors
+		},
+		{
+			input: "fn main() { a := 1; b := 2; a, b = 10, 10; }",
+			diags: nil, // no errors
+		},
+		{
+			input: "fn main() { a := 1; a, b = 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:24: 'b' not declared",
+				},
+			},
+		},
+		{
+			input: "fn main() { b := 1; a, b = 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:21: 'a' not declared",
+				},
+			},
+		},
+		{
+			input: "fn main() { a := 1; b := 2; a, b := 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:29: no new variables declared",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -515,10 +548,7 @@ func TestSemanticErrors(t *testing.T) {
 			}
 
 			sema := New(collector)
-			err = sema.Analyze(nodes)
-			if err == nil {
-				t.Fatal("expected to have semantic error, but err == nil")
-			}
+			_ = sema.Analyze(nodes)
 
 			if len(collector.Diags) != len(test.diags) {
 				t.Fatalf(
@@ -528,6 +558,10 @@ func TestSemanticErrors(t *testing.T) {
 					sema.collector.Diags,
 					test.diags,
 				)
+			}
+
+			if !reflect.DeepEqual(collector.Diags, test.diags) {
+				t.Fatalf("\nexp: %v\ngot: %v\n", test.diags, collector.Diags)
 			}
 		})
 	}

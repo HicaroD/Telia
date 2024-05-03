@@ -174,7 +174,7 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
-		case *ast.MultiVarStmt:
+		case *ast.MultiVarStmt, *ast.VarStmt:
 			err := sema.analyzeVarDecl(statement, scope)
 			// TODO(errors)
 			if err != nil {
@@ -203,11 +203,7 @@ func (sema *sema) analyzeBlock(
 			if err != nil {
 				return err
 			}
-		case *ast.VarStmt:
-			err := sema.analyzeVar(statement, scope)
-			if err != nil {
-				return err
-			}
+
 		default:
 			log.Fatalf("unimplemented statement on sema: %s", statement)
 		}
@@ -238,6 +234,7 @@ func (sema *sema) analyzeMultiVar(
 	// It is pretty repetitive, but I need tests before refactoring
 	if multi.IsDecl {
 		allVariablesDefined := true
+
 		for i := range multi.Variables {
 			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
 			if err != nil {
@@ -249,25 +246,42 @@ func (sema *sema) analyzeMultiVar(
 			}
 			multi.Variables[i].Decl = false
 		}
-		// TODO(errors)
+
 		if allVariablesDefined {
-			return fmt.Errorf("all variables are already defined, consider using = instead of :=")
+			firstVariable := multi.Variables[0]
+			pos := firstVariable.Name.Position
+			// TODO: give user a hint for consider using = instead of :=
+			noNewVariablesDeclared := collector.Diag{
+				Message: fmt.Sprintf("%s:%d:%d: no new variables declared", pos.Filename, pos.Line, pos.Column),
+			}
+			sema.collector.ReportAndSave(noNewVariablesDeclared)
+			return collector.COMPILER_ERROR_FOUND
 		}
 	} else {
 		allVariablesDefined := true
+
+		var undefinedVar *ast.VarStmt
 		for i := range multi.Variables {
-			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
+			_, err := currentScope.LookupAcrossScopes(multi.Variables[i].Name.Name())
 			if err != nil {
 				if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 					allVariablesDefined = false
+					undefinedVar = multi.Variables[i]
 					break
 				}
 				return err
 			}
 		}
-		// TODO(errors)
 		if !allVariablesDefined {
-			return fmt.Errorf("not all variables are defined, consider using := instead of =")
+			if undefinedVar == nil {
+				log.Fatal("panic: variable at non decl is nil, but it should never be")
+			}
+			pos := undefinedVar.Name.Position
+			notDeclared := collector.Diag{
+				Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
+			}
+			sema.collector.ReportAndSave(notDeclared)
+			return collector.COMPILER_ERROR_FOUND
 		}
 	}
 	for i := range multi.Variables {
