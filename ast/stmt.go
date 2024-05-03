@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-
 	"github.com/HicaroD/Telia/lexer/token"
 )
 
@@ -29,7 +28,7 @@ func (block BlockStmt) stmtNode()      {}
 type MultiVarStmt struct {
 	Stmt
 	IsDecl    bool
-	Variables []*VarDeclStmt
+	Variables []*VarStmt
 }
 
 func (multi MultiVarStmt) String() string {
@@ -39,20 +38,21 @@ func (multi MultiVarStmt) IsReturn() bool { return false }
 func (multi MultiVarStmt) astNode()       {}
 func (multi MultiVarStmt) stmtNode()      {}
 
-type VarDeclStmt struct {
+type VarStmt struct {
 	Stmt
+	Decl           bool
 	Name           *token.Token
 	Type           ExprType
 	Value          Expr
 	NeedsInference bool
 }
 
-func (variable VarDeclStmt) String() string {
+func (variable VarStmt) String() string {
 	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
 }
-func (variable VarDeclStmt) IsReturn() bool { return false }
-func (variable VarDeclStmt) astNode()       {}
-func (variable VarDeclStmt) stmtNode()      {}
+func (variable VarStmt) IsReturn() bool { return false }
+func (variable VarStmt) astNode()       {}
+func (variable VarStmt) stmtNode()      {}
 
 type ReturnStmt struct {
 	Stmt
@@ -106,3 +106,24 @@ type ElseCond struct {
 	Else  *token.Position
 	Block *BlockStmt
 }
+
+type ForLoop struct {
+	Stmt
+	Init   Stmt
+	Cond   Expr
+	Update Stmt
+	Block  *BlockStmt
+}
+
+func (forStmt ForLoop) String() string {
+	return fmt.Sprintf(
+		"for(%s;%s;%s) %s",
+		forStmt.Init,
+		forStmt.Cond,
+		forStmt.Update,
+		forStmt.Block,
+	)
+}
+func (forStmt ForLoop) IsReturn() bool { return false }
+func (forStmt ForLoop) astNode()       {}
+func (forStmt ForLoop) stmtNode()      {}

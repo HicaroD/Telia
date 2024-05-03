@@ -23,6 +23,7 @@ const (
 
 	// Keywords
 	FN
+	FOR
 	RETURN
 	EXTERN
 	IF
@@ -104,6 +105,7 @@ const (
 
 var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"fn":     FN,
+	"for":    FOR,
 	"return": RETURN,
 	"extern": EXTERN,
 	"if":     IF,
@@ -219,6 +221,8 @@ func (kind TokenKind) String() string {
 		return "false"
 	case FN:
 		return "fn"
+	case FOR:
+		return "for"
 	case RETURN:
 		return "return"
 	case EXTERN:

@@ -23,6 +23,7 @@ func TestTokenKinds(t *testing.T) {
 	tests := []*tokenKindTest{
 		// Keywords
 		{"fn", kind.FN},
+		{"for", kind.FOR},
 		{"return", kind.RETURN},
 		{"extern", kind.EXTERN},
 		{"if", kind.IF},

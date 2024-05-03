@@ -10,7 +10,7 @@ fn fib(n int) int {
 }
 
 fn main() i32 {
-  n := 10;
+  n := 40;
   result := fib(n);
   libc.printf("%d: %d", n, result);
   return 0;

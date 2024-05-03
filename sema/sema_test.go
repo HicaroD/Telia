@@ -110,21 +110,25 @@ func TestVarDeclForInference(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
-			multi, err := analyzeVarDeclFrom(test.input, filename)
-			for _, variable := range multi.Variables {
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !(variable.NeedsInference && test.inferred) {
-					t.Fatalf(
-						"inference error, expected %v, but got %v",
-						test.inferred,
-						variable.NeedsInference,
-					)
-				}
-				if !reflect.DeepEqual(variable.Type, test.ty) {
-					t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
-				}
+			varStmt, err := analyzeVarDeclFrom(test.input, filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			variable, ok := varStmt.(*ast.VarStmt)
+			if !ok {
+				t.Fatalf("unable to cast %s to *ast.VarStmt", reflect.TypeOf(varStmt))
+			}
+
+			if !(variable.NeedsInference && test.inferred) {
+				t.Fatalf(
+					"inference error, expected %v, but got %v",
+					test.inferred,
+					variable.NeedsInference,
+				)
+			}
+			if !reflect.DeepEqual(variable.Type, test.ty) {
+				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
 			}
 		})
 	}
@@ -146,7 +150,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
-					"a": &ast.VarDeclStmt{
+					"a": &ast.VarStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
@@ -337,7 +341,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 			scope: &scope.Scope[ast.Node]{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
-					"a": &ast.VarDeclStmt{
+					"a": &ast.VarStmt{
 						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: kind.I8_TYPE},
 						Value: ast.LiteralExpr{
@@ -435,6 +439,15 @@ func TestSemanticErrors(t *testing.T) {
 			},
 		},
 		{
+			input: "extern libc {}\nfn main() { libc.puts(); }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:2:18: function 'puts' not declared on extern 'libc'",
+				},
+			},
+		},
+		{
 			input: "fn do_nothing() {}\nfn do_nothing() {}",
 			diags: []collector.Diag{
 				{
@@ -447,7 +460,7 @@ func TestSemanticErrors(t *testing.T) {
 			input: "fn do_nothing(a int, a int) {}",
 			diags: []collector.Diag{
 				{
-					Message: "test.tt:1: parameter 'a' already declared on function 'do_nothing'",
+					Message: "test.tt:1:22: parameter 'a' already declared on function 'do_nothing'",
 				},
 			},
 		},
@@ -491,6 +504,39 @@ func TestSemanticErrors(t *testing.T) {
 				},
 			},
 		},
+		// Multiple variables
+		{
+			input: "fn main() { a, b := 10, 10; }",
+			diags: nil, // no errors
+		},
+		{
+			input: "fn main() { a := 1; b := 2; a, b = 10, 10; }",
+			diags: nil, // no errors
+		},
+		{
+			input: "fn main() { a := 1; a, b = 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:24: 'b' not declared",
+				},
+			},
+		},
+		{
+			input: "fn main() { b := 1; a, b = 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:21: 'a' not declared",
+				},
+			},
+		},
+		{
+			input: "fn main() { a := 1; b := 2; a, b := 10, 10; }",
+			diags: []collector.Diag{
+				{
+					Message: "test.tt:1:29: no new variables declared",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -511,10 +557,7 @@ func TestSemanticErrors(t *testing.T) {
 			}
 
 			sema := New(collector)
-			err = sema.Analyze(nodes)
-			if err == nil {
-				t.Fatal("expected to have semantic error, but err == nil")
-			}
+			_ = sema.Analyze(nodes)
 
 			if len(collector.Diags) != len(test.diags) {
 				t.Fatalf(
@@ -524,6 +567,10 @@ func TestSemanticErrors(t *testing.T) {
 					sema.collector.Diags,
 					test.diags,
 				)
+			}
+
+			if !reflect.DeepEqual(collector.Diags, test.diags) {
+				t.Fatalf("\nexp: %v\ngot: %v\n", test.diags, collector.Diags)
 			}
 		})
 	}

@@ -147,34 +147,25 @@ func (codegen *codegen) generateStmt(
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
 		_, err := codegen.generateFunctionCall(scope, statement)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+		return err
 	case *ast.ReturnStmt:
 		err := codegen.generateReturnStmt(statement, scope)
-		// TODO(errors)
-		if err != nil {
-			return nil
-		}
+		return err
 	case *ast.CondStmt:
 		err := codegen.generateCondStmt(scope, function, statement)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
-	case *ast.MultiVarStmt:
+		return err
+	case *ast.VarStmt:
 		err := codegen.generateVar(statement, scope)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+		return err
+	case *ast.MultiVarStmt:
+		err := codegen.generateMultiVar(statement, scope)
+		return err
 	case *ast.FieldAccess:
 		err := codegen.generateFieldAccessStmt(statement, scope)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+		return err
+	case *ast.ForLoop:
+		err := codegen.generateForLoop(statement, function, scope)
+		return err
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
@@ -198,25 +189,32 @@ func (codegen *codegen) generateReturnStmt(
 	return nil
 }
 
-func (codegen *codegen) generateVar(
+func (codegen *codegen) generateMultiVar(
 	varDecl *ast.MultiVarStmt,
 	scope *scope.Scope[values.LLVMValue],
 ) error {
-	if varDecl.IsDecl {
-		for i := range varDecl.Variables {
-			err := codegen.generateVarDecl(varDecl.Variables[i], scope)
-			if err != nil {
-				return err
-			}
+	for i := range varDecl.Variables {
+		err := codegen.generateVar(varDecl.Variables[i], scope)
+		if err != nil {
+			return err
 		}
-	} else {
-		log.Fatal("unimplemented var redeclaration on codegen")
 	}
 	return nil
 }
 
+func (codegen *codegen) generateVar(
+	varStmt *ast.VarStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	if varStmt.Decl {
+		return codegen.generateVarDecl(varStmt, scope)
+	} else {
+		return codegen.generateVarReassign(varStmt, scope)
+	}
+}
+
 func (codegen *codegen) generateVarDecl(
-	varDecl *ast.VarDeclStmt,
+	varDecl *ast.VarStmt,
 	scope *scope.Scope[values.LLVMValue],
 ) error {
 	varTy := codegen.getType(varDecl.Type)
@@ -235,11 +233,23 @@ func (codegen *codegen) generateVarDecl(
 	}
 	// REFACTOR: make it simpler to get the lexeme
 	err = scope.Insert(varDecl.Name.Name(), &variable)
+	return err
+}
 
-	// TODO(errors)
+func (codegen *codegen) generateVarReassign(
+	varDecl *ast.VarStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	expr, err := codegen.getExpr(varDecl.Value, scope)
 	if err != nil {
 		return err
 	}
+	symbol, err := scope.LookupAcrossScopes(varDecl.Name.Name())
+	if err != nil {
+		return err
+	}
+	variable := symbol.(*values.Variable)
+	codegen.builder.CreateStore(expr, variable.Ptr)
 	return nil
 }
 
@@ -486,7 +496,17 @@ func (codegen *codegen) getExpr(
 			log.Fatalf("unimplemented value: %s %s", expr, reflect.TypeOf(sym))
 		}
 	case *ast.UnaryExpr:
-		log.Fatalf("unimplemented unary expr: %s", expr)
+		switch currentExpr.Op {
+		case kind.MINUS:
+			expr, err := codegen.getExpr(currentExpr.Value, scope)
+			// TODO(errors)
+			if err != nil {
+				return llvm.Value{}, err
+			}
+			return codegen.builder.CreateNeg(expr, ".neg"), nil
+		default:
+			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
+		}
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
@@ -613,4 +633,53 @@ func (codegen *codegen) generatePrototypeCall(
 	}
 
 	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
+}
+
+func (codegen *codegen) generateForLoop(
+	forLoop *ast.ForLoop,
+	function *values.Function,
+	parentScope *scope.Scope[values.LLVMValue],
+) error {
+	forScope := scope.New(parentScope)
+
+	forPrepBlock := llvm.AddBasicBlock(function.Fn, ".forprep")
+	forInitBlock := llvm.AddBasicBlock(function.Fn, ".forinit")
+	forBodyBlock := llvm.AddBasicBlock(function.Fn, ".forbody")
+	forUpdateBlock := llvm.AddBasicBlock(function.Fn, ".forupdate")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".forend")
+
+	codegen.builder.CreateBr(forPrepBlock)
+	codegen.builder.SetInsertPointAtEnd(forPrepBlock)
+	err := codegen.generateStmt(forLoop.Init, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forInitBlock)
+	codegen.builder.SetInsertPointAtEnd(forInitBlock)
+
+	expr, err := codegen.getExpr(forLoop.Cond, forScope)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateCondBr(expr, forBodyBlock, endBlock)
+
+	codegen.builder.SetInsertPointAtEnd(forBodyBlock)
+	_, err = codegen.generateBlock(forLoop.Block, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forUpdateBlock)
+	codegen.builder.SetInsertPointAtEnd(forUpdateBlock)
+	err = codegen.generateStmt(forLoop.Update, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forInitBlock)
+
+	codegen.builder.SetInsertPointAtEnd(endBlock)
+	return nil
 }
