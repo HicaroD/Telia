@@ -115,15 +115,32 @@ type ForLoop struct {
 	Block  *BlockStmt
 }
 
-func (forStmt ForLoop) String() string {
+func (forLoop ForLoop) String() string {
 	return fmt.Sprintf(
 		"for(%s;%s;%s) %s",
-		forStmt.Init,
-		forStmt.Cond,
-		forStmt.Update,
-		forStmt.Block,
+		forLoop.Init,
+		forLoop.Cond,
+		forLoop.Update,
+		forLoop.Block,
 	)
 }
-func (forStmt ForLoop) IsReturn() bool { return false }
-func (forStmt ForLoop) astNode()       {}
-func (forStmt ForLoop) stmtNode()      {}
+func (forLoop ForLoop) IsReturn() bool { return false }
+func (forLoop ForLoop) astNode()       {}
+func (forLoop ForLoop) stmtNode()      {}
+
+type WhileLoop struct {
+	Stmt
+	Cond  Expr
+	Block *BlockStmt
+}
+
+func (whileLoop WhileLoop) String() string {
+	return fmt.Sprintf(
+		"while(%s) %s",
+		whileLoop.Cond,
+		whileLoop.Block,
+	)
+}
+func (whileLoop WhileLoop) IsReturn() bool { return false }
+func (whileLoop WhileLoop) astNode()       {}
+func (whileLoop WhileLoop) stmtNode()      {}

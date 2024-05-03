@@ -24,6 +24,7 @@ func TestTokenKinds(t *testing.T) {
 		// Keywords
 		{"fn", kind.FN},
 		{"for", kind.FOR},
+		{"while", kind.WHILE},
 		{"return", kind.RETURN},
 		{"extern", kind.EXTERN},
 		{"if", kind.IF},
@@ -185,6 +186,8 @@ func TestIsIdentifier(t *testing.T) {
 		{"true", false},
 		{"false", false},
 		{"fn", false},
+		{"for", false},
+		{"while", false},
 		{"return", false},
 		{"if", false},
 		{"elif", false},

@@ -200,6 +200,9 @@ func (sema *sema) analyzeStmt(
 	case *ast.ForLoop:
 		err := sema.analyzeForLoop(statement, scope, returnTy)
 		return err
+	case *ast.WhileLoop:
+		err := sema.analyzeWhileLoop(statement, scope, returnTy)
+		return err
 	default:
 		log.Fatalf("unimplemented statement on sema: %s", statement)
 	}
@@ -1032,5 +1035,18 @@ func (sema *sema) analyzeForLoop(
 	}
 
 	err = sema.analyzeBlock(scope, forLoop.Block, returnTy)
+	return err
+}
+
+func (sema *sema) analyzeWhileLoop(
+	whileLoop *ast.WhileLoop,
+	scope *scope.Scope[ast.Node],
+	returnTy ast.ExprType,
+) error {
+	err := sema.analyzeIfExpr(whileLoop.Cond, scope)
+	if err != nil {
+		return err
+	}
+	err = sema.analyzeBlock(scope, whileLoop.Block, returnTy)
 	return err
 }
