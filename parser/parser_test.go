@@ -1417,6 +1417,32 @@ func TestVar(t *testing.T) {
 				},
 			},
 		},
+		{
+			input: "a, b u8 = 10, 10;",
+			varDecl: &ast.MultiVarStmt{
+				IsDecl: false,
+				Variables: []*ast.VarStmt{
+					{
+						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+						Type:           nil,
+						NeedsInference: true,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+					{
+						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
+						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
+						NeedsInference: false,
+						Value: &ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
