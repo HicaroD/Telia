@@ -1038,6 +1038,7 @@ func (sema *sema) analyzeForLoop(
 	return err
 }
 
+// TODO: need tests for it
 func (sema *sema) analyzeWhileLoop(
 	whileLoop *ast.WhileLoop,
 	scope *scope.Scope[ast.Node],
