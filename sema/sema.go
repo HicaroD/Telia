@@ -168,45 +168,40 @@ func (sema *sema) analyzeBlock(
 	returnTy ast.ExprType,
 ) error {
 	for i := range block.Statements {
-		switch statement := block.Statements[i].(type) {
-		case *ast.FunctionCall:
-			err := sema.analyzeFunctionCall(statement, scope)
-			if err != nil {
-				return err
-			}
-		case *ast.MultiVarStmt, *ast.VarStmt:
-			err := sema.analyzeVarDecl(statement, scope)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		case *ast.CondStmt:
-			err := sema.analyzeCondStmt(statement, returnTy, scope)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		case *ast.ReturnStmt:
-			_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		case *ast.FieldAccess:
-			err := sema.analyzeFieldAccessExpr(statement, scope)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		case *ast.ForLoop:
-			err := sema.analyzeForLoop(statement, scope)
-			if err != nil {
-				return err
-			}
-
-		default:
-			log.Fatalf("unimplemented statement on sema: %s", statement)
+		err := sema.analyzeStmt(block.Statements[i], scope, returnTy)
+		if err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func (sema *sema) analyzeStmt(
+	stmt ast.Stmt,
+	scope *scope.Scope[ast.Node],
+	returnTy ast.ExprType,
+) error {
+	switch statement := stmt.(type) {
+	case *ast.FunctionCall:
+		err := sema.analyzeFunctionCall(statement, scope)
+		return err
+	case *ast.MultiVarStmt, *ast.VarStmt:
+		err := sema.analyzeVarDecl(statement, scope)
+		return err
+	case *ast.CondStmt:
+		err := sema.analyzeCondStmt(statement, returnTy, scope)
+		return err
+	case *ast.ReturnStmt:
+		_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
+		return err
+	case *ast.FieldAccess:
+		err := sema.analyzeFieldAccessExpr(statement, scope)
+		return err
+	case *ast.ForLoop:
+		err := sema.analyzeForLoop(statement, scope, returnTy)
+		return err
+	default:
+		log.Fatalf("unimplemented statement on sema: %s", statement)
 	}
 	return nil
 }
@@ -234,7 +229,6 @@ func (sema *sema) analyzeMultiVar(
 	// It is pretty repetitive, but I need tests before refactoring
 	if multi.IsDecl {
 		allVariablesDefined := true
-
 		for i := range multi.Variables {
 			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
 			if err != nil {
@@ -246,13 +240,17 @@ func (sema *sema) analyzeMultiVar(
 			}
 			multi.Variables[i].Decl = false
 		}
-
 		if allVariablesDefined {
 			firstVariable := multi.Variables[0]
 			pos := firstVariable.Name.Position
 			// TODO: give user a hint for consider using = instead of :=
 			noNewVariablesDeclared := collector.Diag{
-				Message: fmt.Sprintf("%s:%d:%d: no new variables declared", pos.Filename, pos.Line, pos.Column),
+				Message: fmt.Sprintf(
+					"%s:%d:%d: no new variables declared",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+				),
 			}
 			sema.collector.ReportAndSave(noNewVariablesDeclared)
 			return collector.COMPILER_ERROR_FOUND
@@ -285,6 +283,13 @@ func (sema *sema) analyzeMultiVar(
 		}
 	}
 	for i := range multi.Variables {
+		if multi.Variables[i].Decl {
+			varName := multi.Variables[i].Name.Name()
+			err := currentScope.Insert(varName, multi.Variables[i])
+			if err != nil {
+				return err
+			}
+		}
 		err := sema.analyzeVariableType(multi.Variables[i], currentScope)
 		// TODO(errors)
 		if err != nil {
@@ -303,6 +308,10 @@ func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *scope.Scope[as
 			if err != scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 				return fmt.Errorf("'%s' already exists on the current scope", variable.Name.Name())
 			}
+		}
+		err = currentScope.Insert(variable.Name.Name(), variable)
+		if err != nil {
+			return err
 		}
 	} else {
 		// Deve existir antes
@@ -355,13 +364,6 @@ func (sema *sema) analyzeVariableType(
 		if !reflect.DeepEqual(varDecl.Type, exprTy) {
 			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
 		}
-	}
-
-	varName := varDecl.Name.Name()
-	err := currentScope.Insert(varName, varDecl)
-	// TODO(errors): symbol already defined on scope
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -998,6 +1000,26 @@ func (sema *sema) analyzePrototypeCall(
 	return nil
 }
 
-func (sema *sema) analyzeForLoop(forLoop *ast.ForLoop, scope *scope.Scope[ast.Node]) error {
-	return nil
+func (sema *sema) analyzeForLoop(
+	forLoop *ast.ForLoop,
+	scope *scope.Scope[ast.Node],
+	returnTy ast.ExprType,
+) error {
+	err := sema.analyzeStmt(forLoop.Init, scope, returnTy)
+	if err != nil {
+		return err
+	}
+
+	err = sema.analyzeIfExpr(forLoop.Cond, scope)
+	if err != nil {
+		return err
+	}
+
+	err = sema.analyzeStmt(forLoop.Update, scope, returnTy)
+	if err != nil {
+		return err
+	}
+
+	err = sema.analyzeBlock(scope, forLoop.Block, returnTy)
+	return err
 }

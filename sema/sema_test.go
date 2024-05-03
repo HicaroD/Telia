@@ -439,6 +439,15 @@ func TestSemanticErrors(t *testing.T) {
 			},
 		},
 		{
+			input: "extern libc { }\nfn main { libc.puts(); }",
+			diags: []collector.Diag{
+				{
+					// TODO: show the first declaration and the other
+					Message: "test.tt:2:16: function 'puts' not declared on 'libc' extern",
+				},
+			},
+		},
+		{
 			input: "fn do_nothing() {}\nfn do_nothing() {}",
 			diags: []collector.Diag{
 				{

@@ -2,8 +2,9 @@ extern libc {
   fn puts(format *u8) i32;
 }
 
-fn main() {
-  for(i := 0; i < 10; i = i + 1) {
-    puts("Hello, world!");
+fn main() i32 {
+  for(i := 0; i <= 10; i = i + 1) {
+    libc.puts("Hello, world");
   }
+  return 0;
 }

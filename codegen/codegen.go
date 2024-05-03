@@ -164,7 +164,7 @@ func (codegen *codegen) generateStmt(
 		err := codegen.generateFieldAccessStmt(statement, scope)
 		return err
 	case *ast.ForLoop:
-		err := codegen.generateForLoop(statement, scope)
+		err := codegen.generateForLoop(statement, function, scope)
 		return err
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
@@ -213,7 +213,10 @@ func (codegen *codegen) generateVar(
 	}
 }
 
-func (codegen *codegen) generateVarDecl(varDecl *ast.VarStmt, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateVarDecl(
+	varDecl *ast.VarStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
 	varExpr, err := codegen.getExpr(varDecl.Value, scope)
@@ -233,7 +236,10 @@ func (codegen *codegen) generateVarDecl(varDecl *ast.VarStmt, scope *scope.Scope
 	return err
 }
 
-func (codegen *codegen) generateVarReassign(varDecl *ast.VarStmt, scope *scope.Scope[values.LLVMValue]) error {
+func (codegen *codegen) generateVarReassign(
+	varDecl *ast.VarStmt,
+	scope *scope.Scope[values.LLVMValue],
+) error {
 	expr, err := codegen.getExpr(varDecl.Value, scope)
 	if err != nil {
 		return err
@@ -631,8 +637,49 @@ func (codegen *codegen) generatePrototypeCall(
 
 func (codegen *codegen) generateForLoop(
 	forLoop *ast.ForLoop,
-	scope *scope.Scope[values.LLVMValue],
+	function *values.Function,
+	parentScope *scope.Scope[values.LLVMValue],
 ) error {
-	log.Fatal("unimplemented for loop on code generation")
+	forScope := scope.New(parentScope)
+
+	forPrepBlock := llvm.AddBasicBlock(function.Fn, ".forprep")
+	forInitBlock := llvm.AddBasicBlock(function.Fn, ".forinit")
+	forBodyBlock := llvm.AddBasicBlock(function.Fn, ".forbody")
+	forUpdateBlock := llvm.AddBasicBlock(function.Fn, ".forupdate")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".forend")
+
+	codegen.builder.CreateBr(forPrepBlock)
+	codegen.builder.SetInsertPointAtEnd(forPrepBlock)
+	err := codegen.generateStmt(forLoop.Init, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forInitBlock)
+	codegen.builder.SetInsertPointAtEnd(forInitBlock)
+
+	expr, err := codegen.getExpr(forLoop.Cond, forScope)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateCondBr(expr, forBodyBlock, endBlock)
+
+	codegen.builder.SetInsertPointAtEnd(forBodyBlock)
+	_, err = codegen.generateBlock(forLoop.Block, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forUpdateBlock)
+	codegen.builder.SetInsertPointAtEnd(forUpdateBlock)
+	err = codegen.generateStmt(forLoop.Update, forScope, function)
+	if err != nil {
+		return err
+	}
+
+	codegen.builder.CreateBr(forInitBlock)
+
+	codegen.builder.SetInsertPointAtEnd(endBlock)
 	return nil
 }
