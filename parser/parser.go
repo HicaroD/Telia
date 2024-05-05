@@ -345,7 +345,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			parser.Collector.ReportAndSave(expectedCloseParenOrId)
 			return nil, collector.COMPILER_ERROR_FOUND
 		}
-		paramType, err := parser.parseExprType()
+		paramType, err := parser.parseType()
 		if err != nil {
 			tok := parser.cursor.peek()
 			pos := tok.Position
@@ -400,7 +400,7 @@ func (parser *parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 		return &ast.BasicType{Kind: kind.VOID_TYPE}, nil
 	}
 
-	returnType, err := parser.parseExprType()
+	returnType, err := parser.parseType()
 	if err != nil {
 		tok := parser.cursor.peek()
 		pos := tok.Position
@@ -428,12 +428,12 @@ func (parser *parser) expect(expectedKind kind.TokenKind) (*token.Token, bool) {
 	return token, true
 }
 
-func (parser *parser) parseExprType() (ast.ExprType, error) {
+func (parser *parser) parseType() (ast.ExprType, error) {
 	token := parser.cursor.peek()
 	switch token.Kind {
 	case kind.STAR:
 		parser.cursor.skip() // *
-		ty, err := parser.parseExprType()
+		ty, err := parser.parseType()
 		if err != nil {
 			return nil, err
 		}
@@ -441,6 +441,9 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 	case kind.ID:
 		parser.cursor.skip()
 		return &ast.IdType{Name: token}, nil
+	case kind.OPEN_PAREN:
+		multipleTypes, err := parser.parseMultipleTypes()
+		return multipleTypes, err
 	default:
 		if token.Kind.IsBasicType() {
 			parser.cursor.skip()
@@ -448,6 +451,63 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 		}
 		return nil, collector.COMPILER_ERROR_FOUND
 	}
+}
+
+func (parser *parser) parseMultipleTypes() (*ast.MultiTypes, error) {
+	openParen, ok := parser.expect(kind.OPEN_PAREN)
+	if !ok {
+		return nil, fmt.Errorf("expected opening parenthesis")
+	}
+
+	// TODO
+	types := make([]ast.ExprType, 0)
+	for {
+		ty, err := parser.parseType()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, ty)
+
+		if parser.cursor.nextIs(kind.COMMA) {
+			parser.cursor.skip()
+			continue
+		}
+		if parser.cursor.nextIs(kind.CLOSE_PAREN) {
+			break
+		}
+	}
+
+	closeParen, ok := parser.expect(kind.CLOSE_PAREN)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected closing parenthesis")
+	}
+	return &ast.MultiTypes{
+		OpenParen:  openParen.Position,
+		Types:      types,
+		CloseParen: closeParen.Position,
+	}, nil
+}
+
+// Useful for testing
+func parseType(input, filename string) (ast.ExprType, error) {
+	diagCollector := collector.New()
+
+	reader := bufio.NewReader(strings.NewReader(input))
+	lex := lexer.New(filename, reader, diagCollector)
+
+	tokens, err := lex.Tokenize()
+	if err != nil {
+		return nil, err
+	}
+
+	parser := New(tokens, diagCollector)
+	typeNode, err := parser.parseType()
+	if err != nil {
+		return nil, err
+	}
+	return typeNode, nil
 }
 
 func (parser *parser) parseStmt() (ast.Stmt, error) {
@@ -631,7 +691,7 @@ VarDecl:
 			continue
 		}
 
-		ty, err := parser.parseExprType()
+		ty, err := parser.parseType()
 		// TODO(errors)
 		if err != nil {
 			return nil, err

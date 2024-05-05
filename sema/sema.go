@@ -31,19 +31,20 @@ func New(collector *collector.DiagCollector) *sema {
 
 func (sema *sema) Analyze(nodes []ast.Node) error {
 	for i := range nodes {
-		switch astNode := nodes[i].(type) {
+		switch node := nodes[i].(type) {
 		case *ast.FunctionDecl:
-			err := sema.analyzeFnDecl(astNode)
+			err := sema.analyzeFnDecl(node)
 			if err != nil {
 				return err
 			}
 		case *ast.ExternDecl:
-			err := sema.analyzeExtern(astNode)
+			err := sema.analyzeExtern(node)
 			if err != nil {
 				return err
 			}
 		default:
-			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
+			// TODO(errors)
+			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(node))
 		}
 	}
 	return nil
@@ -51,12 +52,12 @@ func (sema *sema) Analyze(nodes []ast.Node) error {
 
 func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 	externScope := scope.New(sema.universe)
-	for i := range extern.Prototypes {
-		prototypeName := extern.Prototypes[i].Name.Name()
-		err := externScope.Insert(prototypeName, extern.Prototypes[i])
+	for _, prototype := range extern.Prototypes {
+		prototypeName := prototype.Name.Name()
+		err := externScope.Insert(prototypeName, prototype)
 		if err != nil {
 			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-				pos := extern.Prototypes[i].Name.Position
+				pos := prototype.Name.Position
 				prototypeRedeclaration := collector.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: prototype '%s' already declared on extern '%s'",

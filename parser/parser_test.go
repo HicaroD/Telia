@@ -1464,6 +1464,101 @@ func TestFuncCallStmt(t *testing.T) {}
 // TODO(tests)
 func TestIfStmt(t *testing.T) {}
 
+type typeTest struct {
+	input string
+	ty    ast.ExprType
+}
+
+func TestType(t *testing.T) {
+	filename := "test.tt"
+	tests := []typeTest{
+		{
+			input: "bool",
+			ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
+		},
+		{
+			input: "int",
+			ty:    &ast.BasicType{Kind: kind.INT_TYPE},
+		},
+		{
+			input: "i8",
+			ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+		},
+		{
+			input: "i16",
+			ty:    &ast.BasicType{Kind: kind.I16_TYPE},
+		},
+		{
+			input: "i32",
+			ty:    &ast.BasicType{Kind: kind.I32_TYPE},
+		},
+		{
+			input: "i64",
+			ty:    &ast.BasicType{Kind: kind.I64_TYPE},
+		},
+		{
+			input: "uint",
+			ty:    &ast.BasicType{Kind: kind.UINT_TYPE},
+		},
+		{
+			input: "u8",
+			ty:    &ast.BasicType{Kind: kind.U8_TYPE},
+		},
+		{
+			input: "u16",
+			ty:    &ast.BasicType{Kind: kind.U16_TYPE},
+		},
+		{
+			input: "u32",
+			ty:    &ast.BasicType{Kind: kind.U32_TYPE},
+		},
+		{
+			input: "u64",
+			ty:    &ast.BasicType{Kind: kind.U64_TYPE},
+		},
+		{
+			input: "SomeType",
+			ty: &ast.IdType{
+				Name: token.New("SomeType", kind.ID, token.NewPosition(filename, 1, 1)),
+			},
+		},
+		{
+			input: "(int, uint)",
+			ty: &ast.MultiTypes{
+				OpenParen: token.NewPosition(filename, 1, 1),
+				Types: []ast.ExprType{
+					&ast.BasicType{Kind: kind.INT_TYPE},
+					&ast.BasicType{Kind: kind.UINT_TYPE},
+				},
+				CloseParen: token.NewPosition(filename, 11, 1),
+			},
+		},
+		{
+			input: "(int, *uint)",
+			ty: &ast.MultiTypes{
+				OpenParen: token.NewPosition(filename, 1, 1),
+				Types: []ast.ExprType{
+					&ast.BasicType{Kind: kind.INT_TYPE},
+					&ast.PointerType{Type: &ast.BasicType{Kind: kind.UINT_TYPE}},
+				},
+				CloseParen: token.NewPosition(filename, 12, 1),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestType('%s')", test.input), func(t *testing.T) {
+			typeNode, err := parseType(test.input, filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(typeNode, test.ty) {
+				t.Fatalf("\nexp: %s\ngot: %s\n", test.ty, typeNode)
+			}
+		})
+	}
+}
+
 type syntaxErrorTest struct {
 	input string
 	diags []collector.Diag

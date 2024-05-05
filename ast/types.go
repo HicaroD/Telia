@@ -56,3 +56,18 @@ func (pointer PointerType) exprTypeNode()   {}
 func (pointer PointerType) String() string {
 	return fmt.Sprintf("*%s", pointer.Type)
 }
+
+type MultiTypes struct {
+	ExprType
+	OpenParen  token.Position
+	Types      []ExprType
+	CloseParen token.Position
+}
+
+func (multi MultiTypes) IsNumeric() bool { return false }
+func (multi MultiTypes) IsBoolean() bool { return false }
+func (multi MultiTypes) IsVoid() bool    { return false }
+func (multi MultiTypes) exprTypeNode()   {}
+func (multi MultiTypes) String() string {
+	return fmt.Sprintf("(%s)", multi.Types)
+}
