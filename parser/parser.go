@@ -459,7 +459,6 @@ func (parser *parser) parseMultipleTypes() (*ast.MultiTypes, error) {
 		return nil, fmt.Errorf("expected opening parenthesis")
 	}
 
-	// TODO
 	types := make([]ast.ExprType, 0)
 	for {
 		ty, err := parser.parseType()
