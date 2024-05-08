@@ -710,7 +710,7 @@ VarDecl:
 		}
 	}
 
-	exprs, err := parser.parseExprList([]kind.TokenKind{kind.SEMICOLON, kind.CLOSE_PAREN})
+	exprs, err := parser.parseExprList()
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -830,6 +830,19 @@ func (parser *parser) parseElseCond() (*ast.ElseCond, error) {
 		return nil, err
 	}
 	return &ast.ElseCond{Else: &elseToken.Position, Block: elseBlock}, nil
+}
+
+func (parser *parser) nextIsPossibleExpr() bool {
+	token := parser.cursor.peek()
+	switch token.Kind {
+	case kind.ID, kind.OPEN_PAREN, kind.MINUS, kind.NOT:
+		return true
+	default:
+		if _, ok := kind.LITERAL_KIND[token.Kind]; ok {
+			return ok
+		}
+		return false
+	}
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
@@ -998,16 +1011,9 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (parser *parser) parseExprList(possibleEnds []kind.TokenKind) ([]ast.Expr, error) {
+func (parser *parser) parseExprList() ([]ast.Expr, error) {
 	var exprs []ast.Expr
-Var:
-	for {
-		for _, end := range possibleEnds {
-			if parser.cursor.nextIs(end) {
-				break Var
-			}
-		}
-
+	for parser.nextIsPossibleExpr() {
 		expr, err := parser.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1035,7 +1041,7 @@ func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	args, err := parser.parseExprList([]kind.TokenKind{kind.CLOSE_PAREN})
+	args, err := parser.parseExprList()
 	if err != nil {
 		return nil, err
 	}
