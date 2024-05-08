@@ -1360,17 +1360,23 @@ func TestVar(t *testing.T) {
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
+						Value:          nil,
 					},
 					{
 						Decl:           true,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           nil,
 						NeedsInference: true,
-						Value: &ast.LiteralExpr{
+						Value:          nil,
+					},
+				},
+				Exprs: &ast.MultiExpr{
+					Exprs: []ast.Expr{
+						&ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+						&ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
 							Value: "10",
 						},
@@ -1388,17 +1394,23 @@ func TestVar(t *testing.T) {
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
+						Value:          nil,
 					},
 					{
 						Decl:           false,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           nil,
 						NeedsInference: true,
-						Value: &ast.LiteralExpr{
+						Value:          nil,
+					},
+				},
+				Exprs: &ast.MultiExpr{
+					Exprs: []ast.Expr{
+						&ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+						&ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
 							Value: "10",
 						},
@@ -1429,17 +1441,23 @@ func TestVar(t *testing.T) {
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
-							Value: "10",
-						},
+						Value:          nil,
 					},
 					{
 						Decl:           false,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
 						NeedsInference: false,
-						Value: &ast.LiteralExpr{
+						Value:          nil,
+					},
+				},
+				Exprs: &ast.MultiExpr{
+					Exprs: []ast.Expr{
+						&ast.LiteralExpr{
+							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
+							Value: "10",
+						},
+						&ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: kind.INTEGER_LITERAL},
 							Value: "10",
 						},

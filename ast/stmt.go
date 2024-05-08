@@ -29,6 +29,7 @@ type MultiVarStmt struct {
 	Stmt
 	IsDecl    bool
 	Variables []*VarStmt
+	Exprs     Expr
 }
 
 func (multi MultiVarStmt) String() string {

@@ -719,22 +719,9 @@ VarDecl:
 	for i := range variables {
 		variables[i].Decl = isDecl
 	}
-
 	if len(variables) > 1 {
-		multi, ok := expr.(*ast.MultiExpr)
-		// TODO(errors)
-		if !ok {
-			return nil, fmt.Errorf("expected multi")
-		}
-		if len(variables) != len(multi.Exprs) {
-			return nil, fmt.Errorf("expected %d expressions, but got %d", len(variables), len(multi.Exprs))
-		}
-		for i := range variables {
-			variables[i].Value = multi.Exprs[i]
-		}
-		return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
+		return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables, Exprs: expr}, nil
 	}
-
 	variables[0].Value = expr
 	return variables[0], nil
 }
