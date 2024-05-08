@@ -57,17 +57,17 @@ func (pointer PointerType) String() string {
 	return fmt.Sprintf("*%s", pointer.Type)
 }
 
-type MultiTypes struct {
+type TupleType struct {
 	ExprType
 	OpenParen  token.Position
 	Types      []ExprType
 	CloseParen token.Position
 }
 
-func (multi MultiTypes) IsNumeric() bool { return false }
-func (multi MultiTypes) IsBoolean() bool { return false }
-func (multi MultiTypes) IsVoid() bool    { return false }
-func (multi MultiTypes) exprTypeNode()   {}
-func (multi MultiTypes) String() string {
-	return fmt.Sprintf("(%s)", multi.Types)
+func (tuple TupleType) IsNumeric() bool { return false }
+func (tuple TupleType) IsBoolean() bool { return false }
+func (tuple TupleType) IsVoid() bool    { return false }
+func (tuple TupleType) exprTypeNode()   {}
+func (tuple TupleType) String() string {
+	return fmt.Sprintf("(%s)", tuple.Types)
 }

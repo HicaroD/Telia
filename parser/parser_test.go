@@ -1384,6 +1384,7 @@ func TestVar(t *testing.T) {
 				IsDecl: false,
 				Variables: []*ast.VarStmt{
 					{
+						Decl:           false,
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
@@ -1393,6 +1394,7 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
+						Decl:           false,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           nil,
 						NeedsInference: true,
@@ -1423,6 +1425,7 @@ func TestVar(t *testing.T) {
 				IsDecl: false,
 				Variables: []*ast.VarStmt{
 					{
+						Decl:           false,
 						Name:           token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
 						Type:           nil,
 						NeedsInference: true,
@@ -1432,6 +1435,7 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
+						Decl:           false,
 						Name:           token.New("b", kind.ID, token.NewPosition(filename, 4, 1)),
 						Type:           &ast.BasicType{Kind: kind.U8_TYPE},
 						NeedsInference: false,
@@ -1524,7 +1528,7 @@ func TestType(t *testing.T) {
 		},
 		{
 			input: "(int, uint)",
-			ty: &ast.MultiTypes{
+			ty: &ast.TupleType{
 				OpenParen: token.NewPosition(filename, 1, 1),
 				Types: []ast.ExprType{
 					&ast.BasicType{Kind: kind.INT_TYPE},
@@ -1535,7 +1539,7 @@ func TestType(t *testing.T) {
 		},
 		{
 			input: "(int, *uint)",
-			ty: &ast.MultiTypes{
+			ty: &ast.TupleType{
 				OpenParen: token.NewPosition(filename, 1, 1),
 				Types: []ast.ExprType{
 					&ast.BasicType{Kind: kind.INT_TYPE},

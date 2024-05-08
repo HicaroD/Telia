@@ -643,7 +643,7 @@ func (sema *sema) inferExprTypeWithContext(
 		}
 	case *ast.MultiExpr:
 		switch expTy := expectedType.(type) {
-		case *ast.MultiTypes:
+		case *ast.TupleType:
 			if len(expression.Exprs) != len(expTy.Types) {
 				return nil, fmt.Errorf("%d != %d", len(expression.Exprs), len(expTy.Types))
 			}

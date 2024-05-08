@@ -453,7 +453,7 @@ func (parser *parser) parseType() (ast.ExprType, error) {
 	}
 }
 
-func (parser *parser) parseMultipleTypes() (*ast.MultiTypes, error) {
+func (parser *parser) parseMultipleTypes() (*ast.TupleType, error) {
 	openParen, ok := parser.expect(kind.OPEN_PAREN)
 	if !ok {
 		return nil, fmt.Errorf("expected opening parenthesis")
@@ -482,7 +482,7 @@ func (parser *parser) parseMultipleTypes() (*ast.MultiTypes, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected closing parenthesis")
 	}
-	return &ast.MultiTypes{
+	return &ast.TupleType{
 		OpenParen:  openParen.Position,
 		Types:      types,
 		CloseParen: closeParen.Position,
@@ -710,25 +710,33 @@ VarDecl:
 		}
 	}
 
-	exprs, err := parser.parseExprList()
+	expr, err := parser.parseExpr()
 	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(errors)
-	if len(variables) != len(exprs) {
-		return nil, fmt.Errorf("%d != %d", len(variables), len(exprs))
-	}
 	for i := range variables {
-		variables[i].Value = exprs[i]
 		variables[i].Decl = isDecl
 	}
 
-	if len(variables) == 1 {
-		return variables[0], nil
+	if len(variables) > 1 {
+		multi, ok := expr.(*ast.MultiExpr)
+		// TODO(errors)
+		if !ok {
+			return nil, fmt.Errorf("expected multi")
+		}
+		if len(variables) != len(multi.Exprs) {
+			return nil, fmt.Errorf("expected %d expressions, but got %d", len(variables), len(multi.Exprs))
+		}
+		for i := range variables {
+			variables[i].Value = multi.Exprs[i]
+		}
+		return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
 	}
-	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
+
+	variables[0].Value = expr
+	return variables[0], nil
 }
 
 // Useful for testing
@@ -846,7 +854,32 @@ func (parser *parser) nextIsPossibleExpr() bool {
 }
 
 func (parser *parser) parseExpr() (ast.Expr, error) {
-	return parser.parseLogical()
+	expr, err := parser.parseLogical()
+	if err != nil {
+		return nil, err
+	}
+	if parser.cursor.nextIs(kind.COMMA) {
+		parser.cursor.skip()
+
+		var exprs []ast.Expr
+		exprs = append(exprs, expr)
+
+		for parser.nextIsPossibleExpr() {
+			expr, err := parser.parseLogical()
+			if err != nil {
+				return nil, err
+			}
+			exprs = append(exprs, expr)
+
+			if parser.cursor.nextIs(kind.COMMA) {
+				parser.cursor.skip()
+				continue
+			}
+		}
+
+		return &ast.MultiExpr{Exprs: exprs}, nil
+	}
+	return expr, nil
 }
 
 func (parser *parser) parseLogical() (ast.Expr, error) {
