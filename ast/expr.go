@@ -130,3 +130,16 @@ func (binExpr BinaryExpr) IsId() bool          { return false }
 func (binExpr BinaryExpr) IsVoid() bool        { return false }
 func (binExpr BinaryExpr) IsFieldAccess() bool { return false }
 func (binExpr BinaryExpr) exprNode()           {}
+
+type MultiExpr struct {
+	Expr
+	Exprs []Expr
+}
+
+func (multi MultiExpr) String() string {
+	return fmt.Sprintf("%s", multi.Exprs)
+}
+func (multi MultiExpr) IsId() bool          { return false }
+func (multi MultiExpr) IsVoid() bool        { return false }
+func (multi MultiExpr) IsFieldAccess() bool { return false }
+func (multi MultiExpr) exprNode()           {}
