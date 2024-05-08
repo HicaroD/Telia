@@ -641,6 +641,23 @@ func (sema *sema) inferExprTypeWithContext(
 		default:
 			log.Fatalf("unimplemented unary expr operator: %s", reflect.TypeOf(expression.Op))
 		}
+	case *ast.MultiExpr:
+		switch expTy := expectedType.(type) {
+		case *ast.MultiTypes:
+			if len(expression.Exprs) != len(expTy.Types) {
+				return nil, fmt.Errorf("%d != %d", len(expression.Exprs), len(expTy.Types))
+			}
+			for i := range expTy.Types {
+				_, err := sema.inferExprTypeWithContext(expression.Exprs[i], expTy.Types[i], scope)
+				// TODO(errors)
+				if err != nil {
+					return nil, err
+				}
+			}
+			return expectedType, nil
+		default:
+			return nil, fmt.Errorf("expected multiple types, but got %s", reflect.TypeOf(expTy))
+		}
 	default:
 		// TODO(errors)
 		log.Fatalf("unimplemented on getExprType: %s", reflect.TypeOf(expression))
