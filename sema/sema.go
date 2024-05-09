@@ -186,8 +186,11 @@ func (sema *sema) analyzeStmt(
 	case *ast.FunctionCall:
 		err := sema.analyzeFunctionCall(statement, scope)
 		return err
-	case *ast.MultiVarStmt, *ast.VarStmt:
-		err := sema.analyzeVarDecl(statement, scope)
+	case *ast.VarStmt:
+		err := sema.analyzeVar(statement, scope)
+		return err
+	case *ast.MultiVarStmt:
+		err := sema.analyzeMultiVar(statement, scope)
 		return err
 	case *ast.CondStmt:
 		err := sema.analyzeCondStmt(statement, returnTy, scope)
@@ -206,21 +209,6 @@ func (sema *sema) analyzeStmt(
 		return err
 	default:
 		log.Fatalf("unimplemented statement on sema: %s", statement)
-	}
-	return nil
-}
-
-func (sema *sema) analyzeVarDecl(
-	variable ast.Stmt,
-	currentScope *scope.Scope[ast.Node],
-) error {
-	switch varStmt := variable.(type) {
-	case *ast.MultiVarStmt:
-		err := sema.analyzeMultiVar(varStmt, currentScope)
-		return err
-	case *ast.VarStmt:
-		err := sema.analyzeVar(varStmt, currentScope)
-		return err
 	}
 	return nil
 }
@@ -395,7 +383,8 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	parent := scope.New[ast.Node](nil)
 	scope := scope.New(parent)
 
-	err = sema.analyzeVarDecl(varStmt, scope)
+	voidType := &ast.BasicType{Kind: kind.VOID_TYPE}
+	err = sema.analyzeStmt(varStmt, scope, voidType)
 	if err != nil {
 		return nil, err
 	}
