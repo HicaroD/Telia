@@ -193,14 +193,39 @@ func (codegen *codegen) generateReturnStmt(
 }
 
 func (codegen *codegen) generateMultiVar(
-	varDecl *ast.MultiVarStmt,
+	multi *ast.MultiVarStmt,
 	scope *scope.Scope[values.LLVMValue],
 ) error {
-	for i := range varDecl.Variables {
-		err := codegen.generateVar(varDecl.Variables[i], scope)
+	switch multiExprs := multi.Exprs.(type) {
+	case *ast.MultiExpr:
+		for i := range multi.Variables {
+			err := codegen.generateVar(multi.Variables[i], scope)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.FunctionCall:
+		symbol, err := scope.LookupAcrossScopes(multiExprs.Name.Name())
 		if err != nil {
 			return err
 		}
+		function := symbol.(*values.Function)
+
+		call, err := codegen.generateFunctionCall(scope, multiExprs)
+		if err != nil {
+			return err
+		}
+
+		for i := range multi.Variables {
+			structFieldValue := codegen.builder.CreateStructGEP(function.Ty, call, i, ".field")
+			err := codegen.generateVarWithStructFieldValue(multi.Variables[i], structFieldValue, scope)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 	return nil
 }
@@ -223,11 +248,11 @@ func (codegen *codegen) generateVarDecl(
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
 	varExpr, err := codegen.getExpr(varDecl.Value, scope)
-
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
+
 	codegen.builder.CreateStore(varExpr, varPtr)
 
 	variable := values.Variable{
@@ -255,6 +280,52 @@ func (codegen *codegen) generateVarReassign(
 	codegen.builder.CreateStore(expr, variable.Ptr)
 	return nil
 }
+
+func (codegen *codegen) generateVarWithStructFieldValue(
+	varStmt *ast.VarStmt,
+	value llvm.Value,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	if varStmt.Decl {
+		return codegen.generateVarDeclWithStructFieldValue(varStmt, value, scope)
+	} else {
+		return codegen.generateVarReassignWithStructFieldValue(varStmt, value, scope)
+	}
+}
+
+func (codegen *codegen) generateVarDeclWithStructFieldValue(
+	varDecl *ast.VarStmt,
+	value llvm.Value,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	varTy := codegen.getType(varDecl.Type)
+	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
+
+	codegen.builder.CreateStore(value, varPtr)
+
+	variable := values.Variable{
+		Ty:  varTy,
+		Ptr: varPtr,
+	}
+	// REFACTOR: make it simpler to get the lexeme
+	err := scope.Insert(varDecl.Name.Name(), &variable)
+	return err
+}
+
+func (codegen *codegen) generateVarReassignWithStructFieldValue(
+	varDecl *ast.VarStmt,
+	value llvm.Value,
+	scope *scope.Scope[values.LLVMValue],
+) error {
+	symbol, err := scope.LookupAcrossScopes(varDecl.Name.Name())
+	if err != nil {
+		return err
+	}
+	variable := symbol.(*values.Variable)
+	codegen.builder.CreateStore(value, variable.Ptr)
+	return nil
+}
+
 
 func (codegen *codegen) generateParameters(
 	fnValue *values.Function,
@@ -362,6 +433,12 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 		underlyingExprType := codegen.getType(exprTy.Type)
 		// TODO: learn about how to properly define a pointer address space
 		return llvm.PointerType(underlyingExprType, 0)
+	case *ast.TupleType:
+		types := codegen.getTypes(exprTy.Types)
+		// TODO: learn what packed means
+		packed := false
+		structTy := codegen.context.StructType(types, packed)
+		return structTy
 	default:
 		log.Fatalf("invalid type: %s", reflect.TypeOf(exprTy))
 	}
@@ -375,6 +452,14 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 		types[i] = codegen.getType(fields.Fields[i].Type)
 	}
 	return types
+}
+
+func (codegen *codegen) getTypes(types []ast.ExprType) []llvm.Type {
+	llvmTypes := make([]llvm.Type, len(types))
+	for i := range types {
+		llvmTypes[i] = codegen.getType(types[i])
+	}
+	return llvmTypes
 }
 
 func (codegen *codegen) getExprList(
@@ -510,6 +595,16 @@ func (codegen *codegen) getExpr(
 		default:
 			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
 		}
+	case *ast.MultiExpr:
+		// TODO
+		values, err := codegen.getExprList(scope, currentExpr.Exprs)
+		if err != nil {
+			return llvm.Value{}, err
+		}
+		// TODO: learn what packed means
+		packed := false
+		constStruct := codegen.context.ConstStruct(values, packed)
+		return constStruct, nil
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}

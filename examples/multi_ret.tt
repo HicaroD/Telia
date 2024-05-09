@@ -1,0 +1,14 @@
+extern libc {
+  fn printf(format *u8, ...) i32;
+  fn puts(format *u8) i32;
+}
+
+fn get_multiple() (int, int) {
+  return 1, 1;
+}
+
+fn main() i32 {
+  a, b := get_multiple();
+  libc.printf("%d, %d", a, b);
+  return 0;
+}

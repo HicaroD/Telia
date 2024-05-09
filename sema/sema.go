@@ -274,6 +274,7 @@ func (sema *sema) analyzeMultiVar(
 			return collector.COMPILER_ERROR_FOUND
 		}
 	}
+
 	for i := range multi.Variables {
 		if multi.Variables[i].Decl {
 			varName := multi.Variables[i].Name.Name()
@@ -282,11 +283,76 @@ func (sema *sema) analyzeMultiVar(
 				return err
 			}
 		}
-		err := sema.analyzeVariableType(multi.Variables[i], currentScope)
+	}
+
+	err := sema.analyzeMultiVarExpr(multi, currentScope)
+	return err
+}
+
+func (sema *sema) analyzeMultiVarExpr(multi *ast.MultiVarStmt, currentScope *scope.Scope[ast.Node]) error {
+	// TODO
+	switch multiExpr := multi.Exprs.(type) {
+	case *ast.MultiExpr:
 		// TODO(errors)
-		if err != nil {
-			return err
+		if len(multi.Variables) != len(multiExpr.Exprs) {
+			return fmt.Errorf("expected %d expressions for %d variables", len(multiExpr.Exprs), len(multi.Variables))
 		}
+		for i := range multi.Variables {
+			multi.Variables[i].Value = multiExpr.Exprs[i]
+			err := sema.analyzeVariableType(multi.Variables[i], currentScope)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
+		}
+	case *ast.FunctionCall:
+		symbol, err := currentScope.LookupAcrossScopes(multiExpr.Name.Name())
+		if err != nil {
+			// TODO(errors)
+			if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				return fmt.Errorf("%s not found on scope", multiExpr.Name.Name())
+			}
+		}
+
+		function, ok := symbol.(*ast.FunctionDecl)
+		// TODO(errors)
+		if !ok {
+			return fmt.Errorf("%s is expected to be a function, but got %s", multiExpr.Name.Name(), reflect.TypeOf(symbol))
+		}
+
+		tuple, ok := function.RetType.(*ast.TupleType)
+		// TODO(errors)
+		if !ok {
+			return fmt.Errorf("expected return type to be a tuple, but got %s", reflect.TypeOf(function.RetType))
+		}
+
+		if len(tuple.Types) != len(multi.Variables) {
+			return fmt.Errorf("expected %d expressions for tuple %s, but got %d expressions", len(tuple.Types), tuple, len(multi.Variables))
+		}
+
+		for i, variable := range multi.Variables {
+			if variable.NeedsInference {
+				if variable.Type != nil {
+					// TODO(errors)
+					return fmt.Errorf(
+						"needs inference, but variable already has a type: %s",
+						variable.Type,
+					)
+				}
+				variable.Type = tuple.Types[i]
+			} else {
+				if !reflect.DeepEqual(variable.Type, tuple.Types[i]) {
+					// TODO(errors)
+					return fmt.Errorf(
+						"expected type %s, but got %s",
+						tuple.Types[i],
+						variable.Type,
+					)
+				}
+			}
+		}
+	default:
+		log.Fatalf("unimplemented multi var expr: %s", reflect.TypeOf(multiExpr))
 	}
 	return nil
 }

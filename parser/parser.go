@@ -1032,23 +1032,22 @@ func (parser *parser) parsePrimary() (ast.Expr, error) {
 }
 
 func (parser *parser) parseExprList() ([]ast.Expr, error) {
-	var exprs []ast.Expr
-	for parser.nextIsPossibleExpr() {
-		expr, err := parser.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		exprs = append(exprs, expr)
-
-		if parser.cursor.nextIs(kind.COMMA) {
-			parser.cursor.skip()
-			continue
-		}
+	expr, err := parser.parseExpr()
+	if err != nil {
+		return nil, err
 	}
-	return exprs, nil
+	multi, ok := expr.(*ast.MultiExpr)
+	if !ok {
+		exprs := make([]ast.Expr, 1)
+		exprs[0] = expr
+		return exprs, nil
+	}
+	return multi.Exprs, nil
 }
 
 func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
+	var err error
+
 	name, ok := parser.expect(kind.ID)
 	// TODO(errors): should never hit
 	if !ok {
@@ -1061,9 +1060,12 @@ func (parser *parser) parseFnCall() (*ast.FunctionCall, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	args, err := parser.parseExprList()
-	if err != nil {
-		return nil, err
+	var args []ast.Expr
+	if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
+		args, err = parser.parseExprList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	_, ok = parser.expect(kind.CLOSE_PAREN)
