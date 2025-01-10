@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type cursor struct {

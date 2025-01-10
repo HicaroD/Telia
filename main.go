@@ -6,11 +6,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/HicaroD/Telia/codegen"
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer"
-	"github.com/HicaroD/Telia/parser"
-	"github.com/HicaroD/Telia/sema"
+	"github.com/HicaroD/Telia/backend/codegen"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/lexer"
+	"github.com/HicaroD/Telia/frontend/parser"
+	"github.com/HicaroD/Telia/middleend/sema"
 )
 
 func main() {
@@ -28,7 +28,7 @@ func main() {
 	}
 	defer file.Close()
 
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 	reader := bufio.NewReader(file)
 
 	lex := lexer.New(filename, reader, diagCollector)

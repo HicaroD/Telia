@@ -1,4 +1,4 @@
-package collector
+package diagnostics
 
 type Diag struct {
 	Message string

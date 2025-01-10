@@ -3,8 +3,8 @@ package ast
 import (
 	"fmt"
 
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 var LOGICAL map[kind.TokenKind]bool = map[kind.TokenKind]bool{

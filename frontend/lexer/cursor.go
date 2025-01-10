@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/HicaroD/Telia/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
 )
 
 type cursor struct {

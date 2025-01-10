@@ -5,40 +5,50 @@ import (
 	"fmt"
 	"unicode"
 
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
-type lexer struct {
+type Lexer struct {
 	filename  string
-	collector *collector.DiagCollector
+	collector *diagnostics.Collector
 	cursor    *cursor
 }
 
-func New(filename string, reader *bufio.Reader, diagCollector *collector.DiagCollector) *lexer {
-	return &lexer{filename: filename, cursor: new(filename, reader), collector: diagCollector}
+func New(filename string, reader *bufio.Reader, diagCollector *diagnostics.Collector) *Lexer {
+	return &Lexer{filename: filename, cursor: new(filename, reader), collector: diagCollector}
 }
 
-func (lex *lexer) Tokenize() ([]*token.Token, error) {
+func (lex *Lexer) Next() (*token.Token, error) {
+	lex.cursor.skipWhitespace()
+	character, ok := lex.cursor.peek()
+	if !ok {
+		return lex.consumeToken("", kind.EOF), nil
+	}
+	token, err := lex.getToken(character)
+	if err != nil {
+		return nil, err
+	}
+	return token, nil
+}
+
+func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
-		lex.cursor.skipWhitespace()
-		character, ok := lex.cursor.peek()
-		if !ok {
-			break
-		}
-		token, err := lex.getToken(character)
+		token, err := lex.Next()
 		if err != nil {
 			return nil, err
 		}
 		tokens = append(tokens, token)
+		if token.Kind == kind.EOF {
+			break
+		}
 	}
-	tokens = append(tokens, lex.consumeToken("", kind.EOF))
 	return tokens, nil
 }
 
-func (lex *lexer) getToken(character rune) (*token.Token, error) {
+func (lex *Lexer) getToken(character rune) (*token.Token, error) {
 	switch character {
 	case '(':
 		token := lex.consumeToken("", kind.OPEN_PAREN)
@@ -90,7 +100,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip()
 
-		invalidCharacter := collector.Diag{
+		invalidCharacter := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: invalid character !",
 				tokenPosition.Filename,
@@ -102,7 +112,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		next, ok := lex.cursor.peek()
 		if !ok {
 			lex.collector.ReportAndSave(invalidCharacter)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
 			lex.cursor.skip()
@@ -110,7 +120,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		}
 
 		lex.collector.ReportAndSave(invalidCharacter)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	case '>':
 		tokenKind := kind.GREATER
 		tokenPosition := lex.cursor.Position()
@@ -170,7 +180,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		tokenPosition := lex.cursor.Position()
 		lex.cursor.skip() // :
 
-		invalidCharacter := collector.Diag{
+		invalidCharacter := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: invalid character :",
 				tokenPosition.Filename,
@@ -182,7 +192,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		next, ok := lex.cursor.peek()
 		if !ok {
 			lex.collector.ReportAndSave(invalidCharacter)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		if next == '=' {
 			lex.cursor.skip() // =
@@ -190,7 +200,7 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 		}
 
 		lex.collector.ReportAndSave(invalidCharacter)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	default:
 		position := lex.cursor.Position()
 		if unicode.IsLetter(character) || character == '_' {
@@ -203,16 +213,16 @@ func (lex *lexer) getToken(character rune) (*token.Token, error) {
 			return lex.getNumberLiteral(position), nil
 		} else {
 			tokenPosition := lex.cursor.Position()
-			invalidCharacter := collector.Diag{
+			invalidCharacter := diagnostics.Diag{
 				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, character),
 			}
 			lex.collector.ReportAndSave(invalidCharacter)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
 }
 
-func (lex *lexer) getStringLiteral() (*token.Token, error) {
+func (lex *Lexer) getStringLiteral() (*token.Token, error) {
 	position := lex.cursor.Position()
 
 	lex.cursor.skip() // "
@@ -220,7 +230,7 @@ func (lex *lexer) getStringLiteral() (*token.Token, error) {
 
 	currentCharacter, ok := lex.cursor.peek()
 	if !ok {
-		unterminatedStringLiteral := collector.Diag{
+		unterminatedStringLiteral := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: unterminated string literal",
 				position.Filename,
@@ -229,7 +239,7 @@ func (lex *lexer) getStringLiteral() (*token.Token, error) {
 			),
 		}
 		lex.collector.ReportAndSave(unterminatedStringLiteral)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	if currentCharacter == '"' {
 		lex.cursor.skip()
@@ -238,7 +248,7 @@ func (lex *lexer) getStringLiteral() (*token.Token, error) {
 	return token.New(strLiteral, kind.STRING_LITERAL, position), nil
 }
 
-func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
+func (lex *Lexer) getNumberLiteral(position token.Position) *token.Token {
 	number := lex.cursor.readWhile(
 		func(chr rune) bool { return unicode.IsNumber(chr) || chr == '_' },
 	)
@@ -250,7 +260,7 @@ func (lex *lexer) getNumberLiteral(position token.Position) *token.Token {
 	return token
 }
 
-func (lex *lexer) classifyIdentifier(identifier string, position token.Position) *token.Token {
+func (lex *Lexer) classifyIdentifier(identifier string, position token.Position) *token.Token {
 	idKind, ok := kind.KEYWORDS[identifier]
 	if ok {
 		return token.New(identifier, idKind, position)
@@ -258,6 +268,6 @@ func (lex *lexer) classifyIdentifier(identifier string, position token.Position)
 	return token.New(identifier, kind.ID, position)
 }
 
-func (lex *lexer) consumeToken(lexeme string, kind kind.TokenKind) *token.Token {
+func (lex *Lexer) consumeToken(lexeme string, kind kind.TokenKind) *token.Token {
 	return token.New(lexeme, kind, lex.cursor.Position())
 }

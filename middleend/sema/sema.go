@@ -8,20 +8,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/HicaroD/Telia/ast"
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer"
-	"github.com/HicaroD/Telia/lexer/token/kind"
-	"github.com/HicaroD/Telia/parser"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/frontend/lexer"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/scope"
 )
 
 type sema struct {
-	collector *collector.DiagCollector
+	collector *diagnostics.Collector
 	universe  *scope.Scope[ast.Node]
 }
 
-func New(collector *collector.DiagCollector) *sema {
+func New(collector *diagnostics.Collector) *sema {
 	// "universe" scope does not have any parent, it is the
 	// root of the tree of scopes
 	var nilScope *scope.Scope[ast.Node] = nil
@@ -57,7 +57,7 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 		if err != nil {
 			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 				pos := extern.Prototypes[i].Name.Position
-				prototypeRedeclaration := collector.Diag{
+				prototypeRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
 						pos.Filename,
@@ -68,7 +68,7 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 					),
 				}
 				sema.collector.ReportAndSave(prototypeRedeclaration)
-				return collector.COMPILER_ERROR_FOUND
+				return diagnostics.COMPILER_ERROR_FOUND
 			}
 			return err
 		}
@@ -78,7 +78,7 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 	if err != nil {
 		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 			pos := extern.Name.Position
-			prototypeRedeclaration := collector.Diag{
+			prototypeRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: extern '%s' already declared on scope",
 					pos.Filename,
@@ -88,7 +88,7 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 				),
 			}
 			sema.collector.ReportAndSave(prototypeRedeclaration)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 		return err
 	}
@@ -104,7 +104,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 		// for helping the program
 		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 			pos := function.Name.Position
-			functionRedeclaration := collector.Diag{
+			functionRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' already declared on scope",
 					pos.Filename,
@@ -114,7 +114,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 				),
 			}
 			sema.collector.ReportAndSave(functionRedeclaration)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 		return err
 	}
@@ -143,7 +143,7 @@ func (sema *sema) addParametersToScope(
 		if err != nil {
 			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 				pos := param.Name.Position
-				parameterRedeclaration := collector.Diag{
+				parameterRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: parameter '%s' already declared on function '%s'",
 						pos.Filename,
@@ -154,7 +154,7 @@ func (sema *sema) addParametersToScope(
 					),
 				}
 				sema.collector.ReportAndSave(parameterRedeclaration)
-				return collector.COMPILER_ERROR_FOUND
+				return diagnostics.COMPILER_ERROR_FOUND
 			}
 			return err
 		}
@@ -247,7 +247,7 @@ func (sema *sema) analyzeMultiVar(
 			firstVariable := multi.Variables[0]
 			pos := firstVariable.Name.Position
 			// TODO: give user a hint for consider using = instead of :=
-			noNewVariablesDeclared := collector.Diag{
+			noNewVariablesDeclared := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: no new variables declared",
 					pos.Filename,
@@ -256,7 +256,7 @@ func (sema *sema) analyzeMultiVar(
 				),
 			}
 			sema.collector.ReportAndSave(noNewVariablesDeclared)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 	} else {
 		allVariablesDefined := true
@@ -278,11 +278,11 @@ func (sema *sema) analyzeMultiVar(
 				log.Fatal("panic: variable at non decl is nil, but it should never be")
 			}
 			pos := undefinedVar.Name.Position
-			notDeclared := collector.Diag{
+			notDeclared := diagnostics.Diag{
 				Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
 			}
 			sema.collector.ReportAndSave(notDeclared)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
 	for i := range multi.Variables {
@@ -373,7 +373,7 @@ func (sema *sema) analyzeVariableType(
 
 // Useful for testing
 func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
 	lexer := lexer.New(filename, reader, diagCollector)
@@ -455,7 +455,7 @@ func (sema *sema) analyzeFunctionCall(
 	if err != nil {
 		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 			pos := functionCall.Name.Position
-			functionNotDefined := collector.Diag{
+			functionNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' not defined on scope",
 					pos.Filename,
@@ -465,7 +465,7 @@ func (sema *sema) analyzeFunctionCall(
 				),
 			}
 			sema.collector.ReportAndSave(functionNotDefined)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 		return err
 	}
@@ -473,7 +473,7 @@ func (sema *sema) analyzeFunctionCall(
 	decl, ok := function.(*ast.FunctionDecl)
 	if !ok {
 		pos := functionCall.Name.Position
-		notCallable := collector.Diag{
+		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: '%s' is not callable",
 				pos.Filename,
@@ -483,14 +483,14 @@ func (sema *sema) analyzeFunctionCall(
 			),
 		}
 		sema.collector.ReportAndSave(notCallable)
-		return collector.COMPILER_ERROR_FOUND
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	if len(functionCall.Args) != len(decl.Params.Fields) {
 		pos := functionCall.Name.Position
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
-		notEnoughArguments := collector.Diag{
+		notEnoughArguments := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: not enough arguments in call to '%s'",
 				pos.Filename,
@@ -500,7 +500,7 @@ func (sema *sema) analyzeFunctionCall(
 			),
 		}
 		sema.collector.ReportAndSave(notEnoughArguments)
-		return collector.COMPILER_ERROR_FOUND
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	for i := range len(functionCall.Args) {
@@ -510,12 +510,12 @@ func (sema *sema) analyzeFunctionCall(
 			return err
 		}
 		if !reflect.DeepEqual(argType, paramType) {
-			mismatchedArgType := collector.Diag{
+			mismatchedArgType := diagnostics.Diag{
 				// TODO(errors): add position of the error
 				Message: fmt.Sprintf("can't use %s on argument of type %s", argType, paramType),
 			}
 			sema.collector.ReportAndSave(mismatchedArgType)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
 
@@ -655,7 +655,7 @@ func inferExprTypeWithoutContext(
 	input, filename string,
 	scope *scope.Scope[ast.Node],
 ) (ast.Expr, ast.ExprType, error) {
-	collector := collector.New()
+	collector := diagnostics.New()
 
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
@@ -676,7 +676,7 @@ func inferExprTypeWithContext(
 	ty ast.ExprType,
 	scope *scope.Scope[ast.Node],
 ) (ast.ExprType, error) {
-	collector := collector.New()
+	collector := diagnostics.New()
 
 	expr, err := parser.ParseExprFrom(input, filename)
 	if err != nil {
@@ -909,7 +909,7 @@ func (sema *sema) analyzeFieldAccessExpr(
 	if err != nil {
 		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 			pos := idExpr.Name.Position
-			symbolNotDefined := collector.Diag{
+			symbolNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: '%s' not defined on scope",
 					pos.Filename,
@@ -919,7 +919,7 @@ func (sema *sema) analyzeFieldAccessExpr(
 				),
 			}
 			sema.collector.ReportAndSave(symbolNotDefined)
-			return collector.COMPILER_ERROR_FOUND
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 		return err
 	}
@@ -948,7 +948,7 @@ func (sema *sema) analyzePrototypeCall(
 	prototype, err := extern.Scope.LookupCurrentScope(prototypeCall.Name.Name())
 	if err != nil {
 		pos := prototypeCall.Name.Position
-		prototypeNotFound := collector.Diag{
+		prototypeNotFound := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: function '%s' not declared on extern '%s'",
 				pos.Filename,
@@ -959,7 +959,7 @@ func (sema *sema) analyzePrototypeCall(
 			),
 		}
 		sema.collector.ReportAndSave(prototypeNotFound)
-		return collector.COMPILER_ERROR_FOUND
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	if proto, ok := prototype.(*ast.Proto); ok {

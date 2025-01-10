@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HicaroD/Telia/ast"
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer"
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
-	"github.com/HicaroD/Telia/parser"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/lexer"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/scope"
 )
 
@@ -413,7 +413,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 
 type semanticErrorTest struct {
 	input string
-	diags []collector.Diag
+	diags []diagnostics.Diag
 }
 
 func TestSemanticErrors(t *testing.T) {
@@ -422,7 +422,7 @@ func TestSemanticErrors(t *testing.T) {
 	tests := []semanticErrorTest{
 		{
 			input: "extern libc { fn puts(); fn puts(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					// TODO: show the first declaration and the other
 					Message: "test.tt:1:29: prototype 'puts' already declared on extern 'libc'",
@@ -431,7 +431,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "extern libc { }\nextern libc { }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					// TODO: show the first declaration and the other
 					Message: "test.tt:2:8: extern 'libc' already declared on scope",
@@ -440,7 +440,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "extern libc {}\nfn main() { libc.puts(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					// TODO: show the first declaration and the other
 					Message: "test.tt:2:18: function 'puts' not declared on extern 'libc'",
@@ -449,7 +449,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing() {}\nfn do_nothing() {}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					// TODO: show the first declaration and the other
 					Message: "test.tt:2:4: function 'do_nothing' already declared on scope",
@@ -458,7 +458,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a int, a int) {}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:22: parameter 'a' already declared on function 'do_nothing'",
 				},
@@ -466,7 +466,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn foo(a int, b int) {}\nfn main() { foo(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:13: not enough arguments in call to 'foo'",
 				},
@@ -474,7 +474,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn foo(a int) {}\nfn main() { foo(\"hello\"); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "can't use *u8 on argument of type int",
 				},
@@ -482,7 +482,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { foo(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:13: function 'foo' not defined on scope",
 				},
@@ -490,7 +490,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { a := 1; a(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:21: 'a' is not callable",
 				},
@@ -498,7 +498,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { libc.printf(); }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:13: 'libc' not defined on scope",
 				},
@@ -515,7 +515,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { a := 1; a, b = 10, 10; }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:24: 'b' not declared",
 				},
@@ -523,7 +523,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { b := 1; a, b = 10, 10; }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:21: 'a' not declared",
 				},
@@ -531,7 +531,7 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			input: "fn main() { a := 1; b := 2; a, b := 10, 10; }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:29: no new variables declared",
 				},
@@ -541,7 +541,7 @@ func TestSemanticErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
-			collector := collector.New()
+			collector := diagnostics.New()
 
 			reader := bufio.NewReader(strings.NewReader(test.input))
 			lex := lexer.New(filename, reader, collector)

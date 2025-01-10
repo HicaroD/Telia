@@ -9,6 +9,6 @@ fn print(message *u8) {
 }
 
 fn main() i32 {
-  print("Hello, world 😃");
+  print("Hello, world 😃\n");
   return 0;
 }

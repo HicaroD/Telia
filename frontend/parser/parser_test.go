@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HicaroD/Telia/ast"
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer"
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/frontend/lexer"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type functionDeclTest struct {
@@ -1466,7 +1466,7 @@ func TestIfStmt(t *testing.T) {}
 
 type syntaxErrorTest struct {
 	input string
-	diags []collector.Diag
+	diags []diagnostics.Diag
 }
 
 func TestSyntaxErrors(t *testing.T) {
@@ -1474,7 +1474,7 @@ func TestSyntaxErrors(t *testing.T) {
 	tests := []syntaxErrorTest{
 		{
 			input: "{",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
 				},
@@ -1482,7 +1482,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "if",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
 				},
@@ -1490,7 +1490,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "elif",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
 				},
@@ -1498,7 +1498,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "else",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unexpected non-declaration statement on global scope",
 				},
@@ -1511,7 +1511,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn (){}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:4: expected name, not (",
 				},
@@ -1519,7 +1519,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:3: expected name, not end of file",
 				},
@@ -1527,7 +1527,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name){}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:8: expected (, not )",
 				},
@@ -1535,7 +1535,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:8: expected (, not end of file",
 				},
@@ -1543,7 +1543,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name({}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:9: expected parameter or ), not {",
 				},
@@ -1551,7 +1551,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name(",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:9: expected parameter or ), not end of file",
 				},
@@ -1559,7 +1559,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name(a, b int){}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:10: expected parameter type for 'a', not ,",
 				},
@@ -1567,7 +1567,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name(a",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:10: expected parameter type for 'a', not end of file",
 				},
@@ -1575,7 +1575,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name(a int, ..., b int){}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:16: ... is only allowed at the end of parameter list",
 				},
@@ -1583,7 +1583,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name() }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:11: expected type or {, not }",
 				},
@@ -1591,7 +1591,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name()",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:10: expected type or {, not end of file",
 				},
@@ -1599,7 +1599,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "fn name() {",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:12: expected statement or }, not end of file",
 				},
@@ -1629,7 +1629,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn method() {}
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
 				},
@@ -1637,7 +1637,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "extern {}",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:8: expected name, not {",
 				},
@@ -1645,7 +1645,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "extern libc }",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:13: expected {, not }",
 				},
@@ -1653,7 +1653,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "extern libc {",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:14: expected prototype or }, not end of file",
 				},
@@ -1661,7 +1661,7 @@ func TestSyntaxErrors(t *testing.T) {
 		},
 		{
 			input: "extern libc",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:12: expected {, not end of file",
 				},
@@ -1672,7 +1672,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn method() {}
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:16: expected ; at the end of prototype, not {",
 				},
@@ -1683,7 +1683,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn ();
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:7: expected name, not (",
 				},
@@ -1693,7 +1693,7 @@ func TestSyntaxErrors(t *testing.T) {
 			input: // no formatting
 			`extern libc {
 			fn name();`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:14: expected prototype or }, not end of file",
 				},
@@ -1704,7 +1704,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn name);
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:11: expected (, not )",
 				},
@@ -1715,7 +1715,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn name(;
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:12: expected parameter or ), not ;",
 				},
@@ -1726,7 +1726,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn name(a);
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:13: expected parameter type for 'a', not )",
 				},
@@ -1737,7 +1737,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn name(a;
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:13: expected parameter type for 'a', not ;",
 				},
@@ -1748,7 +1748,7 @@ func TestSyntaxErrors(t *testing.T) {
 			`extern libc {
 			fn name(a int;
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:2:17: expected parameter or ), not ;",
 				},
@@ -1758,7 +1758,7 @@ func TestSyntaxErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestSyntaxErrors('%s')", test.input), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 			reader := bufio.NewReader(strings.NewReader(test.input))
 
 			lex := lexer.New(filename, reader, diagCollector)
@@ -1799,7 +1799,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 	tests := []syntaxErrorTest{
 		{
 			input: "{",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:2: expected statement or }, not end of file",
 				},
@@ -1809,7 +1809,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			input: `{
 			return
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:3:4: expected expression or ;, not }",
 				},
@@ -1819,7 +1819,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			input: `{
 			return
 			`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:3:4: expected expression or ;, not end of file",
 				},
@@ -1829,7 +1829,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			input: `{
 			return 10
 			}`,
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:3:4: expected ; at the end of statement, not }",
 				},
@@ -1841,7 +1841,7 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestSyntaxErrorsOnBlock('%s')", test.input), func(t *testing.T) {
-			collector := collector.New()
+			collector := diagnostics.New()
 
 			reader := bufio.NewReader(strings.NewReader(test.input))
 			lex := lexer.New(filename, reader, collector)

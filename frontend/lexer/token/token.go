@@ -1,7 +1,7 @@
 package token
 
 import (
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type Token struct {

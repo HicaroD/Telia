@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/HicaroD/Telia/ast"
-	"github.com/HicaroD/Telia/codegen/values"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/backend/codegen/values"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 	"github.com/HicaroD/Telia/scope"
 	"tinygo.org/x/go-llvm"
 )

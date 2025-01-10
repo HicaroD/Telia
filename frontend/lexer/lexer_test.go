@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type tokenKindTest struct {
@@ -73,7 +73,7 @@ func TestTokenKinds(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenKind('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
 			lexer := New(filename, reader, diagCollector)
@@ -125,7 +125,7 @@ func TestTokenPos(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenPos(%q)", test.input), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 
 			reader := bufio.NewReader(strings.NewReader(test.input))
 			lexer := New(filename, reader, diagCollector)
@@ -208,7 +208,7 @@ func TestIsIdentifier(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsIdentifier('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
 			lexer := New(filename, reader, diagCollector)
@@ -257,7 +257,7 @@ func TestIsLiteral(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsLiteral('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 			reader := bufio.NewReader(strings.NewReader(test.lexeme))
 
 			lexer := New(filename, reader, diagCollector)
@@ -281,7 +281,7 @@ func TestIsLiteral(t *testing.T) {
 
 type lexicalErrorTest struct {
 	input string
-	diags []collector.Diag
+	diags []diagnostics.Diag
 }
 
 func TestLexicalErrors(t *testing.T) {
@@ -290,7 +290,7 @@ func TestLexicalErrors(t *testing.T) {
 	tests := []lexicalErrorTest{
 		{
 			input: "!",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character !",
 				},
@@ -298,7 +298,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: "!!",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character !",
 				},
@@ -306,7 +306,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: ":",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character :",
 				},
@@ -314,7 +314,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: "::",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character :",
 				},
@@ -322,7 +322,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: "?",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character ?",
 				},
@@ -330,7 +330,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: "\"Unterminated string literal here",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unterminated string literal",
 				},
@@ -338,7 +338,7 @@ func TestLexicalErrors(t *testing.T) {
 		},
 		{
 			input: "\"",
-			diags: []collector.Diag{
+			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: unterminated string literal",
 				},
@@ -348,7 +348,7 @@ func TestLexicalErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestLexicalErrors('%s')", test.input), func(t *testing.T) {
-			diagCollector := collector.New()
+			diagCollector := diagnostics.New()
 			reader := bufio.NewReader(strings.NewReader(test.input))
 
 			lex := New(filename, reader, diagCollector)

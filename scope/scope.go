@@ -40,7 +40,6 @@ func (scope *Scope[V]) LookupAcrossScopes(name string) (V, error) {
 		return node, nil
 	}
 	if scope.Parent == nil {
-		// HACK
 		var empty V
 		return empty, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
 	}

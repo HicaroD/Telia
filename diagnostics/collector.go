@@ -1,4 +1,4 @@
-package collector
+package diagnostics
 
 import (
 	"errors"
@@ -9,17 +9,17 @@ var (
 	COMPILER_ERROR_FOUND = errors.New("compiler error found")
 )
 
-type DiagCollector struct {
+type Collector struct {
 	Diags []Diag
 }
 
-func New() *DiagCollector {
-	return &DiagCollector{
+func New() *Collector {
+	return &Collector{
 		Diags: nil,
 	}
 }
 
-func (collector *DiagCollector) ReportAndSave(diag Diag) {
+func (collector *Collector) ReportAndSave(diag Diag) {
 	fmt.Println(diag.Message)
 	collector.Diags = append(collector.Diags, diag)
 }

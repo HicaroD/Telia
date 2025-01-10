@@ -6,19 +6,19 @@ import (
 	"log"
 	"strings"
 
-	"github.com/HicaroD/Telia/ast"
-	"github.com/HicaroD/Telia/collector"
-	"github.com/HicaroD/Telia/lexer"
-	"github.com/HicaroD/Telia/lexer/token"
-	"github.com/HicaroD/Telia/lexer/token/kind"
+	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/frontend/lexer"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type parser struct {
-	Collector *collector.DiagCollector
+	Collector *diagnostics.Collector
 	cursor    *cursor
 }
 
-func New(tokens []*token.Token, diagCollector *collector.DiagCollector) *parser {
+func New(tokens []*token.Token, diagCollector *diagnostics.Collector) *parser {
 	return &parser{cursor: newCursor(tokens), Collector: diagCollector}
 }
 
@@ -44,7 +44,7 @@ func (parser *parser) Parse() ([]ast.Node, error) {
 			astNodes = append(astNodes, externDecl)
 		default:
 			pos := token.Position
-			unexpectedTokenOnGlobalScope := collector.Diag{
+			unexpectedTokenOnGlobalScope := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: unexpected non-declaration statement on global scope",
 					pos.Filename,
@@ -53,7 +53,7 @@ func (parser *parser) Parse() ([]ast.Node, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(unexpectedTokenOnGlobalScope)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
 	return astNodes, nil
@@ -61,7 +61,7 @@ func (parser *parser) Parse() ([]ast.Node, error) {
 
 // Useful for testing
 func ParseExprFrom(expr, filename string) (ast.Expr, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(expr))
 	lex := lexer.New(filename, reader, diagCollector)
@@ -89,7 +89,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	name, ok := parser.expect(kind.ID)
 	if !ok {
 		pos := name.Position
-		expectedName := collector.Diag{
+		expectedName := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
 				pos.Filename,
@@ -99,13 +99,13 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedName)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	openCurly, ok := parser.expect(kind.OPEN_CURLY)
 	if !ok {
 		pos := openCurly.Position
-		expectedOpenCurly := collector.Diag{
+		expectedOpenCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected {, not %s",
 				pos.Filename,
@@ -115,7 +115,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedOpenCurly)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	var prototypes []*ast.Proto
@@ -135,7 +135,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 	// QUESTION: will it ever false?
 	if !ok {
 		pos := closeCurly.Position
-		expectedCloseCurly := collector.Diag{
+		expectedCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected }, not %s",
 				pos.Filename,
@@ -145,7 +145,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedCloseCurly)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.ExternDecl{Scope: nil, Name: name, Prototypes: prototypes}, nil
@@ -155,7 +155,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 	fn, ok := parser.expect(kind.FN)
 	if !ok {
 		pos := fn.Position
-		expectedCloseCurly := collector.Diag{
+		expectedCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected prototype or }, not %s",
 				pos.Filename,
@@ -165,13 +165,13 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedCloseCurly)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	name, ok := parser.expect(kind.ID)
 	if !ok {
 		pos := name.Position
-		expectedName := collector.Diag{
+		expectedName := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
 				pos.Filename,
@@ -181,7 +181,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedName)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	params, err := parser.parseFunctionParams()
@@ -197,7 +197,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 	semicolon, ok := parser.expect(kind.SEMICOLON)
 	if !ok {
 		pos := semicolon.Position
-		expectedSemicolon := collector.Diag{
+		expectedSemicolon := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected ; at the end of prototype, not %s",
 				pos.Filename,
@@ -207,7 +207,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedSemicolon)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.Proto{Name: name, Params: params, RetType: returnType}, nil
@@ -225,7 +225,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	name, ok := parser.expect(kind.ID)
 	if !ok {
 		pos := name.Position
-		expectedIdentifier := collector.Diag{
+		expectedIdentifier := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
 				pos.Filename,
@@ -235,7 +235,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedIdentifier)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	params, err := parser.parseFunctionParams()
@@ -264,7 +264,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
 
@@ -290,7 +290,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	openParen, ok := parser.expect(kind.OPEN_PAREN)
 	if !ok {
 		pos := openParen.Position
-		expectedOpenParen := collector.Diag{
+		expectedOpenParen := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected (, not %s",
 				pos.Filename,
@@ -300,7 +300,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedOpenParen)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	for {
@@ -316,7 +316,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			if !parser.cursor.nextIs(kind.CLOSE_PAREN) {
 				// TODO(errors):
 				// "fn name(a int, ...,) {}" because of the comma
-				unexpectedDotDotDot := collector.Diag{
+				unexpectedDotDotDot := diagnostics.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: ... is only allowed at the end of parameter list",
 						pos.Filename,
@@ -325,7 +325,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 					),
 				}
 				parser.Collector.ReportAndSave(unexpectedDotDotDot)
-				return nil, collector.COMPILER_ERROR_FOUND
+				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
 			break
 		}
@@ -333,7 +333,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 		name, ok := parser.expect(kind.ID)
 		if !ok {
 			pos := name.Position
-			expectedCloseParenOrId := collector.Diag{
+			expectedCloseParenOrId := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter or ), not %s",
 					pos.Filename,
@@ -343,13 +343,13 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(expectedCloseParenOrId)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		paramType, err := parser.parseExprType()
 		if err != nil {
 			tok := parser.cursor.peek()
 			pos := tok.Position
-			expectedParamType := collector.Diag{
+			expectedParamType := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter type for '%s', not %s",
 					pos.Filename,
@@ -360,7 +360,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(expectedParamType)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		params = append(params, &ast.Field{Name: name, Type: paramType})
 
@@ -373,7 +373,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 	closeParen, ok := parser.expect(kind.CLOSE_PAREN)
 	if !ok {
 		pos := closeParen.Position
-		expectedCloseParen := collector.Diag{
+		expectedCloseParen := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected ), not %s",
 				pos.Filename,
@@ -383,7 +383,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedCloseParen)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.FieldList{
@@ -404,7 +404,7 @@ func (parser *parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 	if err != nil {
 		tok := parser.cursor.peek()
 		pos := tok.Position
-		expectedReturnTy := collector.Diag{
+		expectedReturnTy := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected type or {, not %s",
 				pos.Filename,
@@ -414,7 +414,7 @@ func (parser *parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedReturnTy)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	return returnType, nil
 }
@@ -446,7 +446,7 @@ func (parser *parser) parseExprType() (ast.ExprType, error) {
 			parser.cursor.skip()
 			return &ast.BasicType{Kind: token.Kind}, nil
 		}
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 }
 
@@ -464,7 +464,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 		if err != nil {
 			tok := parser.cursor.peek()
 			pos := tok.Position
-			expectedSemicolon := collector.Diag{
+			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected expression or ;, not %s",
 					pos.Filename,
@@ -474,7 +474,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(expectedSemicolon)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
 
@@ -482,7 +482,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 		if !ok {
 			tok := parser.cursor.peek()
 			pos := tok.Position
-			expectedSemicolon := collector.Diag{
+			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected ; at the end of statement, not %s",
 					pos.Filename,
@@ -492,7 +492,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(expectedSemicolon)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 
 		return returnStmt, nil
@@ -504,7 +504,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 		semicolon, ok := parser.expect(kind.SEMICOLON)
 		if !ok {
 			pos := semicolon.Position
-			expectedSemicolon := collector.Diag{
+			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected ; at the end of statement, not %s",
 					pos.Filename,
@@ -514,7 +514,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 				),
 			}
 			parser.Collector.ReportAndSave(expectedSemicolon)
-			return nil, collector.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		// TODO(errors)
 		return idStmt, err
@@ -565,7 +565,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 	closeCurly, ok := parser.expect(kind.CLOSE_CURLY)
 	if !ok {
 		pos := closeCurly.Position
-		expectedStatementOrCloseCurly := collector.Diag{
+		expectedStatementOrCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected statement or }, not %s",
 				pos.Filename,
@@ -575,7 +575,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 			),
 		}
 		parser.Collector.ReportAndSave(expectedStatementOrCloseCurly)
-		return nil, collector.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.BlockStmt{
@@ -674,7 +674,7 @@ VarDecl:
 
 // Useful for testing
 func parseVarFrom(filename, input string) (ast.Stmt, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
 	lex := lexer.New(filename, reader, diagCollector)
@@ -1070,7 +1070,7 @@ func (parser *parser) parseForLoop() (*ast.ForLoop, error) {
 
 // Useful for testing
 func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
 	lex := lexer.New(filename, reader, diagCollector)
@@ -1086,7 +1086,7 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 }
 
 func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
-	diagCollector := collector.New()
+	diagCollector := diagnostics.New()
 
 	reader := bufio.NewReader(strings.NewReader(input))
 	lex := lexer.New(filename, reader, diagCollector)
