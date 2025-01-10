@@ -10,7 +10,7 @@ fn factorial(n u64) u64 {
 }
 
 fn main() i32 {
-  result := factorial(5);
+  result := factorial(6);
   libc.printf("Result: %d", result);
   return 0;
 }
