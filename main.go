@@ -52,7 +52,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	codegen := codegen.New(astNodes)
+	codegen := codegen.New(filename, astNodes)
 	err = codegen.Generate()
 	// TODO(errors)
 	if err != nil {

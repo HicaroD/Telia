@@ -1,11 +1,14 @@
 package codegen
 
 import (
+	"bytes"
 	"fmt"
 	"log"
-	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/HicaroD/Telia/backend/codegen/values"
 	"github.com/HicaroD/Telia/frontend/ast"
@@ -15,6 +18,8 @@ import (
 )
 
 type codegen struct {
+	filename string
+
 	context llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
@@ -24,7 +29,7 @@ type codegen struct {
 	strLiterals map[string]llvm.Value
 }
 
-func New(astNodes []ast.Node) *codegen {
+func New(filename string, astNodes []ast.Node) *codegen {
 	// parent of universe scope is nil
 	var nilScope *scope.Scope[values.LLVMValue] = nil
 	universe := scope.New(nilScope)
@@ -36,6 +41,8 @@ func New(astNodes []ast.Node) *codegen {
 	builder := context.NewBuilder()
 
 	return &codegen{
+		filename: filename,
+
 		context: context,
 		module:  module,
 		builder: builder,
@@ -66,28 +73,22 @@ func (codegen *codegen) Generate() error {
 		}
 	}
 
-	err := codegen.generateBitcodeFile()
+	err := codegen.generateExecutable()
 	return err
 }
 
-func (codegen *codegen) generateBitcodeFile() error {
-	// TODO: properly set the name of generated file
-	filename := "telia.ll"
-	file, err := os.Create(filename)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-
+func (codegen *codegen) generateExecutable() error {
 	module := codegen.module.String()
-	_, err = file.Write([]byte(module))
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
 
-	fmt.Printf("'%s' file generated successfuly\n", filename)
-	return nil
+	filenameNoExt := strings.TrimSuffix(filepath.Base(codegen.filename), filepath.Ext(codegen.filename))
+	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
+	cmd.Stdin = bytes.NewReader([]byte(module))
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	return err
 }
 
 func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
