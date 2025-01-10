@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
 	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
