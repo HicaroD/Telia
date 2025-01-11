@@ -4,8 +4,8 @@ extern C {
 }
 
 fn no_return() {
+  C.puts("No return");
   return;
-  puts("No return");
 }
 
 fn main() i32 {
