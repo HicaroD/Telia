@@ -1770,24 +1770,24 @@ func TestSyntaxErrors(t *testing.T) {
 			parser := New(tokens, diagCollector)
 			_, err = parser.Parse()
 
-			if err != nil && len(parser.Collector.Diags) == 0 {
+			if err != nil && len(parser.collector.Diags) == 0 {
 				t.Fatalf(
 					"error detected, but diagnostic collector is empty.\nError: %s",
 					err,
 				)
 			}
 
-			if len(test.diags) != len(parser.Collector.Diags) {
+			if len(test.diags) != len(parser.collector.Diags) {
 				t.Fatalf(
 					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
 					len(test.diags),
-					len(parser.Collector.Diags),
-					parser.Collector.Diags,
+					len(parser.collector.Diags),
+					parser.collector.Diags,
 					test.diags,
 				)
 			}
-			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			if !reflect.DeepEqual(test.diags, parser.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.collector)
 			}
 		})
 	}
@@ -1856,17 +1856,17 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 				t.Fatal("expected to have syntax errors, but got nothing")
 			}
 
-			if len(test.diags) != len(parser.Collector.Diags) {
+			if len(test.diags) != len(parser.collector.Diags) {
 				t.Fatalf(
 					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
 					len(test.diags),
-					len(parser.Collector.Diags),
-					parser.Collector.Diags,
+					len(parser.collector.Diags),
+					parser.collector.Diags,
 					test.diags,
 				)
 			}
-			if !reflect.DeepEqual(test.diags, parser.Collector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.Collector)
+			if !reflect.DeepEqual(test.diags, parser.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.collector)
 			}
 		})
 	}

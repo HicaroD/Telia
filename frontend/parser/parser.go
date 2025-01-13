@@ -14,12 +14,12 @@ import (
 )
 
 type parser struct {
-	Collector *diagnostics.Collector
+	collector *diagnostics.Collector
 	cursor    *cursor
 }
 
 func New(tokens []*token.Token, diagCollector *diagnostics.Collector) *parser {
-	return &parser{cursor: newCursor(tokens), Collector: diagCollector}
+	return &parser{cursor: newCursor(tokens), collector: diagCollector}
 }
 
 func (parser *parser) Parse() ([]ast.Node, error) {
@@ -52,7 +52,7 @@ func (parser *parser) Parse() ([]ast.Node, error) {
 					pos.Column,
 				),
 			}
-			parser.Collector.ReportAndSave(unexpectedTokenOnGlobalScope)
+			parser.collector.ReportAndSave(unexpectedTokenOnGlobalScope)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
@@ -98,7 +98,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 				name.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedName)
+		parser.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -114,7 +114,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 				openCurly.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedOpenCurly)
+		parser.collector.ReportAndSave(expectedOpenCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -144,7 +144,7 @@ func (parser *parser) parseExternDecl() (*ast.ExternDecl, error) {
 				closeCurly.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedCloseCurly)
+		parser.collector.ReportAndSave(expectedCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -164,7 +164,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 				fn.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedCloseCurly)
+		parser.collector.ReportAndSave(expectedCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -180,7 +180,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 				name.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedName)
+		parser.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -206,7 +206,7 @@ func (parser *parser) parsePrototype() (*ast.Proto, error) {
 				semicolon.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedSemicolon)
+		parser.collector.ReportAndSave(expectedSemicolon)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -234,7 +234,7 @@ func (parser *parser) parseFnDecl() (*ast.FunctionDecl, error) {
 				name.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedIdentifier)
+		parser.collector.ReportAndSave(expectedIdentifier)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -299,7 +299,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				openParen.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedOpenParen)
+		parser.collector.ReportAndSave(expectedOpenParen)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -324,7 +324,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 						pos.Column,
 					),
 				}
-				parser.Collector.ReportAndSave(unexpectedDotDotDot)
+				parser.collector.ReportAndSave(unexpectedDotDotDot)
 				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
 			break
@@ -342,7 +342,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 					name.Kind,
 				),
 			}
-			parser.Collector.ReportAndSave(expectedCloseParenOrId)
+			parser.collector.ReportAndSave(expectedCloseParenOrId)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		paramType, err := parser.parseExprType()
@@ -359,7 +359,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 					tok.Kind,
 				),
 			}
-			parser.Collector.ReportAndSave(expectedParamType)
+			parser.collector.ReportAndSave(expectedParamType)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		params = append(params, &ast.Field{Name: name, Type: paramType})
@@ -382,7 +382,7 @@ func (parser *parser) parseFunctionParams() (*ast.FieldList, error) {
 				closeParen.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedCloseParen)
+		parser.collector.ReportAndSave(expectedCloseParen)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -413,7 +413,7 @@ func (parser *parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 				tok.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedReturnTy)
+		parser.collector.ReportAndSave(expectedReturnTy)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	return returnType, nil
@@ -473,7 +473,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 					tok.Kind,
 				),
 			}
-			parser.Collector.ReportAndSave(expectedSemicolon)
+			parser.collector.ReportAndSave(expectedSemicolon)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
@@ -491,7 +491,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 					tok.Kind,
 				),
 			}
-			parser.Collector.ReportAndSave(expectedSemicolon)
+			parser.collector.ReportAndSave(expectedSemicolon)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 
@@ -513,7 +513,7 @@ func (parser *parser) parseStmt() (ast.Stmt, error) {
 					semicolon.Kind,
 				),
 			}
-			parser.Collector.ReportAndSave(expectedSemicolon)
+			parser.collector.ReportAndSave(expectedSemicolon)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		// TODO(errors)
@@ -574,7 +574,7 @@ func (parser *parser) parseBlock() (*ast.BlockStmt, error) {
 				closeCurly.Kind,
 			),
 		}
-		parser.Collector.ReportAndSave(expectedStatementOrCloseCurly)
+		parser.collector.ReportAndSave(expectedStatementOrCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
