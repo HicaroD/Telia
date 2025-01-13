@@ -4,36 +4,35 @@ import (
 	"fmt"
 
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
-var LOGICAL map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.AND: true,
-	kind.OR:  true,
+var LOGICAL map[token.Kind]bool = map[token.Kind]bool{
+	token.AND: true,
+	token.OR:  true,
 }
 
-var COMPARASION map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.EQUAL_EQUAL: true,
-	kind.BANG_EQUAL:  true,
-	kind.GREATER:     true,
-	kind.GREATER_EQ:  true,
-	kind.LESS:        true,
-	kind.LESS_EQ:     true,
+var COMPARASION map[token.Kind]bool = map[token.Kind]bool{
+	token.EQUAL_EQUAL: true,
+	token.BANG_EQUAL:  true,
+	token.GREATER:     true,
+	token.GREATER_EQ:  true,
+	token.LESS:        true,
+	token.LESS_EQ:     true,
 }
 
-var TERM map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.MINUS: true,
-	kind.PLUS:  true,
+var TERM map[token.Kind]bool = map[token.Kind]bool{
+	token.MINUS: true,
+	token.PLUS:  true,
 }
 
-var FACTOR map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.SLASH: true,
-	kind.STAR:  true,
+var FACTOR map[token.Kind]bool = map[token.Kind]bool{
+	token.SLASH: true,
+	token.STAR:  true,
 }
 
-var UNARY map[kind.TokenKind]bool = map[kind.TokenKind]bool{
-	kind.NOT:   true,
-	kind.MINUS: true,
+var UNARY map[token.Kind]bool = map[token.Kind]bool{
+	token.NOT:   true,
+	token.MINUS: true,
 }
 
 type Expr interface {
@@ -104,7 +103,7 @@ func (fieldAccess FieldAccess) exprNode()           {}
 
 type UnaryExpr struct {
 	Expr
-	Op    kind.TokenKind
+	Op    token.Kind
 	Value Expr
 }
 
@@ -119,7 +118,7 @@ func (unary UnaryExpr) exprNode()           {}
 type BinaryExpr struct {
 	Expr
 	Left  Expr
-	Op    kind.TokenKind
+	Op    token.Kind
 	Right Expr
 }
 

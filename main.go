@@ -32,20 +32,20 @@ func main() {
 	reader := bufio.NewReader(file)
 
 	lex := lexer.New(filename, reader, diagCollector)
-	tokens, err := lex.Tokenize()
-	if err != nil {
-		fmt.Println("Errors found during compilation ", err)
-		os.Exit(1)
-	}
+	// tokens, err := lex.Tokenize()
+	// if err != nil {
+	// 	fmt.Println("Errors found during compilation ", err)
+	// 	os.Exit(1)
+	// }
 
-	parser := parser.New(tokens, diagCollector)
-	astNodes, err := parser.Parse()
-	if err != nil {
-		fmt.Println("Errors found during compilation: ", err)
-		os.Exit(1)
-	}
+	parser := parser.New(lex, diagCollector)
+	// astNodes, err := parser.Parse()
+	// if err != nil {
+	// 	fmt.Println("Errors found during compilation: ", err)
+	// 	os.Exit(1)
+	// }
 
-	sema := sema.New(diagCollector)
+	sema := sema.New(parser, diagCollector)
 	err = sema.Analyze(astNodes)
 	if err != nil {
 		fmt.Println("Errors found during compilation: ", err)

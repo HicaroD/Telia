@@ -9,12 +9,11 @@ import (
 
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type tokenKindTest struct {
 	lexeme string
-	kind   kind.TokenKind
+	kind   token.Kind
 }
 
 func TestTokenKinds(t *testing.T) {
@@ -22,53 +21,53 @@ func TestTokenKinds(t *testing.T) {
 
 	tests := []*tokenKindTest{
 		// Keywords
-		{"fn", kind.FN},
-		{"for", kind.FOR},
-		{"while", kind.WHILE},
-		{"return", kind.RETURN},
-		{"extern", kind.EXTERN},
-		{"if", kind.IF},
-		{"elif", kind.ELIF},
-		{"else", kind.ELSE},
-		{"not", kind.NOT},
+		{"fn", token.FN},
+		{"for", token.FOR},
+		{"while", token.WHILE},
+		{"return", token.RETURN},
+		{"extern", token.EXTERN},
+		{"if", token.IF},
+		{"elif", token.ELIF},
+		{"else", token.ELSE},
+		{"not", token.NOT},
 
 		// Types
-		{"bool", kind.BOOL_TYPE},
+		{"bool", token.BOOL_TYPE},
 
-		{"int", kind.INT_TYPE},
-		{"i8", kind.I8_TYPE},
-		{"i16", kind.I16_TYPE},
-		{"i32", kind.I32_TYPE},
-		{"i64", kind.I64_TYPE},
+		{"int", token.INT_TYPE},
+		{"i8", token.I8_TYPE},
+		{"i16", token.I16_TYPE},
+		{"i32", token.I32_TYPE},
+		{"i64", token.I64_TYPE},
 
-		{"uint", kind.UINT_TYPE},
-		{"u8", kind.U8_TYPE},
-		{"u16", kind.U16_TYPE},
-		{"u32", kind.U32_TYPE},
-		{"u64", kind.U64_TYPE},
+		{"uint", token.UINT_TYPE},
+		{"u8", token.U8_TYPE},
+		{"u16", token.U16_TYPE},
+		{"u32", token.U32_TYPE},
+		{"u64", token.U64_TYPE},
 
 		// Other tokens
-		{"(", kind.OPEN_PAREN},
-		{")", kind.CLOSE_PAREN},
-		{"{", kind.OPEN_CURLY},
-		{"}", kind.CLOSE_CURLY},
-		{",", kind.COMMA},
-		{";", kind.SEMICOLON},
-		{".", kind.DOT},
-		{"..", kind.DOT_DOT},
-		{"...", kind.DOT_DOT_DOT},
-		{"=", kind.EQUAL},
-		{":=", kind.COLON_EQUAL},
-		{"!=", kind.BANG_EQUAL},
-		{"==", kind.EQUAL_EQUAL},
-		{">", kind.GREATER},
-		{">=", kind.GREATER_EQ},
-		{"<", kind.LESS},
-		{"<=", kind.LESS_EQ},
-		{"+", kind.PLUS},
-		{"-", kind.MINUS},
-		{"*", kind.STAR},
-		{"/", kind.SLASH},
+		{"(", token.OPEN_PAREN},
+		{")", token.CLOSE_PAREN},
+		{"{", token.OPEN_CURLY},
+		{"}", token.CLOSE_CURLY},
+		{",", token.COMMA},
+		{";", token.SEMICOLON},
+		{".", token.DOT},
+		{"..", token.DOT_DOT},
+		{"...", token.DOT_DOT_DOT},
+		{"=", token.EQUAL},
+		{":=", token.COLON_EQUAL},
+		{"!=", token.BANG_EQUAL},
+		{"==", token.EQUAL_EQUAL},
+		{">", token.GREATER},
+		{">=", token.GREATER_EQ},
+		{"<", token.LESS},
+		{"<=", token.LESS_EQ},
+		{"+", token.PLUS},
+		{"-", token.MINUS},
+		{"*", token.STAR},
+		{"/", token.SLASH},
 	}
 
 	for _, test := range tests {
@@ -86,7 +85,7 @@ func TestTokenKinds(t *testing.T) {
 			if len(tokenResult) != 2 {
 				t.Errorf("expected len(tokenResult) == 2, but got %q", len(tokenResult))
 			}
-			if tokenResult[1].Kind != kind.EOF {
+			if tokenResult[1].Kind != token.EOF {
 				t.Errorf("expected last token to be EOF, but got %q", tokenResult[1].Kind)
 			}
 			if tokenResult[0].Kind != test.kind {
@@ -135,7 +134,7 @@ func TestTokenPos(t *testing.T) {
 				t.Errorf("unexpected error '%v'", err)
 			}
 
-			if len(tokenResult) == 1 && tokenResult[0].Kind == kind.EOF {
+			if len(tokenResult) == 1 && tokenResult[0].Kind == token.EOF {
 				t.Errorf("expected at least one token, but only got EOF")
 			}
 
@@ -220,10 +219,10 @@ func TestIsIdentifier(t *testing.T) {
 			if len(tokenResult) != 2 {
 				t.Errorf("expected a single token, but got %d", len(tokenResult))
 			}
-			if tokenResult[1].Kind != kind.EOF {
+			if tokenResult[1].Kind != token.EOF {
 				t.Errorf("expected last token to be EOF, but got %q", tokenResult[1].Kind)
 			}
-			if tokenResult[0].Kind != kind.ID && test.isId {
+			if tokenResult[0].Kind != token.ID && test.isId {
 				t.Errorf("expecting to be an identifier, but got %q", tokenResult[0].Kind)
 			}
 		})
@@ -232,27 +231,27 @@ func TestIsIdentifier(t *testing.T) {
 
 type tokenLiteralTest struct {
 	lexeme      string
-	literalKind kind.TokenKind
+	literalKind token.Kind
 }
 
 func TestIsLiteral(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenLiteralTest{
-		{"1", kind.INTEGER_LITERAL},
-		{"2", kind.INTEGER_LITERAL},
-		{"3", kind.INTEGER_LITERAL},
-		{"4", kind.INTEGER_LITERAL},
-		{"5", kind.INTEGER_LITERAL},
-		{"6", kind.INTEGER_LITERAL},
-		{"7", kind.INTEGER_LITERAL},
-		{"8", kind.INTEGER_LITERAL},
-		{"9", kind.INTEGER_LITERAL},
-		{"123456789", kind.INTEGER_LITERAL},
+		{"1", token.INTEGER_LITERAL},
+		{"2", token.INTEGER_LITERAL},
+		{"3", token.INTEGER_LITERAL},
+		{"4", token.INTEGER_LITERAL},
+		{"5", token.INTEGER_LITERAL},
+		{"6", token.INTEGER_LITERAL},
+		{"7", token.INTEGER_LITERAL},
+		{"8", token.INTEGER_LITERAL},
+		{"9", token.INTEGER_LITERAL},
+		{"123456789", token.INTEGER_LITERAL},
 		// TODO: add float here
-		{"\"Hello world\"", kind.STRING_LITERAL},
-		{"true", kind.TRUE_BOOL_LITERAL},
-		{"false", kind.FALSE_BOOL_LITERAL},
+		{"\"Hello world\"", token.STRING_LITERAL},
+		{"true", token.TRUE_BOOL_LITERAL},
+		{"false", token.FALSE_BOOL_LITERAL},
 	}
 
 	for _, test := range tests {
@@ -269,7 +268,7 @@ func TestIsLiteral(t *testing.T) {
 			if len(tokenResult) != 2 {
 				t.Errorf("expected a single token, but got %d", len(tokenResult))
 			}
-			if tokenResult[1].Kind != kind.EOF {
+			if tokenResult[1].Kind != token.EOF {
 				t.Errorf("expected last token to be EOF, but got %q", tokenResult[1].Kind)
 			}
 			if tokenResult[0].Kind != test.literalKind {

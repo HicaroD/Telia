@@ -11,7 +11,6 @@ import (
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/scope"
 )
@@ -27,82 +26,82 @@ func TestVarDeclForInference(t *testing.T) {
 	tests := []varTest{
 		{
 			input:    `name := "Hicaro";`,
-			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}},
+			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}},
 			inferred: true,
 		},
 		{
 			input:    "age := 18;",
-			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "score := -18;",
-			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 + 1;",
-			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 - 1;",
-			ty:       &ast.BasicType{Kind: kind.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.INT_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := true;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := false;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "can_vote := false;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_greater := 2 > 1;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_greater_or_eq := 2 >= 1;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_lesser := 2 < 1;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_lesser_or_eq := 2 <= 1;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_eq := 2 == 1;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_true := true and true;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_true := true or true;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		{
 			input:    "is_not_true := not true;",
-			ty:       &ast.BasicType{Kind: kind.BOOL_TYPE},
+			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
 			inferred: true,
 		},
 		// TODO: test variable decl with explicit type annotation
@@ -151,10 +150,10 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{
-						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
-						Type: &ast.BasicType{Kind: kind.I8_TYPE},
+						Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+						Type: &ast.BasicType{Kind: token.I8_TYPE},
 						Value: ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							Value: "1",
 						},
 						NeedsInference: false,
@@ -168,139 +167,139 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 			}{
 				{
 					input: "true",
-					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
+					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "1",
-						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
+						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
 					},
 				},
 				{
 					input: "false",
-					ty:    &ast.BasicType{Kind: kind.BOOL_TYPE},
+					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "0",
-						Type:  &ast.BasicType{Kind: kind.BOOL_TYPE},
+						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
 					},
 				},
 				{
 					input: "1",
-					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.LiteralExpr{
 						Value: "1",
-						Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+						Type:  &ast.BasicType{Kind: token.INT_TYPE},
 					},
 				},
 				{
 					input: "1 + 1",
-					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "-1",
-					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.UnaryExpr{
-						Op: kind.MINUS,
+						Op: token.MINUS,
 						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 							Value: "1",
 						},
 					},
 				},
 				{
 					input: "-1 + 1",
-					ty:    &ast.BasicType{Kind: kind.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.UnaryExpr{
-							Op: kind.MINUS,
+							Op: token.MINUS,
 							Value: &ast.LiteralExpr{
-								Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+								Type:  &ast.BasicType{Kind: token.INT_TYPE},
 								Value: "1",
 							},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "a + 1",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
-							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
 					},
 				},
 				{
 					input: "1 + a",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", kind.ID, token.NewPosition(filename, 5, 1)),
+							Name: token.New("a", token.ID, token.NewPosition(filename, 5, 1)),
 						},
 					},
 				},
 				{
 					input: "1 + 2 + a",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
 								Value: "1",
-								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
-							Op: kind.PLUS,
+							Op: token.PLUS,
 							Right: &ast.LiteralExpr{
 								Value: "2",
-								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", kind.ID, token.NewPosition(filename, 9, 1)),
+							Name: token.New("a", token.ID, token.NewPosition(filename, 9, 1)),
 						},
 					},
 				},
 				{
 					input: "1 + a + 3",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
 								Value: "1",
-								Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
-							Op: kind.PLUS,
+							Op: token.PLUS,
 							Right: &ast.IdExpr{
-								Name: token.New("a", kind.ID, token.NewPosition(filename, 5, 1)),
+								Name: token.New("a", token.ID, token.NewPosition(filename, 5, 1)),
 							},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "3",
-							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
 					},
 				},
@@ -342,10 +341,10 @@ func TestExprInferenceWithContext(t *testing.T) {
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{
-						Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
-						Type: &ast.BasicType{Kind: kind.I8_TYPE},
+						Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+						Type: &ast.BasicType{Kind: token.I8_TYPE},
 						Value: ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: kind.I8_TYPE},
+							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							Value: "1",
 						},
 						NeedsInference: false,
@@ -359,29 +358,29 @@ func TestExprInferenceWithContext(t *testing.T) {
 			}{
 				{
 					input: "a + 1",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
-							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
 				},
 				{
 					input: "1 + a",
-					ty:    &ast.BasicType{Kind: kind.I8_TYPE},
+					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: "1",
-							Type:  &ast.BasicType{Kind: kind.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
-						Op: kind.PLUS,
+						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", kind.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
 						},
 					},
 				},
@@ -545,18 +544,18 @@ func TestSemanticErrors(t *testing.T) {
 
 			reader := bufio.NewReader(strings.NewReader(test.input))
 			lex := lexer.New(filename, reader, collector)
-			tokens, err := lex.Tokenize()
-			if err != nil {
-				t.Fatal("unexpected lexical error: ", err)
-			}
+			// tokens, err := lex.Tokenize()
+			// if err != nil {
+			// 	t.Fatal("unexpected lexical error: ", err)
+			// }
 
-			parser := parser.New(tokens, collector)
-			nodes, err := parser.Parse()
-			if err != nil {
-				t.Fatal("unexpected syntax error: ", err)
-			}
+			parser := parser.New(lex, collector)
+			// nodes, err := parser.Parse()
+			// if err != nil {
+			// 	t.Fatal("unexpected syntax error: ", err)
+			// }
 
-			sema := New(collector)
+			sema := New(parser, collector)
 			_ = sema.Analyze(nodes)
 
 			if len(collector.Diags) != len(test.diags) {

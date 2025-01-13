@@ -80,6 +80,12 @@ func (cursor *cursor) readWhile(isValid func(rune) bool) string {
 	return content.String()
 }
 
-func (cursor cursor) Position() token.Position {
+func (cursor *cursor) Position() token.Position {
 	return cursor.position
+}
+
+func (cursor *cursor) SetPosition(pos token.Position) {
+	cursor.position.Filename = pos.Filename
+	cursor.position.Line = pos.Line
+	cursor.position.Column = pos.Column
 }

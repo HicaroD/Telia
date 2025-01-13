@@ -11,22 +11,24 @@ import (
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
 	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/scope"
 )
 
 type sema struct {
+	parser *parser.Parser
+
 	collector *diagnostics.Collector
 	universe  *scope.Scope[ast.Node]
 }
 
-func New(collector *diagnostics.Collector) *sema {
+func New(parser *parser.Parser, collector *diagnostics.Collector) *sema {
 	// "universe" scope does not have any parent, it is the
 	// root of the tree of scopes
 	var nilScope *scope.Scope[ast.Node] = nil
 	universe := scope.New(nilScope)
-	return &sema{collector, universe}
+	return &sema{parser, collector, universe}
 }
 
 func (sema *sema) Analyze(nodes []ast.Node) error {
@@ -378,12 +380,12 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	reader := bufio.NewReader(strings.NewReader(input))
 	lexer := lexer.New(filename, reader, diagCollector)
 
-	tokens, err := lexer.Tokenize()
-	if err != nil {
-		return nil, err
-	}
+	// tokens, err := lexer.Tokenize()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	par := parser.New(tokens, diagCollector)
+	par := parser.New(lexer, diagCollector)
 	varStmt, err := par.ParseIdStmt()
 	if err != nil {
 		return nil, err
@@ -548,11 +550,11 @@ func (sema *sema) inferExprTypeWithContext(
 		switch ty := expression.Type.(type) {
 		case *ast.BasicType:
 			switch ty.Kind {
-			case kind.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
+			case token.STRING_LITERAL:
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
 				expression.Type = finalTy
 				return finalTy, nil
-			case kind.INTEGER_LITERAL, kind.INT_TYPE:
+			case token.INTEGER_LITERAL, token.INT_TYPE:
 				switch ty := expectedType.(type) {
 				case *ast.BasicType:
 					value := expression.Value
@@ -572,13 +574,13 @@ func (sema *sema) inferExprTypeWithContext(
 				default:
 					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
 				}
-			case kind.TRUE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.TRUE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = "1"
 				return finalTy, nil
-			case kind.FALSE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = "0"
 				return finalTy, nil
@@ -627,7 +629,7 @@ func (sema *sema) inferExprTypeWithContext(
 		return expectedType, nil
 	case *ast.UnaryExpr:
 		switch expression.Op {
-		case kind.MINUS:
+		case token.MINUS:
 			unaryExprType, err := sema.inferExprTypeWithContext(expression.Value, expectedType, scope)
 			// TODO(errors)
 			if err != nil {
@@ -702,24 +704,24 @@ func (sema *sema) inferExprTypeWithoutContext(
 			// TODO: what if I want a defined string type on my programming
 			// language? I don't think *i8 is correct type for this
 			switch ty.Kind {
-			case kind.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
+			case token.STRING_LITERAL:
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
 				expression.Type = finalTy
 				return finalTy, false, nil
-			case kind.INTEGER_LITERAL:
+			case token.INTEGER_LITERAL:
 				ty, err := sema.inferIntegerType(expression.Value)
 				if err != nil {
 					return nil, false, err
 				}
 				expression.Type = ty
 				return ty, false, nil
-			case kind.TRUE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.TRUE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = "1"
 				return finalTy, false, nil
-			case kind.FALSE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = "0"
 				return finalTy, false, nil
@@ -747,12 +749,12 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 	case *ast.UnaryExpr:
 		switch expression.Op {
-		case kind.MINUS:
+		case token.MINUS:
 			switch unaryExpr := expression.Value.(type) {
 			case *ast.LiteralExpr:
 				switch unaryTy := unaryExpr.Type.(type) {
 				case *ast.BasicType:
-					if unaryTy.Kind == kind.INTEGER_LITERAL {
+					if unaryTy.Kind == token.INTEGER_LITERAL {
 						integerType, err := sema.inferIntegerType(unaryExpr.Value)
 						// TODO(errors)
 						if err != nil {
@@ -765,7 +767,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 					log.Fatalf("unimplemented unary expr type: %s", unaryExpr)
 				}
 			}
-		case kind.NOT:
+		case token.NOT:
 			unaryExpr, foundContext, err := sema.inferExprTypeWithoutContext(expression.Value, scope)
 			// TODO(errors)
 			if err != nil {
@@ -846,13 +848,13 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 	}
 
 	switch expression.Op {
-	case kind.PLUS, kind.MINUS:
+	case token.PLUS, token.MINUS:
 		if lhsType.IsNumeric() && rhsType.IsNumeric() {
 			return lhsType, lhsFoundContext || rhsFoundContext, nil
 		}
 	default:
-		if _, ok := kind.LOGICAL_OP[expression.Op]; ok {
-			return &ast.BasicType{Kind: kind.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
+		if _, ok := token.LOGICAL_OP[expression.Op]; ok {
+			return &ast.BasicType{Kind: token.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
 		}
 	}
 	// TODO
@@ -882,7 +884,7 @@ func (sema *sema) inferBinaryExprTypeWithContext(
 }
 
 func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
-	integerType := kind.INT_TYPE
+	integerType := token.INT_TYPE
 	base := 10
 	intSize := strconv.IntSize
 

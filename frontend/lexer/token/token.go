@@ -1,21 +1,17 @@
 package token
 
-import (
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
-)
-
 type Token struct {
 	Lexeme   string
-	Kind     kind.TokenKind
+	Kind     Kind
 	Position Position
 }
 
-func New(lexeme string, kind kind.TokenKind, position Position) *Token {
+func New(lexeme string, kind Kind, position Position) *Token {
 	return &Token{Lexeme: lexeme, Kind: kind, Position: position}
 }
 
 func (token *Token) Name() string {
-	if token.Kind == kind.ID {
+	if token.Kind == ID {
 		return token.Lexeme
 	}
 	return token.Kind.String()

@@ -12,7 +12,7 @@ import (
 
 	"github.com/HicaroD/Telia/backend/codegen/values"
 	"github.com/HicaroD/Telia/frontend/ast"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
 	"github.com/HicaroD/Telia/scope"
 	"tinygo.org/x/go-llvm"
 )
@@ -340,21 +340,21 @@ func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
 	switch exprTy := ty.(type) {
 	case *ast.BasicType:
 		switch exprTy.Kind {
-		case kind.BOOL_TYPE:
+		case token.BOOL_TYPE:
 			return codegen.context.Int1Type()
-		case kind.INT_TYPE, kind.UINT_TYPE:
+		case token.INT_TYPE, token.UINT_TYPE:
 			// 32 bits or 64 bits
 			bitSize := exprTy.Kind.BitSize()
 			return codegen.context.IntType(bitSize)
-		case kind.I8_TYPE, kind.U8_TYPE:
+		case token.I8_TYPE, token.U8_TYPE:
 			return codegen.context.Int8Type()
-		case kind.I16_TYPE, kind.U16_TYPE:
+		case token.I16_TYPE, token.U16_TYPE:
 			return codegen.context.Int16Type()
-		case kind.I32_TYPE, kind.U32_TYPE:
+		case token.I32_TYPE, token.U32_TYPE:
 			return codegen.context.Int32Type()
-		case kind.I64_TYPE, kind.U64_TYPE:
+		case token.I64_TYPE, token.U64_TYPE:
 			return codegen.context.Int64Type()
-		case kind.VOID_TYPE:
+		case token.VOID_TYPE:
 			return codegen.context.VoidType()
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
@@ -415,7 +415,7 @@ func (codegen *codegen) getExpr(
 			switch ptrTy := ty.Type.(type) {
 			case *ast.BasicType:
 				switch ptrTy.Kind {
-				case kind.U8_TYPE:
+				case token.U8_TYPE:
 					stringLiteral := currentExpr.Value
 					// NOTE: huge string literals can affect performance because it
 					// creates a new entry on the map
@@ -460,24 +460,24 @@ func (codegen *codegen) getExpr(
 		switch currentExpr.Op {
 		// TODO: deal with signed or unsigned operations
 		// I'm assuming all unsigned for now
-		case kind.EQUAL_EQUAL:
+		case token.EQUAL_EQUAL:
 			// TODO: there a list of IntPredicate, I could map token kind to these
 			// for code reability
 			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
 			return codegen.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq"), nil
-		case kind.STAR:
+		case token.STAR:
 			return codegen.builder.CreateMul(lhs, rhs, ".mul"), nil
-		case kind.MINUS:
+		case token.MINUS:
 			return codegen.builder.CreateSub(lhs, rhs, ".sub"), nil
-		case kind.PLUS:
+		case token.PLUS:
 			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
-		case kind.LESS:
+		case token.LESS:
 			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt"), nil
-		case kind.LESS_EQ:
+		case token.LESS_EQ:
 			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple"), nil
-		case kind.GREATER:
+		case token.GREATER:
 			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt"), nil
-		case kind.GREATER_EQ:
+		case token.GREATER_EQ:
 			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge"), nil
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
@@ -501,7 +501,7 @@ func (codegen *codegen) getExpr(
 		}
 	case *ast.UnaryExpr:
 		switch currentExpr.Op {
-		case kind.MINUS:
+		case token.MINUS:
 			expr, err := codegen.getExpr(currentExpr.Value, scope)
 			// TODO(errors)
 			if err != nil {

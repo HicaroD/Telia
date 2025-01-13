@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type ExprType interface {
@@ -17,15 +16,15 @@ type ExprType interface {
 // void, bool, int, i8, i16, i32, i64, uint, u8, u16, u32, u64
 type BasicType struct {
 	ExprType
-	Kind kind.TokenKind
+	Kind token.Kind
 }
 
 func (basicType BasicType) IsNumeric() bool {
-	_, ok := kind.NUMERIC_TYPES[basicType.Kind]
+	_, ok := token.NUMERIC_TYPES[basicType.Kind]
 	return ok
 }
-func (basicType BasicType) IsBoolean() bool { return basicType.Kind == kind.BOOL_TYPE }
-func (basicType BasicType) IsVoid() bool    { return basicType.Kind == kind.VOID_TYPE }
+func (basicType BasicType) IsBoolean() bool { return basicType.Kind == token.BOOL_TYPE }
+func (basicType BasicType) IsVoid() bool    { return basicType.Kind == token.VOID_TYPE }
 func (basicType BasicType) exprTypeNode()   {}
 func (basicType BasicType) String() string {
 	return basicType.Kind.String()

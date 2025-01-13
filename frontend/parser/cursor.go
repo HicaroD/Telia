@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
 )
 
 type cursor struct {
@@ -37,7 +36,7 @@ func (cursor *cursor) skip() {
 	cursor.next()
 }
 
-func (cursor *cursor) nextIs(expectedKind kind.TokenKind) bool {
+func (cursor *cursor) nextIs(expectedKind token.Kind) bool {
 	token := cursor.peek()
 	return token.Kind == expectedKind
 }

@@ -1,15 +1,15 @@
-package kind
+package token
 
 import (
 	"log"
 	"strconv"
 )
 
-type TokenKind int
+type Kind int
 
 const (
 	// EOF
-	EOF TokenKind = iota
+	EOF Kind = iota
 	INVALID
 
 	// Identifier
@@ -104,7 +104,7 @@ const (
 	SLASH
 )
 
-var KEYWORDS map[string]TokenKind = map[string]TokenKind{
+var KEYWORDS map[string]Kind = map[string]Kind{
 	"fn":     FN,
 	"for":    FOR,
 	"while":  WHILE,
@@ -135,7 +135,7 @@ var KEYWORDS map[string]TokenKind = map[string]TokenKind{
 	"u64":  U64_TYPE,
 }
 
-var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
+var BASIC_TYPES map[Kind]bool = map[Kind]bool{
 	VOID_TYPE: true,
 	BOOL_TYPE: true,
 	INT_TYPE:  true,
@@ -150,14 +150,14 @@ var BASIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	U64_TYPE:  true,
 }
 
-var LITERAL_KIND map[TokenKind]bool = map[TokenKind]bool{
+var LITERAL_KIND map[Kind]bool = map[Kind]bool{
 	INTEGER_LITERAL:    true,
 	STRING_LITERAL:     true,
 	TRUE_BOOL_LITERAL:  true,
 	FALSE_BOOL_LITERAL: true,
 }
 
-var NUMERIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
+var NUMERIC_TYPES map[Kind]bool = map[Kind]bool{
 	INT_TYPE:  true,
 	I8_TYPE:   true,
 	I16_TYPE:  true,
@@ -170,7 +170,7 @@ var NUMERIC_TYPES map[TokenKind]bool = map[TokenKind]bool{
 	U64_TYPE:  true,
 }
 
-var LOGICAL_OP map[TokenKind]bool = map[TokenKind]bool{
+var LOGICAL_OP map[Kind]bool = map[Kind]bool{
 	AND:         true,
 	OR:          true,
 	BANG_EQUAL:  true,
@@ -181,7 +181,7 @@ var LOGICAL_OP map[TokenKind]bool = map[TokenKind]bool{
 	LESS_EQ:     true,
 }
 
-func (kind TokenKind) BitSize() int {
+func (kind Kind) BitSize() int {
 	switch kind {
 	case INT_TYPE, UINT_TYPE:
 		return strconv.IntSize
@@ -200,12 +200,12 @@ func (kind TokenKind) BitSize() int {
 	}
 }
 
-func (kind TokenKind) IsBasicType() bool {
+func (kind Kind) IsBasicType() bool {
 	_, ok := BASIC_TYPES[kind]
 	return ok
 }
 
-func (kind TokenKind) String() string {
+func (kind Kind) String() string {
 	switch kind {
 	case EOF:
 		return "end of file"
