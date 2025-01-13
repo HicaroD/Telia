@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "buildFlags": ["-tags=llvm16"],
+            "buildFlags": ["-tags=llvm18"],
             "args": ["examples/forloop.tt"]
         }
     ]
