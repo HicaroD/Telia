@@ -49,5 +49,8 @@ func (scope *Scope[V]) LookupAcrossScopes(name string) (V, error) {
 }
 
 func (scope Scope[V]) String() string {
+	if scope.Parent == nil {
+		return fmt.Sprintf("Scope:\nParent: nil\nCurrent: %v\n", scope.Nodes)
+	}
 	return fmt.Sprintf("Scope:\nParent: %v\nCurrent: %v\n", scope.Parent, scope.Nodes)
 }

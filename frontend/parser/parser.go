@@ -15,7 +15,7 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	fileScope *scope.Scope[ast.Node] // current file scope being analyzed
+	fileScope *scope.Scope[ast.Node] // scope of current file being analyzed
 }
 
 func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
@@ -30,22 +30,21 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := scope.New[ast.Node](nil)
 
-	// TODO: properly set module name
 	// NOTE: not every module will have the universe as the
 	// parent, for inner-modules we could have other modules as parents
 	moduleScope := scope.New(universe)
-	// NOTE: every time a new module is being parsed, this variable should be
-	// set appropriately, deal with it carefuly
 
 	fileScope := scope.New(moduleScope)
+	// NOTE: every time a new file is being parsed, this variable should be
+	// set appropriately, deal with it carefuly
 	p.fileScope = fileScope
 
 	file, err := p.parseFile()
 	if err != nil {
 		return nil, err
 	}
-	file.Scope = scope.New(moduleScope)
 
+	// TODO: properly set module name
 	module := &ast.Module{Scope: moduleScope, Name: "main", Body: []*ast.File{file}}
 	program := &ast.Program{Universe: universe, Body: []*ast.Module{module}}
 
@@ -65,7 +64,7 @@ func (p *Parser) parseFile() (*ast.File, error) {
 		nodes = append(nodes, node)
 	}
 	// TODO: properly set filename here
-	file := &ast.File{Name: "my_program", Body: nodes}
+	file := &ast.File{Scope: p.fileScope, Name: "my_program", Body: nodes}
 	return file, nil
 }
 
@@ -287,8 +286,9 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
+	fnScope := scope.New(p.fileScope)
 	fnDecl := &ast.FunctionDecl{
-		Scope:   nil,
+		Scope:   fnScope,
 		Name:    name,
 		Params:  params,
 		Block:   block,
@@ -297,27 +297,26 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 
 	err = p.fileScope.Insert(name.Name(), fnDecl)
 	if err != nil {
-		functionRedeclaration := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: function '%s' already declared on scope",
-				name.Pos.Filename,
-				name.Pos.Line,
-				name.Pos.Column,
-				fnDecl.Name.Name(),
-			),
+		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			functionRedeclaration := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: function '%s' already declared on scope",
+					name.Pos.Filename,
+					name.Pos.Line,
+					name.Pos.Column,
+					name.Name(),
+				),
+			}
+			p.collector.ReportAndSave(functionRedeclaration)
 		}
-		p.collector.ReportAndSave(functionRedeclaration)
 		return nil, err
 	}
+
 	return fnDecl, nil
 }
 
 // Useful for testing
-func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
-	universeScope := scope.New[ast.Node](nil)
-	moduleScope := scope.New(universeScope)
-	fileScope := scope.New(moduleScope)
-
+func parseFnDeclFrom(filename, input string, fileScope *scope.Scope[ast.Node]) (*ast.FunctionDecl, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)

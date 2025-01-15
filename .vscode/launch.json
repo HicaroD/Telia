@@ -12,6 +12,6 @@
             "program": "${fileDirname}",
             "buildFlags": ["-tags=llvm18"],
             "args": ["examples/no_return_function.t"]
-        }
+        },
     ]
 }

@@ -103,26 +103,29 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl, fileScope *scope.Scope[a
 func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *scope.Scope[ast.Node]) error {
 	// TODO: Is it really correct to insert in the universe scope?
 	// In the future, I'll isolate these functions into their modules
-	err := fileScope.Insert(function.Name.Name(), function)
-	if err != nil {
-		// TODO: show the position of the first declaration
-		// for helping the program
-		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-			pos := function.Name.Pos
-			functionRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: function '%s' already declared on scope",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					function.Name.Name(),
-				),
-			}
-			sema.collector.ReportAndSave(functionRedeclaration)
-			return diagnostics.COMPILER_ERROR_FOUND
-		}
-		return err
-	}
+
+	// err := fileScope.Insert(function.Name.Name(), function)
+	// if err != nil {
+	// 	// TODO: show the position of the first declaration
+	// 	// for helping the program
+	// 	if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+	// 		pos := function.Name.Pos
+	// 		functionRedeclaration := diagnostics.Diag{
+	// 			Message: fmt.Sprintf(
+	// 				"%s:%d:%d: function '%s' already declared on scope",
+	// 				pos.Filename,
+	// 				pos.Line,
+	// 				pos.Column,
+	// 				function.Name.Name(),
+	// 			),
+	// 		}
+	// 		sema.collector.ReportAndSave(functionRedeclaration)
+	// 		return diagnostics.COMPILER_ERROR_FOUND
+	// 	}
+	// 	return err
+	// }
+
+	var err error
 
 	function.Scope = scope.New(fileScope)
 	err = sema.addParametersToScope(function.Params, function.Name.Name(), function.Scope)
@@ -130,7 +133,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *scope.Sco
 		return err
 	}
 
-	err = sema.analyzeBlock(function.Scope, function.Block, function.RetType)
+	err = sema.analyzeBlock(function.Block, function.RetType, function.Scope)
 	if err != nil {
 		return err
 	}
@@ -168,9 +171,9 @@ func (sema *sema) addParametersToScope(
 }
 
 func (sema *sema) analyzeBlock(
-	scope *scope.Scope[ast.Node],
 	block *ast.BlockStmt,
 	returnTy ast.ExprType,
+	scope *scope.Scope[ast.Node],
 ) error {
 	for i := range block.Statements {
 		err := sema.analyzeStmt(block.Statements[i], scope, returnTy)
@@ -415,7 +418,7 @@ func (sema *sema) analyzeCondStmt(
 		return err
 	}
 
-	err = sema.analyzeBlock(ifScope, condStmt.IfStmt.Block, returnTy)
+	err = sema.analyzeBlock(condStmt.IfStmt.Block, returnTy, ifScope)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -428,7 +431,7 @@ func (sema *sema) analyzeCondStmt(
 		if err != nil {
 			return err
 		}
-		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
+		err = sema.analyzeBlock(condStmt.ElifStmts[i].Block, returnTy, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -437,7 +440,7 @@ func (sema *sema) analyzeCondStmt(
 
 	if condStmt.ElseStmt != nil {
 		elseScope := scope.New(outterScope)
-		err = sema.analyzeBlock(elseScope, condStmt.ElseStmt.Block, returnTy)
+		err = sema.analyzeBlock(condStmt.ElseStmt.Block, returnTy, elseScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -1034,7 +1037,7 @@ func (sema *sema) analyzeForLoop(
 		return err
 	}
 
-	err = sema.analyzeBlock(scope, forLoop.Block, returnTy)
+	err = sema.analyzeBlock(forLoop.Block, returnTy, scope)
 	return err
 }
 
@@ -1048,6 +1051,6 @@ func (sema *sema) analyzeWhileLoop(
 	if err != nil {
 		return err
 	}
-	err = sema.analyzeBlock(scope, whileLoop.Block, returnTy)
+	err = sema.analyzeBlock(whileLoop.Block, returnTy, scope)
 	return err
 }
