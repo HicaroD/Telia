@@ -1461,14 +1461,14 @@ func TestFuncCallStmt(t *testing.T) {}
 // TODO(tests)
 func TestIfStmt(t *testing.T) {}
 
-type syntaxErrorTest struct {
+type diagErrorTest struct {
 	input string
 	diags []diagnostics.Diag
 }
 
 func TestSyntaxErrors(t *testing.T) {
 	filename := "test.tt"
-	tests := []syntaxErrorTest{
+	tests := []diagErrorTest{
 		{
 			input: "{",
 			diags: []diagnostics.Diag{
@@ -1789,7 +1789,7 @@ func TestSyntaxErrors(t *testing.T) {
 func TestSyntaxErrorsOnBlock(t *testing.T) {
 	filename := "test.tt"
 
-	tests := []syntaxErrorTest{
+	tests := []diagErrorTest{
 		{
 			input: "{",
 			diags: []diagnostics.Diag{
@@ -1843,6 +1843,50 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			parser := New(lex, collector)
 
 			_, err := parser.parseBlock()
+			if err == nil {
+				t.Fatal("expected to have syntax errors, but got nothing")
+			}
+
+			if len(test.diags) != len(parser.collector.Diags) {
+				t.Fatalf(
+					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
+					len(test.diags),
+					len(parser.collector.Diags),
+					parser.collector.Diags,
+					test.diags,
+				)
+			}
+			if !reflect.DeepEqual(test.diags, parser.collector.Diags) {
+				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, parser.collector)
+			}
+		})
+	}
+}
+
+func TestFunctionRedeclarationErrors(t *testing.T) {
+	filename := "test.t"
+
+	tests := []diagErrorTest{
+		{
+			input: "fn do_nothing() {}\nfn do_nothing() {}",
+			diags: []diagnostics.Diag{
+				{
+					// TODO: show the first declaration position and the other
+					Message: "test.t:2:4: function 'do_nothing' already declared on scope",
+				},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("TestFunctionRedeclarationErrors('%s')", test.input), func(t *testing.T) {
+			collector := diagnostics.New()
+
+			src := []byte(test.input)
+			lex := lexer.New(filename, src, collector)
+			parser := New(lex, collector)
+
+			_, err := parser.Parse()
 			if err == nil {
 				t.Fatal("expected to have syntax errors, but got nothing")
 			}
