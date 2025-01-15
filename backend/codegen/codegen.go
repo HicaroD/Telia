@@ -24,8 +24,9 @@ type codegen struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	program     *ast.Program
-	universe    *scope.Scope[values.LLVMValue]
+	program  *ast.Program
+	universe *scope.Scope[values.LLVMValue]
+	// NOTE: temporary - find a better way of doing this ( preferebly don't do this :) )
 	strLiterals map[string]llvm.Value
 }
 

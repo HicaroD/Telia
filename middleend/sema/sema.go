@@ -16,56 +16,46 @@ import (
 
 type sema struct {
 	collector *diagnostics.Collector
-	universe  *scope.Scope[ast.Node]
 }
 
 func New(collector *diagnostics.Collector) *sema {
-	// "universe" scope does not have any parent, it is the
-	// root of the tree of scopes
-	var nilScope *scope.Scope[ast.Node] = nil
-	universe := scope.New(nilScope)
-	return &sema{collector, universe}
+	return &sema{collector}
 }
 
 func (s *sema) Check(program *ast.Program) error {
-	// TODO: check the program
-	return nil
-
-	// switch astNode := node.(type) {
-	// case *ast.FunctionDecl:
-	// 	err := s.analyzeFnDecl(astNode)
-	// 	return err
-	// case *ast.ExternDecl:
-	// 	err := s.analyzeExtern(astNode)
-	// 	return err
-	// default:
-	// 	log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
-	// }
-	// return nil
-}
-
-func (sema *sema) Analyze(nodes []ast.Node) error {
-	for i := range nodes {
-		switch astNode := nodes[i].(type) {
-		case *ast.FunctionDecl:
-			err := sema.analyzeFnDecl(astNode)
+	for _, module := range program.Body {
+		for _, file := range module.Body {
+			err := s.checkFile(file)
 			if err != nil {
 				return err
 			}
-		case *ast.ExternDecl:
-			err := sema.analyzeExtern(astNode)
-			if err != nil {
-				return err
-			}
-		default:
-			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
 		}
 	}
 	return nil
 }
 
-func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
-	externScope := scope.New(sema.universe)
+func (sema *sema) checkFile(file *ast.File) error {
+	for _, node := range file.Body {
+		switch n := node.(type) {
+		case *ast.FunctionDecl:
+			err := sema.analyzeFnDecl(n, file.Scope)
+			if err != nil {
+				return err
+			}
+		case *ast.ExternDecl:
+			err := sema.analyzeExtern(n, file.Scope)
+			if err != nil {
+				return err
+			}
+		default:
+			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
+		}
+	}
+	return nil
+}
+
+func (sema *sema) analyzeExtern(extern *ast.ExternDecl, fileScope *scope.Scope[ast.Node]) error {
+	externScope := scope.New(fileScope)
 	for i := range extern.Prototypes {
 		prototypeName := extern.Prototypes[i].Name.Name()
 		err := externScope.Insert(prototypeName, extern.Prototypes[i])
@@ -89,7 +79,7 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 		}
 	}
 	extern.Scope = externScope
-	err := sema.universe.Insert(extern.Name.Name(), extern)
+	err := fileScope.Insert(extern.Name.Name(), extern)
 	if err != nil {
 		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 			pos := extern.Name.Pos
@@ -110,10 +100,10 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 	return nil
 }
 
-func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
+func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *scope.Scope[ast.Node]) error {
 	// TODO: Is it really correct to insert in the universe scope?
 	// In the future, I'll isolate these functions into their modules
-	err := sema.universe.Insert(function.Name.Name(), function)
+	err := fileScope.Insert(function.Name.Name(), function)
 	if err != nil {
 		// TODO: show the position of the first declaration
 		// for helping the program
@@ -134,7 +124,7 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 		return err
 	}
 
-	function.Scope = scope.New(sema.universe)
+	function.Scope = scope.New(fileScope)
 	err = sema.addParametersToScope(function.Params, function.Name.Name(), function.Scope)
 	if err != nil {
 		return err

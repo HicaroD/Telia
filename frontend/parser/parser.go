@@ -8,12 +8,14 @@ import (
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/scope"
 )
 
 type Parser struct {
-	lex *lexer.Lexer
-
+	lex       *lexer.Lexer
 	collector *diagnostics.Collector
+
+	moduleScope *scope.Scope[ast.Node] // current module scope being analyzed
 }
 
 func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
@@ -22,15 +24,29 @@ func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 
 func (p *Parser) Parse() (*ast.Program, error) {
 	// NOTE: temporary change for handling the new architecture
+	// I will have many modules (std included), many files
+	// inside modules and more
+
+	// Universe scope has a nil parent
+	universe := scope.New[ast.Node](nil)
+
+	// TODO: properly set module name
+	// NOTE: not every module will have the universe as the
+	// parent, for inner-modules we could have other modules as parents
+	moduleScope := scope.New(universe)
+	// NOTE: every time a new module is being parsed, this variable should be
+	// set appropriately, deal with it carefuly
+	p.moduleScope = moduleScope
+
 	file, err := p.parseFile()
 	if err != nil {
 		return nil, err
 	}
+	file.Scope = scope.New(moduleScope)
 
-	// TODO: properly set module name
-	module := &ast.Module{Name: "main", Body: []*ast.File{file}}
+	module := &ast.Module{Scope: moduleScope, Name: "main", Body: []*ast.File{file}}
+	program := &ast.Program{Universe: universe, Body: []*ast.Module{module}}
 
-	program := &ast.Program{Body: []*ast.Module{module}}
 	return program, nil
 }
 
@@ -269,22 +285,31 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnDecl := ast.FunctionDecl{
+	fnDecl := &ast.FunctionDecl{
 		Scope:   nil,
 		Name:    name,
 		Params:  params,
 		Block:   block,
 		RetType: returnType,
 	}
-	return &fnDecl, nil
+
+	err = p.moduleScope.Insert(name.Name(), fnDecl)
+	if err != nil {
+		return nil, err
+	}
+	return fnDecl, nil
 }
 
 func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
+	universeScope := scope.New[ast.Node](nil)
+	moduleScope := scope.New(universeScope)
+
 	collector := diagnostics.New()
 
 	src := []byte(input)
 	lexer := lexer.New(filename, src, collector)
 	parser := New(lexer, collector)
+	parser.moduleScope = moduleScope
 
 	fnDecl, err := parser.parseFnDecl()
 	if err != nil {

@@ -444,15 +444,16 @@ func TestSemanticErrors(t *testing.T) {
 				},
 			},
 		},
-		{
-			input: "fn do_nothing() {}\nfn do_nothing() {}",
-			diags: []diagnostics.Diag{
-				{
-					// TODO: show the first declaration and the other
-					Message: "test.tt:2:4: function 'do_nothing' already declared on scope",
-				},
-			},
-		},
+		// TODO: redeclarations are now identified at parsing time!
+		// {
+		// 	input: "fn do_nothing() {}\nfn do_nothing() {}",
+		// 	diags: []diagnostics.Diag{
+		// 		{
+		// 			// TODO: show the first declaration and the other
+		// 			Message: "test.tt:2:4: function 'do_nothing' already declared on scope",
+		// 		},
+		// 	},
+		// },
 		{
 			input: "fn do_nothing(a int, a int) {}",
 			diags: []diagnostics.Diag{
