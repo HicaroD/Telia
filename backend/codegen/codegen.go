@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -48,37 +47,24 @@ func New(filename string) *codegen {
 func (codegen *codegen) Generate(program *ast.Program) error {
 	for _, module := range program.Body {
 		for _, file := range module.Body {
-			err := codegen.generateFile(file)
-			if err != nil {
-				return err
-			}
+			codegen.generateFile(file)
 		}
 	}
 	err := codegen.generateExecutable()
 	return err
 }
 
-func (codegen *codegen) generateFile(file *ast.File) error {
+func (codegen *codegen) generateFile(file *ast.File) {
 	for _, node := range file.Body {
 		switch n := node.(type) {
 		case *ast.FunctionDecl:
-			err := codegen.generateFnDecl(n)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
+			codegen.generateFnDecl(n)
 		case *ast.ExternDecl:
-			err := codegen.generateExternDecl(n)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
+			codegen.generateExternDecl(n)
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
 	}
-
-	return nil
 }
 
 func (codegen *codegen) generateExecutable() error {
@@ -95,7 +81,7 @@ func (codegen *codegen) generateExecutable() error {
 	return err
 }
 
-func (codegen *codegen) generateFnDecl(functionDecl *ast.FunctionDecl) error {
+func (codegen *codegen) generateFnDecl(functionDecl *ast.FunctionDecl) {
 	returnType := codegen.getType(functionDecl.RetType)
 	paramsTypes := codegen.getFieldListTypes(functionDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
@@ -106,19 +92,9 @@ func (codegen *codegen) generateFnDecl(functionDecl *ast.FunctionDecl) error {
 
 	functionDecl.BackendType = fnValue
 
-	err := codegen.generateParameters(fnValue, functionDecl, paramsTypes)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
+	codegen.generateParameters(fnValue, functionDecl, paramsTypes)
 
-	_, err = codegen.generateBlock(functionDecl.Block, functionDecl.Scope, functionDecl, fnValue)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-
-	return err
+	_ = codegen.generateBlock(functionDecl.Block, functionDecl.Scope, functionDecl, fnValue)
 }
 
 func (codegen *codegen) generateBlock(
@@ -126,17 +102,13 @@ func (codegen *codegen) generateBlock(
 	parentScope *ast.Scope,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
-) (stoppedOnReturn bool, err error) {
-	err = nil
+) (stoppedOnReturn bool) {
 	stoppedOnReturn = false
 
 	for _, stmt := range block.Statements {
-		err = codegen.generateStmt(stmt, parentScope, functionDecl, functionLlvm)
+		codegen.generateStmt(stmt, parentScope, functionDecl, functionLlvm)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
-			return
-		}
-		if err != nil {
 			return
 		}
 	}
@@ -148,90 +120,68 @@ func (codegen *codegen) generateStmt(
 	parentScope *ast.Scope,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
-) error {
+) {
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
-		_, err := codegen.generateFunctionCall(parentScope, statement)
-		return err
+		codegen.generateFunctionCall(parentScope, statement)
 	case *ast.ReturnStmt:
-		err := codegen.generateReturnStmt(statement, parentScope)
-		return err
+		codegen.generateReturnStmt(statement, parentScope)
 	case *ast.CondStmt:
-		err := codegen.generateCondStmt(parentScope, statement, functionDecl, functionLlvm)
-		return err
+		codegen.generateCondStmt(parentScope, statement, functionDecl, functionLlvm)
 	case *ast.VarStmt:
-		err := codegen.generateVar(statement, parentScope)
-		return err
+		codegen.generateVar(statement, parentScope)
 	case *ast.MultiVarStmt:
-		err := codegen.generateMultiVar(statement, parentScope)
-		return err
+		codegen.generateMultiVar(statement, parentScope)
 	case *ast.FieldAccess:
-		err := codegen.generateFieldAccessStmt(statement, parentScope)
-		return err
+		codegen.generateFieldAccessStmt(statement, parentScope)
 	case *ast.ForLoop:
-		err := codegen.generateForLoop(statement, functionDecl, functionLlvm, parentScope)
-		return err
+		codegen.generateForLoop(statement, functionDecl, functionLlvm, parentScope)
 	case *ast.WhileLoop:
-		err := codegen.generateWhileLoop(statement, functionDecl, functionLlvm, parentScope)
-		return err
+		codegen.generateWhileLoop(statement, functionDecl, functionLlvm, parentScope)
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
-	return nil
 }
 
 func (codegen *codegen) generateReturnStmt(
 	ret *ast.ReturnStmt,
 	scope *ast.Scope,
-) error {
+) {
 	if ret.Value.IsVoid() {
 		codegen.builder.CreateRetVoid()
-		return nil
+		return
 	}
-	returnValue, err := codegen.getExpr(ret.Value, scope)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
+	returnValue := codegen.getExpr(ret.Value, scope)
 	codegen.builder.CreateRet(returnValue)
-	return nil
 }
 
 func (codegen *codegen) generateMultiVar(
 	varDecl *ast.MultiVarStmt,
 	scope *ast.Scope,
-) error {
+) {
 	for _, variable := range varDecl.Variables {
-		err := codegen.generateVar(variable, scope)
-		if err != nil {
-			return err
-		}
+		codegen.generateVar(variable, scope)
 	}
-	return nil
 }
 
 func (codegen *codegen) generateVar(
 	varStmt *ast.VarStmt,
 	scope *ast.Scope,
-) error {
+) {
 	if varStmt.Decl {
-		return codegen.generateVarDecl(varStmt, scope)
+		codegen.generateVarDecl(varStmt, scope)
 	} else {
-		return codegen.generateVarReassign(varStmt, scope)
+		codegen.generateVarReassign(varStmt, scope)
 	}
 }
 
 func (codegen *codegen) generateVarDecl(
 	varDecl *ast.VarStmt,
 	scope *ast.Scope,
-) error {
+) {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
-	varExpr, err := codegen.getExpr(varDecl.Value, scope)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
+	varExpr := codegen.getExpr(varDecl.Value, scope)
 	codegen.builder.CreateStore(varExpr, varPtr)
 
 	variableLlvm := &values.Variable{
@@ -239,21 +189,14 @@ func (codegen *codegen) generateVarDecl(
 		Ptr: varPtr,
 	}
 	varDecl.BackendType = variableLlvm
-	return err
 }
 
 func (codegen *codegen) generateVarReassign(
 	varDecl *ast.VarStmt,
 	scope *ast.Scope,
-) error {
-	expr, err := codegen.getExpr(varDecl.Value, scope)
-	if err != nil {
-		return err
-	}
-	symbol, err := scope.LookupAcrossScopes(varDecl.Name.Name())
-	if err != nil {
-		return err
-	}
+) {
+	expr := codegen.getExpr(varDecl.Value, scope)
+	symbol, _ := scope.LookupAcrossScopes(varDecl.Name.Name())
 
 	var variable *values.Variable
 	switch sy := symbol.(type) {
@@ -266,14 +209,13 @@ func (codegen *codegen) generateVarReassign(
 	}
 
 	codegen.builder.CreateStore(expr, variable.Ptr)
-	return nil
 }
 
 func (codegen *codegen) generateParameters(
 	fnValue *values.Function,
 	functionNode *ast.FunctionDecl,
 	paramsTypes []llvm.Type,
-) error {
+) {
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		paramType := paramsTypes[i]
 		paramPtr := codegen.builder.CreateAlloca(paramType, ".param")
@@ -284,38 +226,25 @@ func (codegen *codegen) generateParameters(
 		}
 		functionNode.Params.Fields[i].BackendType = &variable
 	}
-	return nil
 }
 
 func (codegen *codegen) generateFunctionCall(
 	functionScope *ast.Scope,
 	functionCall *ast.FunctionCall,
-) (llvm.Value, error) {
-	symbol, err := functionScope.LookupAcrossScopes(functionCall.Name.Name())
-	// TODO(errors)
-	if err != nil {
-		return llvm.Value{}, err
-	}
+) llvm.Value {
+	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
 
 	calledFunction := symbol.(*ast.FunctionDecl)
 	calledFunctionLlvm := calledFunction.BackendType.(*values.Function)
-	args, err := codegen.getExprList(functionScope, functionCall.Args)
-	// TODO(errors)
-	if err != nil {
-		return llvm.Value{}, err
-	}
+	args := codegen.getExprList(functionScope, functionCall.Args)
 
-	return codegen.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, ""), nil
+	return codegen.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
 }
 
-func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
-	var err error
-
+func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) {
 	for i := range external.Prototypes {
 		codegen.generatePrototype(external.Prototypes[i])
 	}
-
-	return err
 }
 
 func (codegen *codegen) generatePrototype(prototype *ast.Proto) {
@@ -373,36 +302,24 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 func (codegen *codegen) getExprList(
 	parentScope *ast.Scope,
 	expressions []ast.Expr,
-) ([]llvm.Value, error) {
+) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i, expr := range expressions {
-		expr, err := codegen.getExpr(expr, parentScope)
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
-		values[i] = expr
+		values[i] = codegen.getExpr(expr, parentScope)
 	}
-	return values, nil
+	return values
 }
 
 func (codegen *codegen) getExpr(
 	expr ast.Expr,
 	scope *ast.Scope,
-) (llvm.Value, error) {
+) llvm.Value {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
 		switch ty := currentExpr.Type.(type) {
 		case *ast.BasicType:
-			// TODO: test this
-			integerValue, bitSize, err := codegen.getIntegerValue(currentExpr, ty)
-			if bitSize == -1 {
-				return llvm.Value{}, fmt.Errorf("%s is not a valid literal basic type", ty.Kind)
-			}
-			if err != nil {
-				return llvm.Value{}, err
-			}
-			return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false), nil
+			integerValue, bitSize := codegen.getIntegerValue(currentExpr, ty)
+			return llvm.ConstInt(codegen.context.IntType(bitSize), integerValue, false)
 		case *ast.PointerType:
 			switch ptrTy := ty.Type.(type) {
 			case *ast.BasicType:
@@ -413,11 +330,11 @@ func (codegen *codegen) getExpr(
 					// creates a new entry on the map
 					globalStrLiteral, ok := codegen.strLiterals[str]
 					if ok {
-						return globalStrLiteral, nil
+						return globalStrLiteral
 					}
 					globalStrPtr := codegen.builder.CreateGlobalStringPtr(str, ".str")
 					codegen.strLiterals[str] = globalStrPtr
-					return globalStrPtr, nil
+					return globalStrPtr
 				default:
 					log.Fatalf("unimplemented ptr basic type: %s", ptrTy.Kind)
 				}
@@ -426,15 +343,7 @@ func (codegen *codegen) getExpr(
 	case *ast.IdExpr:
 		// REFACTOR: make it simpler to get the lexeme
 		varName := currentExpr.Name.Name()
-		symbol, err := scope.LookupAcrossScopes(varName)
-		// TODO(errors)
-		if err != nil {
-			return llvm.Value{}, err
-		}
-		// TODO(errors)
-		if symbol == nil {
-			log.Fatalf("local not defined: %s", varName)
-		}
+		symbol, _ := scope.LookupAcrossScopes(varName)
 
 		var localVar *values.Variable
 
@@ -448,18 +357,11 @@ func (codegen *codegen) getExpr(
 		}
 
 		loadedVariable := codegen.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
-		return loadedVariable, nil
+		return loadedVariable
 	case *ast.BinaryExpr:
-		lhs, err := codegen.getExpr(currentExpr.Left, scope)
-		// TODO(errors)
-		if err != nil {
-			log.Fatalf("can't generate lhs expr: %s", err)
-		}
-		rhs, err := codegen.getExpr(currentExpr.Right, scope)
-		// TODO(errors)
-		if err != nil {
-			log.Fatalf("can't generate rhs expr: %s", err)
-		}
+		lhs := codegen.getExpr(currentExpr.Left, scope)
+		rhs := codegen.getExpr(currentExpr.Right, scope)
+
 		switch currentExpr.Op {
 		// TODO: deal with signed or unsigned operations
 		// I'm assuming all unsigned for now
@@ -467,62 +369,56 @@ func (codegen *codegen) getExpr(
 			// TODO: there a list of IntPredicate, I could map token kind to these
 			// for code reability
 			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
-			return codegen.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq"), nil
+			return codegen.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq")
 		case token.STAR:
-			return codegen.builder.CreateMul(lhs, rhs, ".mul"), nil
+			return codegen.builder.CreateMul(lhs, rhs, ".mul")
 		case token.MINUS:
-			return codegen.builder.CreateSub(lhs, rhs, ".sub"), nil
+			return codegen.builder.CreateSub(lhs, rhs, ".sub")
 		case token.PLUS:
-			return codegen.builder.CreateAdd(lhs, rhs, ".add"), nil
+			return codegen.builder.CreateAdd(lhs, rhs, ".add")
 		case token.LESS:
-			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt"), nil
+			return codegen.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt")
 		case token.LESS_EQ:
-			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple"), nil
+			return codegen.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple")
 		case token.GREATER:
-			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt"), nil
+			return codegen.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt")
 		case token.GREATER_EQ:
-			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge"), nil
+			return codegen.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge")
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
 	case *ast.FunctionCall:
-		call, err := codegen.generateFunctionCall(scope, currentExpr)
-		// TODO(errors)
-		if err != nil {
-			return llvm.Value{}, err
-		}
-		return call, nil
+		call := codegen.generateFunctionCall(scope, currentExpr)
+		return call
 	case *ast.UnaryExpr:
 		switch currentExpr.Op {
 		case token.MINUS:
-			expr, err := codegen.getExpr(currentExpr.Value, scope)
-			// TODO(errors)
-			if err != nil {
-				return llvm.Value{}, err
-			}
-			return codegen.builder.CreateNeg(expr, ".neg"), nil
+			expr := codegen.getExpr(currentExpr.Value, scope)
+			return codegen.builder.CreateNeg(expr, ".neg")
 		default:
 			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
 		}
 	default:
 		log.Fatalf("unimplemented expr: %s", expr)
 	}
+
 	// NOTE: this line should be unreachable
 	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr")
-	return llvm.Value{}, nil
+	return llvm.Value{}
 }
 
 func (codegen *codegen) getIntegerValue(
 	expr *ast.LiteralExpr,
 	ty *ast.BasicType,
-) (uint64, int, error) {
+) (uint64, int) {
 	bitSize := ty.Kind.BitSize()
-	if bitSize == -1 {
-		return 0, bitSize, nil
-	}
 	intLit := string(expr.Value)
 	integerValue, err := strconv.ParseUint(intLit, 10, bitSize)
-	return integerValue, bitSize, err
+	// TODO: make sure to validate this during semantic analysis stage!
+	if err != nil {
+		log.Fatal(err)
+	}
+	return integerValue, bitSize
 }
 
 func (codegen *codegen) generateCondStmt(
@@ -530,25 +426,16 @@ func (codegen *codegen) generateCondStmt(
 	condStmt *ast.CondStmt,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
-) error {
+) {
 	ifBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".if")
 	elseBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".end")
 
-	ifExpr, err := codegen.getExpr(condStmt.IfStmt.Expr, parentScope)
-	if err != nil {
-		return err
-	}
-
-	stoppedOnReturn := false
-
+	ifExpr := codegen.getExpr(condStmt.IfStmt.Expr, parentScope)
 	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
-	stoppedOnReturn, err = codegen.generateBlock(condStmt.IfStmt.Block, parentScope, functionDecl, functionLlvm)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
+
+	stoppedOnReturn := codegen.generateBlock(condStmt.IfStmt.Block, parentScope, functionDecl, functionLlvm)
 	if !stoppedOnReturn {
 		codegen.builder.CreateBr(endBlock)
 	}
@@ -558,16 +445,12 @@ func (codegen *codegen) generateCondStmt(
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
 		elseScope := ast.NewScope(parentScope)
-		elseStoppedOnReturn, err := codegen.generateBlock(
+		elseStoppedOnReturn := codegen.generateBlock(
 			condStmt.ElseStmt.Block,
 			elseScope,
 			functionDecl,
 			functionLlvm,
 		)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
 		if !elseStoppedOnReturn {
 			codegen.builder.CreateBr(endBlock)
 		}
@@ -575,62 +458,43 @@ func (codegen *codegen) generateCondStmt(
 		codegen.builder.CreateBr(endBlock)
 	}
 	codegen.builder.SetInsertPointAtEnd(endBlock)
-	return nil
 }
 
 func (codegen *codegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
 	scope *ast.Scope,
-) error {
-	// REFACTOR: make it simpler to get the lexeme
+) {
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
-	symbol, err := scope.LookupAcrossScopes(id)
-	if err != nil {
-		return err
-	}
+	symbol, _ := scope.LookupAcrossScopes(id)
 
 	switch left := symbol.(type) {
 	case *ast.ExternDecl:
 		switch right := fieldAccess.Right.(type) {
 		case *ast.FunctionCall:
-			_, err := codegen.generatePrototypeCall(left, right, scope)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
+			codegen.generatePrototypeCall(left, right, scope)
 		default:
 			// TODO(errors)
-			return fmt.Errorf("unimplemented %s on field access statement", right)
+			log.Fatalf("unimplemented %s on field access statement", right)
 		}
 	default:
 		// TODO(errors)
-		return fmt.Errorf("unimplemented %s on extern", left)
+		log.Fatalf("unimplemented %s on extern", left)
 	}
-	return nil
 }
 
 func (codegen *codegen) generatePrototypeCall(
 	extern *ast.ExternDecl,
 	call *ast.FunctionCall,
 	callScope *ast.Scope,
-) (llvm.Value, error) {
-	prototype, err := extern.Scope.LookupCurrentScope(call.Name.Name())
-	// TODO(errors)
-	if err != nil {
-		return llvm.Value{}, err
-	}
-
+) llvm.Value {
+	prototype, _ := extern.Scope.LookupCurrentScope(call.Name.Name())
 	proto := prototype.(*ast.Proto)
 	protoLlvm := proto.BackendType.(*values.Function)
-	args, err := codegen.getExprList(callScope, call.Args)
-	// TODO(errors)
-	if err != nil {
-		return llvm.Value{}, err
-	}
+	args := codegen.getExprList(callScope, call.Args)
 
-	return codegen.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, ""), nil
+	return codegen.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
 }
 
 func (codegen *codegen) generateForLoop(
@@ -638,7 +502,7 @@ func (codegen *codegen) generateForLoop(
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
 	parentScope *ast.Scope,
-) error {
+) {
 	forScope := ast.NewScope(parentScope)
 
 	forPrepBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forprep")
@@ -649,38 +513,25 @@ func (codegen *codegen) generateForLoop(
 
 	codegen.builder.CreateBr(forPrepBlock)
 	codegen.builder.SetInsertPointAtEnd(forPrepBlock)
-	err := codegen.generateStmt(forLoop.Init, forScope, functionDecl, functionLlvm)
-	if err != nil {
-		return err
-	}
+	codegen.generateStmt(forLoop.Init, forScope, functionDecl, functionLlvm)
 
 	codegen.builder.CreateBr(forInitBlock)
 	codegen.builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr, err := codegen.getExpr(forLoop.Cond, forScope)
-	if err != nil {
-		return err
-	}
+	expr := codegen.getExpr(forLoop.Cond, forScope)
 
 	codegen.builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
 	codegen.builder.SetInsertPointAtEnd(forBodyBlock)
-	_, err = codegen.generateBlock(forLoop.Block, forScope, functionDecl, functionLlvm)
-	if err != nil {
-		return err
-	}
+	codegen.generateBlock(forLoop.Block, forScope, functionDecl, functionLlvm)
 
 	codegen.builder.CreateBr(forUpdateBlock)
 	codegen.builder.SetInsertPointAtEnd(forUpdateBlock)
-	err = codegen.generateStmt(forLoop.Update, forScope, functionDecl, functionLlvm)
-	if err != nil {
-		return err
-	}
+	codegen.generateStmt(forLoop.Update, forScope, functionDecl, functionLlvm)
 
 	codegen.builder.CreateBr(forInitBlock)
 
 	codegen.builder.SetInsertPointAtEnd(endBlock)
-	return nil
 }
 
 func (codegen *codegen) generateWhileLoop(
@@ -688,7 +539,7 @@ func (codegen *codegen) generateWhileLoop(
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
 	parentScope *ast.Scope,
-) error {
+) {
 	whileScope := ast.NewScope(parentScope)
 
 	whileInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileinit")
@@ -697,19 +548,12 @@ func (codegen *codegen) generateWhileLoop(
 
 	codegen.builder.CreateBr(whileInitBlock)
 	codegen.builder.SetInsertPointAtEnd(whileInitBlock)
-	expr, err := codegen.getExpr(whileLoop.Cond, whileScope)
-	if err != nil {
-		return err
-	}
+	expr := codegen.getExpr(whileLoop.Cond, whileScope)
 	codegen.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	codegen.builder.SetInsertPointAtEnd(whileBodyBlock)
-	_, err = codegen.generateBlock(whileLoop.Block, whileScope, functionDecl, functionLlvm)
-	if err != nil {
-		return err
-	}
+	codegen.generateBlock(whileLoop.Block, whileScope, functionDecl, functionLlvm)
 	codegen.builder.CreateBr(whileInitBlock)
 
 	codegen.builder.SetInsertPointAtEnd(endBlock)
-	return nil
 }
