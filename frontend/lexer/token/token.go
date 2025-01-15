@@ -1,18 +1,18 @@
 package token
 
 type Token struct {
-	Lexeme   string
-	Kind     Kind
-	Position Position
+	Lexeme []byte
+	Kind   Kind
+	Pos    Pos
 }
 
-func New(lexeme string, kind Kind, position Position) *Token {
-	return &Token{Lexeme: lexeme, Kind: kind, Position: position}
+func New(lexeme []byte, kind Kind, position Pos) *Token {
+	return &Token{Lexeme: lexeme, Kind: kind, Pos: position}
 }
 
 func (token *Token) Name() string {
 	if token.Kind == ID {
-		return token.Lexeme
+		return string(token.Lexeme)
 	}
 	return token.Kind.String()
 }

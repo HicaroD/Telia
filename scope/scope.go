@@ -10,6 +10,8 @@ var (
 	ERR_SYMBOL_NOT_FOUND_ON_SCOPE       = errors.New("symbol not found on scope")
 )
 
+// TODO: since I won't be using the scope somewhere else in the future,
+// I could remove the generics and make the code more efficient
 type Scope[V any] struct {
 	Parent *Scope[V]
 	Nodes  map[string]V

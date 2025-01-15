@@ -1,10 +1,8 @@
 package parser
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/ast"
@@ -18,17 +16,45 @@ type Parser struct {
 	collector *diagnostics.Collector
 }
 
-func New(lex *lexer.Lexer, diagCollector *diagnostics.Collector) *Parser {
-	return &Parser{lex: lex, collector: diagCollector}
+func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
+	return &Parser{lex: lex, collector: collector}
+}
+
+func (p *Parser) Parse() (*ast.Program, error) {
+	// NOTE: temporary change for handling the new architecture
+	file, err := p.parseFile()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: properly set module name
+	module := &ast.Module{Name: "main", Body: []*ast.File{file}}
+
+	program := &ast.Program{Body: []*ast.Module{module}}
+	return program, nil
+}
+
+func (p *Parser) parseFile() (*ast.File, error) {
+	var nodes []ast.Node
+	for {
+		node, eof, err := p.Next()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			break
+		}
+		nodes = append(nodes, node)
+	}
+	// TODO: properly set filename here
+	file := &ast.File{Name: "my_program", Body: nodes}
+	return file, nil
 }
 
 func (p *Parser) Next() (ast.Node, bool, error) {
 	eof := false
 
-	tok, err := p.lex.Peek()
-	if err != nil {
-		return nil, eof, err
-	}
+	tok := p.lex.Peek()
 	if tok.Kind == token.EOF {
 		eof = true
 		return nil, eof, nil
@@ -41,7 +67,7 @@ func (p *Parser) Next() (ast.Node, bool, error) {
 		externDecl, err := p.parseExternDecl()
 		return externDecl, eof, err
 	default:
-		pos := tok.Position
+		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: unexpected non-declaration statement on global scope",
@@ -55,34 +81,14 @@ func (p *Parser) Next() (ast.Node, bool, error) {
 	}
 }
 
-func (parser *Parser) Parse() ([]ast.Node, error) {
-	var astNodes []ast.Node
-	for {
-		node, eof, err := parser.Next()
-		if err != nil {
-			return nil, err
-		}
-		if eof {
-			break
-		}
-		astNodes = append(astNodes, node)
-	}
-	return astNodes, nil
-}
-
 // Useful for testing
 func ParseExprFrom(expr, filename string) (ast.Expr, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(expr))
-	lex := lexer.New(filename, reader, diagCollector)
+	src := []byte(expr)
+	lex := lexer.New(filename, src, collector)
+	parser := New(lex, collector)
 
-	// tokens, err := lex.Tokenize()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	parser := New(lex, diagCollector)
 	exprAst, err := parser.parseExpr()
 	if err != nil {
 		return nil, err
@@ -90,16 +96,15 @@ func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 	return exprAst, nil
 }
 
-func (parser *Parser) parseExternDecl() (*ast.ExternDecl, error) {
-	_, ok := parser.expect(token.EXTERN)
-	// TODO(errors): should never hit
+func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
+	_, ok := p.expect(token.EXTERN)
 	if !ok {
 		return nil, fmt.Errorf("expected 'extern'")
 	}
 
-	name, ok := parser.expect(token.ID)
+	name, ok := p.expect(token.ID)
 	if !ok {
-		pos := name.Position
+		pos := name.Pos
 		expectedName := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
@@ -109,13 +114,13 @@ func (parser *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 				name.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedName)
+		p.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	openCurly, ok := parser.expect(token.OPEN_CURLY)
+	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
-		pos := openCurly.Position
+		pos := openCurly.Pos
 		expectedOpenCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected {, not %s",
@@ -125,27 +130,27 @@ func (parser *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 				openCurly.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedOpenCurly)
+		p.collector.ReportAndSave(expectedOpenCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	var prototypes []*ast.Proto
 	for {
-		if parser.lex.NextIs(token.CLOSE_CURLY) {
+		if p.lex.NextIs(token.CLOSE_CURLY) {
 			break
 		}
 
-		proto, err := parser.parsePrototype()
+		proto, err := p.parsePrototype()
 		if err != nil {
 			return nil, err
 		}
 		prototypes = append(prototypes, proto)
 	}
 
-	closeCurly, ok := parser.expect(token.CLOSE_CURLY)
+	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	// QUESTION: will it ever false?
 	if !ok {
-		pos := closeCurly.Position
+		pos := closeCurly.Pos
 		expectedCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected }, not %s",
@@ -155,17 +160,17 @@ func (parser *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 				closeCurly.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedCloseCurly)
+		p.collector.ReportAndSave(expectedCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.ExternDecl{Scope: nil, Name: name, Prototypes: prototypes}, nil
 }
 
-func (parser *Parser) parsePrototype() (*ast.Proto, error) {
-	fn, ok := parser.expect(token.FN)
+func (p *Parser) parsePrototype() (*ast.Proto, error) {
+	fn, ok := p.expect(token.FN)
 	if !ok {
-		pos := fn.Position
+		pos := fn.Pos
 		expectedCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected prototype or }, not %s",
@@ -175,13 +180,13 @@ func (parser *Parser) parsePrototype() (*ast.Proto, error) {
 				fn.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedCloseCurly)
+		p.collector.ReportAndSave(expectedCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	name, ok := parser.expect(token.ID)
+	name, ok := p.expect(token.ID)
 	if !ok {
-		pos := name.Position
+		pos := name.Pos
 		expectedName := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
@@ -191,23 +196,23 @@ func (parser *Parser) parsePrototype() (*ast.Proto, error) {
 				name.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedName)
+		p.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	params, err := parser.parseFunctionParams()
+	params, err := p.parseFunctionParams()
 	if err != nil {
 		return nil, err
 	}
 
-	returnType, err := parser.parseReturnType( /*isPrototype=*/ true)
+	returnType, err := p.parseReturnType( /*isPrototype=*/ true)
 	if err != nil {
 		return nil, err
 	}
 
-	semicolon, ok := parser.expect(token.SEMICOLON)
+	semicolon, ok := p.expect(token.SEMICOLON)
 	if !ok {
-		pos := semicolon.Position
+		pos := semicolon.Pos
 		expectedSemicolon := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected ; at the end of prototype, not %s",
@@ -217,25 +222,25 @@ func (parser *Parser) parsePrototype() (*ast.Proto, error) {
 				semicolon.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedSemicolon)
+		p.collector.ReportAndSave(expectedSemicolon)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return &ast.Proto{Name: name, Params: params, RetType: returnType}, nil
 }
 
-func (parser *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
+func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	var err error
 
-	_, ok := parser.expect(token.FN)
+	_, ok := p.expect(token.FN)
 	// TODO(errors): this should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'fn'")
 	}
 
-	name, ok := parser.expect(token.ID)
+	name, ok := p.expect(token.ID)
 	if !ok {
-		pos := name.Position
+		pos := name.Pos
 		expectedIdentifier := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
@@ -245,21 +250,21 @@ func (parser *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 				name.Kind,
 			),
 		}
-		parser.collector.ReportAndSave(expectedIdentifier)
+		p.collector.ReportAndSave(expectedIdentifier)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	params, err := parser.parseFunctionParams()
+	params, err := p.parseFunctionParams()
 	if err != nil {
 		return nil, err
 	}
 
-	returnType, err := parser.parseReturnType( /*isPrototype=*/ false)
+	returnType, err := p.parseReturnType( /*isPrototype=*/ false)
 	if err != nil {
 		return nil, err
 	}
 
-	block, err := parser.parseBlock()
+	block, err := p.parseBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -275,17 +280,12 @@ func (parser *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 func parseFnDeclFrom(filename, input string) (*ast.FunctionDecl, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(input))
+	src := []byte(input)
+	lexer := lexer.New(filename, src, collector)
+	parser := New(lexer, collector)
 
-	lexer := lexer.New(filename, reader, diagCollector)
-	// tokens, err := lexer.Tokenize()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	parser := New(lexer, diagCollector)
 	fnDecl, err := parser.parseFnDecl()
 	if err != nil {
 		return nil, err
@@ -300,7 +300,7 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 
 	openParen, ok := p.expect(token.OPEN_PAREN)
 	if !ok {
-		pos := openParen.Position
+		pos := openParen.Pos
 		expectedOpenParen := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected (, not %s",
@@ -320,11 +320,8 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 		}
 		if p.lex.NextIs(token.DOT_DOT_DOT) {
 			isVariadic = true
-			tok, err := p.lex.Peek()
-			if err != nil {
-				return nil, err
-			}
-			pos := tok.Position
+			tok := p.lex.Peek()
+			pos := tok.Pos
 			p.lex.Skip()
 
 			if !p.lex.NextIs(token.CLOSE_PAREN) {
@@ -346,7 +343,7 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 
 		name, ok := p.expect(token.ID)
 		if !ok {
-			pos := name.Position
+			pos := name.Pos
 			expectedCloseParenOrId := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter or ), not %s",
@@ -361,11 +358,8 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 		}
 		paramType, err := p.parseExprType()
 		if err != nil {
-			tok, err := p.lex.Peek()
-			if err != nil {
-				return nil, err
-			}
-			pos := tok.Position
+			tok := p.lex.Peek()
+			pos := tok.Pos
 			expectedParamType := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter type for '%s', not %s",
@@ -389,7 +383,7 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 
 	closeParen, ok := p.expect(token.CLOSE_PAREN)
 	if !ok {
-		pos := closeParen.Position
+		pos := closeParen.Pos
 		expectedCloseParen := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected ), not %s",
@@ -419,11 +413,8 @@ func (p *Parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 
 	returnType, err := p.parseExprType()
 	if err != nil {
-		tok, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
-		pos := tok.Position
+		tok := p.lex.Peek()
+		pos := tok.Pos
 		expectedReturnTy := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected type or {, not %s",
@@ -440,10 +431,7 @@ func (p *Parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 }
 
 func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
-	tok, err := p.lex.Peek()
-	if err != nil {
-		return nil, false
-	}
+	tok := p.lex.Peek()
 	if tok.Kind != expectedKind {
 		return tok, false
 	}
@@ -452,10 +440,7 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 }
 
 func (p *Parser) parseExprType() (ast.ExprType, error) {
-	tok, err := p.lex.Peek()
-	if err != nil {
-		return nil, err
-	}
+	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.STAR:
 		p.lex.Skip() // *
@@ -477,10 +462,7 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 }
 
 func (p *Parser) parseStmt() (ast.Stmt, error) {
-	tok, err := p.lex.Peek()
-	if err != nil {
-		return nil, err
-	}
+	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.RETURN:
 		p.lex.Skip()
@@ -491,11 +473,8 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 		}
 		returnValue, err := p.parseExpr()
 		if err != nil {
-			tok, err := p.lex.Peek()
-			if err != nil {
-				return nil, err
-			}
-			pos := tok.Position
+			tok := p.lex.Peek()
+			pos := tok.Pos
 			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected expression or ;, not %s",
@@ -512,11 +491,8 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 
 		_, ok := p.expect(token.SEMICOLON)
 		if !ok {
-			tok, err := p.lex.Peek()
-			if err != nil {
-				return nil, err
-			}
-			pos := tok.Position
+			tok := p.lex.Peek()
+			pos := tok.Pos
 			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected ; at the end of statement, not %s",
@@ -538,7 +514,7 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 		}
 		semicolon, ok := p.expect(token.SEMICOLON)
 		if !ok {
-			pos := semicolon.Position
+			pos := semicolon.Pos
 			expectedSemicolon := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected ; at the end of statement, not %s",
@@ -578,10 +554,7 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 	var statements []ast.Stmt
 
 	for {
-		tok, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		tok := p.lex.Peek()
 		if tok.Kind == token.CLOSE_CURLY {
 			break
 		}
@@ -601,7 +574,7 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
-		pos := closeCurly.Position
+		pos := closeCurly.Pos
 		expectedStatementOrCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected statement or }, not %s",
@@ -616,17 +589,14 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 	}
 
 	return &ast.BlockStmt{
-		OpenCurly:  openCurly.Position,
+		OpenCurly:  openCurly.Pos,
 		Statements: statements,
-		CloseCurly: closeCurly.Position,
+		CloseCurly: closeCurly.Pos,
 	}, nil
 }
 
 func (p *Parser) ParseIdStmt() (ast.Stmt, error) {
-	aheadId, err := p.lex.Peek1()
-	if err != nil {
-		return nil, err
-	}
+	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
 		fnCall, err := p.parseFnCall()
@@ -660,10 +630,7 @@ VarDecl:
 		}
 		variables = append(variables, variable)
 
-		next, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		next := p.lex.Peek()
 		switch next.Kind {
 		case token.COLON_EQUAL, token.EQUAL:
 			p.lex.Skip() // := or =
@@ -682,10 +649,7 @@ VarDecl:
 		variable.Type = ty
 		variable.NeedsInference = false
 
-		next, err = p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		next = p.lex.Peek()
 		switch next.Kind {
 		case token.COLON_EQUAL, token.EQUAL:
 			p.lex.Skip() // := or =
@@ -720,17 +684,12 @@ VarDecl:
 
 // Useful for testing
 func parseVarFrom(filename, input string) (ast.Stmt, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(input))
-	lex := lexer.New(filename, reader, diagCollector)
+	src := []byte(input)
+	lex := lexer.New(filename, src, collector)
+	parser := New(lex, collector)
 
-	// tokens, err := lex.Tokenize()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	parser := New(lex, diagCollector)
 	stmt, err := parser.ParseIdStmt()
 	if err != nil {
 		return nil, err
@@ -778,7 +737,7 @@ func (p *Parser) parseIfCond() (*ast.IfElifCond, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.IfElifCond{If: &ifToken.Position, Expr: ifExpr, Block: ifBlock}, nil
+	return &ast.IfElifCond{If: &ifToken.Pos, Expr: ifExpr, Block: ifBlock}, nil
 }
 
 func (p *Parser) parseElifConds() ([]*ast.IfElifCond, error) {
@@ -800,7 +759,7 @@ func (p *Parser) parseElifConds() ([]*ast.IfElifCond, error) {
 		}
 		elifConds = append(
 			elifConds,
-			&ast.IfElifCond{If: &elifToken.Position, Expr: elifExpr, Block: elifBlock},
+			&ast.IfElifCond{If: &elifToken.Pos, Expr: elifExpr, Block: elifBlock},
 		)
 	}
 	return elifConds, nil
@@ -816,7 +775,7 @@ func (p *Parser) parseElseCond() (*ast.ElseCond, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ElseCond{Else: &elseToken.Position, Block: elseBlock}, nil
+	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock}, nil
 }
 
 func (p *Parser) parseExpr() (ast.Expr, error) {
@@ -832,10 +791,7 @@ func (p *Parser) parseLogical() (ast.Expr, error) {
 
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
-		next, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		next := p.lex.Peek()
 		if _, ok := ast.LOGICAL[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseComparasion()
@@ -860,10 +816,7 @@ func (p *Parser) parseComparasion() (ast.Expr, error) {
 
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
-		next, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		next := p.lex.Peek()
 		if _, ok := ast.COMPARASION[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseTerm()
@@ -888,10 +841,7 @@ func (p *Parser) parseTerm() (ast.Expr, error) {
 
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
-		next, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
+		next := p.lex.Peek()
 		if _, ok := ast.TERM[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseFactor()
@@ -916,11 +866,7 @@ func (p *Parser) parseFactor() (ast.Expr, error) {
 
 	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
-		next, err := p.lex.Peek()
-		if err != nil {
-			return nil, err
-		}
-
+		next := p.lex.Peek()
 		if _, ok := ast.FACTOR[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseUnary()
@@ -938,10 +884,7 @@ func (p *Parser) parseFactor() (ast.Expr, error) {
 }
 
 func (p *Parser) parseUnary() (ast.Expr, error) {
-	next, err := p.lex.Peek()
-	if err != nil {
-		return nil, err
-	}
+	next := p.lex.Peek()
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		p.lex.Skip()
 		rhs, err := p.parseUnary()
@@ -956,18 +899,12 @@ func (p *Parser) parseUnary() (ast.Expr, error) {
 }
 
 func (p *Parser) parsePrimary() (ast.Expr, error) {
-	tok, err := p.lex.Peek()
-	if err != nil {
-		return nil, err
-	}
+	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.ID:
 		idExpr := &ast.IdExpr{Name: tok}
 
-		next, err := p.lex.Peek1()
-		if err != nil {
-			return nil, err
-		}
+		next := p.lex.Peek1()
 		switch next.Kind {
 		case token.OPEN_PAREN:
 			return p.parseFnCall()
@@ -1002,7 +939,7 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 			"invalid token for expression parsing: %s %s %s",
 			tok.Kind,
 			tok.Lexeme,
-			tok.Position,
+			tok.Pos,
 		)
 	}
 }
@@ -1138,50 +1075,40 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 
 // Useful for testing
 func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(input))
-	lex := lexer.New(filename, reader, diagCollector)
+	src := []byte(input)
+	lex := lexer.New(filename, src, collector)
+	parser := New(lex, collector)
 
-	// tokens, err := lex.Tokenize()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	parser := New(lex, diagCollector)
 	forLoop, err := parser.parseForLoop()
 	return forLoop, err
 }
 
 func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(input))
-	lex := lexer.New(filename, reader, diagCollector)
+	src := []byte(input)
+	lex := lexer.New(filename, src, collector)
+	parser := New(lex, collector)
 
-	// tokens, err := lex.Tokenize()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	parser := New(lex, diagCollector)
 	whileLoop, err := parser.parseWhileLoop()
 	return whileLoop, err
 }
 
-func (parser *Parser) parseWhileLoop() (*ast.WhileLoop, error) {
-	_, ok := parser.expect(token.WHILE)
+func (p *Parser) parseWhileLoop() (*ast.WhileLoop, error) {
+	_, ok := p.expect(token.WHILE)
 	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'while'")
 	}
 
-	expr, err := parser.parseExpr()
+	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 
-	block, err := parser.parseBlock()
+	block, err := p.parseBlock()
 	if err != nil {
 		return nil, err
 	}

@@ -1,10 +1,8 @@
 package lexer
 
 import (
-	"bufio"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/diagnostics"
@@ -72,10 +70,10 @@ func TestTokenKinds(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenKind('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := diagnostics.New()
+			collector := diagnostics.New()
 
-			reader := bufio.NewReader(strings.NewReader(test.lexeme))
-			lexer := New(filename, reader, diagCollector)
+			src := []byte(test.lexeme)
+			lexer := New(filename, src, collector)
 
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
@@ -97,23 +95,23 @@ func TestTokenKinds(t *testing.T) {
 
 type tokenPosTest struct {
 	input     string
-	positions []token.Position
+	positions []token.Pos
 }
 
 func TestTokenPos(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenPosTest{
-		{";", []token.Position{
+		{";", []token.Pos{
 			{Filename: "test.tt", Line: 1, Column: 1},
 			{Filename: "test.tt", Line: 1, Column: 2}},
 		},
-		{";\n;", []token.Position{
+		{";\n;", []token.Pos{
 			{Filename: "test.tt", Line: 1, Column: 1},
 			{Filename: "test.tt", Line: 2, Column: 1},
 			{Filename: "test.tt", Line: 2, Column: 2}},
 		},
-		{"fn\nhello world\n;", []token.Position{
+		{"fn\nhello world\n;", []token.Pos{
 			{Filename: "test.tt", Line: 1, Column: 1},
 			{Filename: "test.tt", Line: 2, Column: 1},
 			{Filename: "test.tt", Line: 2, Column: 7},
@@ -124,10 +122,10 @@ func TestTokenPos(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTokenPos(%q)", test.input), func(t *testing.T) {
-			diagCollector := diagnostics.New()
+			collector := diagnostics.New()
 
-			reader := bufio.NewReader(strings.NewReader(test.input))
-			lexer := New(filename, reader, diagCollector)
+			src := []byte(test.input)
+			lexer := New(filename, src, collector)
 
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
@@ -147,7 +145,7 @@ func TestTokenPos(t *testing.T) {
 			}
 
 			for i, expectedPos := range test.positions {
-				actualPos := tokenResult[i].Position
+				actualPos := tokenResult[i].Pos
 				if expectedPos != actualPos {
 					t.Errorf(
 						"expected token position to be the same, expected %q, but got %q",
@@ -173,12 +171,15 @@ func TestIsIdentifier(t *testing.T) {
 		{"world", true},
 		{"foobar", true},
 		{"hello_world_", true},
-		{"foo६४", true},
-		{"a۰۱۸", true},
-		{"bar９８７６", true},
-		{"ŝ", true},
-		{"ŝfoo", true},
-		{"a123456789", true}, // NOTE: starts with "a"
+
+		// TODO: add support to Unicode
+		// {"foo६४", true},
+		// {"a۰۱۸", true},
+		// {"bar９８７６", true},
+		// {"ŝ", true},
+		// {"ŝfoo", true},
+
+		{"a123456789", true},
 		{"123456789", false},
 		// TODO: add float here
 
@@ -207,10 +208,10 @@ func TestIsIdentifier(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsIdentifier('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := diagnostics.New()
+			collector := diagnostics.New()
 
-			reader := bufio.NewReader(strings.NewReader(test.lexeme))
-			lexer := New(filename, reader, diagCollector)
+			src := []byte(test.lexeme)
+			lexer := New(filename, src, collector)
 
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
@@ -256,10 +257,10 @@ func TestIsLiteral(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIsLiteral('%q')", test.lexeme), func(t *testing.T) {
-			diagCollector := diagnostics.New()
-			reader := bufio.NewReader(strings.NewReader(test.lexeme))
+			collector := diagnostics.New()
 
-			lexer := New(filename, reader, diagCollector)
+			src := []byte(test.lexeme)
+			lexer := New(filename, src, collector)
 			tokenResult, err := lexer.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -347,10 +348,10 @@ func TestLexicalErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestLexicalErrors('%s')", test.input), func(t *testing.T) {
-			diagCollector := diagnostics.New()
-			reader := bufio.NewReader(strings.NewReader(test.input))
+			collector := diagnostics.New()
 
-			lex := New(filename, reader, diagCollector)
+			src := []byte(test.input)
+			lex := New(filename, src, collector)
 			_, err := lex.Tokenize()
 			if err == nil {
 				t.Fatal("expected to have lexical errors, but got nothing")

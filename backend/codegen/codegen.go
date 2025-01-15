@@ -24,12 +24,12 @@ type codegen struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	astNodes    []ast.Node
+	program     *ast.Program
 	universe    *scope.Scope[values.LLVMValue]
 	strLiterals map[string]llvm.Value
 }
 
-func New(filename string, astNodes []ast.Node) *codegen {
+func New(filename string, program *ast.Program) *codegen {
 	// parent of universe scope is nil
 	var nilScope *scope.Scope[values.LLVMValue] = nil
 	universe := scope.New(nilScope)
@@ -47,34 +47,38 @@ func New(filename string, astNodes []ast.Node) *codegen {
 		module:  module,
 		builder: builder,
 
-		astNodes:    astNodes,
+		program:     program,
 		universe:    universe,
 		strLiterals: map[string]llvm.Value{},
 	}
 }
 
 func (codegen *codegen) Generate() error {
-	for i := range codegen.astNodes {
-		switch astNode := codegen.astNodes[i].(type) {
-		case *ast.FunctionDecl:
-			err := codegen.generateFnDecl(astNode)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		case *ast.ExternDecl:
-			err := codegen.generateExternDecl(astNode)
-			// TODO(errors)
-			if err != nil {
-				return err
-			}
-		default:
-			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(codegen.astNodes[i]))
-		}
-	}
+	return nil
 
-	err := codegen.generateExecutable()
-	return err
+	// TODO: implement code generation after new architecture
+
+	// for i := range codegen.astNodes {
+	// 	switch astNode := codegen.astNodes[i].(type) {
+	// 	case *ast.FunctionDecl:
+	// 		err := codegen.generateFnDecl(astNode)
+	// 		// TODO(errors)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	case *ast.ExternDecl:
+	// 		err := codegen.generateExternDecl(astNode)
+	// 		// TODO(errors)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 	default:
+	// 		log.Fatalf("unimplemented: %s\n", reflect.TypeOf(codegen.astNodes[i]))
+	// 	}
+	// }
+	//
+	// err := codegen.generateExecutable()
+	// return err
 }
 
 func (codegen *codegen) generateExecutable() error {
@@ -416,15 +420,15 @@ func (codegen *codegen) getExpr(
 			case *ast.BasicType:
 				switch ptrTy.Kind {
 				case token.U8_TYPE:
-					stringLiteral := currentExpr.Value
+					str := string(currentExpr.Value)
 					// NOTE: huge string literals can affect performance because it
 					// creates a new entry on the map
-					globalStrLiteral, ok := codegen.strLiterals[stringLiteral]
+					globalStrLiteral, ok := codegen.strLiterals[str]
 					if ok {
 						return globalStrLiteral, nil
 					}
-					globalStrPtr := codegen.builder.CreateGlobalStringPtr(stringLiteral, ".str")
-					codegen.strLiterals[stringLiteral] = globalStrPtr
+					globalStrPtr := codegen.builder.CreateGlobalStringPtr(str, ".str")
+					codegen.strLiterals[str] = globalStrPtr
 					return globalStrPtr, nil
 				default:
 					log.Fatalf("unimplemented ptr basic type: %s", ptrTy.Kind)
@@ -527,8 +531,8 @@ func (codegen *codegen) getIntegerValue(
 	if bitSize == -1 {
 		return 0, bitSize, nil
 	}
-	integerLiteral := expr.Value
-	integerValue, err := strconv.ParseUint(integerLiteral, 10, bitSize)
+	intLit := string(expr.Value)
+	integerValue, err := strconv.ParseUint(intLit, 10, bitSize)
 	return integerValue, bitSize, err
 }
 

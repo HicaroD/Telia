@@ -1,10 +1,8 @@
 package sema
 
 import (
-	"bufio"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/diagnostics"
@@ -150,11 +148,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{
-						Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+						Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: token.I8_TYPE},
 						Value: ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							Value: "1",
+							Value: []byte("1"),
 						},
 						NeedsInference: false,
 					},
@@ -169,7 +167,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					input: "true",
 					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
 					value: &ast.LiteralExpr{
-						Value: "1",
+						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
 					},
 				},
@@ -177,7 +175,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					input: "false",
 					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
 					value: &ast.LiteralExpr{
-						Value: "0",
+						Value: []byte("0"),
 						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
 					},
 				},
@@ -185,7 +183,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					input: "1",
 					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.LiteralExpr{
-						Value: "1",
+						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INT_TYPE},
 					},
 				},
@@ -194,12 +192,12 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.INT_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
@@ -211,7 +209,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						Op: token.MINUS,
 						Value: &ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
-							Value: "1",
+							Value: []byte("1"),
 						},
 					},
 				},
@@ -223,12 +221,12 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 							Op: token.MINUS,
 							Value: &ast.LiteralExpr{
 								Type:  &ast.BasicType{Kind: token.INT_TYPE},
-								Value: "1",
+								Value: []byte("1"),
 							},
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
@@ -238,11 +236,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
-							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
 					},
@@ -252,12 +250,12 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", token.ID, token.NewPosition(filename, 5, 1)),
+							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 5, 1)),
 						},
 					},
 				},
@@ -267,18 +265,18 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
-								Value: "1",
+								Value: []byte("1"),
 								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
 							Op: token.PLUS,
 							Right: &ast.LiteralExpr{
-								Value: "2",
+								Value: []byte("2"),
 								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", token.ID, token.NewPosition(filename, 9, 1)),
+							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 9, 1)),
 						},
 					},
 				},
@@ -288,17 +286,17 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					value: &ast.BinaryExpr{
 						Left: &ast.BinaryExpr{
 							Left: &ast.LiteralExpr{
-								Value: "1",
+								Value: []byte("1"),
 								Type:  &ast.BasicType{Kind: token.I8_TYPE},
 							},
 							Op: token.PLUS,
 							Right: &ast.IdExpr{
-								Name: token.New("a", token.ID, token.NewPosition(filename, 5, 1)),
+								Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 5, 1)),
 							},
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: "3",
+							Value: []byte("3"),
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
 						},
 					},
@@ -341,11 +339,11 @@ func TestExprInferenceWithContext(t *testing.T) {
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{
-						Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+						Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						Type: &ast.BasicType{Kind: token.I8_TYPE},
 						Value: ast.LiteralExpr{
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							Value: "1",
+							Value: []byte("1"),
 						},
 						NeedsInference: false,
 					},
@@ -361,11 +359,11 @@ func TestExprInferenceWithContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.IdExpr{
-							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 					},
@@ -375,12 +373,12 @@ func TestExprInferenceWithContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
-							Value: "1",
+							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INT_TYPE},
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New("a", token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						},
 					},
 				},
@@ -542,21 +540,17 @@ func TestSemanticErrors(t *testing.T) {
 		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 
-			reader := bufio.NewReader(strings.NewReader(test.input))
-			lex := lexer.New(filename, reader, collector)
-			// tokens, err := lex.Tokenize()
-			// if err != nil {
-			// 	t.Fatal("unexpected lexical error: ", err)
-			// }
-
+			src := []byte(test.input)
+			lex := lexer.New(filename, src, collector)
 			parser := parser.New(lex, collector)
-			// nodes, err := parser.Parse()
-			// if err != nil {
-			// 	t.Fatal("unexpected syntax error: ", err)
-			// }
 
-			sema := New(parser, collector)
-			_ = sema.Analyze(nodes)
+			program, err := parser.Parse()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			sema := New(collector)
+			_ = sema.Check(program)
 
 			if len(collector.Diags) != len(test.diags) {
 				t.Fatalf(
