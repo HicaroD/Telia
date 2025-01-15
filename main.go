@@ -44,8 +44,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	codegen := codegen.New(filename, program)
-	err = codegen.Generate()
+	codegen := codegen.New(filename)
+	err = codegen.Generate(program)
 	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)

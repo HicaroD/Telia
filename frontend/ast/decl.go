@@ -14,11 +14,12 @@ type Decl interface {
 
 type FunctionDecl struct {
 	Decl
-	Scope   *scope.Scope[Node]
-	Name    *token.Token
-	Params  *FieldList
-	RetType ExprType
-	Block   *BlockStmt
+	Scope       *scope.Scope[Node]
+	Name        *token.Token
+	Params      *FieldList
+	RetType     ExprType
+	Block       *BlockStmt
+	BackendType any // LLVM: *values.Function
 }
 
 func (fnDecl FunctionDecl) String() string {
@@ -36,9 +37,10 @@ func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
 	Decl
-	Scope      *scope.Scope[Node]
-	Name       *token.Token
-	Prototypes []*Proto
+	Scope       *scope.Scope[Node]
+	Name        *token.Token
+	Prototypes  []*Proto
+	BackendType any // LLVM: *values.Extern
 }
 
 func (extern ExternDecl) String() string {
@@ -53,6 +55,8 @@ type Proto struct {
 	Name    *token.Token
 	Params  *FieldList
 	RetType ExprType
+
+	BackendType any // LLVM: *values.Function
 }
 
 func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }

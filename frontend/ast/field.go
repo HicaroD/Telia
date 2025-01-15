@@ -8,8 +8,9 @@ import (
 
 type Field struct {
 	Node
-	Name *token.Token
-	Type ExprType
+	Name        *token.Token
+	Type        ExprType
+	BackendType any // LLVM: *values.Variable
 }
 
 func (field Field) String() string {

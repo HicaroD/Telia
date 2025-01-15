@@ -45,6 +45,8 @@ type VarStmt struct {
 	Type           ExprType
 	Value          Expr
 	NeedsInference bool
+
+	BackendType any // LLVM: *values.Variable
 }
 
 func (variable VarStmt) String() string {
@@ -70,8 +72,10 @@ func (ret ReturnStmt) stmtNode()      {}
 type FunctionCall struct {
 	Stmt
 	Expr
-	Name *token.Token
-	Args []Expr
+	Name        *token.Token
+	Args        []Expr
+
+	BackendType any
 }
 
 func (call FunctionCall) String() string {

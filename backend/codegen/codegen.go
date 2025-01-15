@@ -24,17 +24,11 @@ type codegen struct {
 	module  llvm.Module
 	builder llvm.Builder
 
-	program  *ast.Program
-	universe *scope.Scope[values.LLVMValue]
 	// NOTE: temporary - find a better way of doing this ( preferebly don't do this :) )
 	strLiterals map[string]llvm.Value
 }
 
-func New(filename string, program *ast.Program) *codegen {
-	// parent of universe scope is nil
-	var nilScope *scope.Scope[values.LLVMValue] = nil
-	universe := scope.New(nilScope)
-
+func New(filename string) *codegen {
 	context := llvm.NewContext()
 	// TODO: properly define the module name
 	// The name of the module could be file name
@@ -48,38 +42,44 @@ func New(filename string, program *ast.Program) *codegen {
 		module:  module,
 		builder: builder,
 
-		program:     program,
-		universe:    universe,
 		strLiterals: map[string]llvm.Value{},
 	}
 }
 
-func (codegen *codegen) Generate() error {
+func (codegen *codegen) Generate(program *ast.Program) error {
+	for _, module := range program.Body {
+		for _, file := range module.Body {
+			err := codegen.generateFile(file)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	err := codegen.generateExecutable()
+	return err
+}
+
+func (codegen *codegen) generateFile(file *ast.File) error {
+	for _, node := range file.Body {
+		switch n := node.(type) {
+		case *ast.FunctionDecl:
+			err := codegen.generateFnDecl(n)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
+		case *ast.ExternDecl:
+			err := codegen.generateExternDecl(n)
+			// TODO(errors)
+			if err != nil {
+				return err
+			}
+		default:
+			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
+		}
+	}
+
 	return nil
-
-	// TODO: implement code generation after new architecture
-
-	// for i := range codegen.astNodes {
-	// 	switch astNode := codegen.astNodes[i].(type) {
-	// 	case *ast.FunctionDecl:
-	// 		err := codegen.generateFnDecl(astNode)
-	// 		// TODO(errors)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case *ast.ExternDecl:
-	// 		err := codegen.generateExternDecl(astNode)
-	// 		// TODO(errors)
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	default:
-	// 		log.Fatalf("unimplemented: %s\n", reflect.TypeOf(codegen.astNodes[i]))
-	// 	}
-	// }
-	//
-	// err := codegen.generateExecutable()
-	// return err
 }
 
 func (codegen *codegen) generateExecutable() error {
@@ -96,29 +96,24 @@ func (codegen *codegen) generateExecutable() error {
 	return err
 }
 
-func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
-	returnType := codegen.getType(function.RetType)
-	paramsTypes := codegen.getFieldListTypes(function.Params)
-	functionType := llvm.FunctionType(returnType, paramsTypes, function.Params.IsVariadic)
-	functionValue := llvm.AddFunction(codegen.module, function.Name.Name(), functionType)
+func (codegen *codegen) generateFnDecl(functionDecl *ast.FunctionDecl) error {
+	returnType := codegen.getType(functionDecl.RetType)
+	paramsTypes := codegen.getFieldListTypes(functionDecl.Params)
+	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
+	functionValue := llvm.AddFunction(codegen.module, functionDecl.Name.Name(), functionType)
 	functionBlock := codegen.context.AddBasicBlock(functionValue, "entry")
 	fnValue := values.NewFunctionValue(functionValue, functionType, &functionBlock)
 	codegen.builder.SetInsertPointAtEnd(functionBlock)
 
-	err := codegen.universe.Insert(function.Name.Name(), fnValue)
+	functionDecl.BackendType = fnValue
+
+	err := codegen.generateParameters(fnValue, functionDecl, paramsTypes)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	fnScope := scope.New(codegen.universe)
-	err = codegen.generateParameters(fnValue, function, fnScope, paramsTypes)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-
-	_, err = codegen.generateBlock(function.Block, fnScope, fnValue)
+	_, err = codegen.generateBlock(functionDecl.Block, functionDecl.Scope, functionDecl, fnValue)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -128,52 +123,57 @@ func (codegen *codegen) generateFnDecl(function *ast.FunctionDecl) error {
 }
 
 func (codegen *codegen) generateBlock(
-	stmts *ast.BlockStmt,
-	scope *scope.Scope[values.LLVMValue],
-	function *values.Function,
-) (bool, error) {
-	for i := range stmts.Statements {
-		stmt := stmts.Statements[i]
-		err := codegen.generateStmt(stmt, scope, function)
+	block *ast.BlockStmt,
+	parentScope *scope.Scope[ast.Node],
+	functionDecl *ast.FunctionDecl,
+	functionLlvm *values.Function,
+) (stoppedOnReturn bool, err error) {
+	err = nil
+	stoppedOnReturn = false
+
+	for _, stmt := range block.Statements {
+		err = codegen.generateStmt(stmt, parentScope, functionDecl, functionLlvm)
 		if stmt.IsReturn() {
-			return true, nil
+			stoppedOnReturn = true
+			return
 		}
 		if err != nil {
-			return false, err
+			return
 		}
 	}
-	return false, nil
+	return
 }
 
 func (codegen *codegen) generateStmt(
 	stmt ast.Stmt,
-	scope *scope.Scope[values.LLVMValue],
-	function *values.Function,
+	parentScope *scope.Scope[ast.Node],
+	functionDecl *ast.FunctionDecl,
+	functionLlvm *values.Function,
 ) error {
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
-		_, err := codegen.generateFunctionCall(scope, statement)
+		_, err := codegen.generateFunctionCall(parentScope, statement)
 		return err
 	case *ast.ReturnStmt:
-		err := codegen.generateReturnStmt(statement, scope)
+		err := codegen.generateReturnStmt(statement, parentScope)
 		return err
 	case *ast.CondStmt:
-		err := codegen.generateCondStmt(scope, function, statement)
+		err := codegen.generateCondStmt(parentScope, statement, functionDecl, functionLlvm)
 		return err
 	case *ast.VarStmt:
-		err := codegen.generateVar(statement, scope)
+		err := codegen.generateVar(statement, parentScope)
 		return err
 	case *ast.MultiVarStmt:
-		err := codegen.generateMultiVar(statement, scope)
+		err := codegen.generateMultiVar(statement, parentScope)
 		return err
 	case *ast.FieldAccess:
-		err := codegen.generateFieldAccessStmt(statement, scope)
+		err := codegen.generateFieldAccessStmt(statement, parentScope)
 		return err
 	case *ast.ForLoop:
-		err := codegen.generateForLoop(statement, function, scope)
+		err := codegen.generateForLoop(statement, functionDecl, functionLlvm, parentScope)
 		return err
 	case *ast.WhileLoop:
-		err := codegen.generateWhileLoop(statement, function, scope)
+		err := codegen.generateWhileLoop(statement, functionDecl, functionLlvm, parentScope)
 		return err
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
@@ -183,7 +183,7 @@ func (codegen *codegen) generateStmt(
 
 func (codegen *codegen) generateReturnStmt(
 	ret *ast.ReturnStmt,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
 	if ret.Value.IsVoid() {
 		codegen.builder.CreateRetVoid()
@@ -200,10 +200,10 @@ func (codegen *codegen) generateReturnStmt(
 
 func (codegen *codegen) generateMultiVar(
 	varDecl *ast.MultiVarStmt,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
-	for i := range varDecl.Variables {
-		err := codegen.generateVar(varDecl.Variables[i], scope)
+	for _, variable := range varDecl.Variables {
+		err := codegen.generateVar(variable, scope)
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func (codegen *codegen) generateMultiVar(
 
 func (codegen *codegen) generateVar(
 	varStmt *ast.VarStmt,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
 	if varStmt.Decl {
 		return codegen.generateVarDecl(varStmt, scope)
@@ -224,30 +224,28 @@ func (codegen *codegen) generateVar(
 
 func (codegen *codegen) generateVarDecl(
 	varDecl *ast.VarStmt,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
 	varExpr, err := codegen.getExpr(varDecl.Value, scope)
-
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 	codegen.builder.CreateStore(varExpr, varPtr)
 
-	variable := values.Variable{
+	variableLlvm := &values.Variable{
 		Ty:  varTy,
 		Ptr: varPtr,
 	}
-	// REFACTOR: make it simpler to get the lexeme
-	err = scope.Insert(varDecl.Name.Name(), &variable)
+	varDecl.BackendType = variableLlvm
 	return err
 }
 
 func (codegen *codegen) generateVarReassign(
 	varDecl *ast.VarStmt,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
 	expr, err := codegen.getExpr(varDecl.Value, scope)
 	if err != nil {
@@ -257,7 +255,17 @@ func (codegen *codegen) generateVarReassign(
 	if err != nil {
 		return err
 	}
-	variable := symbol.(*values.Variable)
+
+	var variable *values.Variable
+	switch sy := symbol.(type) {
+	case *ast.VarStmt:
+		variable = sy.BackendType.(*values.Variable)
+	case *ast.Field:
+		variable = sy.BackendType.(*values.Variable)
+	default:
+		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
+	}
+
 	codegen.builder.CreateStore(expr, variable.Ptr)
 	return nil
 }
@@ -265,12 +273,9 @@ func (codegen *codegen) generateVarReassign(
 func (codegen *codegen) generateParameters(
 	fnValue *values.Function,
 	functionNode *ast.FunctionDecl,
-	fnScope *scope.Scope[values.LLVMValue],
 	paramsTypes []llvm.Type,
 ) error {
 	for i, paramPtrValue := range fnValue.Fn.Params() {
-		// REFACTOR: make it simpler to get the lexeme
-		paramName := functionNode.Params.Fields[i].Name.Name()
 		paramType := paramsTypes[i]
 		paramPtr := codegen.builder.CreateAlloca(paramType, ".param")
 		codegen.builder.CreateStore(paramPtrValue, paramPtr)
@@ -278,67 +283,50 @@ func (codegen *codegen) generateParameters(
 			Ty:  paramType,
 			Ptr: paramPtr,
 		}
-		err := fnScope.Insert(paramName, &variable)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+		functionNode.Params.Fields[i].BackendType = &variable
 	}
 	return nil
 }
 
 func (codegen *codegen) generateFunctionCall(
-	scope *scope.Scope[values.LLVMValue],
+	functionScope *scope.Scope[ast.Node],
 	functionCall *ast.FunctionCall,
 ) (llvm.Value, error) {
-	symbol, err := scope.LookupAcrossScopes(functionCall.Name.Name())
+	symbol, err := functionScope.LookupAcrossScopes(functionCall.Name.Name())
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
 	}
 
-	function := symbol.(*values.Function)
-	args, err := codegen.getExprList(scope, functionCall.Args)
+	calledFunction := symbol.(*ast.FunctionDecl)
+	calledFunctionLlvm := calledFunction.BackendType.(*values.Function)
+	args, err := codegen.getExprList(functionScope, functionCall.Args)
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
 	}
 
-	return codegen.builder.CreateCall(function.Ty, function.Fn, args, ""), nil
+	return codegen.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, ""), nil
 }
 
 func (codegen *codegen) generateExternDecl(external *ast.ExternDecl) error {
 	var err error
 
-	scope := scope.New(codegen.universe)
-
 	for i := range external.Prototypes {
-		prototype, err := codegen.generatePrototype(external.Prototypes[i])
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
-
-		err = scope.Insert(external.Prototypes[i].Name.Name(), prototype)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
+		codegen.generatePrototype(external.Prototypes[i])
 	}
 
-	externDecl := values.NewExtern(scope)
-	// REFACTOR: make it simpler to get the lexeme
-	err = codegen.universe.Insert(external.Name.Name(), externDecl)
 	return err
 }
 
-func (codegen *codegen) generatePrototype(prototype *ast.Proto) (*values.Function, error) {
+func (codegen *codegen) generatePrototype(prototype *ast.Proto) {
 	returnTy := codegen.getType(prototype.RetType)
 	paramsTypes := codegen.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(codegen.module, prototype.Name.Name(), ty)
 	proto := values.NewFunctionValue(protoValue, ty, nil)
-	return proto, nil
+
+	prototype.BackendType = proto
 }
 
 func (codegen *codegen) getType(ty ast.ExprType) llvm.Type {
@@ -384,12 +372,12 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 }
 
 func (codegen *codegen) getExprList(
-	parentScope *scope.Scope[values.LLVMValue],
+	parentScope *scope.Scope[ast.Node],
 	expressions []ast.Expr,
 ) ([]llvm.Value, error) {
 	values := make([]llvm.Value, len(expressions))
-	for i := range expressions {
-		expr, err := codegen.getExpr(expressions[i], parentScope)
+	for i, expr := range expressions {
+		expr, err := codegen.getExpr(expr, parentScope)
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -401,7 +389,7 @@ func (codegen *codegen) getExprList(
 
 func (codegen *codegen) getExpr(
 	expr ast.Expr,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
@@ -448,7 +436,18 @@ func (codegen *codegen) getExpr(
 		if symbol == nil {
 			log.Fatalf("local not defined: %s", varName)
 		}
-		localVar := symbol.(*values.Variable)
+
+		var localVar *values.Variable
+
+		switch symbol.(type) {
+		case *ast.VarStmt:
+			variable := symbol.(*ast.VarStmt)
+			localVar = variable.BackendType.(*values.Variable)
+		case *ast.Field:
+			variable := symbol.(*ast.Field)
+			localVar = variable.BackendType.(*values.Variable)
+		}
+
 		loadedVariable := codegen.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable, nil
 	case *ast.BinaryExpr:
@@ -488,22 +487,12 @@ func (codegen *codegen) getExpr(
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
 	case *ast.FunctionCall:
-		symbol, err := scope.LookupAcrossScopes(currentExpr.Name.Name())
+		call, err := codegen.generateFunctionCall(scope, currentExpr)
 		// TODO(errors)
 		if err != nil {
-			log.Fatalf("at this point of code generation, every symbol should be located")
+			return llvm.Value{}, err
 		}
-		switch sym := symbol.(type) {
-		case *values.Function:
-			fnCall, err := codegen.generateFunctionCall(scope, currentExpr)
-			// TODO(errors)
-			if err != nil {
-				return llvm.Value{}, err
-			}
-			return fnCall, nil
-		default:
-			log.Fatalf("unimplemented value: %s %s", expr, reflect.TypeOf(sym))
-		}
+		return call, nil
 	case *ast.UnaryExpr:
 		switch currentExpr.Op {
 		case token.MINUS:
@@ -538,16 +527,16 @@ func (codegen *codegen) getIntegerValue(
 }
 
 func (codegen *codegen) generateCondStmt(
-	parentScope *scope.Scope[values.LLVMValue],
-	function *values.Function,
+	parentScope *scope.Scope[ast.Node],
 	condStmt *ast.CondStmt,
+	functionDecl *ast.FunctionDecl,
+	functionLlvm *values.Function,
 ) error {
-	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
-	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
-	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
+	ifBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".if")
+	elseBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".else")
+	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".end")
 
-	ifScope := scope.New(parentScope)
-	ifExpr, err := codegen.getExpr(condStmt.IfStmt.Expr, ifScope)
+	ifExpr, err := codegen.getExpr(condStmt.IfStmt.Expr, parentScope)
 	if err != nil {
 		return err
 	}
@@ -556,7 +545,7 @@ func (codegen *codegen) generateCondStmt(
 
 	codegen.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	codegen.builder.SetInsertPointAtEnd(ifBlock)
-	stoppedOnReturn, err = codegen.generateBlock(condStmt.IfStmt.Block, ifScope, function)
+	stoppedOnReturn, err = codegen.generateBlock(condStmt.IfStmt.Block, parentScope, functionDecl, functionLlvm)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -573,7 +562,8 @@ func (codegen *codegen) generateCondStmt(
 		elseStoppedOnReturn, err := codegen.generateBlock(
 			condStmt.ElseStmt.Block,
 			elseScope,
-			function,
+			functionDecl,
+			functionLlvm,
 		)
 		// TODO(errors)
 		if err != nil {
@@ -591,20 +581,19 @@ func (codegen *codegen) generateCondStmt(
 
 func (codegen *codegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
-	scope *scope.Scope[values.LLVMValue],
+	scope *scope.Scope[ast.Node],
 ) error {
 	// REFACTOR: make it simpler to get the lexeme
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
 	symbol, err := scope.LookupAcrossScopes(id)
-	// TODO(errors): should not be a problem, sema needs to caught this errors
 	if err != nil {
-		log.Fatal("panic: ", err)
+		return err
 	}
 
 	switch left := symbol.(type) {
-	case *values.Extern:
+	case *ast.ExternDecl:
 		switch right := fieldAccess.Right.(type) {
 		case *ast.FunctionCall:
 			_, err := codegen.generatePrototypeCall(left, right, scope)
@@ -624,9 +613,9 @@ func (codegen *codegen) generateFieldAccessStmt(
 }
 
 func (codegen *codegen) generatePrototypeCall(
-	extern *values.Extern,
+	extern *ast.ExternDecl,
 	call *ast.FunctionCall,
-	callScope *scope.Scope[values.LLVMValue],
+	callScope *scope.Scope[ast.Node],
 ) (llvm.Value, error) {
 	prototype, err := extern.Scope.LookupCurrentScope(call.Name.Name())
 	// TODO(errors)
@@ -634,32 +623,34 @@ func (codegen *codegen) generatePrototypeCall(
 		return llvm.Value{}, err
 	}
 
-	proto := prototype.(*values.Function)
+	proto := prototype.(*ast.Proto)
+	protoLlvm := proto.BackendType.(*values.Function)
 	args, err := codegen.getExprList(callScope, call.Args)
 	// TODO(errors)
 	if err != nil {
 		return llvm.Value{}, err
 	}
 
-	return codegen.builder.CreateCall(proto.Ty, proto.Fn, args, ""), nil
+	return codegen.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, ""), nil
 }
 
 func (codegen *codegen) generateForLoop(
 	forLoop *ast.ForLoop,
-	function *values.Function,
-	parentScope *scope.Scope[values.LLVMValue],
+	functionDecl *ast.FunctionDecl,
+	functionLlvm *values.Function,
+	parentScope *scope.Scope[ast.Node],
 ) error {
 	forScope := scope.New(parentScope)
 
-	forPrepBlock := llvm.AddBasicBlock(function.Fn, ".forprep")
-	forInitBlock := llvm.AddBasicBlock(function.Fn, ".forinit")
-	forBodyBlock := llvm.AddBasicBlock(function.Fn, ".forbody")
-	forUpdateBlock := llvm.AddBasicBlock(function.Fn, ".forupdate")
-	endBlock := llvm.AddBasicBlock(function.Fn, ".forend")
+	forPrepBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forprep")
+	forInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forinit")
+	forBodyBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forbody")
+	forUpdateBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forupdate")
+	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forend")
 
 	codegen.builder.CreateBr(forPrepBlock)
 	codegen.builder.SetInsertPointAtEnd(forPrepBlock)
-	err := codegen.generateStmt(forLoop.Init, forScope, function)
+	err := codegen.generateStmt(forLoop.Init, forScope, functionDecl, functionLlvm)
 	if err != nil {
 		return err
 	}
@@ -675,14 +666,14 @@ func (codegen *codegen) generateForLoop(
 	codegen.builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
 	codegen.builder.SetInsertPointAtEnd(forBodyBlock)
-	_, err = codegen.generateBlock(forLoop.Block, forScope, function)
+	_, err = codegen.generateBlock(forLoop.Block, forScope, functionDecl, functionLlvm)
 	if err != nil {
 		return err
 	}
 
 	codegen.builder.CreateBr(forUpdateBlock)
 	codegen.builder.SetInsertPointAtEnd(forUpdateBlock)
-	err = codegen.generateStmt(forLoop.Update, forScope, function)
+	err = codegen.generateStmt(forLoop.Update, forScope, functionDecl, functionLlvm)
 	if err != nil {
 		return err
 	}
@@ -695,14 +686,15 @@ func (codegen *codegen) generateForLoop(
 
 func (codegen *codegen) generateWhileLoop(
 	whileLoop *ast.WhileLoop,
-	function *values.Function,
-	parentScope *scope.Scope[values.LLVMValue],
+	functionDecl *ast.FunctionDecl,
+	functionLlvm *values.Function,
+	parentScope *scope.Scope[ast.Node],
 ) error {
 	whileScope := scope.New(parentScope)
 
-	whileInitBlock := llvm.AddBasicBlock(function.Fn, ".whileinit")
-	whileBodyBlock := llvm.AddBasicBlock(function.Fn, ".whilebody")
-	endBlock := llvm.AddBasicBlock(function.Fn, ".whileend")
+	whileInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileinit")
+	whileBodyBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whilebody")
+	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileend")
 
 	codegen.builder.CreateBr(whileInitBlock)
 	codegen.builder.SetInsertPointAtEnd(whileInitBlock)
@@ -713,7 +705,7 @@ func (codegen *codegen) generateWhileLoop(
 	codegen.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	codegen.builder.SetInsertPointAtEnd(whileBodyBlock)
-	_, err = codegen.generateBlock(whileLoop.Block, whileScope, function)
+	_, err = codegen.generateBlock(whileLoop.Block, whileScope, functionDecl, functionLlvm)
 	if err != nil {
 		return err
 	}
