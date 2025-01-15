@@ -1,16 +1,14 @@
 package ast
 
-import "github.com/HicaroD/Telia/scope"
-
 type Program struct {
-	Universe *scope.Scope[Node]
+	Universe *Scope
 	Body     []*Module
 }
 
 func (program Program) astNode() {}
 
 type Module struct {
-	Scope *scope.Scope[Node]
+	Scope *Scope
 	Name  string
 	Body  []*File
 }
@@ -18,7 +16,7 @@ type Module struct {
 func (module Module) astNode() {}
 
 type File struct {
-	Scope *scope.Scope[Node]
+	Scope *Scope
 	Name  string
 	Body  []Node
 }

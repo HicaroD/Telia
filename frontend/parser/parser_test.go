@@ -9,7 +9,6 @@ import (
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/scope"
 )
 
 type functionDeclTest struct {
@@ -427,15 +426,15 @@ func TestFunctionDecl(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
-			universeScope := scope.New[ast.Node](nil)
-			moduleScope := scope.New(universeScope)
-			fileScope := scope.New(moduleScope)
+			universeScope := ast.NewScope(nil)
+			moduleScope := ast.NewScope(universeScope)
+			fileScope := ast.NewScope(moduleScope)
 
 			fnDecl, err := parseFnDeclFrom(filename, test.input, fileScope)
 			if err != nil {
 				t.Fatal(err)
 			}
-			test.node.Scope = scope.New(fileScope)
+			test.node.Scope = ast.NewScope(fileScope)
 
 			if !reflect.DeepEqual(fnDecl, test.node) {
 				t.Fatal("Function declarations are not the same")

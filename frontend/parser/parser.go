@@ -8,14 +8,13 @@ import (
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/scope"
 )
 
 type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	fileScope *scope.Scope[ast.Node] // scope of current file being analyzed
+	fileScope *ast.Scope // scope of current file being analyzed
 }
 
 func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
@@ -28,13 +27,13 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	// inside modules and more
 
 	// Universe scope has a nil parent
-	universe := scope.New[ast.Node](nil)
+	universe := ast.NewScope(nil)
 
 	// NOTE: not every module will have the universe as the
 	// parent, for inner-modules we could have other modules as parents
-	moduleScope := scope.New(universe)
+	moduleScope := ast.NewScope(universe)
 
-	fileScope := scope.New(moduleScope)
+	fileScope := ast.NewScope(moduleScope)
 	// NOTE: every time a new file is being parsed, this variable should be
 	// set appropriately, deal with it carefuly
 	p.fileScope = fileScope
@@ -286,7 +285,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnScope := scope.New(p.fileScope)
+	fnScope := ast.NewScope(p.fileScope)
 	fnDecl := &ast.FunctionDecl{
 		Scope:   fnScope,
 		Name:    name,
@@ -297,7 +296,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 
 	err = p.fileScope.Insert(name.Name(), fnDecl)
 	if err != nil {
-		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 			functionRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' already declared on scope",
@@ -316,7 +315,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 // Useful for testing
-func parseFnDeclFrom(filename, input string, fileScope *scope.Scope[ast.Node]) (*ast.FunctionDecl, error) {
+func parseFnDeclFrom(filename, input string, fileScope *ast.Scope) (*ast.FunctionDecl, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)

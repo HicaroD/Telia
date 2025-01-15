@@ -1,4 +1,4 @@
-package scope
+package ast
 
 import (
 	"errors"
@@ -12,16 +12,16 @@ var (
 
 // TODO: since I won't be using the scope somewhere else in the future,
 // I could remove the generics and make the code more efficient
-type Scope[V any] struct {
-	Parent *Scope[V]
-	Nodes  map[string]V
+type Scope struct {
+	Parent *Scope
+	Nodes  map[string]Node
 }
 
-func New[V any](parent *Scope[V]) *Scope[V] {
-	return &Scope[V]{Parent: parent, Nodes: map[string]V{}}
+func NewScope(parent *Scope) *Scope {
+	return &Scope{Parent: parent, Nodes: map[string]Node{}}
 }
 
-func (scope *Scope[V]) Insert(name string, element V) error {
+func (scope *Scope) Insert(name string, element Node) error {
 	if _, ok := scope.Nodes[name]; ok {
 		return ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE
 	}
@@ -29,26 +29,24 @@ func (scope *Scope[V]) Insert(name string, element V) error {
 	return nil
 }
 
-func (scope *Scope[V]) LookupCurrentScope(name string) (V, error) {
+func (scope *Scope) LookupCurrentScope(name string) (Node, error) {
 	if node, ok := scope.Nodes[name]; ok {
 		return node, nil
 	}
-	var empty V
-	return empty, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
+	return nil, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
 }
 
-func (scope *Scope[V]) LookupAcrossScopes(name string) (V, error) {
+func (scope *Scope) LookupAcrossScopes(name string) (Node, error) {
 	if node, ok := scope.Nodes[name]; ok {
 		return node, nil
 	}
 	if scope.Parent == nil {
-		var empty V
-		return empty, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
+		return nil, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
 	}
 	return scope.Parent.LookupAcrossScopes(name)
 }
 
-func (scope Scope[V]) String() string {
+func (scope Scope) String() string {
 	if scope.Parent == nil {
 		return fmt.Sprintf("Scope:\nParent: nil\nCurrent: %v\n", scope.Nodes)
 	}

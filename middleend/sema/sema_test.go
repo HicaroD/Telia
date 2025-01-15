@@ -10,7 +10,6 @@ import (
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
 	"github.com/HicaroD/Telia/frontend/parser"
-	"github.com/HicaroD/Telia/scope"
 )
 
 type varTest struct {
@@ -132,7 +131,7 @@ func TestVarDeclForInference(t *testing.T) {
 }
 
 type exprInferenceTest struct {
-	scope *scope.Scope[ast.Node]
+	scope *ast.Scope
 	tests []struct {
 		input string
 		ty    ast.ExprType
@@ -144,7 +143,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
-			scope: &scope.Scope[ast.Node]{
+			scope: &ast.Scope{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{
@@ -335,7 +334,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 	filename := "test.tt"
 	tests := []exprInferenceTest{
 		{
-			scope: &scope.Scope[ast.Node]{
+			scope: &ast.Scope{
 				Parent: nil,
 				Nodes: map[string]ast.Node{
 					"a": &ast.VarStmt{

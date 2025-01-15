@@ -13,7 +13,6 @@ import (
 	"github.com/HicaroD/Telia/backend/codegen/values"
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/scope"
 	"tinygo.org/x/go-llvm"
 )
 
@@ -124,7 +123,7 @@ func (codegen *codegen) generateFnDecl(functionDecl *ast.FunctionDecl) error {
 
 func (codegen *codegen) generateBlock(
 	block *ast.BlockStmt,
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
 ) (stoppedOnReturn bool, err error) {
@@ -146,7 +145,7 @@ func (codegen *codegen) generateBlock(
 
 func (codegen *codegen) generateStmt(
 	stmt ast.Stmt,
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
 ) error {
@@ -183,7 +182,7 @@ func (codegen *codegen) generateStmt(
 
 func (codegen *codegen) generateReturnStmt(
 	ret *ast.ReturnStmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	if ret.Value.IsVoid() {
 		codegen.builder.CreateRetVoid()
@@ -200,7 +199,7 @@ func (codegen *codegen) generateReturnStmt(
 
 func (codegen *codegen) generateMultiVar(
 	varDecl *ast.MultiVarStmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	for _, variable := range varDecl.Variables {
 		err := codegen.generateVar(variable, scope)
@@ -213,7 +212,7 @@ func (codegen *codegen) generateMultiVar(
 
 func (codegen *codegen) generateVar(
 	varStmt *ast.VarStmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	if varStmt.Decl {
 		return codegen.generateVarDecl(varStmt, scope)
@@ -224,7 +223,7 @@ func (codegen *codegen) generateVar(
 
 func (codegen *codegen) generateVarDecl(
 	varDecl *ast.VarStmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	varTy := codegen.getType(varDecl.Type)
 	varPtr := codegen.builder.CreateAlloca(varTy, ".ptr")
@@ -245,7 +244,7 @@ func (codegen *codegen) generateVarDecl(
 
 func (codegen *codegen) generateVarReassign(
 	varDecl *ast.VarStmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	expr, err := codegen.getExpr(varDecl.Value, scope)
 	if err != nil {
@@ -289,7 +288,7 @@ func (codegen *codegen) generateParameters(
 }
 
 func (codegen *codegen) generateFunctionCall(
-	functionScope *scope.Scope[ast.Node],
+	functionScope *ast.Scope,
 	functionCall *ast.FunctionCall,
 ) (llvm.Value, error) {
 	symbol, err := functionScope.LookupAcrossScopes(functionCall.Name.Name())
@@ -372,7 +371,7 @@ func (codegen *codegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 }
 
 func (codegen *codegen) getExprList(
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 	expressions []ast.Expr,
 ) ([]llvm.Value, error) {
 	values := make([]llvm.Value, len(expressions))
@@ -389,7 +388,7 @@ func (codegen *codegen) getExprList(
 
 func (codegen *codegen) getExpr(
 	expr ast.Expr,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (llvm.Value, error) {
 	switch currentExpr := expr.(type) {
 	case *ast.LiteralExpr:
@@ -527,7 +526,7 @@ func (codegen *codegen) getIntegerValue(
 }
 
 func (codegen *codegen) generateCondStmt(
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 	condStmt *ast.CondStmt,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
@@ -558,7 +557,7 @@ func (codegen *codegen) generateCondStmt(
 
 	codegen.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
-		elseScope := scope.New(parentScope)
+		elseScope := ast.NewScope(parentScope)
 		elseStoppedOnReturn, err := codegen.generateBlock(
 			condStmt.ElseStmt.Block,
 			elseScope,
@@ -581,7 +580,7 @@ func (codegen *codegen) generateCondStmt(
 
 func (codegen *codegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) error {
 	// REFACTOR: make it simpler to get the lexeme
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
@@ -615,7 +614,7 @@ func (codegen *codegen) generateFieldAccessStmt(
 func (codegen *codegen) generatePrototypeCall(
 	extern *ast.ExternDecl,
 	call *ast.FunctionCall,
-	callScope *scope.Scope[ast.Node],
+	callScope *ast.Scope,
 ) (llvm.Value, error) {
 	prototype, err := extern.Scope.LookupCurrentScope(call.Name.Name())
 	// TODO(errors)
@@ -638,9 +637,9 @@ func (codegen *codegen) generateForLoop(
 	forLoop *ast.ForLoop,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 ) error {
-	forScope := scope.New(parentScope)
+	forScope := ast.NewScope(parentScope)
 
 	forPrepBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forprep")
 	forInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forinit")
@@ -688,9 +687,9 @@ func (codegen *codegen) generateWhileLoop(
 	whileLoop *ast.WhileLoop,
 	functionDecl *ast.FunctionDecl,
 	functionLlvm *values.Function,
-	parentScope *scope.Scope[ast.Node],
+	parentScope *ast.Scope,
 ) error {
-	whileScope := scope.New(parentScope)
+	whileScope := ast.NewScope(parentScope)
 
 	whileInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileinit")
 	whileBodyBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whilebody")
