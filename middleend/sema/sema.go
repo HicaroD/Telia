@@ -100,30 +100,6 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl, fileScope *ast.Scope) er
 }
 
 func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *ast.Scope) error {
-	// TODO: Is it really correct to insert in the universe scope?
-	// In the future, I'll isolate these functions into their modules
-
-	// err := fileScope.Insert(function.Name.Name(), function)
-	// if err != nil {
-	// 	// TODO: show the position of the first declaration
-	// 	// for helping the program
-	// 	if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-	// 		pos := function.Name.Pos
-	// 		functionRedeclaration := diagnostics.Diag{
-	// 			Message: fmt.Sprintf(
-	// 				"%s:%d:%d: function '%s' already declared on scope",
-	// 				pos.Filename,
-	// 				pos.Line,
-	// 				pos.Column,
-	// 				function.Name.Name(),
-	// 			),
-	// 		}
-	// 		sema.collector.ReportAndSave(functionRedeclaration)
-	// 		return diagnostics.COMPILER_ERROR_FOUND
-	// 	}
-	// 	return err
-	// }
-
 	var err error
 
 	function.Scope = ast.NewScope(fileScope)
