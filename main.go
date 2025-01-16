@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/HicaroD/Telia/backend/codegen"
+	"github.com/HicaroD/Telia/backend/codegen/llvm"
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/parser"
@@ -44,7 +44,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	codegen := codegen.New(filename)
+	// TODO: define flag for setting the back-end
+	// Currently I only have one type of back-end, but in the future
+	// I could have more
+	codegen := llvm.NewCG(filename)
 	err = codegen.Generate(program)
 	// TODO(errors)
 	if err != nil {
