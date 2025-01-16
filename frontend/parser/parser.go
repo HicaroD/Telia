@@ -53,7 +53,7 @@ func (p *Parser) Parse() (*ast.Program, error) {
 func (p *Parser) parseFile() (*ast.File, error) {
 	var nodes []ast.Node
 	for {
-		node, eof, err := p.Next()
+		node, eof, err := p.next()
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func (p *Parser) parseFile() (*ast.File, error) {
 	return file, nil
 }
 
-func (p *Parser) Next() (ast.Node, bool, error) {
+func (p *Parser) next() (ast.Node, bool, error) {
 	eof := false
 
 	tok := p.lex.Peek()

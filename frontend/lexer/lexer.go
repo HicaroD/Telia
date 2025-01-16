@@ -52,7 +52,6 @@ func (lex *Lexer) Peek() *token.Token {
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
-
 	return token
 }
 
