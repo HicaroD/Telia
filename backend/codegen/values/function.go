@@ -6,14 +6,12 @@ import (
 
 type Function struct {
 	LLVMValue
-	Fn     llvm.Value
-	Ty     llvm.Type
-	Block  *llvm.BasicBlock
-	Locals map[string]*LLVMValue
+	Fn llvm.Value
+	Ty llvm.Type
 }
 
 func NewFunctionValue(fn llvm.Value, ty llvm.Type, block *llvm.BasicBlock) *Function {
-	return &Function{Fn: fn, Ty: ty, Block: block, Locals: map[string]*LLVMValue{}}
+	return &Function{Fn: fn, Ty: ty}
 }
 
 func (function Function) Value() string {
