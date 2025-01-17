@@ -37,7 +37,7 @@ func (p *Parser) ParseModuleDir(path string) (*ast.Program, error) {
 	universe := ast.NewScope(nil)
 	root := &ast.Module{Scope: universe, IsRoot: true}
 
-	err := p.buildModuleTree(path, root, universe)
+	err := p.buildModuleTree(path, root)
 	if err != nil {
 		return nil, err
 	}
@@ -104,14 +104,14 @@ func (p *Parser) parseFileNodes() ([]ast.Node, error) {
 	return nodes, nil
 }
 
-func (p *Parser) buildModuleTree(path string, module *ast.Module, scope *ast.Scope) error {
+func (p *Parser) buildModuleTree(path string, module *ast.Module) error {
 	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
 		switch {
 		case entry.IsDir():
-			childScope := ast.NewScope(scope)
+			childScope := ast.NewScope(module.Scope)
 			childModule := &ast.Module{Scope: childScope, IsRoot: false}
 			module.Modules = append(module.Modules, childModule)
-			return p.buildModuleTree(fullPath, childModule, childScope)
+			return p.buildModuleTree(fullPath, childModule)
 		case filepath.Ext(entry.Name()) == ".t":
 			fileDirName := filepath.Base(filepath.Dir(fullPath))
 
@@ -120,7 +120,7 @@ func (p *Parser) buildModuleTree(path string, module *ast.Module, scope *ast.Sco
 				return err
 			}
 
-			file, err := p.parseFile(lex, scope)
+			file, err := p.parseFile(lex, module.Scope)
 			if err != nil {
 				return err
 			}
