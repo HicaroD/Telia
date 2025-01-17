@@ -3,6 +3,9 @@ package parser
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/ast"
@@ -19,6 +22,62 @@ type Parser struct {
 
 func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
+}
+
+func ParseModuleDir(path string) (*ast.Program, error) {
+	universe := ast.NewScope(nil)
+	root := &ast.Module{Scope: universe, IsRoot: true}
+
+	err := buildModuleTree(path, root, universe)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.Program{Root: root}, nil
+}
+
+func buildModuleTree(path string, module *ast.Module, scope *ast.Scope) error {
+	return processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
+		switch {
+		case entry.IsDir():
+			childScope := ast.NewScope(scope)
+			childModule := &ast.Module{Scope: childScope, IsRoot: false}
+			module.Modules = append(module.Modules, childModule)
+			return buildModuleTree(fullPath, childModule, childScope)
+
+		case isTeliaFile(entry.Name()):
+			dirName := filepath.Base(filepath.Dir(fullPath))
+			fmt.Printf("found '.t' file: %s %s\n", dirName, fullPath)
+			// TODO: parse file in the context of its module
+		default:
+			fmt.Printf("found generic file: %s\n", fullPath)
+			// NOTE: Not being processed
+		}
+		return nil
+	})
+}
+
+func processModuleEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("failed to read directory %q: %w", path, err)
+	}
+
+	for _, entry := range entries {
+		fullPath := filepath.Join(path, entry.Name())
+		if err := handler(entry, fullPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isTeliaFile(filename string) bool {
+	return strings.HasSuffix(filename, ".t")
+}
+
+func ParseFileAsModule(path string) (*ast.Program, error) {
+	return nil, nil
 }
 
 func (p *Parser) Parse() (*ast.Program, error) {
@@ -44,8 +103,13 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	}
 
 	// TODO: properly set module name
-	module := &ast.Module{Scope: moduleScope, Name: "main", Body: []*ast.File{file}}
-	program := &ast.Program{Universe: universe, Body: []*ast.Module{module}}
+	module := &ast.Module{
+		Name:   "main",
+		Files:  []*ast.File{file},
+		Scope:  moduleScope,
+		IsRoot: true,
+	}
+	program := &ast.Program{Root: module}
 
 	return program, nil
 }
@@ -63,7 +127,7 @@ func (p *Parser) parseFile() (*ast.File, error) {
 		nodes = append(nodes, node)
 	}
 	// TODO: properly set filename here
-	file := &ast.File{Scope: p.fileScope, Name: "my_program", Body: nodes}
+	file := &ast.File{Scope: p.fileScope, Path: "my_program", Body: nodes}
 	return file, nil
 }
 

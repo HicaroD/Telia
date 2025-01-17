@@ -22,27 +22,36 @@ func New(collector *diagnostics.Collector) *sema {
 }
 
 func (s *sema) Check(program *ast.Program) error {
-	for _, module := range program.Body {
-		for _, file := range module.Body {
-			err := s.checkFile(file)
-			if err != nil {
-				return err
-			}
+	return s.checkModule(program.Root)
+}
+
+func (s *sema) checkModule(module *ast.Module) error {
+	for _, file := range module.Files {
+		err := s.checkFile(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, innerModules := range module.Modules {
+		err := s.checkModule(innerModules)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (sema *sema) checkFile(file *ast.File) error {
+func (s *sema) checkFile(file *ast.File) error {
 	for _, node := range file.Body {
 		switch n := node.(type) {
 		case *ast.FunctionDecl:
-			err := sema.analyzeFnDecl(n, file.Scope)
+			err := s.analyzeFnDecl(n, file.Scope)
 			if err != nil {
 				return err
 			}
 		case *ast.ExternDecl:
-			err := sema.analyzeExtern(n, file.Scope)
+			err := s.analyzeExtern(n, file.Scope)
 			if err != nil {
 				return err
 			}

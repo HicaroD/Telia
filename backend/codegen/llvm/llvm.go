@@ -44,13 +44,19 @@ func NewCG(filename string) *llvmCodegen {
 }
 
 func (c *llvmCodegen) Generate(program *ast.Program) error {
-	for _, module := range program.Body {
-		for _, file := range module.Body {
-			c.generateFile(file)
-		}
-	}
+	c.generateModule(program.Root)
 	err := c.generateExecutable()
 	return err
+}
+
+func (c *llvmCodegen) generateModule(module *ast.Module) {
+	// TODO: is this order correct? Does it even matter?
+	for _, file := range module.Files {
+		c.generateFile(file)
+	}
+	for _, module := range module.Modules {
+		c.generateModule(module)
+	}
 }
 
 func (c *llvmCodegen) generateFile(file *ast.File) {
