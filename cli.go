@@ -15,7 +15,7 @@ type CliResult struct {
 	Command Command
 
 	IsModuleBuild bool   // true if 'Command' is build and 'Path' is directory
-	Path          string // path to directory
+	Path          string // path to directory (treated as module)
 }
 
 func cli() CliResult {
