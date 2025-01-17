@@ -365,6 +365,8 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		RetType: returnType,
 	}
 
+	// TODO(errors): functions with the same defined in the same scope (not only
+	// file scope, but also module scopes, are not allowed)
 	err = p.fileScope.Insert(name.Name(), fnDecl)
 	if err != nil {
 		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
