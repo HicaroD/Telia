@@ -12,7 +12,7 @@ import (
 func buildModule(cliResult CliResult) error {
 	collector := diagnostics.New()
 
-	p := parser.NewP(collector)
+	p := parser.New(collector)
 	program, err := p.ParseModuleDir(cliResult.Path)
 	if err != nil {
 		return err

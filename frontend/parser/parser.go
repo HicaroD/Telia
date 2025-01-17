@@ -19,17 +19,17 @@ type Parser struct {
 	fileScope *ast.Scope // scope of current file being analyzed
 }
 
-// TODO: remove this
-func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
-	return &Parser{lex: lex, collector: collector}
-}
-
-func NewP(collector *diagnostics.Collector) *Parser {
+func New(collector *diagnostics.Collector) *Parser {
 	parser := &Parser{}
 	parser.lex = nil
 	parser.fileScope = nil
 	parser.collector = collector
 	return parser
+}
+
+// Useful for testing
+func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
+	return &Parser{lex: lex, collector: collector}
 }
 
 func (p *Parser) ParseModuleDir(path string) (*ast.Program, error) {
@@ -182,7 +182,7 @@ func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 
 	src := []byte(expr)
 	lex := lexer.New(filename, src, collector)
-	parser := New(lex, collector)
+	parser := NewWithLex(lex, collector)
 
 	exprAst, err := parser.parseExpr()
 	if err != nil {
@@ -401,7 +401,7 @@ func parseFnDeclFrom(filename, input string, fileScope *ast.Scope) (*ast.Functio
 
 	src := []byte(input)
 	lexer := lexer.New(filename, src, collector)
-	parser := New(lexer, collector)
+	parser := NewWithLex(lexer, collector)
 	parser.fileScope = fileScope
 
 	fnDecl, err := parser.parseFnDecl()
@@ -806,7 +806,7 @@ func parseVarFrom(filename, input string) (ast.Stmt, error) {
 
 	src := []byte(input)
 	lex := lexer.New(filename, src, collector)
-	parser := New(lex, collector)
+	parser := NewWithLex(lex, collector)
 
 	stmt, err := parser.ParseIdStmt()
 	if err != nil {
@@ -1197,7 +1197,7 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 
 	src := []byte(input)
 	lex := lexer.New(filename, src, collector)
-	parser := New(lex, collector)
+	parser := NewWithLex(lex, collector)
 
 	forLoop, err := parser.parseForLoop()
 	return forLoop, err
@@ -1208,7 +1208,7 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 
 	src := []byte(input)
 	lex := lexer.New(filename, src, collector)
-	parser := New(lex, collector)
+	parser := NewWithLex(lex, collector)
 
 	whileLoop, err := parser.parseWhileLoop()
 	return whileLoop, err

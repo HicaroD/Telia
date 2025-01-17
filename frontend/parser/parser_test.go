@@ -1767,7 +1767,7 @@ func TestSyntaxErrors(t *testing.T) {
 
 			lex := lexer.New(filename, src, collector)
 			fmt.Println(lex)
-			parser := NewP(collector)
+			parser := New(collector)
 			_, err := parser.ParseFileAsProgram(lex)
 
 			if err != nil && len(parser.collector.Diags) == 0 {
@@ -1844,10 +1844,8 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.input)
-
 			lex := lexer.New(filename, src, collector)
-
-			parser := New(lex, collector)
+			parser := NewWithLex(lex, collector)
 
 			_, err := parser.parseBlock()
 			if err == nil {
@@ -1891,7 +1889,7 @@ func TestFunctionRedeclarationErrors(t *testing.T) {
 
 			src := []byte(test.input)
 			lex := lexer.New(filename, src, collector)
-			parser := NewP(collector)
+			parser := New(collector)
 
 			_, err := parser.ParseFileAsProgram(lex)
 			if err == nil {

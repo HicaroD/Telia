@@ -369,7 +369,7 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 
 	src := []byte(input)
 	lexer := lexer.New(filename, src, collector)
-	par := parser.New(lexer, collector)
+	par := parser.NewWithLex(lexer, collector)
 
 	varStmt, err := par.ParseIdStmt()
 	if err != nil {
