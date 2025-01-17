@@ -15,7 +15,7 @@ import (
 )
 
 type llvmCodegen struct {
-	filename string
+	path string
 
 	context llvm.Context
 	module  llvm.Module
@@ -25,7 +25,7 @@ type llvmCodegen struct {
 	strLiterals map[string]llvm.Value
 }
 
-func NewCG(filename string) *llvmCodegen {
+func NewCG(path string) *llvmCodegen {
 	context := llvm.NewContext()
 	// TODO: properly define the module name
 	// The name of the module could be file name
@@ -33,7 +33,7 @@ func NewCG(filename string) *llvmCodegen {
 	builder := context.NewBuilder()
 
 	return &llvmCodegen{
-		filename: filename,
+		path: path,
 
 		context: context,
 		module:  module,
@@ -75,7 +75,7 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 func (c *llvmCodegen) generateExecutable() error {
 	module := c.module.String()
 
-	filenameNoExt := strings.TrimSuffix(filepath.Base(c.filename), filepath.Ext(c.filename))
+	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
 	cmd.Stdin = bytes.NewReader([]byte(module))
 

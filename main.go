@@ -1,69 +1,48 @@
 package main
 
 import (
-	// "github.com/HicaroD/Telia/backend/codegen/llvm"
-	// "github.com/HicaroD/Telia/frontend/lexer"
 	"fmt"
-	"log"
 
+	"github.com/HicaroD/Telia/backend/codegen/llvm"
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/parser"
-	// "github.com/HicaroD/Telia/middleend/sema"
+	"github.com/HicaroD/Telia/middleend/sema"
 )
+
+func buildModule(cliResult CliResult) error {
+	collector := diagnostics.New()
+
+	p := parser.NewP(collector)
+	program, err := p.ParseModuleDir(cliResult.Path)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(program)
+	sema := sema.New(collector)
+
+	err = sema.Check(program)
+	if err != nil {
+		return err
+	}
+
+	// TODO: define flag for setting the back-end
+	// Currently I only have one type of back-end, but in the future
+	// I could have more
+	codegen := llvm.NewCG(cliResult.Path)
+	err = codegen.Generate(program)
+	return err
+}
 
 func main() {
 	cliResult := cli()
 	switch cliResult.Command {
 	case COMMAND_BUILD:
 		if cliResult.IsModuleBuild {
-			collector := diagnostics.New()
-			p := parser.NewP(collector)
-			program, err := p.ParseModuleDir(cliResult.Path)
+			err := buildModule(cliResult)
 			if err != nil {
-				log.Fatalf("parsing error: %s\n", err)
+				return
 			}
-			fmt.Printf("How many inner modules root has: %v\n", len(program.Root.Modules))
 		}
 	}
-
-	// args := os.Args[1:]
-	// if len(args) == 0 {
-	// 	log.Fatal("error: no input files")
-	// }
-	// filename := args[0]
-	//
-	// // TODO: find more efficient ways to read a file into the memory
-	// // since calling os.ReadFile(...) reads the entire file into the memory
-	// // and this will cause problems in the future
-	// collector := diagnostics.New()
-	//
-	// file, err := os.ReadFile(filename)
-	// if err != nil {
-	// 	log.Fatalf("unable to open file: %s due to error '%s'", filename, err)
-	// }
-	//
-	// lex := lexer.New(filename, file, collector)
-	// parser := parser.New(lex, collector)
-	// program, err := parser.Parse()
-	// if err != nil {
-	// 	fmt.Println("Errors found during compilation: ", err)
-	// 	os.Exit(1)
-	// }
-	//
-	// sema := sema.New(collector)
-	// err = sema.Check(program)
-	// if err != nil {
-	// 	fmt.Println("Errors found during compilation: ", err)
-	// 	os.Exit(1)
-	// }
-	//
-	// // TODO: define flag for setting the back-end
-	// // Currently I only have one type of back-end, but in the future
-	// // I could have more
-	// codegen := llvm.NewCG(filename)
-	// err = codegen.Generate(program)
-	// // TODO(errors)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 }

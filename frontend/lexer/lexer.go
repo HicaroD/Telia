@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"os"
 	"unicode"
 
 	"github.com/HicaroD/Telia/diagnostics"
@@ -11,7 +12,9 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	path      string
+	ParentDir string
+	Path      string
+
 	src       []byte
 	collector *diagnostics.Collector
 
@@ -22,13 +25,35 @@ type Lexer struct {
 func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := &Lexer{}
 
-	lexer.path = path
+	// TODO: set this
+	lexer.ParentDir = ""
+	lexer.Path = path
 	lexer.collector = collector
 	lexer.src = src
 	lexer.offset = 0
 	lexer.pos = token.NewPosition(path, 1, 1)
 
 	return lexer
+}
+
+func NewFromFilePath(parentDir, path string, collector *diagnostics.Collector) (*Lexer, error) {
+	lexer := &Lexer{}
+
+	// TODO: set this
+	lexer.ParentDir = parentDir
+	lexer.Path = path
+	lexer.collector = collector
+
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	lexer.src = src
+
+	lexer.offset = 0
+	lexer.pos = token.NewPosition(path, 1, 1)
+
+	return lexer, nil
 }
 
 func (lex *Lexer) Peek() *token.Token {

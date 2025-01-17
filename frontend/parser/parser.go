@@ -45,13 +45,13 @@ func (p *Parser) ParseModuleDir(path string) (*ast.Program, error) {
 	return &ast.Program{Root: root}, nil
 }
 
-func (p *Parser) ParseFileAsModule() (*ast.Program, error) {
+func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 	moduleScope := ast.NewScope(universe)
 
 	// TODO: set attributes properly
-	file, err := p.parseFile("", "", moduleScope)
+	file, err := p.parseFile(lex, moduleScope)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +68,42 @@ func (p *Parser) ParseFileAsModule() (*ast.Program, error) {
 	return program, nil
 }
 
+func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
+
+	fileScope := ast.NewScope(moduleScope)
+	file := &ast.File{
+		Dir:   lex.ParentDir,
+		Path:  lex.Path,
+		Scope: fileScope,
+	}
+
+	p.lex = lex
+	p.fileScope = fileScope
+
+	nodes, err := p.parseFileNodes()
+	if err != nil {
+		return nil, err
+	}
+	file.Body = nodes
+
+	return file, nil
+}
+
+func (p *Parser) parseFileNodes() ([]ast.Node, error) {
+	var nodes []ast.Node
+	for {
+		node, eof, err := p.next()
+		if err != nil {
+			return nil, err
+		}
+		if eof {
+			break
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, nil
+}
+
 func (p *Parser) buildModuleTree(path string, module *ast.Module, scope *ast.Scope) error {
 	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
 		switch {
@@ -78,15 +114,18 @@ func (p *Parser) buildModuleTree(path string, module *ast.Module, scope *ast.Sco
 			return p.buildModuleTree(fullPath, childModule, childScope)
 		case filepath.Ext(entry.Name()) == ".t":
 			fileDirName := filepath.Base(filepath.Dir(fullPath))
-			fmt.Printf("found '.t' file: %s %s\n", fileDirName, fullPath)
-			file, err := p.parseFile(fileDirName, fullPath, scope)
+
+			lex, err := lexer.NewFromFilePath(fileDirName, fullPath, p.collector)
 			if err != nil {
 				return err
 			}
+
+			file, err := p.parseFile(lex, scope)
+			if err != nil {
+				return err
+			}
+
 			module.Files = append(module.Files, file)
-		default:
-			// NOTE: Do anything for now
-			fmt.Printf("found generic file: %s\n", fullPath)
 		}
 		return nil
 	})
@@ -105,37 +144,6 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 		}
 	}
 	return nil
-}
-
-func (p *Parser) parseFile(dirName, fullPath string, moduleScope *ast.Scope) (*ast.File, error) {
-	fileScope := ast.NewScope(moduleScope)
-	p.fileScope = fileScope
-
-	file := &ast.File{
-		Dir:   dirName,
-		Path:  fullPath,
-		Scope: fileScope,
-	}
-
-	// TODO(errors)
-	src, _ := os.ReadFile(fullPath)
-	lex := lexer.New(fullPath, src, p.collector)
-	p.lex = lex
-
-	var nodes []ast.Node
-	for {
-		node, eof, err := p.next()
-		if err != nil {
-			return nil, err
-		}
-		if eof {
-			break
-		}
-		nodes = append(nodes, node)
-	}
-	file.Body = nodes
-
-	return file, nil
 }
 
 func (p *Parser) next() (ast.Node, bool, error) {

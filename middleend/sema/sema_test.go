@@ -532,9 +532,9 @@ func TestSemanticErrors(t *testing.T) {
 
 			src := []byte(test.input)
 			lex := lexer.New(filename, src, collector)
-			parser := parser.New(lex, collector)
+			parser := parser.NewP(collector)
 
-			program, err := parser.ParseFileAsModule()
+			program, err := parser.ParseFileAsProgram(lex)
 			if err != nil {
 				t.Fatal(err)
 			}

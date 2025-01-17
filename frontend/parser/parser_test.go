@@ -1766,8 +1766,9 @@ func TestSyntaxErrors(t *testing.T) {
 			src := []byte(test.input)
 
 			lex := lexer.New(filename, src, collector)
-			parser := New(lex, collector)
-			_, err := parser.ParseFileAsModule()
+			fmt.Println(lex)
+			parser := NewP(collector)
+			_, err := parser.ParseFileAsProgram(lex)
 
 			if err != nil && len(parser.collector.Diags) == 0 {
 				t.Fatalf(
@@ -1890,9 +1891,9 @@ func TestFunctionRedeclarationErrors(t *testing.T) {
 
 			src := []byte(test.input)
 			lex := lexer.New(filename, src, collector)
-			parser := New(lex, collector)
+			parser := NewP(collector)
 
-			_, err := parser.ParseFileAsModule()
+			_, err := parser.ParseFileAsProgram(lex)
 			if err == nil {
 				t.Fatal("expected to have syntax errors, but got nothing")
 			}
