@@ -9,6 +9,20 @@ import (
 	"github.com/HicaroD/Telia/middleend/sema"
 )
 
+func main() {
+	args := cli()
+
+	switch args.Command {
+	case COMMAND_BUILD:
+		if args.IsModuleBuild {
+			err := buildModule(args)
+			if err != nil {
+				return
+			}
+		}
+	}
+}
+
 func buildModule(cliResult CliResult) error {
 	collector := diagnostics.New()
 
@@ -32,17 +46,4 @@ func buildModule(cliResult CliResult) error {
 	codegen := llvm.NewCG(cliResult.Path)
 	err = codegen.Generate(program)
 	return err
-}
-
-func main() {
-	cliResult := cli()
-	switch cliResult.Command {
-	case COMMAND_BUILD:
-		if cliResult.IsModuleBuild {
-			err := buildModule(cliResult)
-			if err != nil {
-				return
-			}
-		}
-	}
 }
