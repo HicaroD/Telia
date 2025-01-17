@@ -13,9 +13,9 @@ type Stmt interface {
 
 type BlockStmt struct {
 	Stmt
-	OpenCurly  token.Position
+	OpenCurly  token.Pos
 	Statements []Stmt
-	CloseCurly token.Position
+	CloseCurly token.Pos
 }
 
 func (block BlockStmt) String() string {
@@ -45,6 +45,8 @@ type VarStmt struct {
 	Type           ExprType
 	Value          Expr
 	NeedsInference bool
+
+	BackendType any // LLVM: *values.Variable
 }
 
 func (variable VarStmt) String() string {
@@ -72,6 +74,8 @@ type FunctionCall struct {
 	Expr
 	Name *token.Token
 	Args []Expr
+
+	BackendType any
 }
 
 func (call FunctionCall) String() string {
@@ -97,13 +101,13 @@ func (cond CondStmt) astNode()       {}
 func (cond CondStmt) stmtNode()      {}
 
 type IfElifCond struct {
-	If    *token.Position
+	If    *token.Pos
 	Expr  Expr
 	Block *BlockStmt
 }
 
 type ElseCond struct {
-	Else  *token.Position
+	Else  *token.Pos
 	Block *BlockStmt
 }
 

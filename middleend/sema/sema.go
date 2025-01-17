@@ -1,62 +1,75 @@
 package sema
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/ast"
 	"github.com/HicaroD/Telia/frontend/lexer"
-	"github.com/HicaroD/Telia/frontend/lexer/token/kind"
+	"github.com/HicaroD/Telia/frontend/lexer/token"
 	"github.com/HicaroD/Telia/frontend/parser"
-	"github.com/HicaroD/Telia/scope"
 )
 
 type sema struct {
 	collector *diagnostics.Collector
-	universe  *scope.Scope[ast.Node]
 }
 
 func New(collector *diagnostics.Collector) *sema {
-	// "universe" scope does not have any parent, it is the
-	// root of the tree of scopes
-	var nilScope *scope.Scope[ast.Node] = nil
-	universe := scope.New(nilScope)
-	return &sema{collector, universe}
+	return &sema{collector}
 }
 
-func (sema *sema) Analyze(nodes []ast.Node) error {
-	for i := range nodes {
-		switch astNode := nodes[i].(type) {
-		case *ast.FunctionDecl:
-			err := sema.analyzeFnDecl(astNode)
-			if err != nil {
-				return err
-			}
-		case *ast.ExternDecl:
-			err := sema.analyzeExtern(astNode)
-			if err != nil {
-				return err
-			}
-		default:
-			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(astNode))
+func (s *sema) Check(program *ast.Program) error {
+	return s.checkModule(program.Root)
+}
+
+func (s *sema) checkModule(module *ast.Module) error {
+	for _, file := range module.Files {
+		err := s.checkFile(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, innerModules := range module.Modules {
+		err := s.checkModule(innerModules)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
-	externScope := scope.New(sema.universe)
+func (s *sema) checkFile(file *ast.File) error {
+	for _, node := range file.Body {
+		switch n := node.(type) {
+		case *ast.FunctionDecl:
+			err := s.analyzeFnDecl(n, file.Scope)
+			if err != nil {
+				return err
+			}
+		case *ast.ExternDecl:
+			err := s.analyzeExtern(n, file.Scope)
+			if err != nil {
+				return err
+			}
+		default:
+			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
+		}
+	}
+	return nil
+}
+
+func (sema *sema) analyzeExtern(extern *ast.ExternDecl, fileScope *ast.Scope) error {
+	externScope := ast.NewScope(fileScope)
 	for i := range extern.Prototypes {
 		prototypeName := extern.Prototypes[i].Name.Name()
 		err := externScope.Insert(prototypeName, extern.Prototypes[i])
 		if err != nil {
-			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-				pos := extern.Prototypes[i].Name.Position
+			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				pos := extern.Prototypes[i].Name.Pos
 				prototypeRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
@@ -74,10 +87,10 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 		}
 	}
 	extern.Scope = externScope
-	err := sema.universe.Insert(extern.Name.Name(), extern)
+	err := fileScope.Insert(extern.Name.Name(), extern)
 	if err != nil {
-		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-			pos := extern.Name.Position
+		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			pos := extern.Name.Pos
 			prototypeRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: extern '%s' already declared on scope",
@@ -95,37 +108,16 @@ func (sema *sema) analyzeExtern(extern *ast.ExternDecl) error {
 	return nil
 }
 
-func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
-	// TODO: Is it really correct to insert in the universe scope?
-	// In the future, I'll isolate these functions into their modules
-	err := sema.universe.Insert(function.Name.Name(), function)
-	if err != nil {
-		// TODO: show the position of the first declaration
-		// for helping the program
-		if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-			pos := function.Name.Position
-			functionRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: function '%s' already declared on scope",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					function.Name.Name(),
-				),
-			}
-			sema.collector.ReportAndSave(functionRedeclaration)
-			return diagnostics.COMPILER_ERROR_FOUND
-		}
-		return err
-	}
+func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *ast.Scope) error {
+	var err error
 
-	function.Scope = scope.New(sema.universe)
+	function.Scope = ast.NewScope(fileScope)
 	err = sema.addParametersToScope(function.Params, function.Name.Name(), function.Scope)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeBlock(function.Scope, function.Block, function.RetType)
+	err = sema.analyzeBlock(function.Block, function.RetType, function.Scope)
 	if err != nil {
 		return err
 	}
@@ -135,14 +127,14 @@ func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl) error {
 func (sema *sema) addParametersToScope(
 	params *ast.FieldList,
 	functionName string,
-	functionScope *scope.Scope[ast.Node],
+	functionScope *ast.Scope,
 ) error {
 	for _, param := range params.Fields {
 		paramName := param.Name.Name()
 		err := functionScope.Insert(paramName, param)
 		if err != nil {
-			if err == scope.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-				pos := param.Name.Position
+			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				pos := param.Name.Pos
 				parameterRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
 						"%s:%d:%d: parameter '%s' already declared on function '%s'",
@@ -163,9 +155,9 @@ func (sema *sema) addParametersToScope(
 }
 
 func (sema *sema) analyzeBlock(
-	scope *scope.Scope[ast.Node],
 	block *ast.BlockStmt,
 	returnTy ast.ExprType,
+	scope *ast.Scope,
 ) error {
 	for i := range block.Statements {
 		err := sema.analyzeStmt(block.Statements[i], scope, returnTy)
@@ -178,7 +170,7 @@ func (sema *sema) analyzeBlock(
 
 func (sema *sema) analyzeStmt(
 	stmt ast.Stmt,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
 	switch statement := stmt.(type) {
@@ -211,7 +203,7 @@ func (sema *sema) analyzeStmt(
 
 func (sema *sema) analyzeVarDecl(
 	variable ast.Stmt,
-	currentScope *scope.Scope[ast.Node],
+	currentScope *ast.Scope,
 ) error {
 	switch varStmt := variable.(type) {
 	case *ast.MultiVarStmt:
@@ -226,7 +218,7 @@ func (sema *sema) analyzeVarDecl(
 
 func (sema *sema) analyzeMultiVar(
 	multi *ast.MultiVarStmt,
-	currentScope *scope.Scope[ast.Node],
+	currentScope *ast.Scope,
 ) error {
 	// TODO: refactor this code
 	// It is pretty repetitive, but I need tests before refactoring
@@ -235,7 +227,7 @@ func (sema *sema) analyzeMultiVar(
 		for i := range multi.Variables {
 			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
 			if err != nil {
-				if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 					allVariablesDefined = false
 					break
 				}
@@ -245,7 +237,7 @@ func (sema *sema) analyzeMultiVar(
 		}
 		if allVariablesDefined {
 			firstVariable := multi.Variables[0]
-			pos := firstVariable.Name.Position
+			pos := firstVariable.Name.Pos
 			// TODO: give user a hint for consider using = instead of :=
 			noNewVariablesDeclared := diagnostics.Diag{
 				Message: fmt.Sprintf(
@@ -265,7 +257,7 @@ func (sema *sema) analyzeMultiVar(
 		for i := range multi.Variables {
 			_, err := currentScope.LookupAcrossScopes(multi.Variables[i].Name.Name())
 			if err != nil {
-				if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 					allVariablesDefined = false
 					undefinedVar = multi.Variables[i]
 					break
@@ -277,7 +269,7 @@ func (sema *sema) analyzeMultiVar(
 			if undefinedVar == nil {
 				log.Fatal("panic: variable at non decl is nil, but it should never be")
 			}
-			pos := undefinedVar.Name.Position
+			pos := undefinedVar.Name.Pos
 			notDeclared := diagnostics.Diag{
 				Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
 			}
@@ -302,13 +294,13 @@ func (sema *sema) analyzeMultiVar(
 	return nil
 }
 
-func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *scope.Scope[ast.Node]) error {
+func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
 	if variable.Decl {
 		// Não pode existir antes
 		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
 		// TODO(errors)
 		if err != nil {
-			if err != scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 				return fmt.Errorf("'%s' already exists on the current scope", variable.Name.Name())
 			}
 		}
@@ -321,7 +313,7 @@ func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *scope.Scope[as
 		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
 		// TODO(errors)
 		if err != nil {
-			if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 				return fmt.Errorf("'%s' does not exists on the current scope", variable.Name.Name())
 			}
 		}
@@ -337,7 +329,7 @@ func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *scope.Scope[as
 
 func (sema *sema) analyzeVariableType(
 	varDecl *ast.VarStmt,
-	currentScope *scope.Scope[ast.Node],
+	currentScope *ast.Scope,
 ) error {
 	if varDecl.NeedsInference {
 		// TODO(errors): need a test for it
@@ -373,26 +365,21 @@ func (sema *sema) analyzeVariableType(
 
 // Useful for testing
 func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
-	diagCollector := diagnostics.New()
+	collector := diagnostics.New()
 
-	reader := bufio.NewReader(strings.NewReader(input))
-	lexer := lexer.New(filename, reader, diagCollector)
+	src := []byte(input)
+	lexer := lexer.New(filename, src, collector)
+	par := parser.New(lexer, collector)
 
-	tokens, err := lexer.Tokenize()
-	if err != nil {
-		return nil, err
-	}
-
-	par := parser.New(tokens, diagCollector)
 	varStmt, err := par.ParseIdStmt()
 	if err != nil {
 		return nil, err
 	}
 
-	sema := New(diagCollector)
+	sema := New(collector)
 
-	parent := scope.New[ast.Node](nil)
-	scope := scope.New(parent)
+	parent := ast.NewScope(nil)
+	scope := ast.NewScope(parent)
 
 	err = sema.analyzeVarDecl(varStmt, scope)
 	if err != nil {
@@ -405,9 +392,9 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 func (sema *sema) analyzeCondStmt(
 	condStmt *ast.CondStmt,
 	returnTy ast.ExprType,
-	outterScope *scope.Scope[ast.Node],
+	outterScope *ast.Scope,
 ) error {
-	ifScope := scope.New(outterScope)
+	ifScope := ast.NewScope(outterScope)
 
 	err := sema.analyzeIfExpr(condStmt.IfStmt.Expr, outterScope)
 	// TODO(errors)
@@ -415,20 +402,20 @@ func (sema *sema) analyzeCondStmt(
 		return err
 	}
 
-	err = sema.analyzeBlock(ifScope, condStmt.IfStmt.Block, returnTy)
+	err = sema.analyzeBlock(condStmt.IfStmt.Block, returnTy, ifScope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
 	for i := range condStmt.ElifStmts {
-		elifScope := scope.New(outterScope)
+		elifScope := ast.NewScope(outterScope)
 		err := sema.analyzeIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		err = sema.analyzeBlock(elifScope, condStmt.ElifStmts[i].Block, returnTy)
+		err = sema.analyzeBlock(condStmt.ElifStmts[i].Block, returnTy, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -436,8 +423,8 @@ func (sema *sema) analyzeCondStmt(
 	}
 
 	if condStmt.ElseStmt != nil {
-		elseScope := scope.New(outterScope)
-		err = sema.analyzeBlock(elseScope, condStmt.ElseStmt.Block, returnTy)
+		elseScope := ast.NewScope(outterScope)
+		err = sema.analyzeBlock(condStmt.ElseStmt.Block, returnTy, elseScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -449,12 +436,12 @@ func (sema *sema) analyzeCondStmt(
 
 func (sema *sema) analyzeFunctionCall(
 	functionCall *ast.FunctionCall,
-	currentScope *scope.Scope[ast.Node],
+	currentScope *ast.Scope,
 ) error {
 	function, err := currentScope.LookupAcrossScopes(functionCall.Name.Name())
 	if err != nil {
-		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-			pos := functionCall.Name.Position
+		if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			pos := functionCall.Name.Pos
 			functionNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' not defined on scope",
@@ -472,7 +459,7 @@ func (sema *sema) analyzeFunctionCall(
 
 	decl, ok := function.(*ast.FunctionDecl)
 	if !ok {
-		pos := functionCall.Name.Position
+		pos := functionCall.Name.Pos
 		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: '%s' is not callable",
@@ -487,7 +474,7 @@ func (sema *sema) analyzeFunctionCall(
 	}
 
 	if len(functionCall.Args) != len(decl.Params.Fields) {
-		pos := functionCall.Name.Position
+		pos := functionCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
 		notEnoughArguments := diagnostics.Diag{
@@ -523,7 +510,7 @@ func (sema *sema) analyzeFunctionCall(
 	return nil
 }
 
-func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.Node]) error {
+func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
 	// TODO(errors)
 	if err != nil {
@@ -541,21 +528,21 @@ func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *scope.Scope[ast.Node]) err
 func (sema *sema) inferExprTypeWithContext(
 	exprNode ast.Expr,
 	expectedType ast.ExprType,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	switch expression := exprNode.(type) {
 	case *ast.LiteralExpr:
 		switch ty := expression.Type.(type) {
 		case *ast.BasicType:
 			switch ty.Kind {
-			case kind.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
+			case token.STRING_LITERAL:
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
 				expression.Type = finalTy
 				return finalTy, nil
-			case kind.INTEGER_LITERAL, kind.INT_TYPE:
+			case token.INTEGER_LITERAL, token.INT_TYPE:
 				switch ty := expectedType.(type) {
 				case *ast.BasicType:
-					value := expression.Value
+					value := string(expression.Value)
 					bitSize := ty.Kind.BitSize()
 					// TODO(errors)
 					if bitSize == -1 {
@@ -572,15 +559,15 @@ func (sema *sema) inferExprTypeWithContext(
 				default:
 					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
 				}
-			case kind.TRUE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.TRUE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
-				expression.Value = "1"
+				expression.Value = []byte("1")
 				return finalTy, nil
-			case kind.FALSE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
-				expression.Value = "0"
+				expression.Value = []byte("0")
 				return finalTy, nil
 			default:
 				log.Fatalf("unimplemented basic type kind: %s", ty.Kind)
@@ -627,7 +614,7 @@ func (sema *sema) inferExprTypeWithContext(
 		return expectedType, nil
 	case *ast.UnaryExpr:
 		switch expression.Op {
-		case kind.MINUS:
+		case token.MINUS:
 			unaryExprType, err := sema.inferExprTypeWithContext(expression.Value, expectedType, scope)
 			// TODO(errors)
 			if err != nil {
@@ -653,7 +640,7 @@ func (sema *sema) inferExprTypeWithContext(
 // Useful for testing
 func inferExprTypeWithoutContext(
 	input, filename string,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.Expr, ast.ExprType, error) {
 	collector := diagnostics.New()
 
@@ -674,7 +661,7 @@ func inferExprTypeWithoutContext(
 func inferExprTypeWithContext(
 	input, filename string,
 	ty ast.ExprType,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	collector := diagnostics.New()
 
@@ -693,7 +680,7 @@ func inferExprTypeWithContext(
 
 func (sema *sema) inferExprTypeWithoutContext(
 	expr ast.Expr,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.ExprType, bool, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
@@ -702,26 +689,26 @@ func (sema *sema) inferExprTypeWithoutContext(
 			// TODO: what if I want a defined string type on my programming
 			// language? I don't think *i8 is correct type for this
 			switch ty.Kind {
-			case kind.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: kind.U8_TYPE}}
+			case token.STRING_LITERAL:
+				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
 				expression.Type = finalTy
 				return finalTy, false, nil
-			case kind.INTEGER_LITERAL:
+			case token.INTEGER_LITERAL:
 				ty, err := sema.inferIntegerType(expression.Value)
 				if err != nil {
 					return nil, false, err
 				}
 				expression.Type = ty
 				return ty, false, nil
-			case kind.TRUE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.TRUE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
-				expression.Value = "1"
+				expression.Value = []byte("1")
 				return finalTy, false, nil
-			case kind.FALSE_BOOL_LITERAL:
-				finalTy := &ast.BasicType{Kind: kind.BOOL_TYPE}
+			case token.FALSE_BOOL_LITERAL:
+				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
-				expression.Value = "0"
+				expression.Value = []byte("0")
 				return finalTy, false, nil
 			default:
 				log.Fatalf("unimplemented literal expr: %s", expression)
@@ -747,12 +734,12 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 	case *ast.UnaryExpr:
 		switch expression.Op {
-		case kind.MINUS:
+		case token.MINUS:
 			switch unaryExpr := expression.Value.(type) {
 			case *ast.LiteralExpr:
 				switch unaryTy := unaryExpr.Type.(type) {
 				case *ast.BasicType:
-					if unaryTy.Kind == kind.INTEGER_LITERAL {
+					if unaryTy.Kind == token.INTEGER_LITERAL {
 						integerType, err := sema.inferIntegerType(unaryExpr.Value)
 						// TODO(errors)
 						if err != nil {
@@ -765,7 +752,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 					log.Fatalf("unimplemented unary expr type: %s", unaryExpr)
 				}
 			}
-		case kind.NOT:
+		case token.NOT:
 			unaryExpr, foundContext, err := sema.inferExprTypeWithoutContext(expression.Value, scope)
 			// TODO(errors)
 			if err != nil {
@@ -810,7 +797,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 // TODO: refactor this algorithm
 func (sema *sema) inferBinaryExprTypeWithoutContext(
 	expression *ast.BinaryExpr,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.ExprType, bool, error) {
 	lhsType, lhsFoundContext, err := sema.inferExprTypeWithoutContext(expression.Left, scope)
 	// TODO(errors)
@@ -846,13 +833,13 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 	}
 
 	switch expression.Op {
-	case kind.PLUS, kind.MINUS:
+	case token.PLUS, token.MINUS:
 		if lhsType.IsNumeric() && rhsType.IsNumeric() {
 			return lhsType, lhsFoundContext || rhsFoundContext, nil
 		}
 	default:
-		if _, ok := kind.LOGICAL_OP[expression.Op]; ok {
-			return &ast.BasicType{Kind: kind.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
+		if _, ok := token.LOGICAL_OP[expression.Op]; ok {
+			return &ast.BasicType{Kind: token.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
 		}
 	}
 	// TODO
@@ -863,7 +850,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 func (sema *sema) inferBinaryExprTypeWithContext(
 	expression *ast.BinaryExpr,
 	expectedType ast.ExprType,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	lhsType, err := sema.inferExprTypeWithContext(expression.Left, expectedType, scope)
 	if err != nil {
@@ -881,12 +868,12 @@ func (sema *sema) inferBinaryExprTypeWithContext(
 	return lhsType, nil
 }
 
-func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
-	integerType := kind.INT_TYPE
+func (sema *sema) inferIntegerType(value []byte) (ast.ExprType, error) {
+	integerType := token.INT_TYPE
 	base := 10
 	intSize := strconv.IntSize
 
-	_, err := strconv.ParseUint(value, base, intSize)
+	_, err := strconv.ParseUint(string(value), base, intSize)
 	if err == nil {
 		return &ast.BasicType{Kind: integerType}, nil
 	}
@@ -896,7 +883,7 @@ func (sema *sema) inferIntegerType(value string) (ast.ExprType, error) {
 
 func (sema *sema) analyzeFieldAccessExpr(
 	fieldAccess *ast.FieldAccess,
-	currentScope *scope.Scope[ast.Node],
+	currentScope *ast.Scope,
 ) error {
 	if !fieldAccess.Left.IsId() {
 		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
@@ -907,8 +894,8 @@ func (sema *sema) analyzeFieldAccessExpr(
 
 	symbol, err := currentScope.LookupAcrossScopes(id)
 	if err != nil {
-		if err == scope.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-			pos := idExpr.Name.Position
+		if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			pos := idExpr.Name.Pos
 			symbolNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: '%s' not defined on scope",
@@ -942,12 +929,12 @@ func (sema *sema) analyzeFieldAccessExpr(
 
 func (sema *sema) analyzePrototypeCall(
 	prototypeCall *ast.FunctionCall,
-	callScope *scope.Scope[ast.Node],
+	callScope *ast.Scope,
 	extern *ast.ExternDecl,
 ) error {
 	prototype, err := extern.Scope.LookupCurrentScope(prototypeCall.Name.Name())
 	if err != nil {
-		pos := prototypeCall.Name.Position
+		pos := prototypeCall.Name.Pos
 		prototypeNotFound := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: function '%s' not declared on extern '%s'",
@@ -1016,7 +1003,7 @@ func (sema *sema) analyzePrototypeCall(
 
 func (sema *sema) analyzeForLoop(
 	forLoop *ast.ForLoop,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
 	err := sema.analyzeStmt(forLoop.Init, scope, returnTy)
@@ -1034,20 +1021,20 @@ func (sema *sema) analyzeForLoop(
 		return err
 	}
 
-	err = sema.analyzeBlock(scope, forLoop.Block, returnTy)
+	err = sema.analyzeBlock(forLoop.Block, returnTy, scope)
 	return err
 }
 
 // TODO: need tests for it
 func (sema *sema) analyzeWhileLoop(
 	whileLoop *ast.WhileLoop,
-	scope *scope.Scope[ast.Node],
+	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
 	err := sema.analyzeIfExpr(whileLoop.Cond, scope)
 	if err != nil {
 		return err
 	}
-	err = sema.analyzeBlock(scope, whileLoop.Block, returnTy)
+	err = sema.analyzeBlock(whileLoop.Block, returnTy, scope)
 	return err
 }

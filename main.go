@@ -1,61 +1,48 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"log"
-	"os"
 
-	"github.com/HicaroD/Telia/backend/codegen"
+	"github.com/HicaroD/Telia/backend/codegen/llvm"
 	"github.com/HicaroD/Telia/diagnostics"
-	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/middleend/sema"
 )
 
+func buildModule(cliResult CliResult) error {
+	collector := diagnostics.New()
+
+	p := parser.NewP(collector)
+	program, err := p.ParseModuleDir(cliResult.Path)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(program)
+	sema := sema.New(collector)
+
+	err = sema.Check(program)
+	if err != nil {
+		return err
+	}
+
+	// TODO: define flag for setting the back-end
+	// Currently I only have one type of back-end, but in the future
+	// I could have more
+	codegen := llvm.NewCG(cliResult.Path)
+	err = codegen.Generate(program)
+	return err
+}
+
 func main() {
-	args := os.Args[1:]
-	// TODO(errors)
-	if len(args) == 0 {
-		log.Fatal("error: no input files")
-	}
-	filename := args[0]
-
-	file, err := os.Open(filename)
-	// TODO(errors)
-	if err != nil {
-		log.Fatalf("unable to open file: %s due to error '%s'", filename, err)
-	}
-	defer file.Close()
-
-	diagCollector := diagnostics.New()
-	reader := bufio.NewReader(file)
-
-	lex := lexer.New(filename, reader, diagCollector)
-	tokens, err := lex.Tokenize()
-	if err != nil {
-		fmt.Println("Errors found during compilation ", err)
-		os.Exit(1)
-	}
-
-	parser := parser.New(tokens, diagCollector)
-	astNodes, err := parser.Parse()
-	if err != nil {
-		fmt.Println("Errors found during compilation: ", err)
-		os.Exit(1)
-	}
-
-	sema := sema.New(diagCollector)
-	err = sema.Analyze(astNodes)
-	if err != nil {
-		fmt.Println("Errors found during compilation: ", err)
-		os.Exit(1)
-	}
-
-	codegen := codegen.New(filename, astNodes)
-	err = codegen.Generate()
-	// TODO(errors)
-	if err != nil {
-		log.Fatal(err)
+	cliResult := cli()
+	switch cliResult.Command {
+	case COMMAND_BUILD:
+		if cliResult.IsModuleBuild {
+			err := buildModule(cliResult)
+			if err != nil {
+				return
+			}
+		}
 	}
 }
