@@ -72,8 +72,8 @@ func (ret ReturnStmt) stmtNode()      {}
 type FunctionCall struct {
 	Stmt
 	Expr
-	Name        *token.Token
-	Args        []Expr
+	Name *token.Token
+	Args []Expr
 
 	BackendType any
 }

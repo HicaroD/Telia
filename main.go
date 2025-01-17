@@ -2,11 +2,11 @@ package main
 
 import (
 	// "github.com/HicaroD/Telia/backend/codegen/llvm"
-	// "github.com/HicaroD/Telia/diagnostics"
 	// "github.com/HicaroD/Telia/frontend/lexer"
 	"fmt"
 	"log"
 
+	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/parser"
 	// "github.com/HicaroD/Telia/middleend/sema"
 )
@@ -16,7 +16,9 @@ func main() {
 	switch cliResult.Command {
 	case COMMAND_BUILD:
 		if cliResult.IsModuleBuild {
-			program, err := parser.ParseModuleDir(cliResult.Path)
+			collector := diagnostics.New()
+			p := parser.NewP(collector)
+			program, err := p.ParseModuleDir(cliResult.Path)
 			if err != nil {
 				log.Fatalf("parsing error: %s\n", err)
 			}

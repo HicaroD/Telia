@@ -11,44 +11,31 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	filename  string
+	path      string
+	src       []byte
 	collector *diagnostics.Collector
 
-	src    []byte
 	offset int
 	pos    token.Pos
-
-	curr *token.Token
 }
 
-func New(filename string, src []byte, collector *diagnostics.Collector) *Lexer {
+func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := &Lexer{}
 
-	lexer.filename = filename
+	lexer.path = path
 	lexer.collector = collector
 	lexer.src = src
 	lexer.offset = 0
-	lexer.pos = token.NewPosition(filename, 1, 1)
-	lexer.curr = nil
+	lexer.pos = token.NewPosition(path, 1, 1)
 
 	return lexer
-}
-
-func (lex *Lexer) Next() *token.Token {
-	lex.skipWhitespace()
-	character := lex.peekChar()
-	if character == eof {
-		return lex.consumeToken(nil, token.EOF)
-	}
-	token := lex.getToken(character)
-	return token
 }
 
 func (lex *Lexer) Peek() *token.Token {
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
-	token := lex.Next()
+	token := lex.next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -61,8 +48,8 @@ func (lex *Lexer) Peek1() *token.Token {
 
 	var token *token.Token
 
-	_ = lex.Next()
-	token = lex.Next()
+	_ = lex.next()
+	token = lex.next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -71,7 +58,7 @@ func (lex *Lexer) Peek1() *token.Token {
 }
 
 func (lex *Lexer) Skip() {
-	lex.Next()
+	lex.next()
 }
 
 func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
@@ -79,11 +66,21 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 	return token.Kind == expectedKind
 }
 
+func (lex *Lexer) next() *token.Token {
+	lex.skipWhitespace()
+	character := lex.peekChar()
+	if character == eof {
+		return lex.consumeToken(nil, token.EOF)
+	}
+	token := lex.getToken(character)
+	return token
+}
+
 // Useful for testing
 func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
-		tok := lex.Next()
+		tok := lex.next()
 		if tok.Kind == token.INVALID {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}

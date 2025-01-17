@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/HicaroD/Telia/diagnostics"
 	"github.com/HicaroD/Telia/frontend/ast"
@@ -20,15 +19,25 @@ type Parser struct {
 	fileScope *ast.Scope // scope of current file being analyzed
 }
 
+// TODO: remove this
 func New(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func ParseModuleDir(path string) (*ast.Program, error) {
+func NewP(collector *diagnostics.Collector) *Parser {
+	parser := &Parser{}
+	parser.lex = nil
+	parser.fileScope = nil
+	parser.collector = collector
+	return parser
+}
+
+func (p *Parser) ParseModuleDir(path string) (*ast.Program, error) {
+	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 	root := &ast.Module{Scope: universe, IsRoot: true}
 
-	err := buildModuleTree(path, root, universe)
+	err := p.buildModuleTree(path, root, universe)
 	if err != nil {
 		return nil, err
 	}
@@ -36,68 +45,13 @@ func ParseModuleDir(path string) (*ast.Program, error) {
 	return &ast.Program{Root: root}, nil
 }
 
-func buildModuleTree(path string, module *ast.Module, scope *ast.Scope) error {
-	return processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
-		switch {
-		case entry.IsDir():
-			childScope := ast.NewScope(scope)
-			childModule := &ast.Module{Scope: childScope, IsRoot: false}
-			module.Modules = append(module.Modules, childModule)
-			return buildModuleTree(fullPath, childModule, childScope)
-
-		case isTeliaFile(entry.Name()):
-			dirName := filepath.Base(filepath.Dir(fullPath))
-			fmt.Printf("found '.t' file: %s %s\n", dirName, fullPath)
-			// TODO: parse file in the context of its module
-		default:
-			fmt.Printf("found generic file: %s\n", fullPath)
-			// NOTE: Not being processed
-		}
-		return nil
-	})
-}
-
-func processModuleEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return fmt.Errorf("failed to read directory %q: %w", path, err)
-	}
-
-	for _, entry := range entries {
-		fullPath := filepath.Join(path, entry.Name())
-		if err := handler(entry, fullPath); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func isTeliaFile(filename string) bool {
-	return strings.HasSuffix(filename, ".t")
-}
-
-func ParseFileAsModule(path string) (*ast.Program, error) {
-	return nil, nil
-}
-
-func (p *Parser) Parse() (*ast.Program, error) {
-	// NOTE: temporary change for handling the new architecture
-	// I will have many modules (std included), many files
-	// inside modules and more
-
+func (p *Parser) ParseFileAsModule() (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
-
-	// NOTE: not every module will have the universe as the
-	// parent, for inner-modules we could have other modules as parents
 	moduleScope := ast.NewScope(universe)
 
-	fileScope := ast.NewScope(moduleScope)
-	// NOTE: every time a new file is being parsed, this variable should be
-	// set appropriately, deal with it carefuly
-	p.fileScope = fileScope
-
-	file, err := p.parseFile()
+	// TODO: set attributes properly
+	file, err := p.parseFile("", "", moduleScope)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +68,60 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	return program, nil
 }
 
-func (p *Parser) parseFile() (*ast.File, error) {
+func (p *Parser) buildModuleTree(path string, module *ast.Module, scope *ast.Scope) error {
+	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
+		switch {
+		case entry.IsDir():
+			childScope := ast.NewScope(scope)
+			childModule := &ast.Module{Scope: childScope, IsRoot: false}
+			module.Modules = append(module.Modules, childModule)
+			return p.buildModuleTree(fullPath, childModule, childScope)
+		case filepath.Ext(entry.Name()) == ".t":
+			fileDirName := filepath.Base(filepath.Dir(fullPath))
+			fmt.Printf("found '.t' file: %s %s\n", fileDirName, fullPath)
+			file, err := p.parseFile(fileDirName, fullPath, scope)
+			if err != nil {
+				return err
+			}
+			module.Files = append(module.Files, file)
+		default:
+			// NOTE: Do anything for now
+			fmt.Printf("found generic file: %s\n", fullPath)
+		}
+		return nil
+	})
+}
+
+func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("failed to read directory %q: %w", path, err)
+	}
+
+	for _, entry := range entries {
+		fullPath := filepath.Join(path, entry.Name())
+		if err := handler(entry, fullPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseFile(dirName, fullPath string, moduleScope *ast.Scope) (*ast.File, error) {
+	fileScope := ast.NewScope(moduleScope)
+	p.fileScope = fileScope
+
+	file := &ast.File{
+		Dir:   dirName,
+		Path:  fullPath,
+		Scope: fileScope,
+	}
+
+	// TODO(errors)
+	src, _ := os.ReadFile(fullPath)
+	lex := lexer.New(fullPath, src, p.collector)
+	p.lex = lex
+
 	var nodes []ast.Node
 	for {
 		node, eof, err := p.next()
@@ -126,8 +133,8 @@ func (p *Parser) parseFile() (*ast.File, error) {
 		}
 		nodes = append(nodes, node)
 	}
-	// TODO: properly set filename here
-	file := &ast.File{Scope: p.fileScope, Path: "my_program", Body: nodes}
+	file.Body = nodes
+
 	return file, nil
 }
 
