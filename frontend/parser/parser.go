@@ -236,7 +236,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 			break
 		}
 
-		proto, err := p.parsePrototype()
+		proto, err := p.parsePrototype(name.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +308,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	return externDecl, nil
 }
 
-func (p *Parser) parsePrototype() (*ast.Proto, error) {
+func (p *Parser) parsePrototype(functionName string) (*ast.Proto, error) {
 	fn, ok := p.expect(token.FN)
 	if !ok {
 		pos := fn.Pos
@@ -341,7 +341,7 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	params, err := p.parseFunctionParams()
+	params, err := p.parseFunctionParams(name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,9 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	params, err := p.parseFunctionParams()
+	fnScope := ast.NewScope(p.moduleScope)
+
+	params, err := p.parseFunctionParams(name, fnScope)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +411,6 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnScope := ast.NewScope(p.moduleScope)
 	fnDecl := &ast.FunctionDecl{
 		Scope:   fnScope,
 		Name:    name,
@@ -455,7 +456,7 @@ func parseFnDeclFrom(filename, input string, moduleScope *ast.Scope) (*ast.Funct
 	return fnDecl, nil
 }
 
-func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
+func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope) (*ast.FieldList, error) {
 	var params []*ast.Field
 	isVariadic := false
 
@@ -502,16 +503,16 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 			break
 		}
 
-		name, ok := p.expect(token.ID)
+		paramName, ok := p.expect(token.ID)
 		if !ok {
-			pos := name.Pos
+			pos := paramName.Pos
 			expectedCloseParenOrId := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter or ), not %s",
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					name.Kind,
+					paramName.Kind,
 				),
 			}
 			p.collector.ReportAndSave(expectedCloseParenOrId)
@@ -527,15 +528,39 @@ func (p *Parser) parseFunctionParams() (*ast.FieldList, error) {
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					name.Lexeme,
+					paramName.Lexeme,
 					tok.Kind,
 				),
 			}
 			p.collector.ReportAndSave(expectedParamType)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		params = append(params, &ast.Field{Name: name, Type: paramType})
 
+		param := &ast.Field{Name: paramName, Type: paramType}
+
+		if scope != nil {
+			err = scope.Insert(param.Name.Name(), param)
+			if err != nil {
+				if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+					pos := param.Name.Pos
+					parameterRedeclaration := diagnostics.Diag{
+						Message: fmt.Sprintf(
+							"%s:%d:%d: parameter '%s' already declared on function '%s'",
+							pos.Filename,
+							pos.Line,
+							pos.Column,
+							param.Name.Name(),
+							functionName,
+						),
+					}
+					p.collector.ReportAndSave(parameterRedeclaration)
+					return nil, diagnostics.COMPILER_ERROR_FOUND
+				}
+				return nil, err
+			}
+		}
+
+		params = append(params, param)
 		if p.lex.NextIs(token.COMMA) {
 			p.lex.Skip() // ,
 			continue

@@ -27,7 +27,7 @@ func (s *sema) Check(program *ast.Program) error {
 
 func (s *sema) checkModule(module *ast.Module) error {
 	for _, file := range module.Files {
-		err := s.checkFile(file, module.Scope)
+		err := s.checkFile(file)
 		if err != nil {
 			return err
 		}
@@ -42,11 +42,11 @@ func (s *sema) checkModule(module *ast.Module) error {
 	return nil
 }
 
-func (s *sema) checkFile(file *ast.File, moduleScope *ast.Scope) error {
+func (s *sema) checkFile(file *ast.File) error {
 	for _, node := range file.Body {
 		switch n := node.(type) {
 		case *ast.FunctionDecl:
-			err := s.checkFnDecl(n, moduleScope)
+			err := s.checkFnDecl(n)
 			if err != nil {
 				return err
 			}
@@ -59,50 +59,9 @@ func (s *sema) checkFile(file *ast.File, moduleScope *ast.Scope) error {
 	return nil
 }
 
-func (sema *sema) checkFnDecl(function *ast.FunctionDecl, moduleScope *ast.Scope) error {
-	var err error
-
-	function.Scope = ast.NewScope(moduleScope)
-	err = sema.addParametersToScope(function.Params, function.Name.Name(), function.Scope)
-	if err != nil {
-		return err
-	}
-
-	err = sema.checkBlock(function.Block, function.RetType, function.Scope)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sema *sema) addParametersToScope(
-	params *ast.FieldList,
-	functionName string,
-	functionScope *ast.Scope,
-) error {
-	for _, param := range params.Fields {
-		paramName := param.Name.Name()
-		err := functionScope.Insert(paramName, param)
-		if err != nil {
-			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-				pos := param.Name.Pos
-				parameterRedeclaration := diagnostics.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: parameter '%s' already declared on function '%s'",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-						paramName,
-						functionName,
-					),
-				}
-				sema.collector.ReportAndSave(parameterRedeclaration)
-				return diagnostics.COMPILER_ERROR_FOUND
-			}
-			return err
-		}
-	}
-	return nil
+func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
+	err := sema.checkBlock(function.Block, function.RetType, function.Scope)
+	return err
 }
 
 func (sema *sema) checkBlock(
