@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 )
 
 type Command int
@@ -15,7 +16,8 @@ type CliResult struct {
 	Command Command
 
 	IsModuleBuild bool   // true if 'Command' is build and 'Path' is directory
-	Path          string // path to directory (treated as module)
+	ParentDirName string // name of parent dir
+	Path          string // path to directory / file (treated as module)
 }
 
 func cli() CliResult {
@@ -42,8 +44,14 @@ func cli() CliResult {
 			log.Fatalf("os.Stat error: %s\n", err)
 		}
 
-		result.Path = fileOrDir
+		path, err := filepath.Abs(fileOrDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		result.Path = path
 		result.IsModuleBuild = info.Mode().IsDir()
+		result.ParentDirName = filepath.Base(filepath.Dir(path))
 	default:
 		log.Fatal("TODO: show help - list of commands")
 	}

@@ -16,13 +16,13 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	fileScope *ast.Scope // scope of current file being analyzed
+	moduleScope *ast.Scope // scope of current module being analyzed
 }
 
 func New(collector *diagnostics.Collector) *Parser {
 	parser := &Parser{}
 	parser.lex = nil
-	parser.fileScope = nil
+	parser.moduleScope = nil
 	parser.collector = collector
 	return parser
 }
@@ -50,7 +50,6 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 	universe := ast.NewScope(nil)
 	moduleScope := ast.NewScope(universe)
 
-	// TODO: set attributes properly
 	file, err := p.parseFile(lex, moduleScope)
 	if err != nil {
 		return nil, err
@@ -69,7 +68,6 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 }
 
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
-
 	fileScope := ast.NewScope(moduleScope)
 	file := &ast.File{
 		Dir:   lex.ParentDir,
@@ -78,7 +76,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File,
 	}
 
 	p.lex = lex
-	p.fileScope = fileScope
+	p.moduleScope = moduleScope
 
 	nodes, err := p.parseFileNodes()
 	if err != nil {
@@ -364,7 +362,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	fnScope := ast.NewScope(p.fileScope)
+	fnScope := ast.NewScope(p.moduleScope)
 	fnDecl := &ast.FunctionDecl{
 		Scope:   fnScope,
 		Name:    name,
@@ -375,7 +373,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 
 	// TODO(errors): functions with the same defined in the same scope (not only
 	// file scope, but also module scopes, are not allowed)
-	err = p.fileScope.Insert(name.Name(), fnDecl)
+	err = p.moduleScope.Insert(name.Name(), fnDecl)
 	if err != nil {
 		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
 			functionRedeclaration := diagnostics.Diag{
@@ -396,13 +394,13 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 // Useful for testing
-func parseFnDeclFrom(filename, input string, fileScope *ast.Scope) (*ast.FunctionDecl, error) {
+func parseFnDeclFrom(filename, input string, moduleScope *ast.Scope) (*ast.FunctionDecl, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
 	lexer := lexer.New(filename, src, collector)
 	parser := NewWithLex(lexer, collector)
-	parser.fileScope = fileScope
+	parser.moduleScope = moduleScope
 
 	fnDecl, err := parser.parseFnDecl()
 	if err != nil {

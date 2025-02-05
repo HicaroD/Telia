@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/HicaroD/Telia/backend/codegen/llvm"
 	"github.com/HicaroD/Telia/diagnostics"
+	"github.com/HicaroD/Telia/frontend/ast"
+	"github.com/HicaroD/Telia/frontend/lexer"
 	"github.com/HicaroD/Telia/frontend/parser"
 	"github.com/HicaroD/Telia/middleend/sema"
 )
@@ -14,36 +16,62 @@ func main() {
 
 	switch args.Command {
 	case COMMAND_BUILD:
+		var program *ast.Program
+		var err error
+
+		collector := diagnostics.New()
+
 		if args.IsModuleBuild {
-			err := buildModule(args)
-			if err != nil {
-				return
-			}
+			program, err = buildModule(args, collector)
+		} else {
+			program, err = buildFile(args, collector)
+		}
+
+		// TODO(errors)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		sema := sema.New(collector)
+		err = sema.Check(program)
+		// TODO(errors)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// TODO: define flag for setting the back-end
+		// Currently I only have one type of back-end, but, in the future, I
+		// could have more
+		codegen := llvm.NewCG(args.Path)
+		err = codegen.Generate(program)
+		// TODO(errors)
+		if err != nil {
+			log.Fatal(err)
 		}
 	}
 }
 
-func buildModule(cliResult CliResult) error {
-	collector := diagnostics.New()
-
+func buildModule(cliResult CliResult, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
 	program, err := p.ParseModuleDir(cliResult.Path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	fmt.Println(program)
-	sema := sema.New(collector)
+	return program, nil
+}
 
-	err = sema.Check(program)
+func buildFile(cliResult CliResult, collector *diagnostics.Collector) (*ast.Program, error) {
+	p := parser.New(collector)
+
+	l, err := lexer.NewFromFilePath(cliResult.ParentDirName, cliResult.Path, collector)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	program, err := p.ParseFileAsProgram(l)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO: define flag for setting the back-end
-	// Currently I only have one type of back-end, but in the future
-	// I could have more
-	codegen := llvm.NewCG(cliResult.Path)
-	err = codegen.Generate(program)
-	return err
+	return program, nil
 }
