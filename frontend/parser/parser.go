@@ -1082,14 +1082,14 @@ func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 
 func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 	id, ok := parser.expect(token.ID)
-	// TODO(errors): should never hit
+	// TODO(errors)
 	if !ok {
 		log.Fatal("expected ID")
 	}
 	left := &ast.IdExpr{Name: id}
 
 	_, ok = parser.expect(token.DOT)
-	// TODO(errors): should never hit
+	// TODO(errors)
 	if !ok {
 		log.Fatal("expect a dot")
 	}
@@ -1103,13 +1103,13 @@ func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 
 func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	_, ok := parser.expect(token.FOR)
-	// TODO(errors): should never hit
+	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
 	_, ok = parser.expect(token.OPEN_PAREN)
-	// TODO(errors): should never hit
+	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected '('")
 	}
@@ -1142,7 +1142,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	_, ok = parser.expect(token.CLOSE_PAREN)
-	// TODO(errors): should never hit
+	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected ')'")
 	}
@@ -1179,7 +1179,6 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 
 func (p *Parser) parseWhileLoop() (*ast.WhileLoop, error) {
 	_, ok := p.expect(token.WHILE)
-	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'while'")
 	}

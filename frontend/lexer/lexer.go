@@ -15,11 +15,11 @@ type Lexer struct {
 	ParentDirName string
 	Path          string
 
-	src       []byte
-	collector *diagnostics.Collector
-
+	src    []byte
 	offset int
 	pos    token.Pos
+
+	collector *diagnostics.Collector
 }
 
 func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {

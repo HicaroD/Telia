@@ -1,4 +1,4 @@
-extern C {
+extern libc {
   fn puts(format *u8) i32;
 }
 
@@ -7,11 +7,11 @@ fn main() i32 {
   if can_vote {
     other_bool := true;
     if other_bool {
-      puts("Hey, it is true and other_bool as well!");
+      libc.puts("Hey, it is true and other_bool as well!");
     }
-    puts("Hey, it is true!");
+    libc.puts("Hey, it is true!");
   } else {
-    puts("Hey, it is NOT true!");
+    libc.puts("Hey, it is NOT true!");
   }
   return 0;
 }
