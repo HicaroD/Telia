@@ -106,7 +106,7 @@ func TestVarDeclForInference(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
-			varStmt, err := analyzeVarDeclFrom(test.input, filename)
+			varStmt, err := checkVarDeclFrom(test.input, filename)
 			if err != nil {
 				t.Fatal(err)
 			}

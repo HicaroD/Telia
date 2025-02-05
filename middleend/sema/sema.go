@@ -27,7 +27,7 @@ func (s *sema) Check(program *ast.Program) error {
 
 func (s *sema) checkModule(module *ast.Module) error {
 	for _, file := range module.Files {
-		err := s.checkFile(file)
+		err := s.checkFile(file, module.Scope)
 		if err != nil {
 			return err
 		}
@@ -42,19 +42,16 @@ func (s *sema) checkModule(module *ast.Module) error {
 	return nil
 }
 
-func (s *sema) checkFile(file *ast.File) error {
+func (s *sema) checkFile(file *ast.File, moduleScope *ast.Scope) error {
 	for _, node := range file.Body {
 		switch n := node.(type) {
 		case *ast.FunctionDecl:
-			err := s.analyzeFnDecl(n, file.Scope)
+			err := s.checkFnDecl(n, moduleScope)
 			if err != nil {
 				return err
 			}
 		case *ast.ExternDecl:
-			err := s.analyzeExtern(n, file.Scope)
-			if err != nil {
-				return err
-			}
+			continue
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
@@ -62,62 +59,16 @@ func (s *sema) checkFile(file *ast.File) error {
 	return nil
 }
 
-func (sema *sema) analyzeExtern(extern *ast.ExternDecl, fileScope *ast.Scope) error {
-	externScope := ast.NewScope(fileScope)
-	for i := range extern.Prototypes {
-		prototypeName := extern.Prototypes[i].Name.Name()
-		err := externScope.Insert(prototypeName, extern.Prototypes[i])
-		if err != nil {
-			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-				pos := extern.Prototypes[i].Name.Pos
-				prototypeRedeclaration := diagnostics.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-						prototypeName,
-						extern.Name.Name(),
-					),
-				}
-				sema.collector.ReportAndSave(prototypeRedeclaration)
-				return diagnostics.COMPILER_ERROR_FOUND
-			}
-			return err
-		}
-	}
-	extern.Scope = externScope
-	err := fileScope.Insert(extern.Name.Name(), extern)
-	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
-			pos := extern.Name.Pos
-			prototypeRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: extern '%s' already declared on scope",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					extern.Name.Name(),
-				),
-			}
-			sema.collector.ReportAndSave(prototypeRedeclaration)
-			return diagnostics.COMPILER_ERROR_FOUND
-		}
-		return err
-	}
-	return nil
-}
-
-func (sema *sema) analyzeFnDecl(function *ast.FunctionDecl, fileScope *ast.Scope) error {
+func (sema *sema) checkFnDecl(function *ast.FunctionDecl, moduleScope *ast.Scope) error {
 	var err error
 
-	function.Scope = ast.NewScope(fileScope)
+	function.Scope = ast.NewScope(moduleScope)
 	err = sema.addParametersToScope(function.Params, function.Name.Name(), function.Scope)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeBlock(function.Block, function.RetType, function.Scope)
+	err = sema.checkBlock(function.Block, function.RetType, function.Scope)
 	if err != nil {
 		return err
 	}
@@ -154,13 +105,13 @@ func (sema *sema) addParametersToScope(
 	return nil
 }
 
-func (sema *sema) analyzeBlock(
+func (sema *sema) checkBlock(
 	block *ast.BlockStmt,
 	returnTy ast.ExprType,
 	scope *ast.Scope,
 ) error {
 	for i := range block.Statements {
-		err := sema.analyzeStmt(block.Statements[i], scope, returnTy)
+		err := sema.checkStmt(block.Statements[i], scope, returnTy)
 		if err != nil {
 			return err
 		}
@@ -168,32 +119,32 @@ func (sema *sema) analyzeBlock(
 	return nil
 }
 
-func (sema *sema) analyzeStmt(
+func (sema *sema) checkStmt(
 	stmt ast.Stmt,
 	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
-		err := sema.analyzeFunctionCall(statement, scope)
+		err := sema.checkFunctionCall(statement, scope)
 		return err
 	case *ast.MultiVarStmt, *ast.VarStmt:
-		err := sema.analyzeVarDecl(statement, scope)
+		err := sema.checkVarDecl(statement, scope)
 		return err
 	case *ast.CondStmt:
-		err := sema.analyzeCondStmt(statement, returnTy, scope)
+		err := sema.checkCondStmt(statement, returnTy, scope)
 		return err
 	case *ast.ReturnStmt:
 		_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
 		return err
 	case *ast.FieldAccess:
-		err := sema.analyzeFieldAccessExpr(statement, scope)
+		err := sema.checkFieldAccessExpr(statement, scope)
 		return err
 	case *ast.ForLoop:
-		err := sema.analyzeForLoop(statement, scope, returnTy)
+		err := sema.checkForLoop(statement, scope, returnTy)
 		return err
 	case *ast.WhileLoop:
-		err := sema.analyzeWhileLoop(statement, scope, returnTy)
+		err := sema.checkWhileLoop(statement, scope, returnTy)
 		return err
 	default:
 		log.Fatalf("unimplemented statement on sema: %s", statement)
@@ -201,22 +152,22 @@ func (sema *sema) analyzeStmt(
 	return nil
 }
 
-func (sema *sema) analyzeVarDecl(
+func (sema *sema) checkVarDecl(
 	variable ast.Stmt,
 	currentScope *ast.Scope,
 ) error {
 	switch varStmt := variable.(type) {
 	case *ast.MultiVarStmt:
-		err := sema.analyzeMultiVar(varStmt, currentScope)
+		err := sema.checkMultiVar(varStmt, currentScope)
 		return err
 	case *ast.VarStmt:
-		err := sema.analyzeVar(varStmt, currentScope)
+		err := sema.checkVar(varStmt, currentScope)
 		return err
 	}
 	return nil
 }
 
-func (sema *sema) analyzeMultiVar(
+func (sema *sema) checkMultiVar(
 	multi *ast.MultiVarStmt,
 	currentScope *ast.Scope,
 ) error {
@@ -285,7 +236,7 @@ func (sema *sema) analyzeMultiVar(
 				return err
 			}
 		}
-		err := sema.analyzeVariableType(multi.Variables[i], currentScope)
+		err := sema.checkVariableType(multi.Variables[i], currentScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -294,7 +245,7 @@ func (sema *sema) analyzeMultiVar(
 	return nil
 }
 
-func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
+func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
 	if variable.Decl {
 		// Não pode existir antes
 		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
@@ -319,7 +270,7 @@ func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *ast.Scope) err
 		}
 	}
 
-	err := sema.analyzeVariableType(variable, currentScope)
+	err := sema.checkVariableType(variable, currentScope)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -327,7 +278,7 @@ func (sema *sema) analyzeVar(variable *ast.VarStmt, currentScope *ast.Scope) err
 	return nil
 }
 
-func (sema *sema) analyzeVariableType(
+func (sema *sema) checkVariableType(
 	varDecl *ast.VarStmt,
 	currentScope *ast.Scope,
 ) error {
@@ -363,7 +314,7 @@ func (sema *sema) analyzeVariableType(
 }
 
 // Useful for testing
-func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
+func checkVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -380,7 +331,7 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	parent := ast.NewScope(nil)
 	scope := ast.NewScope(parent)
 
-	err = sema.analyzeVarDecl(varStmt, scope)
+	err = sema.checkVarDecl(varStmt, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -388,20 +339,20 @@ func analyzeVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	return varStmt, nil
 }
 
-func (sema *sema) analyzeCondStmt(
+func (sema *sema) checkCondStmt(
 	condStmt *ast.CondStmt,
 	returnTy ast.ExprType,
 	outterScope *ast.Scope,
 ) error {
 	ifScope := ast.NewScope(outterScope)
 
-	err := sema.analyzeIfExpr(condStmt.IfStmt.Expr, outterScope)
+	err := sema.checkIfExpr(condStmt.IfStmt.Expr, outterScope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeBlock(condStmt.IfStmt.Block, returnTy, ifScope)
+	err = sema.checkBlock(condStmt.IfStmt.Block, returnTy, ifScope)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -409,12 +360,12 @@ func (sema *sema) analyzeCondStmt(
 
 	for i := range condStmt.ElifStmts {
 		elifScope := ast.NewScope(outterScope)
-		err := sema.analyzeIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
+		err := sema.checkIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		err = sema.analyzeBlock(condStmt.ElifStmts[i].Block, returnTy, elifScope)
+		err = sema.checkBlock(condStmt.ElifStmts[i].Block, returnTy, elifScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -423,7 +374,7 @@ func (sema *sema) analyzeCondStmt(
 
 	if condStmt.ElseStmt != nil {
 		elseScope := ast.NewScope(outterScope)
-		err = sema.analyzeBlock(condStmt.ElseStmt.Block, returnTy, elseScope)
+		err = sema.checkBlock(condStmt.ElseStmt.Block, returnTy, elseScope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -433,7 +384,7 @@ func (sema *sema) analyzeCondStmt(
 	return nil
 }
 
-func (sema *sema) analyzeFunctionCall(
+func (sema *sema) checkFunctionCall(
 	functionCall *ast.FunctionCall,
 	currentScope *ast.Scope,
 ) error {
@@ -509,7 +460,7 @@ func (sema *sema) analyzeFunctionCall(
 	return nil
 }
 
-func (sema *sema) analyzeIfExpr(expr ast.Expr, scope *ast.Scope) error {
+func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
 	// TODO(errors)
 	if err != nil {
@@ -597,7 +548,7 @@ func (sema *sema) inferExprTypeWithContext(
 		}
 		return ty, nil
 	case *ast.FunctionCall:
-		err := sema.analyzeFunctionCall(expression, scope)
+		err := sema.checkFunctionCall(expression, scope)
 		// TODO(errors)
 		if err != nil {
 			return nil, err
@@ -772,7 +723,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 		return ty, foundContext, nil
 	case *ast.FunctionCall:
-		err := sema.analyzeFunctionCall(expression, scope)
+		err := sema.checkFunctionCall(expression, scope)
 		// TODO(errors)
 		if err != nil {
 			return nil, false, err
@@ -880,7 +831,7 @@ func (sema *sema) inferIntegerType(value []byte) (ast.ExprType, error) {
 	return nil, fmt.Errorf("can't parse integer literal: %s", value)
 }
 
-func (sema *sema) analyzeFieldAccessExpr(
+func (sema *sema) checkFieldAccessExpr(
 	fieldAccess *ast.FieldAccess,
 	currentScope *ast.Scope,
 ) error {
@@ -914,7 +865,7 @@ func (sema *sema) analyzeFieldAccessExpr(
 	case *ast.ExternDecl:
 		switch right := fieldAccess.Right.(type) {
 		case *ast.FunctionCall:
-			err := sema.analyzePrototypeCall(right, currentScope, sym)
+			err := sema.checkPrototypeCall(right, currentScope, sym)
 			if err != nil {
 				return err
 			}
@@ -926,7 +877,7 @@ func (sema *sema) analyzeFieldAccessExpr(
 	return nil
 }
 
-func (sema *sema) analyzePrototypeCall(
+func (sema *sema) checkPrototypeCall(
 	prototypeCall *ast.FunctionCall,
 	callScope *ast.Scope,
 	extern *ast.ExternDecl,
@@ -1000,40 +951,40 @@ func (sema *sema) analyzePrototypeCall(
 	return nil
 }
 
-func (sema *sema) analyzeForLoop(
+func (sema *sema) checkForLoop(
 	forLoop *ast.ForLoop,
 	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
-	err := sema.analyzeStmt(forLoop.Init, scope, returnTy)
+	err := sema.checkStmt(forLoop.Init, scope, returnTy)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeIfExpr(forLoop.Cond, scope)
+	err = sema.checkIfExpr(forLoop.Cond, scope)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeStmt(forLoop.Update, scope, returnTy)
+	err = sema.checkStmt(forLoop.Update, scope, returnTy)
 	if err != nil {
 		return err
 	}
 
-	err = sema.analyzeBlock(forLoop.Block, returnTy, scope)
+	err = sema.checkBlock(forLoop.Block, returnTy, scope)
 	return err
 }
 
 // TODO: need tests for it
-func (sema *sema) analyzeWhileLoop(
+func (sema *sema) checkWhileLoop(
 	whileLoop *ast.WhileLoop,
 	scope *ast.Scope,
 	returnTy ast.ExprType,
 ) error {
-	err := sema.analyzeIfExpr(whileLoop.Cond, scope)
+	err := sema.checkIfExpr(whileLoop.Cond, scope)
 	if err != nil {
 		return err
 	}
-	err = sema.analyzeBlock(whileLoop.Block, returnTy, scope)
+	err = sema.checkBlock(whileLoop.Block, returnTy, scope)
 	return err
 }

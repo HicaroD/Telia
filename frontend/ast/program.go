@@ -24,7 +24,6 @@ type File struct {
 	Dir   string
 	Path  string
 	Body  []Node
-	Scope *Scope
 }
 
 func (file File) astNode() {}

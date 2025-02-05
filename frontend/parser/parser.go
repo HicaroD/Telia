@@ -20,7 +20,7 @@ type Parser struct {
 }
 
 func New(collector *diagnostics.Collector) *Parser {
-	parser := &Parser{}
+	parser := new(Parser)
 	parser.lex = nil
 	parser.moduleScope = nil
 	parser.collector = collector
@@ -32,10 +32,14 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParseModuleDir(path string) (*ast.Program, error) {
+func (p *Parser) ParseModuleDir(dirName, path string) (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
-	root := &ast.Module{Scope: universe, IsRoot: true}
+
+	root := new(ast.Module)
+	root.Name = dirName
+	root.Scope = universe
+	root.IsRoot = true
 
 	err := p.buildModuleTree(path, root)
 	if err != nil {
@@ -67,11 +71,9 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 }
 
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
-	fileScope := ast.NewScope(moduleScope)
 	file := &ast.File{
-		Dir:   lex.ParentDirName,
-		Path:  lex.Path,
-		Scope: fileScope,
+		Dir:  lex.ParentDirName,
+		Path: lex.Path,
 	}
 
 	p.lex = lex
@@ -107,7 +109,9 @@ func (p *Parser) buildModuleTree(path string, module *ast.Module) error {
 		case entry.IsDir():
 			childScope := ast.NewScope(module.Scope)
 			childModule := &ast.Module{Scope: childScope, IsRoot: false}
+
 			module.Modules = append(module.Modules, childModule)
+
 			return p.buildModuleTree(fullPath, childModule)
 		case filepath.Ext(entry.Name()) == ".t":
 			fileDirName := filepath.Base(filepath.Dir(fullPath))
@@ -256,7 +260,52 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	return &ast.ExternDecl{Scope: nil, Name: name, Prototypes: prototypes}, nil
+	externScope := ast.NewScope(p.moduleScope)
+	for i := range prototypes {
+		prototypeName := prototypes[i].Name.Name()
+		err := externScope.Insert(prototypeName, prototypes[i])
+		if err != nil {
+			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				pos := prototypes[i].Name.Pos
+				prototypeRedeclaration := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						prototypeName,
+						name.Name(),
+					),
+				}
+				p.collector.ReportAndSave(prototypeRedeclaration)
+				return nil, diagnostics.COMPILER_ERROR_FOUND
+			}
+			return nil, err
+		}
+	}
+
+	externDecl := &ast.ExternDecl{Scope: externScope, Name: name, Prototypes: prototypes}
+
+	err := p.moduleScope.Insert(name.Name(), externDecl)
+	if err != nil {
+		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			pos := name.Pos
+			prototypeRedeclaration := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: extern '%s' already declared on scope",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Name(),
+				),
+			}
+			p.collector.ReportAndSave(prototypeRedeclaration)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		return nil, err
+	}
+
+	return externDecl, nil
 }
 
 func (p *Parser) parsePrototype() (*ast.Proto, error) {
