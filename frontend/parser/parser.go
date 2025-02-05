@@ -55,9 +55,8 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 		return nil, err
 	}
 
-	// TODO: properly set module name
 	module := &ast.Module{
-		Name:   "main",
+		Name:   lex.ParentDirName,
 		Files:  []*ast.File{file},
 		Scope:  moduleScope,
 		IsRoot: true,
@@ -70,7 +69,7 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
 	fileScope := ast.NewScope(moduleScope)
 	file := &ast.File{
-		Dir:   lex.ParentDir,
+		Dir:   lex.ParentDirName,
 		Path:  lex.Path,
 		Scope: fileScope,
 	}
@@ -326,7 +325,6 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 	var err error
 
 	_, ok := p.expect(token.FN)
-	// TODO(errors): this should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'fn'")
 	}
@@ -371,8 +369,6 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		RetType: returnType,
 	}
 
-	// TODO(errors): functions with the same defined in the same scope (not only
-	// file scope, but also module scopes, are not allowed)
 	err = p.moduleScope.Insert(name.Name(), fnDecl)
 	if err != nil {
 		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
@@ -643,11 +639,9 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 			p.collector.ReportAndSave(expectedSemicolon)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		// TODO(errors)
 		return idStmt, err
 	case token.IF:
 		condStmt, err := p.parseCondStmt()
-		// TODO(errors)
 		return condStmt, err
 	case token.FOR:
 		forLoop, err := p.parseForLoop()
@@ -662,7 +656,6 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 
 func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 	openCurly, ok := p.expect(token.OPEN_CURLY)
-	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
@@ -676,7 +669,6 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 		}
 
 		stmt, err := p.parseStmt()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -758,7 +750,6 @@ VarDecl:
 		}
 
 		ty, err := p.parseExprType()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -778,7 +769,6 @@ VarDecl:
 	}
 
 	exprs, err := p.parseExprList([]token.Kind{token.SEMICOLON, token.CLOSE_PAREN})
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -815,19 +805,16 @@ func parseVarFrom(filename, input string) (ast.Stmt, error) {
 
 func (p *Parser) parseCondStmt() (*ast.CondStmt, error) {
 	ifCond, err := p.parseIfCond()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	elifConds, err := p.parseElifConds()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
 	elseCond, err := p.parseElseCond()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -842,14 +829,12 @@ func (p *Parser) parseIfCond() (*ast.IfElifCond, error) {
 		return nil, fmt.Errorf("expected 'if'")
 	}
 
-	// TODO(errors)
 	ifExpr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 
 	ifBlock, err := p.parseBlock()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -864,12 +849,10 @@ func (p *Parser) parseElifConds() ([]*ast.IfElifCond, error) {
 			break
 		}
 		elifExpr, err := p.parseExpr()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
 		elifBlock, err := p.parseBlock()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -900,12 +883,10 @@ func (p *Parser) parseExpr() (ast.Expr, error) {
 
 func (p *Parser) parseLogical() (ast.Expr, error) {
 	lhs, err := p.parseComparasion()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := p.lex.Peek()
 		if _, ok := ast.LOGICAL[next.Kind]; ok {
@@ -925,18 +906,15 @@ func (p *Parser) parseLogical() (ast.Expr, error) {
 
 func (p *Parser) parseComparasion() (ast.Expr, error) {
 	lhs, err := p.parseTerm()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := p.lex.Peek()
 		if _, ok := ast.COMPARASION[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseTerm()
-			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
@@ -950,18 +928,15 @@ func (p *Parser) parseComparasion() (ast.Expr, error) {
 
 func (p *Parser) parseTerm() (ast.Expr, error) {
 	lhs, err := p.parseFactor()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := p.lex.Peek()
 		if _, ok := ast.TERM[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseFactor()
-			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
@@ -975,18 +950,15 @@ func (p *Parser) parseTerm() (ast.Expr, error) {
 
 func (p *Parser) parseFactor() (ast.Expr, error) {
 	lhs, err := p.parseUnary()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: refactor this code, it seems there is a better way of writing this
 	for {
 		next := p.lex.Peek()
 		if _, ok := ast.FACTOR[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseUnary()
-			// TODO(errors)
 			if err != nil {
 				return nil, err
 			}
@@ -1004,7 +976,6 @@ func (p *Parser) parseUnary() (ast.Expr, error) {
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		p.lex.Skip()
 		rhs, err := p.parseUnary()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -1034,7 +1005,6 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
 		expr, err := p.parseExpr()
-		// TODO(errors)
 		if err != nil {
 			return nil, err
 		}
@@ -1086,7 +1056,6 @@ Var:
 
 func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 	name, ok := parser.expect(token.ID)
-	// TODO(errors): should never hit
 	if !ok {
 		return nil, fmt.Errorf("expected 'id'")
 	}
@@ -1126,7 +1095,6 @@ func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 	}
 
 	right, err := parser.parsePrimary()
-	// TODO(errors)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1147,7 +1115,6 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	init, err := parser.parseVar()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -1159,7 +1126,6 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	cond, err := parser.parseExpr()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}
@@ -1171,7 +1137,6 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	update, err := parser.parseVar()
-	// TODO(errors)
 	if err != nil {
 		return nil, err
 	}

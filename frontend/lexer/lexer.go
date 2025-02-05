@@ -12,8 +12,8 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	ParentDir string
-	Path      string
+	ParentDirName string
+	Path          string
 
 	src       []byte
 	collector *diagnostics.Collector
@@ -23,10 +23,10 @@ type Lexer struct {
 }
 
 func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
-	lexer := &Lexer{}
+	lexer := new(Lexer)
 
 	// TODO: set this
-	lexer.ParentDir = ""
+	lexer.ParentDirName = ""
 	lexer.Path = path
 	lexer.collector = collector
 	lexer.src = src
@@ -36,24 +36,14 @@ func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
 	return lexer
 }
 
-func NewFromFilePath(parentDir, path string, collector *diagnostics.Collector) (*Lexer, error) {
-	lexer := &Lexer{}
-
-	// TODO: set this
-	lexer.ParentDir = parentDir
-	lexer.Path = path
-	lexer.collector = collector
-
+func NewFromFilePath(parentDirName, path string, collector *diagnostics.Collector) (*Lexer, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	lexer.src = src
-
-	lexer.offset = 0
-	lexer.pos = token.NewPosition(path, 1, 1)
-
-	return lexer, nil
+	l := New(path, src, collector)
+	l.ParentDirName = parentDirName
+	return l, nil
 }
 
 func (lex *Lexer) Peek() *token.Token {

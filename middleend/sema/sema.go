@@ -350,7 +350,6 @@ func (sema *sema) analyzeVariableType(
 		if varDecl.Type == nil {
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
-		// TODO: what do I assert here in order to make it right?
 		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
 		// TODO(errors): Deal with type mismatch
 		if err != nil {
