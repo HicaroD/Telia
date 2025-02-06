@@ -51,7 +51,10 @@ func (s *sema) checkFile(file *ast.File) error {
 				return err
 			}
 		case *ast.ExternDecl:
-			continue
+			err := s.checkExternDecl(n)
+			if err != nil {
+				return err
+			}
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
@@ -62,6 +65,20 @@ func (s *sema) checkFile(file *ast.File) error {
 func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
 	err := sema.checkBlock(function.Block, function.RetType, function.Scope)
 	return err
+}
+func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
+	for _, proto := range extern.Prototypes {
+		symbols := make(map[string]bool, len(proto.Params.Fields))
+		for _, param := range proto.Params.Fields {
+			if _, found := symbols[param.Name.Name()]; found {
+				// TODO(errors): add proper error here + tests
+				return fmt.Errorf("redeclaration of '%s' parameter on '%s' prototype at extern declaration '%s'\n", param.Name.Name(), proto.Name.Name(), extern.Name.Name())
+			}
+			symbols[param.Name.Name()] = true
+		}
+	}
+
+	return nil
 }
 
 func (sema *sema) checkBlock(

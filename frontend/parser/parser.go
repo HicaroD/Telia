@@ -236,7 +236,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 			break
 		}
 
-		proto, err := p.parsePrototype(name.Name())
+		proto, err := p.parsePrototype()
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +244,6 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	}
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
-	// QUESTION: will it ever false?
 	if !ok {
 		pos := closeCurly.Pos
 		expectedCloseCurly := diagnostics.Diag{
@@ -308,7 +307,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	return externDecl, nil
 }
 
-func (p *Parser) parsePrototype(functionName string) (*ast.Proto, error) {
+func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	fn, ok := p.expect(token.FN)
 	if !ok {
 		pos := fn.Pos
@@ -341,7 +340,7 @@ func (p *Parser) parsePrototype(functionName string) (*ast.Proto, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	params, err := p.parseFunctionParams(name, nil)
+	params, err := p.parseFunctionParams(name, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +395,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 
 	fnScope := ast.NewScope(p.moduleScope)
 
-	params, err := p.parseFunctionParams(name, fnScope)
+	params, err := p.parseFunctionParams(name, fnScope, false)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +455,7 @@ func parseFnDeclFrom(filename, input string, moduleScope *ast.Scope) (*ast.Funct
 	return fnDecl, nil
 }
 
-func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope) (*ast.FieldList, error) {
+func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.FieldList, error) {
 	var params []*ast.Field
 	isVariadic := false
 
@@ -538,7 +537,13 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 
 		param := &ast.Field{Name: paramName, Type: paramType}
 
-		if scope != nil {
+		// NOTE: prototypes parameters are validated at the semantic analyzer
+		// stage
+		if !isPrototype {
+			if scope == nil {
+				// TODO(errors): add proper error
+				return nil, fmt.Errorf("error: scope should not be null when validating function parameters")
+			}
 			err = scope.Insert(param.Name.Name(), param)
 			if err != nil {
 				if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
@@ -798,7 +803,7 @@ func (p *Parser) parseVar() (ast.Stmt, error) {
 VarDecl:
 	for {
 		name, ok := p.expect(token.ID)
-		// TODO(errors)
+		// TODO(errors): add proper error
 		if !ok {
 			return nil, fmt.Errorf("expected ID")
 		}
@@ -847,7 +852,7 @@ VarDecl:
 		return nil, err
 	}
 
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if len(variables) != len(exprs) {
 		return nil, fmt.Errorf("%d != %d", len(variables), len(exprs))
 	}
@@ -898,7 +903,7 @@ func (p *Parser) parseCondStmt() (*ast.CondStmt, error) {
 
 func (p *Parser) parseIfCond() (*ast.IfElifCond, error) {
 	ifToken, ok := p.expect(token.IF)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected 'if'")
 	}
@@ -966,7 +971,7 @@ func (p *Parser) parseLogical() (ast.Expr, error) {
 		if _, ok := ast.LOGICAL[next.Kind]; ok {
 			p.lex.Skip()
 			rhs, err := p.parseComparasion()
-			// TODO(errors)
+			// TODO(errors): add proper error
 			if err != nil {
 				return nil, err
 			}
@@ -1135,7 +1140,7 @@ func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 	}
 
 	_, ok = parser.expect(token.OPEN_PAREN)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected '('")
 	}
@@ -1146,7 +1151,7 @@ func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 	}
 
 	_, ok = parser.expect(token.CLOSE_PAREN)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected ')'")
 	}
@@ -1156,14 +1161,14 @@ func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 
 func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 	id, ok := parser.expect(token.ID)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		log.Fatal("expected ID")
 	}
 	left := &ast.IdExpr{Name: id}
 
 	_, ok = parser.expect(token.DOT)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		log.Fatal("expect a dot")
 	}
@@ -1177,13 +1182,13 @@ func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 
 func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	_, ok := parser.expect(token.FOR)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
 	_, ok = parser.expect(token.OPEN_PAREN)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected '('")
 	}
@@ -1194,7 +1199,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	_, ok = parser.expect(token.SEMICOLON)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected ';'")
 	}
@@ -1205,7 +1210,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	_, ok = parser.expect(token.SEMICOLON)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected ';'")
 	}
@@ -1216,7 +1221,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 	}
 
 	_, ok = parser.expect(token.CLOSE_PAREN)
-	// TODO(errors)
+	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected ')'")
 	}

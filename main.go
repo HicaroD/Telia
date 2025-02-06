@@ -42,8 +42,8 @@ func main() {
 		// TODO: define flag for setting the back-end
 		// Currently I only have one type of back-end, but, in the future, I
 		// could have more
-		codegen := llvm.NewCG(args.Path)
-		err = codegen.Generate(program)
+		codegen := llvm.NewCG(args.ParentDirName, args.Path, program)
+		err = codegen.Generate()
 		// TODO(errors)
 		if err != nil {
 			log.Fatal(err)

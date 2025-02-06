@@ -25,7 +25,6 @@ type Lexer struct {
 func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
-	// TODO: set this
 	lexer.ParentDirName = ""
 	lexer.Path = path
 	lexer.collector = collector

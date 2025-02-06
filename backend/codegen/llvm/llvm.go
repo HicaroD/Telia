@@ -16,7 +16,8 @@ import (
 )
 
 type llvmCodegen struct {
-	path string
+	path    string
+	program *ast.Program
 
 	context llvm.Context
 	module  llvm.Module
@@ -26,11 +27,9 @@ type llvmCodegen struct {
 	strLiterals map[string]llvm.Value
 }
 
-func NewCG(path string) *llvmCodegen {
+func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 	context := llvm.NewContext()
-	// TODO: properly define the module name
-	// The name of the module could be file name
-	module := context.NewModule("tmpmod")
+	module := context.NewModule(parentDirName)
 	builder := context.NewBuilder()
 
 	return &llvmCodegen{
@@ -44,14 +43,13 @@ func NewCG(path string) *llvmCodegen {
 	}
 }
 
-func (c *llvmCodegen) Generate(program *ast.Program) error {
-	c.generateModule(program.Root)
+func (c *llvmCodegen) Generate() error {
+	c.generateModule(c.program.Root)
 	err := c.generateExecutable()
 	return err
 }
 
 func (c *llvmCodegen) generateModule(module *ast.Module) {
-	// TODO: is this order correct? Does it even matter?
 	for _, file := range module.Files {
 		c.generateFile(file)
 	}
@@ -420,12 +418,8 @@ func (c *llvmCodegen) getIntegerValue(
 ) (uint64, int) {
 	bitSize := ty.Kind.BitSize()
 	intLit := string(expr.Value)
-	integerValue, err := strconv.ParseUint(intLit, 10, bitSize)
-	// TODO: make sure to validate this during semantic analysis stage!
-	if err != nil {
-		log.Fatal(err)
-	}
-	return integerValue, bitSize
+	val, _ := strconv.ParseUint(intLit, 10, bitSize)
+	return val, bitSize
 }
 
 func (c *llvmCodegen) generateCondStmt(
@@ -438,17 +432,18 @@ func (c *llvmCodegen) generateCondStmt(
 	elseBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".else")
 	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".end")
 
+	// If
 	ifExpr := c.getExpr(condStmt.IfStmt.Expr, parentScope)
 	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	c.builder.SetInsertPointAtEnd(ifBlock)
-
 	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, parentScope, functionDecl, functionLlvm)
 	if !stoppedOnReturn {
 		c.builder.CreateBr(endBlock)
 	}
 
-	// TODO: implement elif statements (basically an if inside the else)
+	// TODO: implement elif statements (at the end, they are just ifs and elses)
 
+	// Else
 	c.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
 		elseScope := ast.NewScope(parentScope)

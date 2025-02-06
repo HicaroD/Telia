@@ -2,9 +2,6 @@ package token
 
 import "fmt"
 
-// TODO: since I changed the architecture to support modules and files,
-// I probably don't need to store the filename on every
-// position, saving memory!
 type Pos struct {
 	Filename     string
 	Line, Column int
