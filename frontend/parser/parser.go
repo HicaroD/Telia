@@ -859,6 +859,28 @@ VarDecl:
 	for i := range variables {
 		variables[i].Value = exprs[i]
 		variables[i].Decl = isDecl
+
+		if variables[i].Decl {
+			_, err := parentScope.LookupCurrentScope(variables[i].Name.Name())
+			// TODO(errors)
+			if err != nil {
+				if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+					return nil, fmt.Errorf("'%s' already exists on the current scope", variables[i].Name.Name())
+				}
+			}
+			err = parentScope.Insert(variables[i].Name.Name(), variables[i])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			_, err := parentScope.LookupCurrentScope(variables[i].Name.Name())
+			// TODO(errors)
+			if err != nil {
+				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+					return nil, fmt.Errorf("'%s' does not exists on the current scope", variables[i].Name.Name())
+				}
+			}
+		}
 	}
 
 	if len(variables) == 1 {

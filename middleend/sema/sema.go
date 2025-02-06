@@ -222,30 +222,6 @@ func (sema *sema) checkMultiVar(
 }
 
 func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
-	if variable.Decl {
-		// Não pode existir antes
-		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
-		// TODO(errors)
-		if err != nil {
-			if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-				return fmt.Errorf("'%s' already exists on the current scope", variable.Name.Name())
-			}
-		}
-		err = currentScope.Insert(variable.Name.Name(), variable)
-		if err != nil {
-			return err
-		}
-	} else {
-		// Deve existir antes
-		_, err := currentScope.LookupCurrentScope(variable.Name.Name())
-		// TODO(errors)
-		if err != nil {
-			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-				return fmt.Errorf("'%s' does not exists on the current scope", variable.Name.Name())
-			}
-		}
-	}
-
 	err := sema.checkVariableType(variable, currentScope)
 	// TODO(errors)
 	if err != nil {
