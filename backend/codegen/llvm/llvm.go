@@ -74,7 +74,7 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 
 func (c *llvmCodegen) generateExecutable() error {
 	module := c.module.String()
-	fmt.Println(module)
+	// fmt.Println(module)
 
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
@@ -246,18 +246,27 @@ func (c *llvmCodegen) generateFunctionCall(
 
 func (c *llvmCodegen) generateExternDecl(external *ast.ExternDecl) {
 	for i := range external.Prototypes {
-		c.generatePrototype(external.Prototypes[i])
+		c.generatePrototype(external.Attributes, external.Prototypes[i])
 	}
 }
 
-func (c *llvmCodegen) generatePrototype(prototype *ast.Proto) {
+func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *ast.Proto) {
 	returnTy := c.getType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
-	proto := NewFunctionValue(protoValue, ty, nil)
+	protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
 
+	proto := NewFunctionValue(protoValue, ty, nil)
 	prototype.BackendType = proto
+}
+
+func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm.CallConv {
+	switch callingConvention {
+	case "c":
+		return llvm.CCallConv
+	}
+	return 500 // in case of invalid calling conventions
 }
 
 func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {

@@ -66,7 +66,14 @@ func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
 	err := sema.checkBlock(function.Block, function.RetType, function.Scope)
 	return err
 }
+
+func (sema *sema) checkExternAttributes(externAttributes *ast.ExternAttrs) {
+	// TODO: make sure attributes values are valid
+}
+
 func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
+	// TODO: check for attributes
+
 	for _, proto := range extern.Prototypes {
 		symbols := make(map[string]bool, len(proto.Params.Fields))
 		for _, param := range proto.Params.Fields {

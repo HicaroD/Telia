@@ -11,7 +11,7 @@ func New(lexeme []byte, kind Kind, position Pos) *Token {
 }
 
 func (token *Token) Name() string {
-	if token.Kind == ID {
+	if token.Kind == ID || token.Kind == STRING_LITERAL {
 		return string(token.Lexeme)
 	}
 	return token.Kind.String()

@@ -63,6 +63,11 @@ const (
 	// }
 	CLOSE_CURLY
 
+	// [
+	OPEN_BRACKET
+	// ]
+	CLOSE_BRACKET
+
 	// ,
 	COMMA
 
@@ -102,6 +107,9 @@ const (
 	STAR
 	// /
 	SLASH
+
+	// #
+	SHARP
 )
 
 var KEYWORDS map[string]Kind = map[string]Kind{
@@ -275,6 +283,10 @@ func (kind Kind) String() string {
 		return "{"
 	case CLOSE_CURLY:
 		return "}"
+	case OPEN_BRACKET:
+		return "["
+	case CLOSE_BRACKET:
+		return "]"
 	case COMMA:
 		return ","
 	case SEMICOLON:
@@ -309,6 +321,8 @@ func (kind Kind) String() string {
 		return "*"
 	case SLASH:
 		return "/"
+	case SHARP:
+		return "#"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
 	}

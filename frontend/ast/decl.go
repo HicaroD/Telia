@@ -36,6 +36,7 @@ func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
 	Decl
+	Attributes  *ExternAttrs
 	Scope       *Scope
 	Name        *token.Token
 	Prototypes  []*Proto
@@ -60,3 +61,10 @@ type Proto struct {
 
 func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
 func (proto Proto) astNode()       {}
+
+type ExternAttrs struct {
+	DefaultCallingConvention string
+	LinkPrefix               string
+	LinkName                 string
+	Linkage                  string
+}

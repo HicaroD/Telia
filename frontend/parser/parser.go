@@ -159,7 +159,7 @@ func (p *Parser) next() (ast.Node, bool, error) {
 	case token.FN:
 		fnDecl, err := p.parseFnDecl()
 		return fnDecl, eof, err
-	case token.EXTERN:
+	case token.EXTERN, token.SHARP:
 		externDecl, err := p.parseExternDecl()
 		return externDecl, eof, err
 	default:
@@ -192,7 +192,74 @@ func ParseExprFrom(expr, filename string) (ast.Expr, error) {
 	return exprAst, nil
 }
 
+func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
+	attributes := new(ast.ExternAttrs)
+
+	_, ok := p.expect(token.SHARP)
+	if !ok {
+		return nil, fmt.Errorf("expected '#'")
+	}
+
+	_, ok = p.expect(token.OPEN_BRACKET)
+	if !ok {
+		return nil, fmt.Errorf("expected '['")
+	}
+
+	for {
+		attribute, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected identifier")
+		}
+
+		_, ok = p.expect(token.EQUAL)
+		if !ok {
+			return nil, fmt.Errorf("expected '='")
+		}
+
+		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		if !ok {
+			return nil, fmt.Errorf("expected string literal")
+		}
+
+		switch attribute.Name() {
+		case "default_cc":
+			attributes.DefaultCallingConvention = attributeValue.Name()
+		case "link_prefix":
+			attributes.LinkPrefix = attributeValue.Name()
+		case "link_name":
+			attributes.LinkName = attributeValue.Name()
+		case "linkage":
+			attributes.Linkage = attributeValue.Name()
+		}
+
+		if p.lex.NextIs(token.CLOSE_BRACKET) {
+			break
+		}
+
+		if !p.lex.NextIs(token.COMMA) {
+			return nil, fmt.Errorf("expected either comma or closing bracket")
+		}
+	}
+
+	_, ok = p.expect(token.CLOSE_BRACKET)
+	if !ok {
+		return nil, fmt.Errorf("expected ']'")
+	}
+
+	return attributes, nil
+}
+
 func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
+	externDecl := new(ast.ExternDecl)
+
+	if p.lex.NextIs(token.SHARP) {
+		attributes, err := p.parseExternAttributes()
+		if err != nil {
+			return nil, err
+		}
+		externDecl.Attributes = attributes
+	}
+
 	_, ok := p.expect(token.EXTERN)
 	if !ok {
 		return nil, fmt.Errorf("expected 'extern'")
@@ -283,7 +350,9 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		}
 	}
 
-	externDecl := &ast.ExternDecl{Scope: externScope, Name: name, Prototypes: prototypes}
+	externDecl.Scope = externScope
+	externDecl.Name = name
+	externDecl.Prototypes = prototypes
 
 	err := p.moduleScope.Insert(name.Name(), externDecl)
 	if err != nil {
