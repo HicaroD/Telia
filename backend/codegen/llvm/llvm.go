@@ -2,6 +2,7 @@ package llvm
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os/exec"
 	"path/filepath"
@@ -15,7 +16,8 @@ import (
 )
 
 type llvmCodegen struct {
-	path string
+	path    string
+	program *ast.Program
 
 	context llvm.Context
 	module  llvm.Module
@@ -25,15 +27,14 @@ type llvmCodegen struct {
 	strLiterals map[string]llvm.Value
 }
 
-func NewCG(path string) *llvmCodegen {
+func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 	context := llvm.NewContext()
-	// TODO: properly define the module name
-	// The name of the module could be file name
-	module := context.NewModule("tmpmod")
+	module := context.NewModule(parentDirName)
 	builder := context.NewBuilder()
 
 	return &llvmCodegen{
-		path: path,
+		path:    path,
+		program: program,
 
 		context: context,
 		module:  module,
@@ -43,14 +44,13 @@ func NewCG(path string) *llvmCodegen {
 	}
 }
 
-func (c *llvmCodegen) Generate(program *ast.Program) error {
-	c.generateModule(program.Root)
+func (c *llvmCodegen) Generate() error {
+	c.generateModule(c.program.Root)
 	err := c.generateExecutable()
 	return err
 }
 
 func (c *llvmCodegen) generateModule(module *ast.Module) {
-	// TODO: is this order correct? Does it even matter?
 	for _, file := range module.Files {
 		c.generateFile(file)
 	}
@@ -74,6 +74,7 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 
 func (c *llvmCodegen) generateExecutable() error {
 	module := c.module.String()
+	// fmt.Println(module)
 
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
@@ -92,26 +93,24 @@ func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FunctionDecl) {
 	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
 	functionValue := llvm.AddFunction(c.module, functionDecl.Name.Name(), functionType)
 	functionBlock := c.context.AddBasicBlock(functionValue, "entry")
-	fnValue := NewFunctionValue(functionValue, functionType, &functionBlock)
 	c.builder.SetInsertPointAtEnd(functionBlock)
 
+	fnValue := NewFunctionValue(functionValue, functionType, &functionBlock)
 	functionDecl.BackendType = fnValue
 
 	c.generateParameters(fnValue, functionDecl, paramsTypes)
-
-	_ = c.generateBlock(functionDecl.Block, functionDecl.Scope, functionDecl, fnValue)
+	_ = c.generateBlock(functionDecl.Block, fnValue, functionDecl.Scope)
 }
 
 func (c *llvmCodegen) generateBlock(
 	block *ast.BlockStmt,
+	function *Function,
 	parentScope *ast.Scope,
-	functionDecl *ast.FunctionDecl,
-	functionLlvm *Function,
 ) (stoppedOnReturn bool) {
 	stoppedOnReturn = false
 
 	for _, stmt := range block.Statements {
-		c.generateStmt(stmt, parentScope, functionDecl, functionLlvm)
+		c.generateStmt(stmt, function, parentScope)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
 			return
@@ -122,27 +121,26 @@ func (c *llvmCodegen) generateBlock(
 
 func (c *llvmCodegen) generateStmt(
 	stmt ast.Stmt,
+	function *Function,
 	parentScope *ast.Scope,
-	functionDecl *ast.FunctionDecl,
-	functionLlvm *Function,
 ) {
 	switch statement := stmt.(type) {
 	case *ast.FunctionCall:
-		c.generateFunctionCall(parentScope, statement)
+		c.generateFunctionCall(statement, parentScope)
 	case *ast.ReturnStmt:
 		c.generateReturnStmt(statement, parentScope)
-	case *ast.CondStmt:
-		c.generateCondStmt(parentScope, statement, functionDecl, functionLlvm)
 	case *ast.VarStmt:
 		c.generateVar(statement, parentScope)
 	case *ast.MultiVarStmt:
 		c.generateMultiVar(statement, parentScope)
 	case *ast.FieldAccess:
 		c.generateFieldAccessStmt(statement, parentScope)
+	case *ast.CondStmt:
+		c.generateCondStmt(statement, function)
 	case *ast.ForLoop:
-		c.generateForLoop(statement, functionDecl, functionLlvm, parentScope)
+		c.generateForLoop(statement, function)
 	case *ast.WhileLoop:
-		c.generateWhileLoop(statement, functionDecl, functionLlvm, parentScope)
+		c.generateWhileLoop(statement, function)
 	default:
 		log.Fatalf("unimplemented block statement: %s", statement)
 	}
@@ -234,8 +232,8 @@ func (c *llvmCodegen) generateParameters(
 }
 
 func (c *llvmCodegen) generateFunctionCall(
-	functionScope *ast.Scope,
 	functionCall *ast.FunctionCall,
+	functionScope *ast.Scope,
 ) llvm.Value {
 	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
 
@@ -248,18 +246,27 @@ func (c *llvmCodegen) generateFunctionCall(
 
 func (c *llvmCodegen) generateExternDecl(external *ast.ExternDecl) {
 	for i := range external.Prototypes {
-		c.generatePrototype(external.Prototypes[i])
+		c.generatePrototype(external.Attributes, external.Prototypes[i])
 	}
 }
 
-func (c *llvmCodegen) generatePrototype(prototype *ast.Proto) {
+func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *ast.Proto) {
 	returnTy := c.getType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
-	proto := NewFunctionValue(protoValue, ty, nil)
+	protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
 
+	proto := NewFunctionValue(protoValue, ty, nil)
 	prototype.BackendType = proto
+}
+
+func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm.CallConv {
+	switch callingConvention {
+	case "c":
+		return llvm.CCallConv
+	}
+	return 500 // in case of invalid calling conventions
 }
 
 func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
@@ -359,6 +366,9 @@ func (c *llvmCodegen) getExpr(
 		case *ast.Field:
 			variable := symbol.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
+		default:
+			fmt.Printf("error: invalid type for local variable: %s\n", reflect.TypeOf(symbol))
+			return llvm.Value{}
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
@@ -393,7 +403,7 @@ func (c *llvmCodegen) getExpr(
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
 	case *ast.FunctionCall:
-		call := c.generateFunctionCall(scope, currentExpr)
+		call := c.generateFunctionCall(currentExpr, scope)
 		return call
 	case *ast.UnaryExpr:
 		switch currentExpr.Op {
@@ -418,43 +428,36 @@ func (c *llvmCodegen) getIntegerValue(
 ) (uint64, int) {
 	bitSize := ty.Kind.BitSize()
 	intLit := string(expr.Value)
-	integerValue, err := strconv.ParseUint(intLit, 10, bitSize)
-	// TODO: make sure to validate this during semantic analysis stage!
-	if err != nil {
-		log.Fatal(err)
-	}
-	return integerValue, bitSize
+	val, _ := strconv.ParseUint(intLit, 10, bitSize)
+	return val, bitSize
 }
 
 func (c *llvmCodegen) generateCondStmt(
-	parentScope *ast.Scope,
 	condStmt *ast.CondStmt,
-	functionDecl *ast.FunctionDecl,
-	functionLlvm *Function,
+	function *Function,
 ) {
-	ifBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".if")
-	elseBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".else")
-	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".end")
+	ifBlock := llvm.AddBasicBlock(function.Fn, ".if")
+	elseBlock := llvm.AddBasicBlock(function.Fn, ".else")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
-	ifExpr := c.getExpr(condStmt.IfStmt.Expr, parentScope)
+	// If
+	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope)
 	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	c.builder.SetInsertPointAtEnd(ifBlock)
-
-	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, parentScope, functionDecl, functionLlvm)
+	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, function, condStmt.IfStmt.Scope)
 	if !stoppedOnReturn {
 		c.builder.CreateBr(endBlock)
 	}
 
-	// TODO: implement elif statements (basically an if inside the else)
+	// TODO: implement elif statements (at the end, they are just ifs and elses)
 
+	// Else
 	c.builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
-		elseScope := ast.NewScope(parentScope)
 		elseStoppedOnReturn := c.generateBlock(
 			condStmt.ElseStmt.Block,
-			elseScope,
-			functionDecl,
-			functionLlvm,
+			function,
+			condStmt.ElseStmt.Scope,
 		)
 		if !elseStoppedOnReturn {
 			c.builder.CreateBr(endBlock)
@@ -504,35 +507,31 @@ func (c *llvmCodegen) generatePrototypeCall(
 
 func (c *llvmCodegen) generateForLoop(
 	forLoop *ast.ForLoop,
-	functionDecl *ast.FunctionDecl,
-	functionLlvm *Function,
-	parentScope *ast.Scope,
+	function *Function,
 ) {
-	forScope := ast.NewScope(parentScope)
-
-	forPrepBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forprep")
-	forInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forinit")
-	forBodyBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forbody")
-	forUpdateBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forupdate")
-	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".forend")
+	forPrepBlock := llvm.AddBasicBlock(function.Fn, ".forprep")
+	forInitBlock := llvm.AddBasicBlock(function.Fn, ".forinit")
+	forBodyBlock := llvm.AddBasicBlock(function.Fn, ".forbody")
+	forUpdateBlock := llvm.AddBasicBlock(function.Fn, ".forupdate")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".forend")
 
 	c.builder.CreateBr(forPrepBlock)
 	c.builder.SetInsertPointAtEnd(forPrepBlock)
-	c.generateStmt(forLoop.Init, forScope, functionDecl, functionLlvm)
+	c.generateStmt(forLoop.Init, function, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 	c.builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr := c.getExpr(forLoop.Cond, forScope)
+	expr := c.getExpr(forLoop.Cond, forLoop.Scope)
 
 	c.builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
 	c.builder.SetInsertPointAtEnd(forBodyBlock)
-	c.generateBlock(forLoop.Block, forScope, functionDecl, functionLlvm)
+	c.generateBlock(forLoop.Block, function, forLoop.Scope)
 
 	c.builder.CreateBr(forUpdateBlock)
 	c.builder.SetInsertPointAtEnd(forUpdateBlock)
-	c.generateStmt(forLoop.Update, forScope, functionDecl, functionLlvm)
+	c.generateStmt(forLoop.Update, function, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 
@@ -541,23 +540,19 @@ func (c *llvmCodegen) generateForLoop(
 
 func (c *llvmCodegen) generateWhileLoop(
 	whileLoop *ast.WhileLoop,
-	functionDecl *ast.FunctionDecl,
-	functionLlvm *Function,
-	parentScope *ast.Scope,
+	function *Function,
 ) {
-	whileScope := ast.NewScope(parentScope)
-
-	whileInitBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileinit")
-	whileBodyBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whilebody")
-	endBlock := llvm.AddBasicBlock(functionLlvm.Fn, ".whileend")
+	whileInitBlock := llvm.AddBasicBlock(function.Fn, ".whileinit")
+	whileBodyBlock := llvm.AddBasicBlock(function.Fn, ".whilebody")
+	endBlock := llvm.AddBasicBlock(function.Fn, ".whileend")
 
 	c.builder.CreateBr(whileInitBlock)
 	c.builder.SetInsertPointAtEnd(whileInitBlock)
-	expr := c.getExpr(whileLoop.Cond, whileScope)
+	expr := c.getExpr(whileLoop.Cond, whileLoop.Scope)
 	c.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	c.builder.SetInsertPointAtEnd(whileBodyBlock)
-	c.generateBlock(whileLoop.Block, whileScope, functionDecl, functionLlvm)
+	c.generateBlock(whileLoop.Block, function, whileLoop.Scope)
 	c.builder.CreateBr(whileInitBlock)
 
 	c.builder.SetInsertPointAtEnd(endBlock)

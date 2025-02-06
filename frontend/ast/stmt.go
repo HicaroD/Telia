@@ -104,11 +104,13 @@ type IfElifCond struct {
 	If    *token.Pos
 	Expr  Expr
 	Block *BlockStmt
+	Scope *Scope
 }
 
 type ElseCond struct {
 	Else  *token.Pos
 	Block *BlockStmt
+	Scope *Scope
 }
 
 type ForLoop struct {
@@ -117,6 +119,7 @@ type ForLoop struct {
 	Cond   Expr
 	Update Stmt
 	Block  *BlockStmt
+	Scope  *Scope
 }
 
 func (forLoop ForLoop) String() string {
@@ -136,6 +139,7 @@ type WhileLoop struct {
 	Stmt
 	Cond  Expr
 	Block *BlockStmt
+	Scope *Scope
 }
 
 func (whileLoop WhileLoop) String() string {

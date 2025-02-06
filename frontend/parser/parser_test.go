@@ -1847,7 +1847,9 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			lex := lexer.New(filename, src, collector)
 			parser := NewWithLex(lex, collector)
 
-			_, err := parser.parseBlock()
+			// TODO: set scope properly if needed
+			tmpScope := ast.NewScope(nil)
+			_, err := parser.parseBlock(tmpScope)
 			if err == nil {
 				t.Fatal("expected to have syntax errors, but got nothing")
 			}

@@ -25,7 +25,6 @@ type Lexer struct {
 func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
-	// TODO: set this
 	lexer.ParentDirName = ""
 	lexer.Path = path
 	lexer.collector = collector
@@ -144,6 +143,15 @@ func (lex *Lexer) getToken(ch byte) *token.Token {
 		lex.nextChar()
 	case '/':
 		tok = lex.consumeToken(nil, token.SLASH)
+		lex.nextChar()
+	case '#':
+		tok = lex.consumeToken(nil, token.SHARP)
+		lex.nextChar()
+	case '[':
+		tok = lex.consumeToken(nil, token.OPEN_BRACKET)
+		lex.nextChar()
+	case ']':
+		tok = lex.consumeToken(nil, token.CLOSE_BRACKET)
 		lex.nextChar()
 	case '!':
 		tok.Pos = lex.pos

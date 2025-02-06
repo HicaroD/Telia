@@ -21,10 +21,9 @@ type Module struct {
 func (module Module) astNode() {}
 
 type File struct {
-	Dir   string
-	Path  string
-	Body  []Node
-	Scope *Scope
+	Dir  string
+	Path string
+	Body []Node
 }
 
 func (file File) astNode() {}
