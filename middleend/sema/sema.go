@@ -297,16 +297,15 @@ func checkVarDeclFrom(input, filename string) (ast.Stmt, error) {
 	lexer := lexer.New(filename, src, collector)
 	par := parser.NewWithLex(lexer, collector)
 
-	varStmt, err := par.ParseIdStmt()
+	tmpScope := ast.NewScope(nil)
+	varStmt, err := par.ParseIdStmt(tmpScope)
 	if err != nil {
 		return nil, err
 	}
 
 	sema := New(collector)
-
 	parent := ast.NewScope(nil)
 	scope := ast.NewScope(parent)
-
 	err = sema.checkVarDecl(varStmt, scope)
 	if err != nil {
 		return nil, err
@@ -320,28 +319,25 @@ func (sema *sema) checkCondStmt(
 	returnTy ast.ExprType,
 	outterScope *ast.Scope,
 ) error {
-	ifScope := ast.NewScope(outterScope)
-
 	err := sema.checkIfExpr(condStmt.IfStmt.Expr, outterScope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkBlock(condStmt.IfStmt.Block, returnTy, ifScope)
+	err = sema.checkBlock(condStmt.IfStmt.Block, returnTy, condStmt.IfStmt.Scope)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
 	for i := range condStmt.ElifStmts {
-		elifScope := ast.NewScope(outterScope)
-		err := sema.checkIfExpr(condStmt.ElifStmts[i].Expr, elifScope)
+		err := sema.checkIfExpr(condStmt.ElifStmts[i].Expr, condStmt.ElifStmts[i].Scope)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		err = sema.checkBlock(condStmt.ElifStmts[i].Block, returnTy, elifScope)
+		err = sema.checkBlock(condStmt.ElifStmts[i].Block, returnTy, condStmt.ElifStmts[i].Scope)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -349,8 +345,7 @@ func (sema *sema) checkCondStmt(
 	}
 
 	if condStmt.ElseStmt != nil {
-		elseScope := ast.NewScope(outterScope)
-		err = sema.checkBlock(condStmt.ElseStmt.Block, returnTy, elseScope)
+		err = sema.checkBlock(condStmt.ElseStmt.Block, returnTy, condStmt.ElseStmt.Scope)
 		// TODO(errors)
 		if err != nil {
 			return err

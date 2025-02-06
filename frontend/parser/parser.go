@@ -405,7 +405,7 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	block, err := p.parseBlock()
+	block, err := p.parseBlock(fnScope)
 	if err != nil {
 		return nil, err
 	}
@@ -652,7 +652,7 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 	}
 }
 
-func (p *Parser) parseStmt() (ast.Stmt, error) {
+func (p *Parser) parseStmt(parentScope *ast.Scope) (ast.Stmt, error) {
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.RETURN:
@@ -699,7 +699,7 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 
 		return returnStmt, nil
 	case token.ID:
-		idStmt, err := p.ParseIdStmt()
+		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -720,20 +720,20 @@ func (p *Parser) parseStmt() (ast.Stmt, error) {
 		}
 		return idStmt, err
 	case token.IF:
-		condStmt, err := p.parseCondStmt()
+		condStmt, err := p.parseCondStmt(parentScope)
 		return condStmt, err
 	case token.FOR:
-		forLoop, err := p.parseForLoop()
+		forLoop, err := p.parseForLoop(parentScope)
 		return forLoop, err
 	case token.WHILE:
-		whileLoop, err := p.parseWhileLoop()
+		whileLoop, err := p.parseWhileLoop(parentScope)
 		return whileLoop, err
 	default:
 		return nil, nil
 	}
 }
 
-func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
+func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
@@ -747,7 +747,7 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 			break
 		}
 
-		stmt, err := p.parseStmt()
+		stmt, err := p.parseStmt(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -782,7 +782,7 @@ func (p *Parser) parseBlock() (*ast.BlockStmt, error) {
 	}, nil
 }
 
-func (p *Parser) ParseIdStmt() (ast.Stmt, error) {
+func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (ast.Stmt, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
@@ -792,11 +792,11 @@ func (p *Parser) ParseIdStmt() (ast.Stmt, error) {
 		fieldAccessing := p.parseFieldAccess()
 		return fieldAccessing, nil
 	default:
-		return p.parseVar()
+		return p.parseVar(parentScope)
 	}
 }
 
-func (p *Parser) parseVar() (ast.Stmt, error) {
+func (p *Parser) parseVar(parentScope *ast.Scope) (ast.Stmt, error) {
 	variables := make([]*ast.VarStmt, 0)
 	isDecl := false
 
@@ -875,25 +875,26 @@ func parseVarFrom(filename, input string) (ast.Stmt, error) {
 	lex := lexer.New(filename, src, collector)
 	parser := NewWithLex(lex, collector)
 
-	stmt, err := parser.ParseIdStmt()
+	tmpScope := ast.NewScope(nil)
+	stmt, err := parser.ParseIdStmt(tmpScope)
 	if err != nil {
 		return nil, err
 	}
 	return stmt, nil
 }
 
-func (p *Parser) parseCondStmt() (*ast.CondStmt, error) {
-	ifCond, err := p.parseIfCond()
+func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.CondStmt, error) {
+	ifCond, err := p.parseIfCond(parentScope)
 	if err != nil {
 		return nil, err
 	}
 
-	elifConds, err := p.parseElifConds()
+	elifConds, err := p.parseElifConds(parentScope)
 	if err != nil {
 		return nil, err
 	}
 
-	elseCond, err := p.parseElseCond()
+	elseCond, err := p.parseElseCond(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -901,7 +902,7 @@ func (p *Parser) parseCondStmt() (*ast.CondStmt, error) {
 	return &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}, nil
 }
 
-func (p *Parser) parseIfCond() (*ast.IfElifCond, error) {
+func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
 	ifToken, ok := p.expect(token.IF)
 	// TODO(errors): add proper error
 	if !ok {
@@ -913,14 +914,15 @@ func (p *Parser) parseIfCond() (*ast.IfElifCond, error) {
 		return nil, err
 	}
 
-	ifBlock, err := p.parseBlock()
+	ifScope := ast.NewScope(parentScope)
+	ifBlock, err := p.parseBlock(ifScope)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.IfElifCond{If: &ifToken.Pos, Expr: ifExpr, Block: ifBlock}, nil
+	return &ast.IfElifCond{If: &ifToken.Pos, Expr: ifExpr, Block: ifBlock, Scope: ifScope}, nil
 }
 
-func (p *Parser) parseElifConds() ([]*ast.IfElifCond, error) {
+func (p *Parser) parseElifConds(parentScope *ast.Scope) ([]*ast.IfElifCond, error) {
 	var elifConds []*ast.IfElifCond
 	for {
 		elifToken, ok := p.expect(token.ELIF)
@@ -931,29 +933,31 @@ func (p *Parser) parseElifConds() ([]*ast.IfElifCond, error) {
 		if err != nil {
 			return nil, err
 		}
-		elifBlock, err := p.parseBlock()
+		elifScope := ast.NewScope(parentScope)
+		elifBlock, err := p.parseBlock(elifScope)
 		if err != nil {
 			return nil, err
 		}
 		elifConds = append(
 			elifConds,
-			&ast.IfElifCond{If: &elifToken.Pos, Expr: elifExpr, Block: elifBlock},
+			&ast.IfElifCond{If: &elifToken.Pos, Expr: elifExpr, Block: elifBlock, Scope: elifScope},
 		)
 	}
 	return elifConds, nil
 }
 
-func (p *Parser) parseElseCond() (*ast.ElseCond, error) {
+func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 	elseToken, ok := p.expect(token.ELSE)
 	if !ok {
 		return nil, nil
 	}
 
-	elseBlock, err := p.parseBlock()
+	elseScope := ast.NewScope(parentScope)
+	elseBlock, err := p.parseBlock(elseScope)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock}, nil
+	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock, Scope: elseScope}, nil
 }
 
 func (p *Parser) parseExpr() (ast.Expr, error) {
@@ -1180,7 +1184,7 @@ func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
 	return &ast.FieldAccess{Left: left, Right: right}
 }
 
-func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
+func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.ForLoop, error) {
 	_, ok := parser.expect(token.FOR)
 	// TODO(errors): add proper error
 	if !ok {
@@ -1193,7 +1197,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	init, err := parser.parseVar()
+	init, err := parser.parseVar(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1215,7 +1219,7 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 		return nil, fmt.Errorf("expected ';'")
 	}
 
-	update, err := parser.parseVar()
+	update, err := parser.parseVar(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1226,11 +1230,12 @@ func (parser *Parser) parseForLoop() (*ast.ForLoop, error) {
 		return nil, fmt.Errorf("expected ')'")
 	}
 
-	block, err := parser.parseBlock()
+	forScope := ast.NewScope(parentScope)
+	block, err := parser.parseBlock(forScope)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block}, nil
+	return &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block, Scope: forScope}, nil
 }
 
 // Useful for testing
@@ -1241,7 +1246,8 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 	lex := lexer.New(filename, src, collector)
 	parser := NewWithLex(lex, collector)
 
-	forLoop, err := parser.parseForLoop()
+	tempScope := ast.NewScope(nil)
+	forLoop, err := parser.parseForLoop(tempScope)
 	return forLoop, err
 }
 
@@ -1252,11 +1258,13 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 	lex := lexer.New(filename, src, collector)
 	parser := NewWithLex(lex, collector)
 
-	whileLoop, err := parser.parseWhileLoop()
+	// TODO: set scope properly
+	tempScope := ast.NewScope(nil)
+	whileLoop, err := parser.parseWhileLoop(tempScope)
 	return whileLoop, err
 }
 
-func (p *Parser) parseWhileLoop() (*ast.WhileLoop, error) {
+func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.WhileLoop, error) {
 	_, ok := p.expect(token.WHILE)
 	if !ok {
 		return nil, fmt.Errorf("expected 'while'")
@@ -1267,9 +1275,11 @@ func (p *Parser) parseWhileLoop() (*ast.WhileLoop, error) {
 		return nil, err
 	}
 
-	block, err := p.parseBlock()
+	whileScope := ast.NewScope(parentScope)
+	block, err := p.parseBlock(whileScope)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.WhileLoop{Cond: expr, Block: block}, nil
+
+	return &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}, nil
 }

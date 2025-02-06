@@ -7,11 +7,11 @@ fn main() i32 {
   if can_vote {
     other_bool := true;
     if other_bool {
-      libc.puts("Hey, it is true and other_bool as well!");
+      libc.puts("Hey, can_vote is true and other_bool as well!");
     }
-    libc.puts("Hey, it is true!");
+    libc.puts("Hey, can_vote is true!");
   } else {
-    libc.puts("Hey, it is NOT true!");
+    libc.puts("Hey, can_vote is NOT true!");
   }
   return 0;
 }
