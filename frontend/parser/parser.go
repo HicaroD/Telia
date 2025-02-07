@@ -916,7 +916,7 @@ VarDecl:
 		}
 	}
 
-	exprs, err := p.parseExprList([]token.Kind{token.SEMICOLON, token.CLOSE_PAREN})
+	exprs, err := p.parseExprList([]token.Kind{token.SEMICOLON, token.OPEN_CURLY})
 	if err != nil {
 		return nil, err
 	}
@@ -1282,12 +1282,6 @@ func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.ForLoop, error)
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
-	_, ok = parser.expect(token.OPEN_PAREN)
-	// TODO(errors): add proper error
-	if !ok {
-		return nil, fmt.Errorf("expected '('")
-	}
-
 	init, err := parser.parseVar(parentScope)
 	if err != nil {
 		return nil, err
@@ -1313,12 +1307,6 @@ func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.ForLoop, error)
 	update, err := parser.parseVar(parentScope)
 	if err != nil {
 		return nil, err
-	}
-
-	_, ok = parser.expect(token.CLOSE_PAREN)
-	// TODO(errors): add proper error
-	if !ok {
-		return nil, fmt.Errorf("expected ')'")
 	}
 
 	forScope := ast.NewScope(parentScope)

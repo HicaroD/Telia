@@ -3,7 +3,7 @@ extern libc {
 }
 
 fn main() i32 {
-  for(i := 0; i <= 10; i = i + 1) {
+  for i := 0; i <= 10; i = i + 1 {
     libc.puts("Hello, world");
   }
   return 0;

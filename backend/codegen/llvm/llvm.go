@@ -255,7 +255,10 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
-	protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
+
+	if attributes != nil {
+		protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
+	}
 
 	proto := NewFunctionValue(protoValue, ty, nil)
 	prototype.BackendType = proto

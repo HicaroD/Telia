@@ -10,6 +10,6 @@ fn print(message *u8) {
 }
 
 fn main() i32 {
-  print("Hello, world 😃");
+  libc.puts("Hello world");
   return 0;
 }
