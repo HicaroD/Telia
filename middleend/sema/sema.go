@@ -25,7 +25,7 @@ func (s *sema) Check(program *ast.Program) error {
 	return s.checkModule(program.Root)
 }
 
-func (s *sema) checkModule(module *ast.Module) error {
+func (s *sema) checkModule(module *ast.Package) error {
 	for _, file := range module.Files {
 		err := s.checkFile(file)
 		if err != nil {
@@ -55,6 +55,8 @@ func (s *sema) checkFile(file *ast.File) error {
 			if err != nil {
 				return err
 			}
+		case *ast.PkgDecl:
+			continue
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}

@@ -5,25 +5,26 @@ package ast
 // main contains an entrypoint
 
 type Program struct {
-	Root *Module
+	Root *Package
 }
 
 func (program Program) astNode() {}
 
-type Module struct {
+type Package struct {
 	Name    string
 	Files   []*File
-	Modules []*Module
+	Modules []*Package
 	Scope   *Scope
 	IsRoot  bool // If true, "Scope" represents the universe
 }
 
-func (module Module) astNode() {}
+func (module Package) astNode() {}
 
 type File struct {
-	Dir  string
-	Path string
-	Body []Node
+	Dir                string
+	Path               string
+	Body               []Node
+	PackageNameDefined bool
 }
 
 func (file File) astNode() {}

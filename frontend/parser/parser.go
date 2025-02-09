@@ -16,7 +16,9 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	moduleScope *ast.Scope // scope of current module being analyzed
+	pkgName     *ast.PkgDecl
+	isRootPkg   bool
+	moduleScope *ast.Scope
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -36,7 +38,7 @@ func (p *Parser) ParseModuleDir(dirName, path string) (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 
-	root := new(ast.Module)
+	root := new(ast.Package)
 	root.Name = dirName
 	root.Scope = universe
 	root.IsRoot = true
@@ -59,7 +61,7 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 		return nil, err
 	}
 
-	module := &ast.Module{
+	module := &ast.Package{
 		Name:   lex.ParentDirName,
 		Files:  []*ast.File{file},
 		Scope:  moduleScope,
@@ -72,43 +74,63 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
 	file := &ast.File{
-		Dir:  lex.ParentDirName,
-		Path: lex.Path,
+		Dir:                lex.ParentDirName,
+		Path:               lex.Path,
+		PackageNameDefined: false,
 	}
 
 	p.lex = lex
 	p.moduleScope = moduleScope
 
-	nodes, err := p.parseFileNodes()
+	err := p.parseFileNodes(file)
 	if err != nil {
 		return nil, err
 	}
-	file.Body = nodes
 
 	return file, nil
 }
 
-func (p *Parser) parseFileNodes() ([]ast.Node, error) {
+func (p *Parser) parseFileNodes(file *ast.File) error {
 	var nodes []ast.Node
+	firstNode := true
+
 	for {
 		node, eof, err := p.next()
 		if err != nil {
-			return nil, err
+			return err
 		}
+
 		if eof {
 			break
 		}
+
+		if _, ok := node.(*ast.PkgDecl); ok {
+			if !firstNode {
+				return fmt.Errorf("expected package declaration as first node")
+			}
+			if file.PackageNameDefined {
+				return fmt.Errorf("redeclaration of package name\n")
+			}
+			file.PackageNameDefined = true
+			firstNode = false
+		}
+
 		nodes = append(nodes, node)
 	}
-	return nodes, nil
+
+	file.Body = nodes
+	return nil
 }
 
-func (p *Parser) buildModuleTree(path string, module *ast.Module) error {
+func (p *Parser) buildModuleTree(path string, module *ast.Package) error {
 	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
 		switch {
 		case entry.IsDir():
 			childScope := ast.NewScope(module.Scope)
-			childModule := &ast.Module{Scope: childScope, IsRoot: false}
+
+			childModule := new(ast.Package)
+			childModule.Scope = childScope
+			childModule.IsRoot = false
 
 			module.Modules = append(module.Modules, childModule)
 
@@ -156,12 +178,15 @@ func (p *Parser) next() (ast.Node, bool, error) {
 		return nil, eof, nil
 	}
 	switch tok.Kind {
-	case token.FN:
-		fnDecl, err := p.parseFnDecl()
-		return fnDecl, eof, err
+	case token.PKG:
+		pkgDecl, err := p.parsePkgDecl()
+		return pkgDecl, eof, err
 	case token.EXTERN, token.SHARP:
 		externDecl, err := p.parseExternDecl()
 		return externDecl, eof, err
+	case token.FN:
+		fnDecl, err := p.parseFnDecl()
+		return fnDecl, eof, err
 	default:
 		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
@@ -376,13 +401,35 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	return externDecl, nil
 }
 
+func (p *Parser) parsePkgDecl() (ast.Node, error) {
+	pkg, ok := p.expect(token.PKG)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
+	}
+
+	name, ok := p.expect(token.ID)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected package name, not %s\n", name.Kind.String())
+	}
+
+	_, ok = p.expect(token.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected semicolon, not %s\n", name.Kind.String())
+	}
+
+	return &ast.PkgDecl{Name: name}, nil
+}
+
 func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	fn, ok := p.expect(token.FN)
 	if !ok {
 		pos := fn.Pos
 		expectedCloseCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
-				"%s:%d:%d: expected prototype or }, not %s",
+				"%s:%d:%d: expected prototype declaration or }, not %s",
 				pos.Filename,
 				pos.Line,
 				pos.Column,

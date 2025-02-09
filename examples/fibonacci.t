@@ -1,3 +1,5 @@
+pkg main;
+
 extern libc {
   fn printf(format *u8, ...) i32;
 }
@@ -11,7 +13,7 @@ fn fib(n int) int {
 
 fn main() i32 {
   n := 40;
-  for(i := 0; i < n; i = i + 1) {
+  for i := 0; i < n; i = i + 1  {
     result := fib(i);
     libc.printf("%d ", result);
   }

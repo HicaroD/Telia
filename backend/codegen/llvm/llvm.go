@@ -50,7 +50,7 @@ func (c *llvmCodegen) Generate() error {
 	return err
 }
 
-func (c *llvmCodegen) generateModule(module *ast.Module) {
+func (c *llvmCodegen) generateModule(module *ast.Package) {
 	for _, file := range module.Files {
 		c.generateFile(file)
 	}
@@ -66,6 +66,8 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 			c.generateFnDecl(n)
 		case *ast.ExternDecl:
 			c.generateExternDecl(n)
+		case *ast.PkgDecl:
+			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
