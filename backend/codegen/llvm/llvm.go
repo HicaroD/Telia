@@ -368,6 +368,7 @@ func (c *llvmCodegen) getExpr(
 		case *ast.VarStmt:
 			variable := symbol.(*ast.VarStmt)
 			localVar = variable.BackendType.(*Variable)
+			fmt.Println(localVar)
 		case *ast.Field:
 			variable := symbol.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
@@ -390,6 +391,8 @@ func (c *llvmCodegen) getExpr(
 			// for code reability
 			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
 			return c.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq")
+		case token.BANG_EQUAL:
+			return c.builder.CreateICmp(llvm.IntNE, lhs, rhs, ".cmpneq")
 		case token.STAR:
 			return c.builder.CreateMul(lhs, rhs, ".mul")
 		case token.MINUS:
@@ -418,8 +421,11 @@ func (c *llvmCodegen) getExpr(
 		default:
 			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
 		}
+	case *ast.FieldAccess:
+		value := c.generateFieldAccessStmt(currentExpr, scope)
+		return value
 	default:
-		log.Fatalf("unimplemented expr: %s", expr)
+		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 	}
 
 	// NOTE: this line should be unreachable
@@ -476,25 +482,15 @@ func (c *llvmCodegen) generateCondStmt(
 func (c *llvmCodegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
 	scope *ast.Scope,
-) {
+) llvm.Value {
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
 	symbol, _ := scope.LookupAcrossScopes(id)
 
-	switch left := symbol.(type) {
-	case *ast.ExternDecl:
-		switch right := fieldAccess.Right.(type) {
-		case *ast.FunctionCall:
-			c.generatePrototypeCall(left, right, scope)
-		default:
-			// TODO(errors)
-			log.Fatalf("unimplemented %s on field access statement", right)
-		}
-	default:
-		// TODO(errors)
-		log.Fatalf("unimplemented %s on extern", left)
-	}
+	left := symbol.(*ast.ExternDecl)
+	right := fieldAccess.Right.(*ast.FunctionCall)
+	return c.generatePrototypeCall(left, right, scope)
 }
 
 func (c *llvmCodegen) generatePrototypeCall(

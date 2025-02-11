@@ -123,7 +123,7 @@ func (sema *sema) checkStmt(
 		_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
 		return err
 	case *ast.FieldAccess:
-		err := sema.checkFieldAccessExpr(statement, scope)
+		_, err := sema.checkFieldAccessExpr(statement, scope)
 		return err
 	case *ast.ForLoop:
 		err := sema.checkForLoop(statement, scope, returnTy)
@@ -691,6 +691,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, true, nil
+	case *ast.FieldAccess:
+		proto, err := sema.checkFieldAccessExpr(expression, scope)
+		return proto.RetType, true, err
 	default:
 		log.Fatalf("unimplemented expression on sema: %s", reflect.TypeOf(expression))
 	}
@@ -790,9 +793,9 @@ func (sema *sema) inferIntegerType(value []byte) (ast.ExprType, error) {
 func (sema *sema) checkFieldAccessExpr(
 	fieldAccess *ast.FieldAccess,
 	currentScope *ast.Scope,
-) error {
+) (*ast.Proto, error) {
 	if !fieldAccess.Left.IsId() {
-		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
+		return nil, fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
 	}
 
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
@@ -812,9 +815,9 @@ func (sema *sema) checkFieldAccessExpr(
 				),
 			}
 			sema.collector.ReportAndSave(symbolNotDefined)
-			return diagnostics.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		return err
+		return nil, err
 	}
 
 	switch sym := symbol.(type) {
@@ -823,14 +826,20 @@ func (sema *sema) checkFieldAccessExpr(
 		case *ast.FunctionCall:
 			err := sema.checkPrototypeCall(right, currentScope, sym)
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			proto, err := sym.Scope.LookupCurrentScope(right.Name.Name())
+			if err != nil {
+				return nil, err
+			}
+			return proto.(*ast.Proto), nil
 		default:
 			// TODO(errors)
-			return fmt.Errorf("invalid expression %s when accessing field", right)
+			return nil, fmt.Errorf("invalid expression %s when accessing field", right)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (sema *sema) checkPrototypeCall(
