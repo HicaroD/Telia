@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/HicaroD/Telia/diagnostics"
-	"github.com/HicaroD/Telia/frontend/ast"
-	"github.com/HicaroD/Telia/frontend/lexer"
-	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/frontend/ast"
+	"github.com/HicaroD/Telia/internal/frontend/lexer"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 )
 
 type Parser struct {

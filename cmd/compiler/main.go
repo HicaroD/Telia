@@ -3,12 +3,12 @@ package main
 import (
 	"log"
 
-	"github.com/HicaroD/Telia/backend/codegen/llvm"
-	"github.com/HicaroD/Telia/diagnostics"
-	"github.com/HicaroD/Telia/frontend/ast"
-	"github.com/HicaroD/Telia/frontend/lexer"
-	"github.com/HicaroD/Telia/frontend/parser"
-	"github.com/HicaroD/Telia/middleend/sema"
+	"github.com/HicaroD/Telia/internal/backend/codegen/llvm"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/frontend/ast"
+	"github.com/HicaroD/Telia/internal/frontend/lexer"
+	"github.com/HicaroD/Telia/internal/frontend/parser"
+	"github.com/HicaroD/Telia/internal/middleend/sema"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 )
 
 type Field struct {
