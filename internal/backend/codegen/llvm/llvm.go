@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/HicaroD/Telia/frontend/ast"
-	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/frontend/ast"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 	"tinygo.org/x/go-llvm"
 )
 
@@ -50,11 +50,11 @@ func (c *llvmCodegen) Generate() error {
 	return err
 }
 
-func (c *llvmCodegen) generateModule(module *ast.Module) {
+func (c *llvmCodegen) generateModule(module *ast.Package) {
 	for _, file := range module.Files {
 		c.generateFile(file)
 	}
-	for _, module := range module.Modules {
+	for _, module := range module.Packages {
 		c.generateModule(module)
 	}
 }
@@ -66,6 +66,8 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 			c.generateFnDecl(n)
 		case *ast.ExternDecl:
 			c.generateExternDecl(n)
+		case *ast.PkgDecl:
+			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
@@ -73,8 +75,10 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 }
 
 func (c *llvmCodegen) generateExecutable() error {
+	// TODO: implement the full path process in order to have more control
+	// about optimizations, linking and more
+
 	module := c.module.String()
-	// fmt.Println(module)
 
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
@@ -366,6 +370,7 @@ func (c *llvmCodegen) getExpr(
 		case *ast.VarStmt:
 			variable := symbol.(*ast.VarStmt)
 			localVar = variable.BackendType.(*Variable)
+			fmt.Println(localVar)
 		case *ast.Field:
 			variable := symbol.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
@@ -388,6 +393,8 @@ func (c *llvmCodegen) getExpr(
 			// for code reability
 			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
 			return c.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq")
+		case token.BANG_EQUAL:
+			return c.builder.CreateICmp(llvm.IntNE, lhs, rhs, ".cmpneq")
 		case token.STAR:
 			return c.builder.CreateMul(lhs, rhs, ".mul")
 		case token.MINUS:
@@ -416,8 +423,11 @@ func (c *llvmCodegen) getExpr(
 		default:
 			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
 		}
+	case *ast.FieldAccess:
+		value := c.generateFieldAccessStmt(currentExpr, scope)
+		return value
 	default:
-		log.Fatalf("unimplemented expr: %s", expr)
+		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 	}
 
 	// NOTE: this line should be unreachable
@@ -474,25 +484,15 @@ func (c *llvmCodegen) generateCondStmt(
 func (c *llvmCodegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
 	scope *ast.Scope,
-) {
+) llvm.Value {
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
 	symbol, _ := scope.LookupAcrossScopes(id)
 
-	switch left := symbol.(type) {
-	case *ast.ExternDecl:
-		switch right := fieldAccess.Right.(type) {
-		case *ast.FunctionCall:
-			c.generatePrototypeCall(left, right, scope)
-		default:
-			// TODO(errors)
-			log.Fatalf("unimplemented %s on field access statement", right)
-		}
-	default:
-		// TODO(errors)
-		log.Fatalf("unimplemented %s on extern", left)
-	}
+	left := symbol.(*ast.ExternDecl)
+	right := fieldAccess.Right.(*ast.FunctionCall)
+	return c.generatePrototypeCall(left, right, scope)
 }
 
 func (c *llvmCodegen) generatePrototypeCall(

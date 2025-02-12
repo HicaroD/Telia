@@ -27,6 +27,7 @@ const (
 	WHILE
 	RETURN
 	EXTERN
+	PKG
 	IF
 	ELIF
 	ELSE
@@ -118,6 +119,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"while":  WHILE,
 	"return": RETURN,
 	"extern": EXTERN,
+	"pkg":    PKG,
 	"if":     IF,
 	"elif":   ELIF,
 	"else":   ELSE,
@@ -239,6 +241,8 @@ func (kind Kind) String() string {
 		return "return"
 	case EXTERN:
 		return "extern"
+	case PKG:
+		return "pkg"
 	case IF:
 		return "if"
 	case ELIF:

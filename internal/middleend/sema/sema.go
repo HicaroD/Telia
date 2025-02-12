@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/HicaroD/Telia/diagnostics"
-	"github.com/HicaroD/Telia/frontend/ast"
-	"github.com/HicaroD/Telia/frontend/lexer"
-	"github.com/HicaroD/Telia/frontend/lexer/token"
-	"github.com/HicaroD/Telia/frontend/parser"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/frontend/ast"
+	"github.com/HicaroD/Telia/internal/frontend/lexer"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/frontend/parser"
 )
 
 type sema struct {
@@ -25,7 +25,7 @@ func (s *sema) Check(program *ast.Program) error {
 	return s.checkModule(program.Root)
 }
 
-func (s *sema) checkModule(module *ast.Module) error {
+func (s *sema) checkModule(module *ast.Package) error {
 	for _, file := range module.Files {
 		err := s.checkFile(file)
 		if err != nil {
@@ -33,8 +33,8 @@ func (s *sema) checkModule(module *ast.Module) error {
 		}
 	}
 
-	for _, innerModules := range module.Modules {
-		err := s.checkModule(innerModules)
+	for _, innerPackage := range module.Packages {
+		err := s.checkModule(innerPackage)
 		if err != nil {
 			return err
 		}
@@ -55,6 +55,8 @@ func (s *sema) checkFile(file *ast.File) error {
 			if err != nil {
 				return err
 			}
+		case *ast.PkgDecl:
+			continue
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
@@ -121,7 +123,7 @@ func (sema *sema) checkStmt(
 		_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
 		return err
 	case *ast.FieldAccess:
-		err := sema.checkFieldAccessExpr(statement, scope)
+		_, err := sema.checkFieldAccessExpr(statement, scope)
 		return err
 	case *ast.ForLoop:
 		err := sema.checkForLoop(statement, scope, returnTy)
@@ -689,6 +691,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 		}
 		functionDecl := function.(*ast.FunctionDecl)
 		return functionDecl.RetType, true, nil
+	case *ast.FieldAccess:
+		proto, err := sema.checkFieldAccessExpr(expression, scope)
+		return proto.RetType, true, err
 	default:
 		log.Fatalf("unimplemented expression on sema: %s", reflect.TypeOf(expression))
 	}
@@ -788,9 +793,9 @@ func (sema *sema) inferIntegerType(value []byte) (ast.ExprType, error) {
 func (sema *sema) checkFieldAccessExpr(
 	fieldAccess *ast.FieldAccess,
 	currentScope *ast.Scope,
-) error {
+) (*ast.Proto, error) {
 	if !fieldAccess.Left.IsId() {
-		return fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
+		return nil, fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
 	}
 
 	idExpr := fieldAccess.Left.(*ast.IdExpr)
@@ -810,9 +815,9 @@ func (sema *sema) checkFieldAccessExpr(
 				),
 			}
 			sema.collector.ReportAndSave(symbolNotDefined)
-			return diagnostics.COMPILER_ERROR_FOUND
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		return err
+		return nil, err
 	}
 
 	switch sym := symbol.(type) {
@@ -821,14 +826,20 @@ func (sema *sema) checkFieldAccessExpr(
 		case *ast.FunctionCall:
 			err := sema.checkPrototypeCall(right, currentScope, sym)
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			proto, err := sym.Scope.LookupCurrentScope(right.Name.Name())
+			if err != nil {
+				return nil, err
+			}
+			return proto.(*ast.Proto), nil
 		default:
 			// TODO(errors)
-			return fmt.Errorf("invalid expression %s when accessing field", right)
+			return nil, fmt.Errorf("invalid expression %s when accessing field", right)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (sema *sema) checkPrototypeCall(

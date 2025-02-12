@@ -3,7 +3,7 @@ package ast
 import (
 	"fmt"
 
-	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 )
 
 type Decl interface {
@@ -68,3 +68,10 @@ type ExternAttrs struct {
 	LinkName                 string
 	Linkage                  string
 }
+
+type PkgDecl struct {
+	Name *token.Token
+}
+
+func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
+func (pkg PkgDecl) astNode()       {}

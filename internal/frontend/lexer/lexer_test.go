@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/HicaroD/Telia/diagnostics"
-	"github.com/HicaroD/Telia/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 )
 
 type tokenKindTest struct {
