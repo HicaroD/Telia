@@ -54,7 +54,7 @@ func (c *llvmCodegen) generateModule(module *ast.Package) {
 	for _, file := range module.Files {
 		c.generateFile(file)
 	}
-	for _, module := range module.Modules {
+	for _, module := range module.Packages {
 		c.generateModule(module)
 	}
 }
@@ -75,8 +75,10 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 }
 
 func (c *llvmCodegen) generateExecutable() error {
+	// TODO: implement the full path process in order to have more control
+	// about optimizations, linking and more
+
 	module := c.module.String()
-	// fmt.Println(module)
 
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)

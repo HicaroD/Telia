@@ -105,16 +105,14 @@ func (p *Parser) parseFileNodes(file *ast.File) error {
 		}
 
 		if _, ok := node.(*ast.PkgDecl); ok {
-			if !firstNode {
-				return fmt.Errorf("expected package declaration as first node")
-			}
 			if file.PackageNameDefined {
 				return fmt.Errorf("redeclaration of package name\n")
 			}
 			file.PackageNameDefined = true
-			firstNode = false
+		} else if firstNode {
+			return fmt.Errorf("expected package declaration as first node")
 		}
-
+		firstNode = false
 		nodes = append(nodes, node)
 	}
 
@@ -129,10 +127,11 @@ func (p *Parser) buildModuleTree(path string, module *ast.Package) error {
 			childScope := ast.NewScope(module.Scope)
 
 			childModule := new(ast.Package)
+			childModule.Name = filepath.Base(fullPath)
 			childModule.Scope = childScope
 			childModule.IsRoot = false
 
-			module.Modules = append(module.Modules, childModule)
+			module.Packages = append(module.Packages, childModule)
 
 			return p.buildModuleTree(fullPath, childModule)
 		case filepath.Ext(entry.Name()) == ".t":

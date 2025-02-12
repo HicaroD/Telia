@@ -33,8 +33,8 @@ func (s *sema) checkModule(module *ast.Package) error {
 		}
 	}
 
-	for _, innerModules := range module.Modules {
-		err := s.checkModule(innerModules)
+	for _, innerPackage := range module.Packages {
+		err := s.checkModule(innerPackage)
 		if err != nil {
 			return err
 		}

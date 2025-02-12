@@ -11,11 +11,11 @@ type Program struct {
 func (program Program) astNode() {}
 
 type Package struct {
-	Name    string
-	Files   []*File
-	Modules []*Package
-	Scope   *Scope
-	IsRoot  bool // If true, "Scope" represents the universe
+	Name     string
+	Files    []*File
+	Packages []*Package
+	Scope    *Scope
+	IsRoot   bool // If true, "Scope" represents the universe
 }
 
 func (module Package) astNode() {}

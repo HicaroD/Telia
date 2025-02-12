@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,7 +52,11 @@ func cli() CliResult {
 
 		result.Path = path
 		result.IsModuleBuild = info.Mode().IsDir()
-		result.ParentDirName = filepath.Base(filepath.Dir(path))
+		if result.IsModuleBuild {
+			result.ParentDirName = filepath.Base(path)
+		} else {
+			result.ParentDirName = filepath.Base(filepath.Dir(path))
+		}
 	default:
 		log.Fatal("TODO: show help - list of commands")
 	}
