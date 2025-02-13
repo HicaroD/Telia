@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/HicaroD/Telia/internal/config"
 )
 
 type Command int
@@ -19,14 +21,16 @@ type CliResult struct {
 	IsModuleBuild bool   // true if 'Command' is build and 'Path' is directory
 	ParentDirName string // name of parent dir
 	Path          string // path to directory / file (treated as module)
+
+	BuildType config.BuildType
 }
 
-func cli() CliResult {
+func cli() (CliResult, error) {
 	result := CliResult{}
 
 	args := os.Args[1:]
 	if len(args) == 0 {
-		log.Fatal("TODO: show help - list of commands")
+		return result, fmt.Errorf("TODO: show help")
 	}
 
 	command := args[0]
@@ -58,8 +62,27 @@ func cli() CliResult {
 			result.ParentDirName = filepath.Base(filepath.Dir(path))
 		}
 	default:
-		log.Fatal("TODO: show help - list of commands")
+		return result, fmt.Errorf("TODO: show help")
 	}
 
-	return result
+	releaseBuild, debugBuild := false, false
+	for _, arg := range args[1:] {
+		switch arg {
+		case "-release":
+			releaseBuild = true
+			result.BuildType = config.RELEASE
+		case "-debug":
+			debugBuild = true
+			result.BuildType = config.DEBUG
+		}
+	}
+
+	if releaseBuild && debugBuild {
+		return result, fmt.Errorf("choose either -release or -build, not both")
+	}
+	if !releaseBuild && !debugBuild {
+		result.BuildType = config.DEBUG
+	}
+
+	return result, nil
 }

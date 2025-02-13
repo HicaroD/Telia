@@ -1,15 +1,18 @@
 package llvm
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/frontend/ast"
 	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
 	"tinygo.org/x/go-llvm"
@@ -44,9 +47,9 @@ func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 	}
 }
 
-func (c *llvmCodegen) Generate() error {
+func (c *llvmCodegen) Generate(buildType config.BuildType) error {
 	c.generateModule(c.program.Root)
-	err := c.generateExecutable()
+	err := c.generateExecutable(buildType)
 	return err
 }
 
@@ -74,21 +77,93 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 	}
 }
 
-func (c *llvmCodegen) generateExecutable() error {
-	// TODO: implement the full path process in order to have more control
-	// about optimizations, linking and more
+func (c *llvmCodegen) exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+
+}
+
+func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
+	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
+
+	dirName := "__build__"
+	exists, err := c.exists(dirName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		err := os.RemoveAll(dirName)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = os.Mkdir(dirName, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	irFileName := filepath.Join(dirName, c.program.Root.Name)
+	irFilepath := irFileName + ".ll"
+	optimizedIrFilepath := irFileName + "_optimized.ll"
+	fmt.Println(irFileName, irFilepath)
+
+	irFile, err := os.Create(irFilepath)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	defer irFile.Close()
 
 	module := c.module.String()
+	_, err = irFile.WriteString(module)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
 
-	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
-	cmd := exec.Command("clang", "-O3", "-Wall", "-x", "ir", "-", "-o", filenameNoExt)
-	cmd.Stdin = bytes.NewReader([]byte(module))
+	// TODO: ask user for optimization level (debug or release)
+	optLevel := ""
+	if buildType == config.RELEASE {
+		optLevel = "-O3"
+	} else if buildType == config.DEBUG {
+		optLevel = "-O0"
+	} else {
+		panic("invalid build type: " + buildType.String())
+	}
 
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	fmt.Println(buildType.String())
+	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	err = cmd.Run()
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
 
-	return err
+	// // TODO: ask user for optimization level
+	cmd = exec.Command("clang", optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	err = cmd.Run()
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+
+	if config.DEBUG_MODE {
+		fmt.Println("[DEBUG MODE] not removing build directory")
+	} else {
+		err = os.RemoveAll(dirName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FunctionDecl) {

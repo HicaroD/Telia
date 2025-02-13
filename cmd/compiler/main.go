@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/HicaroD/Telia/internal/backend/codegen/llvm"
@@ -12,7 +13,11 @@ import (
 )
 
 func main() {
-	args := cli()
+	args, err := cli()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	switch args.Command {
 	case COMMAND_BUILD:
@@ -43,7 +48,7 @@ func main() {
 		// Currently I only have one type of back-end, but, in the future, I
 		// could have more
 		codegen := llvm.NewCG(args.ParentDirName, args.Path, program)
-		err = codegen.Generate()
+		err = codegen.Generate(args.BuildType)
 		// TODO(errors)
 		if err != nil {
 			log.Fatal(err)
