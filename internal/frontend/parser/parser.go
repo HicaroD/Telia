@@ -552,13 +552,13 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 }
 
 // Useful for testing
-func parseFnDeclFrom(filename, input string, moduleScope *ast.Scope) (*ast.FunctionDecl, error) {
+func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FunctionDecl, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
 	lexer := lexer.New(filename, src, collector)
 	parser := NewWithLex(lexer, collector)
-	parser.moduleScope = moduleScope
+	parser.moduleScope = scope
 
 	fnDecl, err := parser.parseFnDecl()
 	if err != nil {
