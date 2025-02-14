@@ -428,6 +428,7 @@ func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	}
 
 	if !inferedExprType.IsBoolean() {
+		// TODO(errors)
 		log.Fatalf("invalid non-boolean condition on if statement: %s", inferedExprType)
 	}
 
@@ -467,6 +468,7 @@ func (sema *sema) inferExprTypeWithContext(
 					expression.Type = finalTy
 					return finalTy, nil
 				default:
+					// TODO(errors)
 					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
 				}
 			case token.TRUE_BOOL_LITERAL:
@@ -480,9 +482,11 @@ func (sema *sema) inferExprTypeWithContext(
 				expression.Value = []byte("0")
 				return finalTy, nil
 			default:
+				// TODO(errors)
 				log.Fatalf("unimplemented basic type kind: %s", ty.Kind)
 			}
 		default:
+			// TODO(errors)
 			log.Fatalf("unimplemented literal expr type on inferExprTypeWithContext: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
@@ -496,8 +500,8 @@ func (sema *sema) inferExprTypeWithContext(
 			return symTy.Type, nil
 		case *ast.Field:
 			return symTy.Type, nil
-		// TODO(errors)
 		default:
+			// TODO(errors)
 			log.Fatalf("expected to be a variable or parameter, but got %s", reflect.TypeOf(symTy))
 		}
 	case *ast.BinaryExpr:
@@ -535,6 +539,7 @@ func (sema *sema) inferExprTypeWithContext(
 			}
 			return unaryExprType, nil
 		default:
+			// TODO(errors)
 			log.Fatalf("unimplemented unary expr operator: %s", reflect.TypeOf(expression.Op))
 		}
 	default:
@@ -621,9 +626,11 @@ func (sema *sema) inferExprTypeWithoutContext(
 				expression.Value = []byte("0")
 				return finalTy, false, nil
 			default:
+				// TODO(errors)
 				log.Fatalf("unimplemented literal expr: %s", expression)
 			}
 		default:
+			// TODO(errors)
 			log.Fatalf("unimplemented literal expr type: %s", reflect.TypeOf(ty))
 		}
 	case *ast.IdExpr:
@@ -659,6 +666,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 						return integerType, false, nil
 					}
 				default:
+					// TODO(errors)
 					log.Fatalf("unimplemented unary expr type: %s", unaryExpr)
 				}
 			}
@@ -691,6 +699,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		// At this point, function should exists!
 		function, err := scope.LookupAcrossScopes(expression.Name.Name())
 		if err != nil {
+			// TODO(errors)
 			log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
 		}
 		functionDecl := function.(*ast.FunctionDecl)
@@ -699,6 +708,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		proto, err := sema.checkFieldAccessExpr(expression, scope)
 		return proto.RetType, true, err
 	default:
+		// TODO(errors)
 		log.Fatalf("unimplemented expression on sema: %s", reflect.TypeOf(expression))
 	}
 	// TODO(errors)
@@ -741,6 +751,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		lhsType = lhsTypeWithContext
 	}
 
+	// TODO(errors)
 	if !reflect.DeepEqual(lhsType, rhsType) {
 		log.Fatalf("mismatched types: %s %s %s", lhsType, expression.Op, rhsType)
 	}
@@ -755,7 +766,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 			return &ast.BasicType{Kind: token.BOOL_TYPE}, lhsFoundContext || rhsFoundContext, nil
 		}
 	}
-	// TODO
+	// TODO(errors)
 	log.Fatalf("UNREACHABLE - inferBinaryExprType")
 	return nil, false, nil
 }
@@ -898,6 +909,7 @@ func (sema *sema) checkPrototypeCall(
 			}
 		} else {
 			if len(prototypeCall.Args) != len(proto.Params.Fields) {
+				// TODO(errors)
 				log.Fatalf("expected %d arguments, but got %d", len(proto.Params.Fields), len(prototypeCall.Args))
 			}
 			for i := range len(prototypeCall.Args) {
