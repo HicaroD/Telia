@@ -35,6 +35,9 @@ func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 	module := context.NewModule(parentDirName)
 	builder := context.NewBuilder()
 
+	defaultTargetTriple := llvm.DefaultTargetTriple()
+	module.SetTarget(defaultTargetTriple)
+
 	return &llvmCodegen{
 		path:    path,
 		program: program,
@@ -236,6 +239,7 @@ func (c *llvmCodegen) generateReturnStmt(
 		return
 	}
 	returnValue := c.getExpr(ret.Value, scope)
+	// TODO: learn more about noundef for return values
 	c.builder.CreateRet(returnValue)
 }
 
@@ -300,6 +304,7 @@ func (c *llvmCodegen) generateParameters(
 	functionNode *ast.FunctionDecl,
 	paramsTypes []llvm.Type,
 ) {
+	// TODO: learn more about noundef parameter attribute
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		paramType := paramsTypes[i]
 		paramPtr := c.builder.CreateAlloca(paramType, ".param")
