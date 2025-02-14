@@ -49,12 +49,17 @@ func (extern ExternDecl) String() string {
 func (extern ExternDecl) astNode()  {}
 func (extern ExternDecl) declNode() {}
 
-// NOTE: Proto implementing AstNode is temporary
+// TODO: add attribute for prototype, such as link_name and linkage type
+type ProtoAttrs struct {
+	LinkName string
+	Linkage  string
+}
+
 type Proto struct {
-	Node
-	Name    *token.Token
-	Params  *FieldList
-	RetType ExprType
+	Attributes *ProtoAttrs
+	Name       *token.Token
+	Params     *FieldList
+	RetType    ExprType
 
 	BackendType any // LLVM: *values.Function
 }
@@ -66,7 +71,6 @@ type ExternAttrs struct {
 	DefaultCallingConvention string
 	LinkPrefix               string
 	LinkName                 string
-	Linkage                  string
 }
 
 type PkgDecl struct {

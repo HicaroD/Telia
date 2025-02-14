@@ -1,7 +1,7 @@
 pkg main;
 
 extern libc {
-  fn puts(format *u8) i32;
+  #[link_name="puts"] fn puts(format *u8) i32;
 }
 
 fn main() i32 {

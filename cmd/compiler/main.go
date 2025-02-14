@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/HicaroD/Telia/internal/backend/codegen/llvm"
@@ -15,8 +14,7 @@ import (
 func main() {
 	args, err := cli()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	switch args.Command {

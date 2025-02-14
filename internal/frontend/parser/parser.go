@@ -250,8 +250,6 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 			attributes.LinkPrefix = attributeValue.Name()
 		case "link_name":
 			attributes.LinkName = attributeValue.Name()
-		case "linkage":
-			attributes.Linkage = attributeValue.Name()
 		}
 
 		if p.lex.NextIs(token.CLOSE_BRACKET) {
@@ -421,6 +419,17 @@ func (p *Parser) parsePkgDecl() (ast.Node, error) {
 }
 
 func (p *Parser) parsePrototype() (*ast.Proto, error) {
+	prototype := new(ast.Proto)
+
+	if p.lex.NextIs(token.SHARP) {
+		attributes, err := p.parseProtoAttribute()
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+		prototype.Attributes = attributes
+	}
+
 	fn, ok := p.expect(token.FN)
 	if !ok {
 		pos := fn.Pos
@@ -452,16 +461,19 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 		p.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+	prototype.Name = name
 
 	params, err := p.parseFunctionParams(name, nil, true)
 	if err != nil {
 		return nil, err
 	}
+	prototype.Params = params
 
 	returnType, err := p.parseReturnType( /*isPrototype=*/ true)
 	if err != nil {
 		return nil, err
 	}
+	prototype.RetType = returnType
 
 	semicolon, ok := p.expect(token.SEMICOLON)
 	if !ok {
@@ -479,7 +491,60 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	return &ast.Proto{Name: name, Params: params, RetType: returnType}, nil
+	return prototype, nil
+}
+
+func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
+	attributes := new(ast.ProtoAttrs)
+
+	_, ok := p.expect(token.SHARP)
+	if !ok {
+		return nil, fmt.Errorf("expected '#'")
+	}
+
+	_, ok = p.expect(token.OPEN_BRACKET)
+	if !ok {
+		return nil, fmt.Errorf("expected '['")
+	}
+
+	for {
+		attribute, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected identifier")
+		}
+
+		_, ok = p.expect(token.EQUAL)
+		if !ok {
+			return nil, fmt.Errorf("expected '='")
+		}
+
+		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		if !ok {
+			return nil, fmt.Errorf("expected string literal")
+		}
+
+		switch attribute.Name() {
+		case "linkage":
+			attributes.Linkage = attributeValue.Name()
+		case "link_name":
+			attributes.LinkName = attributeValue.Name()
+		}
+
+		if p.lex.NextIs(token.CLOSE_BRACKET) {
+			break
+		}
+
+		if !p.lex.NextIs(token.COMMA) {
+			return nil, fmt.Errorf("expected either comma or closing bracket")
+		}
+	}
+
+	_, ok = p.expect(token.CLOSE_BRACKET)
+	if !ok {
+		return nil, fmt.Errorf("expected ']'")
+	}
+
+	return attributes, nil
 }
 
 func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
@@ -978,7 +1043,7 @@ VarDecl:
 			// TODO(errors)
 			if err != nil {
 				if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-					return nil, fmt.Errorf("'%s' already exists on the current scope", variables[i].Name.Name())
+					return nil, fmt.Errorf("'%s' already declared in the current block", variables[i].Name.Name())
 				}
 			}
 			err = parentScope.Insert(variables[i].Name.Name(), variables[i])
@@ -992,7 +1057,7 @@ VarDecl:
 				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
 					name := variables[i].Name.Name()
 					pos := variables[i].Name.Pos
-					return nil, fmt.Errorf("%s '%s' does not exists on the current scope", pos, name)
+					return nil, fmt.Errorf("%s '%s' not declared in the current block", pos, name)
 				}
 			}
 		}

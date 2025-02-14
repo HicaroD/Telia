@@ -343,14 +343,37 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if attributes != nil {
-		protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
+		protoValue.SetFunctionCallConv(c.getDefaultCC(attributes.DefaultCallingConvention))
+	}
+
+	if prototype.Attributes != nil {
+		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 
 	proto := NewFunctionValue(protoValue, ty, nil)
 	prototype.BackendType = proto
 }
 
-func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm.CallConv {
+func (c *llvmCodegen) getFunctionLinkage(linkage string) llvm.Linkage {
+	switch linkage {
+	case "internal":
+		return llvm.InternalLinkage
+	// NOTE: there are several types of weak linkages
+	// Make sure to choose the perfect match
+	case "weak":
+		return llvm.WeakAnyLinkage
+	// NOTE: there are several types of link once linkage
+	// Makesure to choose the perfect match
+	case "link_once":
+		return llvm.LinkOnceAnyLinkage
+	case "external":
+	default:
+		return llvm.ExternalLinkage
+	}
+	return 500
+}
+
+func (c *llvmCodegen) getDefaultCC(callingConvention string) llvm.CallConv {
 	// TODO: define other types of calling conventions
 	switch callingConvention {
 	case "c":
@@ -360,7 +383,7 @@ func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm
 	case "cold":
 		return llvm.ColdCallConv
 	}
-	return 500 // in case of invalid calling conventions
+	return 500
 }
 
 func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
