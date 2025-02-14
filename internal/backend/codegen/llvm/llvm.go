@@ -128,17 +128,20 @@ func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
 		return err
 	}
 
-	// TODO: ask user for optimization level (debug or release)
 	optLevel := ""
+	// TODO: if release, get rid of debug symbols, not needed
+	compilerFlags := ""
+
 	if buildType == config.RELEASE {
 		optLevel = "-O3"
+		// note: remove symbol and debug information
+		compilerFlags = "-Wl,-s"
 	} else if buildType == config.DEBUG {
 		optLevel = "-O0"
 	} else {
 		panic("invalid build type: " + buildType.String())
 	}
 
-	fmt.Println(buildType.String())
 	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
 	err = cmd.Run()
 	// TODO(errors)
@@ -147,7 +150,7 @@ func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
 	}
 
 	// // TODO: ask user for optimization level
-	cmd = exec.Command("clang", optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	cmd = exec.Command("clang", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -155,7 +158,7 @@ func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
 	}
 
 	if config.DEBUG_MODE {
-		fmt.Println("[DEBUG MODE] not removing build directory")
+		fmt.Println("[DEBUG MODE] keeping __build__ directory")
 	} else {
 		err = os.RemoveAll(dirName)
 		if err != nil {
@@ -344,9 +347,14 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *
 }
 
 func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm.CallConv {
+	// TODO: define other types of calling conventions
 	switch callingConvention {
 	case "c":
 		return llvm.CCallConv
+	case "fast":
+		return llvm.FastCallConv
+	case "cold":
+		return llvm.ColdCallConv
 	}
 	return 500 // in case of invalid calling conventions
 }
