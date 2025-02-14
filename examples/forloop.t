@@ -1,3 +1,5 @@
+pkg main;
+
 extern libc {
   fn puts(format *u8) i32;
 }

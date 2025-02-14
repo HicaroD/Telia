@@ -1,3 +1,5 @@
+pkg main;
+
 extern libc {
   fn printf(format *u8, ...) i32;
 }
