@@ -112,7 +112,6 @@ func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
 	irFileName := filepath.Join(dirName, c.program.Root.Name)
 	irFilepath := irFileName + ".ll"
 	optimizedIrFilepath := irFileName + "_optimized.ll"
-	fmt.Println(irFileName, irFilepath)
 
 	irFile, err := os.Create(irFilepath)
 	// TODO(errors)
@@ -453,7 +452,6 @@ func (c *llvmCodegen) getExpr(
 		case *ast.VarStmt:
 			variable := symbol.(*ast.VarStmt)
 			localVar = variable.BackendType.(*Variable)
-			fmt.Println(localVar)
 		case *ast.Field:
 			variable := symbol.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)

@@ -158,71 +158,79 @@ func (sema *sema) checkMultiVar(
 ) error {
 	// TODO: refactor this code
 	// It is pretty repetitive, but I need tests before refactoring
-	if multi.IsDecl {
-		allVariablesDefined := true
-		for i := range multi.Variables {
-			_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
-			if err != nil {
-				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-					allVariablesDefined = false
-					break
-				}
-				return err
-			}
-			multi.Variables[i].Decl = false
-		}
-		if allVariablesDefined {
-			firstVariable := multi.Variables[0]
-			pos := firstVariable.Name.Pos
-			// TODO: give user a hint for consider using = instead of :=
-			noNewVariablesDeclared := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: no new variables declared",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-				),
-			}
-			sema.collector.ReportAndSave(noNewVariablesDeclared)
-			return diagnostics.COMPILER_ERROR_FOUND
-		}
-	} else {
-		allVariablesDefined := true
 
-		var undefinedVar *ast.VarStmt
-		for i := range multi.Variables {
-			_, err := currentScope.LookupAcrossScopes(multi.Variables[i].Name.Name())
-			if err != nil {
-				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-					allVariablesDefined = false
-					undefinedVar = multi.Variables[i]
-					break
-				}
-				return err
-			}
-		}
-		if !allVariablesDefined {
-			if undefinedVar == nil {
-				log.Fatal("panic: variable at non decl is nil, but it should never be")
-			}
-			pos := undefinedVar.Name.Pos
-			notDeclared := diagnostics.Diag{
-				Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
-			}
-			sema.collector.ReportAndSave(notDeclared)
-			return diagnostics.COMPILER_ERROR_FOUND
-		}
-	}
+	// if multi.IsDecl {
+	// 	allVariablesDefined := true
+	// 	for i := range multi.Variables {
+	// 		_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
+	// 		if err != nil {
+	// 			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+	// 				allVariablesDefined = false
+	// 				break
+	// 			}
+	// 			return err
+	// 		}
+	// 		multi.Variables[i].Decl = false
+	// 	}
+	// 	if allVariablesDefined {
+	// 		firstVariable := multi.Variables[0]
+	// 		pos := firstVariable.Name.Pos
+	// 		// TODO: give user a hint for consider using = instead of :=
+	// 		noNewVariablesDeclared := diagnostics.Diag{
+	// 			Message: fmt.Sprintf(
+	// 				"%s:%d:%d: no new variables declared",
+	// 				pos.Filename,
+	// 				pos.Line,
+	// 				pos.Column,
+	// 			),
+	// 		}
+	// 		sema.collector.ReportAndSave(noNewVariablesDeclared)
+	// 		return diagnostics.COMPILER_ERROR_FOUND
+	// 	}
+	// } else {
+	// 	allVariablesDefined := true
+	//
+	// 	var undefinedVar *ast.VarStmt
+	// 	for i := range multi.Variables {
+	// 		_, err := currentScope.LookupAcrossScopes(multi.Variables[i].Name.Name())
+	// 		if err != nil {
+	// 			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+	// 				allVariablesDefined = false
+	// 				undefinedVar = multi.Variables[i]
+	// 				break
+	// 			}
+	// 			return err
+	// 		}
+	// 	}
+	// 	if !allVariablesDefined {
+	// 		if undefinedVar == nil {
+	// 			log.Fatal("panic: variable at non decl is nil, but it should never be")
+	// 		}
+	// 		pos := undefinedVar.Name.Pos
+	// 		notDeclared := diagnostics.Diag{
+	// 			Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
+	// 		}
+	// 		sema.collector.ReportAndSave(notDeclared)
+	// 		return diagnostics.COMPILER_ERROR_FOUND
+	// 	}
+	// }
+
 	for i := range multi.Variables {
-		if multi.Variables[i].Decl {
-			varName := multi.Variables[i].Name.Name()
-			err := currentScope.Insert(varName, multi.Variables[i])
-			if err != nil {
-				return err
-			}
-		}
-		err := sema.checkVariableType(multi.Variables[i], currentScope)
-		// TODO(errors)
+		// if multi.Variables[i].Decl {
+		// 	varName := multi.Variables[i].Name.Name()
+		// 	err := currentScope.Insert(varName, multi.Variables[i])
+		// 	if err != nil {
+		// 		return err
+		// 	}
+		// }
+
+		// err := sema.checkVariableType(multi.Variables[i], currentScope)
+		// // TODO(errors)
+		// if err != nil {
+		// 	return err
+		// }
+
+		err := sema.checkVar(multi.Variables[i], currentScope)
 		if err != nil {
 			return err
 		}
@@ -232,11 +240,7 @@ func (sema *sema) checkMultiVar(
 
 func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
 	err := sema.checkVariableType(variable, currentScope)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (sema *sema) checkVariableType(
