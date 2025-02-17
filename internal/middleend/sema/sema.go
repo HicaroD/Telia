@@ -411,7 +411,6 @@ func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	return nil
 }
 
-// TODO: think about the way I'm inferring or getting the expr type correctly
 func (sema *sema) inferExprTypeWithContext(
 	exprNode ast.Expr,
 	expectedType ast.ExprType,
@@ -732,8 +731,10 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		log.Fatalf("mismatched types: %s %s %s", lhsType, expression.Op, rhsType)
 	}
 
+	// TODO: it needs to be more flexible
+	// Automatically evaluate correct operators
 	switch expression.Op {
-	case token.PLUS, token.MINUS:
+	case token.PLUS, token.MINUS, token.SLASH, token.STAR:
 		if lhsType.IsNumeric() && rhsType.IsNumeric() {
 			return lhsType, lhsFoundContext || rhsFoundContext, nil
 		}
@@ -932,7 +933,6 @@ func (sema *sema) checkForLoop(
 	return err
 }
 
-// TODO: need tests for it
 func (sema *sema) checkWhileLoop(
 	whileLoop *ast.WhileLoop,
 	scope *ast.Scope,
