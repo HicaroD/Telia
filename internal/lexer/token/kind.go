@@ -34,6 +34,7 @@ const (
 	NOT
 	AND
 	OR
+	TYPE
 
 	// Types
 	BOOL_TYPE // bool
@@ -126,6 +127,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"not":    NOT,
 	"and":    AND,
 	"or":     OR,
+	"type":   TYPE,
 
 	"true":  TRUE_BOOL_LITERAL,
 	"false": FALSE_BOOL_LITERAL,
@@ -255,6 +257,8 @@ func (kind Kind) String() string {
 		return "and"
 	case OR:
 		return "or"
+	case TYPE:
+		return "type"
 	case BOOL_TYPE:
 		return "bool"
 	case INT_TYPE:

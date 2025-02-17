@@ -74,8 +74,10 @@ type ExternAttrs struct {
 }
 
 type PkgDecl struct {
+	Decl
 	Name *token.Token
 }
 
 func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
 func (pkg PkgDecl) astNode()       {}
+func (pkg PkgDecl) declNode()      {}

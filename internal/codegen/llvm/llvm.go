@@ -74,6 +74,8 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 			c.generateExternDecl(n)
 		case *ast.PkgDecl:
 			continue
+		case *ast.TypeAlias:
+			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
@@ -471,7 +473,6 @@ func (c *llvmCodegen) getExpr(
 			}
 		}
 	case *ast.IdExpr:
-		// REFACTOR: make it simpler to get the lexeme
 		varName := currentExpr.Name.Name()
 		symbol, _ := scope.LookupAcrossScopes(varName)
 

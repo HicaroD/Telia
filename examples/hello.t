@@ -1,12 +1,14 @@
 pkg main;
 
+type Cstring = *u8;
+
 #[default_cc="c"]
 extern libc {
-  fn printf(format *u8, ...) i32;
-  fn puts(format *u8) i32;
+  fn printf(format Cstring, ...) i32;
+  fn puts(format Cstring) i32;
 }
 
-fn print(message *u8) {
+fn print(message Cstring) {
   libc.puts(message);
   return;
 }

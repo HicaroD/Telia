@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
@@ -102,6 +103,10 @@ func (p *Parser) parseFileNodes(file *ast.File) error {
 			break
 		}
 
+		if node == nil {
+			continue
+		}
+
 		if _, ok := node.(*ast.PkgDecl); ok {
 			if file.PackageNameDefined {
 				return fmt.Errorf("redeclaration of package name\n")
@@ -178,6 +183,9 @@ func (p *Parser) next() (ast.Node, bool, error) {
 	case token.PKG:
 		pkgDecl, err := p.parsePkgDecl()
 		return pkgDecl, eof, err
+	case token.TYPE:
+		_, err := p.parseTypeAlias()
+		return nil, eof, err
 	case token.EXTERN, token.SHARP:
 		externDecl, err := p.parseExternDecl()
 		return externDecl, eof, err
@@ -194,6 +202,11 @@ func (p *Parser) next() (ast.Node, bool, error) {
 				pos.Column,
 			),
 		}
+
+		if config.DEBUG_MODE {
+			fmt.Printf("%s\n", tok.Kind.String())
+		}
+
 		p.collector.ReportAndSave(unexpectedTokenOnGlobalScope)
 		return nil, eof, diagnostics.COMPILER_ERROR_FOUND
 	}
@@ -409,13 +422,59 @@ func (p *Parser) parsePkgDecl() (ast.Node, error) {
 		return nil, fmt.Errorf("expected package name, not %s\n", name.Kind.String())
 	}
 
-	_, ok = p.expect(token.SEMICOLON)
+	semi, ok := p.expect(token.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+	}
+
+	return &ast.PkgDecl{Name: name}, nil
+}
+
+func (p *Parser) parseTypeAlias() (ast.ExprType, error) {
+	pkg, ok := p.expect(token.TYPE)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected 'type' keyword, not %s\n", pkg.Kind.String())
+	}
+
+	name, ok := p.expect(token.ID)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected type alias name, not %s\n", name.Kind.String())
+	}
+
+	_, ok = p.expect(token.EQUAL)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", name.Kind.String())
 	}
 
-	return &ast.PkgDecl{Name: name}, nil
+	ty, err := p.parseExprType()
+	// TODO(errors)
+	if err != nil {
+		return nil, fmt.Errorf("expected valid alias type for '%s'\n", name.Name())
+	}
+
+	semi, ok := p.expect(token.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+	}
+
+	alias := new(ast.TypeAlias)
+	alias.Name = name
+	alias.Type = ty
+
+	err = p.moduleScope.Insert(name.Name(), alias)
+	if err != nil {
+		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			return nil, fmt.Errorf("symbol '%s' already declared on scope\n", name.Name())
+		}
+		return nil, err
+	}
+
+	return alias, nil
 }
 
 func (p *Parser) parsePrototype() (*ast.Proto, error) {
@@ -820,6 +879,16 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 		return &ast.PointerType{Type: ty}, nil
 	case token.ID:
 		p.lex.Skip()
+		symbol, err := p.moduleScope.LookupAcrossScopes(tok.Name())
+		// TODO(errors)
+		if err != nil {
+			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
+			}
+		}
+		if alias, ok := symbol.(*ast.TypeAlias); ok {
+			return alias.Type, nil
+		}
 		return &ast.IdType{Name: tok}, nil
 	default:
 		if tok.Kind.IsBasicType() {

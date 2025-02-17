@@ -57,6 +57,8 @@ func (s *sema) checkFile(file *ast.File) error {
 			}
 		case *ast.PkgDecl:
 			continue
+		case *ast.TypeAlias:
+			continue
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
