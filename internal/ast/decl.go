@@ -40,7 +40,7 @@ type ExternDecl struct {
 func (extern ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
-func (extern ExternDecl) astNode()  {}
+func (extern ExternDecl) astNode() {}
 
 // TODO: add attribute for prototype, such as link_name and linkage type
 type ProtoAttrs struct {
