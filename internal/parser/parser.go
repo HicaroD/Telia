@@ -888,6 +888,7 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 		}
 		// TODO: add more id types, such as struct
 		if alias, ok := symbol.(*ast.TypeAlias); ok {
+			// NOTE: should I directly return the underlying type?
 			return alias.Type, nil
 		}
 		// NOTE: I think ast.IdType won't be necessary anymore
