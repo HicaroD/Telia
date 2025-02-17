@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/frontend/ast"
-	"github.com/HicaroD/Telia/internal/frontend/lexer"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/lexer"
+	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
 type functionDeclTest struct {
@@ -40,6 +40,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 18, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -68,6 +69,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 24, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -100,6 +102,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 31, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -132,6 +135,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 34, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -164,6 +168,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 34, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -196,6 +201,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -228,6 +234,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -260,6 +267,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -292,6 +300,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -324,6 +333,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -356,6 +366,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -388,6 +399,7 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 36, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		{
@@ -420,22 +432,19 @@ func TestFunctionDecl(t *testing.T) {
 					Statements: nil,
 					CloseCurly: token.NewPosition(filename, 35, 1),
 				},
+				BackendType: nil,
 			},
 		},
 		// TODO(tests): test variadic arguments on functions
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFunctionDecl('%s')", test.input), func(t *testing.T) {
-			universeScope := ast.NewScope(nil)
-			moduleScope := ast.NewScope(universeScope)
-			fileScope := ast.NewScope(moduleScope)
-
+			fileScope := ast.NewScope(nil)
 			fnDecl, err := parseFnDeclFrom(filename, test.input, fileScope)
 			if err != nil {
 				t.Fatal(err)
 			}
-			test.node.Scope = ast.NewScope(fileScope)
-
+			test.node.Scope = fileScope
 			if !reflect.DeepEqual(fnDecl, test.node) {
 				t.Fatal("Function declarations are not the same")
 			}

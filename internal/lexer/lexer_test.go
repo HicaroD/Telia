@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
 type tokenKindTest struct {

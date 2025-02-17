@@ -2,7 +2,8 @@ package ast
 
 import (
 	"fmt"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
+
+	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
 type Stmt interface {

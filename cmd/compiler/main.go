@@ -1,22 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
-	"github.com/HicaroD/Telia/internal/backend/codegen/llvm"
+	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/codegen/llvm"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/frontend/ast"
-	"github.com/HicaroD/Telia/internal/frontend/lexer"
-	"github.com/HicaroD/Telia/internal/frontend/parser"
-	"github.com/HicaroD/Telia/internal/middleend/sema"
+	"github.com/HicaroD/Telia/internal/lexer"
+	"github.com/HicaroD/Telia/internal/parser"
+	"github.com/HicaroD/Telia/internal/sema"
 )
 
 func main() {
 	args, err := cli()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	switch args.Command {

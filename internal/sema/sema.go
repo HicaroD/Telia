@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/frontend/ast"
-	"github.com/HicaroD/Telia/internal/frontend/lexer"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
-	"github.com/HicaroD/Telia/internal/frontend/parser"
+	"github.com/HicaroD/Telia/internal/lexer"
+	"github.com/HicaroD/Telia/internal/lexer/token"
+	"github.com/HicaroD/Telia/internal/parser"
 )
 
 type sema struct {
@@ -69,22 +69,69 @@ func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
 	return err
 }
 
-func (sema *sema) checkExternAttributes(externAttributes *ast.ExternAttrs) {
-	// TODO: make sure attributes values are valid
+var VALID_CALLING_CONVENTIONS []string = []string{
+	"c", "fast", "cold",
+}
+
+func (sema *sema) checkExternAttributes(attributes *ast.ExternAttrs) error {
+	ccFound := false
+	for _, cc := range VALID_CALLING_CONVENTIONS {
+		if cc == attributes.DefaultCallingConvention {
+			ccFound = true
+			break
+		}
+	}
+	if !ccFound {
+		return fmt.Errorf("invalid calling convention: '%s'\n", attributes.DefaultCallingConvention)
+	}
+	return nil
 }
 
 func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
-	// TODO: check for attributes
+	if extern.Attributes != nil {
+		if err := sema.checkExternAttributes(extern.Attributes); err != nil {
+			return err
+		}
+	}
 
 	for _, proto := range extern.Prototypes {
-		symbols := make(map[string]bool, len(proto.Params.Fields))
-		for _, param := range proto.Params.Fields {
-			if _, found := symbols[param.Name.Name()]; found {
-				// TODO(errors): add proper error here + tests
-				return fmt.Errorf("redeclaration of '%s' parameter on '%s' prototype at extern declaration '%s'\n", param.Name.Name(), proto.Name.Name(), extern.Name.Name())
-			}
-			symbols[param.Name.Name()] = true
+		err := sema.checkExternPrototype(extern, proto)
+		if err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+var VALID_FUNCTION_LINKAGES []string = []string{
+	"external", "internal", "weak", "link_once",
+}
+
+func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto) error {
+	if proto.Attributes != nil {
+		linkageFound := false
+		if proto.Attributes.Linkage != "" {
+			for _, l := range VALID_FUNCTION_LINKAGES {
+				if l == proto.Attributes.Linkage {
+					linkageFound = true
+					break
+				}
+			}
+			// if not found, set a default linkage
+			if !linkageFound {
+				return fmt.Errorf("invalid linkage type: %s\n", proto.Attributes.Linkage)
+			}
+		}
+	}
+
+	symbols := make(map[string]bool, len(proto.Params.Fields))
+	for _, param := range proto.Params.Fields {
+		if _, found := symbols[param.Name.Name()]; found {
+			// TODO(errors): add proper error here + tests
+			return fmt.Errorf("redeclaration of '%s' parameter on '%s' prototype at extern declaration '%s'\n", param.Name.Name(), proto.Name.Name(), extern.Name.Name())
+		}
+		symbols[param.Name.Name()] = true
 	}
 
 	return nil
@@ -156,80 +203,7 @@ func (sema *sema) checkMultiVar(
 	multi *ast.MultiVarStmt,
 	currentScope *ast.Scope,
 ) error {
-	// TODO: refactor this code
-	// It is pretty repetitive, but I need tests before refactoring
-
-	// if multi.IsDecl {
-	// 	allVariablesDefined := true
-	// 	for i := range multi.Variables {
-	// 		_, err := currentScope.LookupCurrentScope(multi.Variables[i].Name.Name())
-	// 		if err != nil {
-	// 			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-	// 				allVariablesDefined = false
-	// 				break
-	// 			}
-	// 			return err
-	// 		}
-	// 		multi.Variables[i].Decl = false
-	// 	}
-	// 	if allVariablesDefined {
-	// 		firstVariable := multi.Variables[0]
-	// 		pos := firstVariable.Name.Pos
-	// 		// TODO: give user a hint for consider using = instead of :=
-	// 		noNewVariablesDeclared := diagnostics.Diag{
-	// 			Message: fmt.Sprintf(
-	// 				"%s:%d:%d: no new variables declared",
-	// 				pos.Filename,
-	// 				pos.Line,
-	// 				pos.Column,
-	// 			),
-	// 		}
-	// 		sema.collector.ReportAndSave(noNewVariablesDeclared)
-	// 		return diagnostics.COMPILER_ERROR_FOUND
-	// 	}
-	// } else {
-	// 	allVariablesDefined := true
-	//
-	// 	var undefinedVar *ast.VarStmt
-	// 	for i := range multi.Variables {
-	// 		_, err := currentScope.LookupAcrossScopes(multi.Variables[i].Name.Name())
-	// 		if err != nil {
-	// 			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-	// 				allVariablesDefined = false
-	// 				undefinedVar = multi.Variables[i]
-	// 				break
-	// 			}
-	// 			return err
-	// 		}
-	// 	}
-	// 	if !allVariablesDefined {
-	// 		if undefinedVar == nil {
-	// 			log.Fatal("panic: variable at non decl is nil, but it should never be")
-	// 		}
-	// 		pos := undefinedVar.Name.Pos
-	// 		notDeclared := diagnostics.Diag{
-	// 			Message: fmt.Sprintf("%s:%d:%d: '%s' not declared", pos.Filename, pos.Line, pos.Column, undefinedVar.Name.Name()),
-	// 		}
-	// 		sema.collector.ReportAndSave(notDeclared)
-	// 		return diagnostics.COMPILER_ERROR_FOUND
-	// 	}
-	// }
-
 	for i := range multi.Variables {
-		// if multi.Variables[i].Decl {
-		// 	varName := multi.Variables[i].Name.Name()
-		// 	err := currentScope.Insert(varName, multi.Variables[i])
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// }
-
-		// err := sema.checkVariableType(multi.Variables[i], currentScope)
-		// // TODO(errors)
-		// if err != nil {
-		// 	return err
-		// }
-
 		err := sema.checkVar(multi.Variables[i], currentScope)
 		if err != nil {
 			return err
@@ -435,7 +409,6 @@ func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	return nil
 }
 
-// TODO: think about the way I'm inferring or getting the expr type correctly
 func (sema *sema) inferExprTypeWithContext(
 	exprNode ast.Expr,
 	expectedType ast.ExprType,
@@ -756,8 +729,10 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		log.Fatalf("mismatched types: %s %s %s", lhsType, expression.Op, rhsType)
 	}
 
+	// TODO: it needs to be more flexible
+	// Automatically evaluate correct operators
 	switch expression.Op {
-	case token.PLUS, token.MINUS:
+	case token.PLUS, token.MINUS, token.SLASH, token.STAR:
 		if lhsType.IsNumeric() && rhsType.IsNumeric() {
 			return lhsType, lhsFoundContext || rhsFoundContext, nil
 		}
@@ -956,7 +931,6 @@ func (sema *sema) checkForLoop(
 	return err
 }
 
-// TODO: need tests for it
 func (sema *sema) checkWhileLoop(
 	whileLoop *ast.WhileLoop,
 	scope *ast.Scope,

@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/config"
-	"github.com/HicaroD/Telia/internal/frontend/ast"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
+	"github.com/HicaroD/Telia/internal/lexer/token"
 	"tinygo.org/x/go-llvm"
 )
 
@@ -343,24 +343,48 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if attributes != nil {
-		protoValue.SetFunctionCallConv(c.getDefaultCallingConvention(attributes.DefaultCallingConvention))
+		protoValue.SetFunctionCallConv(c.getCallingConvention(attributes.DefaultCallingConvention))
+	}
+
+	if prototype.Attributes != nil {
+		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 
 	proto := NewFunctionValue(protoValue, ty, nil)
 	prototype.BackendType = proto
 }
 
-func (c *llvmCodegen) getDefaultCallingConvention(callingConvention string) llvm.CallConv {
+func (c *llvmCodegen) getFunctionLinkage(linkage string) llvm.Linkage {
+	switch linkage {
+	case "internal":
+		return llvm.InternalLinkage
+	// NOTE: there are several types of weak linkages
+	// Make sure to choose the perfect match
+	case "weak":
+		return llvm.WeakAnyLinkage
+	// NOTE: there are several types of link once linkage
+	// Makesure to choose the perfect match
+	case "link_once":
+		return llvm.LinkOnceAnyLinkage
+	case "external":
+		fallthrough
+	default:
+		return llvm.ExternalLinkage
+	}
+}
+
+func (c *llvmCodegen) getCallingConvention(callingConvention string) llvm.CallConv {
 	// TODO: define other types of calling conventions
 	switch callingConvention {
-	case "c":
-		return llvm.CCallConv
 	case "fast":
 		return llvm.FastCallConv
 	case "cold":
 		return llvm.ColdCallConv
+	case "c":
+		fallthrough
+	default:
+		return llvm.CCallConv
 	}
-	return 500 // in case of invalid calling conventions
 }
 
 func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
