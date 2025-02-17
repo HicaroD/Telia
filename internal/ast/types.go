@@ -55,3 +55,19 @@ func (pointer PointerType) exprTypeNode()   {}
 func (pointer PointerType) String() string {
 	return fmt.Sprintf("*%s", pointer.Type)
 }
+
+type TypeAlias struct {
+	Node
+	ExprType
+	Name *token.Token
+	Type ExprType
+}
+
+func (alias TypeAlias) astNode()        {}
+func (alias TypeAlias) IsNumeric() bool { return false }
+func (alias TypeAlias) IsBoolean() bool { return false }
+func (alias TypeAlias) IsVoid() bool    { return false }
+func (alias TypeAlias) exprTypeNode()   {}
+func (alias TypeAlias) String() string {
+	return fmt.Sprintf("ALIAS: %s - TYPE: %s\n", alias.Name, alias.Type)
+}
