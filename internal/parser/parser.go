@@ -886,9 +886,11 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
 			}
 		}
+		// TODO: add more id types, such as struct
 		if alias, ok := symbol.(*ast.TypeAlias); ok {
 			return alias.Type, nil
 		}
+		// NOTE: I think ast.IdType won't be necessary anymore
 		return &ast.IdType{Name: tok}, nil
 	default:
 		if tok.Kind.IsBasicType() {
