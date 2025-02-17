@@ -183,6 +183,9 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 	case token.PKG:
 		pkgDecl, err := p.parsePkgDecl()
 		return pkgDecl, eof, err
+	case token.USE:
+		imp, err := p.parseUse()
+		return imp, eof, err
 	case token.TYPE:
 		_, err := p.parseTypeAlias()
 		return nil, eof, err
@@ -429,6 +432,30 @@ func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
 	}
 
 	return &ast.PkgDecl{Name: name}, nil
+}
+
+func (p *Parser) parseUse() (*ast.UseDecl, error) {
+	pkg, ok := p.expect(token.USE)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", pkg.Kind.String())
+	}
+
+	// TODO: parse import string
+
+	semi, ok := p.expect(token.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+	}
+
+	imp := new(ast.UseDecl)
+	return imp, nil
+}
+
+func (p *Parser) parseImportString() (string, error) {
+	// TODO
+	return "", nil
 }
 
 func (p *Parser) parseTypeAlias() (ast.ExprType, error) {
