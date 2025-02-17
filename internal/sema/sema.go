@@ -6,11 +6,11 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/frontend/ast"
-	"github.com/HicaroD/Telia/internal/frontend/lexer"
-	"github.com/HicaroD/Telia/internal/frontend/lexer/token"
-	"github.com/HicaroD/Telia/internal/frontend/parser"
+	"github.com/HicaroD/Telia/internal/lexer"
+	"github.com/HicaroD/Telia/internal/lexer/token"
+	"github.com/HicaroD/Telia/internal/parser"
 )
 
 type sema struct {
