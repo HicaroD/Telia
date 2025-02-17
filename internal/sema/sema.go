@@ -69,7 +69,6 @@ func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
 	return err
 }
 
-// TODO: are there more calling conventions??
 var VALID_CALLING_CONVENTIONS []string = []string{
 	"c", "fast", "cold",
 }
@@ -105,7 +104,6 @@ func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
 	return nil
 }
 
-// TODO: are there more function linkages?
 var VALID_FUNCTION_LINKAGES []string = []string{
 	"external", "internal", "weak", "link_once",
 }

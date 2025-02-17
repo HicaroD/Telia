@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/lexer/token"
 	"github.com/HicaroD/Telia/internal/config"
+	"github.com/HicaroD/Telia/internal/lexer/token"
 	"tinygo.org/x/go-llvm"
 )
 
@@ -343,7 +343,7 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if attributes != nil {
-		protoValue.SetFunctionCallConv(c.getDefaultCC(attributes.DefaultCallingConvention))
+		protoValue.SetFunctionCallConv(c.getCallingConvention(attributes.DefaultCallingConvention))
 	}
 
 	if prototype.Attributes != nil {
@@ -367,23 +367,24 @@ func (c *llvmCodegen) getFunctionLinkage(linkage string) llvm.Linkage {
 	case "link_once":
 		return llvm.LinkOnceAnyLinkage
 	case "external":
+		fallthrough
 	default:
 		return llvm.ExternalLinkage
 	}
-	return 500
 }
 
-func (c *llvmCodegen) getDefaultCC(callingConvention string) llvm.CallConv {
+func (c *llvmCodegen) getCallingConvention(callingConvention string) llvm.CallConv {
 	// TODO: define other types of calling conventions
 	switch callingConvention {
-	case "c":
-		return llvm.CCallConv
 	case "fast":
 		return llvm.FastCallConv
 	case "cold":
 		return llvm.ColdCallConv
+	case "c":
+		fallthrough
+	default:
+		return llvm.CCallConv
 	}
-	return 500
 }
 
 func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
