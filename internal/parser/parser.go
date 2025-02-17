@@ -81,7 +81,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File,
 	p.lex = lex
 	p.moduleScope = moduleScope
 
-	err := p.parseFileNodes(file)
+	err := p.parseFileDecls(file)
 	if err != nil {
 		return nil, err
 	}
@@ -89,8 +89,8 @@ func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File,
 	return file, nil
 }
 
-func (p *Parser) parseFileNodes(file *ast.File) error {
-	var nodes []ast.Node
+func (p *Parser) parseFileDecls(file *ast.File) error {
+	var decls []ast.Decl
 	firstNode := true
 
 	for {
@@ -116,10 +116,10 @@ func (p *Parser) parseFileNodes(file *ast.File) error {
 			return fmt.Errorf("expected package declaration as first node")
 		}
 		firstNode = false
-		nodes = append(nodes, node)
+		decls = append(decls, node)
 	}
 
-	file.Body = nodes
+	file.Body = decls
 	return nil
 }
 
@@ -171,7 +171,7 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 	return nil
 }
 
-func (p *Parser) next() (ast.Node, bool, error) {
+func (p *Parser) next() (ast.Decl, bool, error) {
 	eof := false
 
 	tok := p.lex.Peek()
@@ -409,7 +409,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	return externDecl, nil
 }
 
-func (p *Parser) parsePkgDecl() (ast.Node, error) {
+func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
 	pkg, ok := p.expect(token.PKG)
 	// TODO(errors)
 	if !ok {

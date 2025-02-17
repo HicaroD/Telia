@@ -6,8 +6,13 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
-type FunctionDecl struct {
+type Decl interface {
 	Node
+	declNode()
+}
+
+type FunctionDecl struct {
+	Decl
 	Scope       *Scope
 	Name        *token.Token
 	Params      *FieldList
@@ -26,10 +31,11 @@ func (fnDecl FunctionDecl) String() string {
 		fnDecl.Block,
 	)
 }
-func (fnDecl FunctionDecl) astNode() {}
+func (fnDecl FunctionDecl) astNode()  {}
+func (fnDecl FunctionDecl) declNode() {}
 
 type ExternDecl struct {
-	// Decl
+	Decl
 	Attributes  *ExternAttrs
 	Scope       *Scope
 	Name        *token.Token
@@ -40,7 +46,8 @@ type ExternDecl struct {
 func (extern ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
-func (extern ExternDecl) astNode() {}
+func (extern ExternDecl) astNode()  {}
+func (extern ExternDecl) declNode() {}
 
 // TODO: add attribute for prototype, such as link_name and linkage type
 type ProtoAttrs struct {
@@ -67,8 +74,10 @@ type ExternAttrs struct {
 }
 
 type PkgDecl struct {
+	Decl
 	Name *token.Token
 }
 
 func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
 func (pkg PkgDecl) astNode()       {}
+func (pkg PkgDecl) declNode()      {}
