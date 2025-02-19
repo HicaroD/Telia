@@ -84,9 +84,9 @@ func (pkg PkgDecl) declNode()      {}
 
 type UseDecl struct {
 	Decl
+	Path    []string
 	Std     bool
 	Package bool
-	Path    string
 }
 
 func (imp UseDecl) String() string {

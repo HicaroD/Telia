@@ -452,7 +452,6 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 	if !ok {
 		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
 	}
-	imp.Path = useStr.Name()
 
 	parts := strings.Split(useStr.Name(), "::")
 	// TODO(errors)
@@ -469,6 +468,8 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
 	}
+	imp.Path = parts[1:]
+	fmt.Println(imp.Path)
 
 	semi, ok := p.expect(token.SEMICOLON)
 	// TODO(errors)
