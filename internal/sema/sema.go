@@ -57,6 +57,9 @@ func (s *sema) checkFile(file *ast.File) error {
 			}
 		case *ast.PkgDecl:
 			continue
+		case *ast.UseDecl:
+			// TODO: verify if import declaration is valid
+			continue
 		default:
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}

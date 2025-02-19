@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/config"
@@ -180,7 +181,7 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 		return nil, eof, nil
 	}
 	switch tok.Kind {
-	case token.PKG:
+	case token.PACKAGE:
 		pkgDecl, err := p.parsePkgDecl()
 		return pkgDecl, eof, err
 	case token.USE:
@@ -413,7 +414,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 }
 
 func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
-	pkg, ok := p.expect(token.PKG)
+	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
@@ -435,13 +436,36 @@ func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
 }
 
 func (p *Parser) parseUse() (*ast.UseDecl, error) {
-	pkg, ok := p.expect(token.USE)
+	imp := new(ast.UseDecl)
+
+	use, ok := p.expect(token.USE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", pkg.Kind.String())
+		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
 	}
 
-	// TODO: parse import string
+	useStr, ok := p.expect(token.STRING_LITERAL)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
+	}
+	imp.Path = useStr.Name()
+
+	parts := strings.Split(useStr.Name(), "::")
+	// TODO(errors)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("error: bad formatted import string")
+	}
+
+	switch parts[0] {
+	case "std":
+		imp.Std = true
+	case "package":
+		imp.Package = true
+	default:
+		// TODO(errors)
+		return nil, fmt.Errorf("error: invalid use string prefix")
+	}
 
 	semi, ok := p.expect(token.SEMICOLON)
 	// TODO(errors)
@@ -449,13 +473,7 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	imp := new(ast.UseDecl)
 	return imp, nil
-}
-
-func (p *Parser) parseImportString() (string, error) {
-	// TODO
-	return "", nil
 }
 
 func (p *Parser) parseTypeAlias() (ast.ExprType, error) {

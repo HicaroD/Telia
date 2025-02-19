@@ -74,6 +74,8 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 			c.generateExternDecl(n)
 		case *ast.PkgDecl:
 			continue
+		case *ast.UseDecl:
+			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
