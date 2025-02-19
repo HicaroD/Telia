@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
@@ -74,9 +73,9 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
 	file := &ast.File{
-		Dir:                lex.ParentDirName,
-		Path:               lex.Path,
-		PackageNameDefined: false,
+		Dir:            lex.ParentDirName,
+		Path:           lex.Path,
+		PkgNameDefined: false,
 	}
 
 	p.lex = lex
@@ -108,16 +107,25 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
-		if _, ok := node.(*ast.PkgDecl); ok {
-			if file.PackageNameDefined {
+		if pkg, ok := node.(*ast.PkgDecl); ok {
+			if file.PkgNameDefined {
+				// TODO(errors)
 				return fmt.Errorf("redeclaration of package name\n")
 			}
-			file.PackageNameDefined = true
+
+			file.PkgName = pkg.Name.Name()
+			file.PkgNameDefined = true
 		} else if firstNode {
+			// TODO(errors)
 			return fmt.Errorf("expected package declaration as first node")
 		}
 		firstNode = false
 		decls = append(decls, node)
+	}
+
+	if !file.PkgNameDefined {
+		// TODO(errors)
+		return fmt.Errorf("Package name not defined\n")
 	}
 
 	file.Body = decls
@@ -128,9 +136,8 @@ func (p *Parser) buildModuleTree(path string, module *ast.Package) error {
 	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
 		switch {
 		case entry.IsDir():
-			childScope := ast.NewScope(module.Scope)
-
 			childModule := new(ast.Package)
+			childScope := ast.NewScope(module.Scope)
 			childModule.Name = filepath.Base(fullPath)
 			childModule.Scope = childScope
 			childModule.IsRoot = false
@@ -205,10 +212,6 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 				pos.Line,
 				pos.Column,
 			),
-		}
-
-		if config.DEBUG_MODE {
-			fmt.Printf("%s\n", tok.Kind.String())
 		}
 
 		p.collector.ReportAndSave(unexpectedTokenOnGlobalScope)

@@ -14,46 +14,90 @@ import (
 )
 
 type sema struct {
-	collector *diagnostics.Collector
+	mainPackageFound bool
+	collector        *diagnostics.Collector
 }
 
 func New(collector *diagnostics.Collector) *sema {
-	return &sema{collector}
+	return &sema{false, collector}
 }
 
 func (s *sema) Check(program *ast.Program) error {
-	return s.checkModule(program.Root)
+	return s.checkPackage(program.Root)
 }
 
-func (s *sema) checkModule(module *ast.Package) error {
-	for _, file := range module.Files {
-		err := s.checkFile(file)
+func (s *sema) checkPackage(pkg *ast.Package) error {
+	// TODO(erros)
+	// TODO: maybe restricting "main" as name for a package is not the way to go
+	if pkg.Name == "main" {
+		return fmt.Errorf("package name is not allowed to be 'main'")
+	}
+
+	requiresMain := false
+	hasMainMethod := false
+
+	for _, file := range pkg.Files {
+		if file.PkgName == "main" {
+			if s.mainPackageFound {
+				// TODO(errors)
+				return fmt.Errorf("error: main package already defined somewhere else")
+			}
+			s.mainPackageFound = true
+			requiresMain = true
+		}
+
+		if requiresMain && file.PkgName != "main" {
+			// TODO(errors)
+			return fmt.Errorf("error: expected package name to be 'main'\n")
+		}
+		if !requiresMain && file.PkgName != pkg.Name {
+			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Name)
+		}
+
+		fileHasMain, err := s.checkFile(file)
+		if err != nil {
+			return err
+		}
+		hasMainMethod = hasMainMethod || fileHasMain
+	}
+
+	// TODO(errors)
+	if requiresMain && !hasMainMethod {
+		return fmt.Errorf("main package requires a 'main' method as entrypoint\n")
+	}
+
+	// TODO(errors)
+	if !requiresMain && hasMainMethod {
+		return fmt.Errorf("'main' method not allowed on non-main packages\n")
+	}
+
+	for _, innerPackage := range pkg.Packages {
+		err := s.checkPackage(innerPackage)
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, innerPackage := range module.Packages {
-		err := s.checkModule(innerPackage)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
-func (s *sema) checkFile(file *ast.File) error {
+func (s *sema) checkFile(file *ast.File) (bool, error) {
+	foundMain := false
+
 	for _, node := range file.Body {
 		switch n := node.(type) {
 		case *ast.FunctionDecl:
+			if !foundMain {
+				foundMain = n.Name.Name() == "main"
+			}
 			err := s.checkFnDecl(n)
 			if err != nil {
-				return err
+				return false, err
 			}
 		case *ast.ExternDecl:
 			err := s.checkExternDecl(n)
 			if err != nil {
-				return err
+				return false, err
 			}
 		case *ast.PkgDecl:
 			continue
@@ -64,7 +108,7 @@ func (s *sema) checkFile(file *ast.File) error {
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
 	}
-	return nil
+	return foundMain, nil
 }
 
 func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {

@@ -1,4 +1,4 @@
-pkg main;
+package main;
 
 type Cstring = *u8;
 

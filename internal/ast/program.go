@@ -21,10 +21,11 @@ type Package struct {
 func (module Package) astNode() {}
 
 type File struct {
-	Dir                string
-	Path               string
-	Body               []Decl
-	PackageNameDefined bool
+	Dir            string
+	Path           string
+	Body           []Decl
+	PkgName        string
+	PkgNameDefined bool
 }
 
 func (file File) astNode() {}
