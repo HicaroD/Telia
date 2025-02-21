@@ -11,17 +11,17 @@ type Decl interface {
 	declNode()
 }
 
-type FunctionDecl struct {
+type FnDecl struct {
 	Decl
 	Scope       *Scope
 	Name        *token.Token
 	Params      *FieldList
-	RetType     ExprType
+	RetType     *MyExprType
 	Block       *BlockStmt
 	BackendType any // LLVM: *values.Function
 }
 
-func (fnDecl FunctionDecl) String() string {
+func (fnDecl FnDecl) String() string {
 	return fmt.Sprintf(
 		"Scope: %s\nName: %s\nParams: %s\nRetType: %s\nBlock: %s\n",
 		fnDecl.Scope,
@@ -31,8 +31,8 @@ func (fnDecl FunctionDecl) String() string {
 		fnDecl.Block,
 	)
 }
-func (fnDecl FunctionDecl) astNode()  {}
-func (fnDecl FunctionDecl) declNode() {}
+func (fnDecl FnDecl) astNode()  {}
+func (fnDecl FnDecl) declNode() {}
 
 type ExternDecl struct {
 	Decl
@@ -49,7 +49,6 @@ func (extern ExternDecl) String() string {
 func (extern ExternDecl) astNode()  {}
 func (extern ExternDecl) declNode() {}
 
-// TODO: add attribute for prototype, such as link_name and linkage type
 type ProtoAttrs struct {
 	LinkName string
 	Linkage  string
@@ -59,7 +58,7 @@ type Proto struct {
 	Attributes *ProtoAttrs
 	Name       *token.Token
 	Params     *FieldList
-	RetType    ExprType
+	RetType    *MyExprType
 
 	BackendType any // LLVM: *values.Function
 }

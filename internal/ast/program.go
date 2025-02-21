@@ -23,7 +23,7 @@ func (module Package) astNode() {}
 type File struct {
 	Dir            string
 	Path           string
-	Body           []Decl
+	Body           []*MyNode
 	PkgName        string
 	PkgNameDefined bool
 }

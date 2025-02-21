@@ -6,6 +6,20 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
+type ExprTypeEnum int
+
+const (
+	EXPR_TYPE_BASIC ExprTypeEnum = iota
+	EXPR_TYPE_ID
+	EXPR_TYPE_POINTER
+	EXPR_TYPE_ALIAS
+)
+
+type MyExprType struct {
+	Kind ExprTypeEnum
+	T    any
+}
+
 type ExprType interface {
 	IsVoid() bool
 	IsBoolean() bool
@@ -46,7 +60,7 @@ func (idType IdType) String() string {
 
 type PointerType struct {
 	ExprType
-	Type ExprType
+	Type *MyExprType
 }
 
 func (pointer PointerType) IsNumeric() bool { return false }
@@ -61,7 +75,7 @@ type TypeAlias struct {
 	Node
 	ExprType
 	Name *token.Token
-	Type ExprType
+	Type *MyExprType
 }
 
 func (alias TypeAlias) astNode()        {}

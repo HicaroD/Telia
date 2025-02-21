@@ -87,8 +87,8 @@ func (idExpr IdExpr) exprNode()           {}
 type FieldAccess struct {
 	Stmt
 	Expr
-	Left  Expr
-	Right Expr
+	Left  *MyNode
+	Right *MyNode
 }
 
 func (fieldAccess FieldAccess) String() string {
@@ -104,7 +104,7 @@ func (fieldAccess FieldAccess) exprNode()           {}
 type UnaryExpr struct {
 	Expr
 	Op    token.Kind
-	Value Expr
+	Value *MyNode
 }
 
 func (unary UnaryExpr) String() string {
@@ -117,9 +117,9 @@ func (unary UnaryExpr) exprNode()           {}
 
 type BinaryExpr struct {
 	Expr
-	Left  Expr
+	Left  *MyNode
 	Op    token.Kind
-	Right Expr
+	Right *MyNode
 }
 
 func (binExpr BinaryExpr) String() string {

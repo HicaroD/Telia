@@ -15,7 +15,7 @@ type Stmt interface {
 type BlockStmt struct {
 	Stmt
 	OpenCurly  token.Pos
-	Statements []Stmt
+	Statements []*MyNode
 	CloseCurly token.Pos
 }
 
@@ -29,7 +29,7 @@ func (block BlockStmt) stmtNode()      {}
 type MultiVarStmt struct {
 	Stmt
 	IsDecl    bool
-	Variables []*VarStmt
+	Variables []*MyNode
 }
 
 func (multi MultiVarStmt) String() string {
@@ -43,8 +43,8 @@ type VarStmt struct {
 	Stmt
 	Decl           bool
 	Name           *token.Token
-	Type           ExprType
-	Value          Expr
+	Type           *MyExprType
+	Value          *MyNode
 	NeedsInference bool
 
 	BackendType any // LLVM: *values.Variable
@@ -60,7 +60,7 @@ func (variable VarStmt) stmtNode()      {}
 type ReturnStmt struct {
 	Stmt
 	Return *token.Token
-	Value  Expr
+	Value  *MyNode
 }
 
 func (ret ReturnStmt) String() string {
@@ -74,7 +74,7 @@ type FunctionCall struct {
 	Stmt
 	Expr
 	Name *token.Token
-	Args []Expr
+	Args []*MyNode
 
 	BackendType any
 }
@@ -103,7 +103,7 @@ func (cond CondStmt) stmtNode()      {}
 
 type IfElifCond struct {
 	If    *token.Pos
-	Expr  Expr
+	Expr  *MyNode
 	Block *BlockStmt
 	Scope *Scope
 }
@@ -116,9 +116,9 @@ type ElseCond struct {
 
 type ForLoop struct {
 	Stmt
-	Init   Stmt
-	Cond   Expr
-	Update Stmt
+	Init   *MyNode
+	Cond   *MyNode
+	Update *MyNode
 	Block  *BlockStmt
 	Scope  *Scope
 }
@@ -138,7 +138,7 @@ func (forLoop ForLoop) stmtNode()      {}
 
 type WhileLoop struct {
 	Stmt
-	Cond  Expr
+	Cond  *MyNode
 	Block *BlockStmt
 	Scope *Scope
 }

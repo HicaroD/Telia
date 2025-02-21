@@ -13,7 +13,7 @@ import (
 
 type functionDeclTest struct {
 	input string
-	node  *ast.FunctionDecl
+	node  *ast.FnDecl
 }
 
 func TestFunctionDecl(t *testing.T) {
@@ -21,7 +21,7 @@ func TestFunctionDecl(t *testing.T) {
 	tests := []functionDeclTest{
 		{
 			input: "fn do_nothing() {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -45,7 +45,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool) {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -74,7 +74,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -107,7 +107,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) i8 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -140,7 +140,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) u8 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -173,7 +173,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) i16 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -206,7 +206,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) u16 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -239,7 +239,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) i32 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -272,7 +272,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) u32 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -305,7 +305,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) i64 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -338,7 +338,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) u64 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -371,7 +371,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) bool {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{
@@ -404,7 +404,7 @@ func TestFunctionDecl(t *testing.T) {
 		},
 		{
 			input: "fn do_nothing(a bool, b i32) *i8 {}",
-			node: &ast.FunctionDecl{
+			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
 				Params: &ast.FieldList{

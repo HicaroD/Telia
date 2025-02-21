@@ -9,7 +9,7 @@ import (
 type Field struct {
 	Node
 	Name        *token.Token
-	Type        ExprType
+	Type        *MyExprType
 	BackendType any // LLVM: *values.Variable
 }
 
