@@ -90,7 +90,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File,
 }
 
 func (p *Parser) parseFileDecls(file *ast.File) error {
-	var decls []*ast.MyNode
+	var decls []*ast.Node
 	firstNode := true
 
 	for {
@@ -181,7 +181,7 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 	return nil
 }
 
-func (p *Parser) next() (*ast.MyNode, bool, error) {
+func (p *Parser) next() (*ast.Node, bool, error) {
 	eof := false
 
 	tok := p.lex.Peek()
@@ -222,7 +222,7 @@ func (p *Parser) next() (*ast.MyNode, bool, error) {
 }
 
 // Useful for testing
-func ParseExprFrom(expr, filename string) (*ast.MyNode, error) {
+func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 	collector := diagnostics.New()
 
 	src := []byte(expr)
@@ -291,7 +291,7 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 	return attributes, nil
 }
 
-func (p *Parser) parseExternDecl() (*ast.MyNode, error) {
+func (p *Parser) parseExternDecl() (*ast.Node, error) {
 	externDecl := new(ast.ExternDecl)
 
 	if p.lex.NextIs(token.SHARP) {
@@ -374,7 +374,7 @@ func (p *Parser) parseExternDecl() (*ast.MyNode, error) {
 	externDecl.Scope = externScope
 
 	for i, prototype := range prototypes {
-		n := new(ast.MyNode)
+		n := new(ast.Node)
 		n.Kind = ast.KIND_PROTO
 		n.Node = prototype
 
@@ -399,7 +399,7 @@ func (p *Parser) parseExternDecl() (*ast.MyNode, error) {
 		}
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
@@ -425,7 +425,7 @@ func (p *Parser) parseExternDecl() (*ast.MyNode, error) {
 	return n, nil
 }
 
-func (p *Parser) parsePkgDecl() (*ast.MyNode, error) {
+func (p *Parser) parsePkgDecl() (*ast.Node, error) {
 	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
@@ -444,13 +444,13 @@ func (p *Parser) parsePkgDecl() (*ast.MyNode, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	node := new(ast.MyNode)
+	node := new(ast.Node)
 	node.Kind = ast.KIND_PKG_DECL
 	node.Node = &ast.PkgDecl{Name: name}
 	return node, nil
 }
 
-func (p *Parser) parseUse() (*ast.MyNode, error) {
+func (p *Parser) parseUse() (*ast.Node, error) {
 	imp := new(ast.UseDecl)
 
 	use, ok := p.expect(token.USE)
@@ -488,13 +488,13 @@ func (p *Parser) parseUse() (*ast.MyNode, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	node := new(ast.MyNode)
+	node := new(ast.Node)
 	node.Kind = ast.KIND_USE_DECL
 	node.Node = imp
 	return node, nil
 }
 
-func (p *Parser) parseTypeAlias() (*ast.MyNode, error) {
+func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	pkg, ok := p.expect(token.TYPE)
 	// TODO(errors)
 	if !ok {
@@ -525,7 +525,7 @@ func (p *Parser) parseTypeAlias() (*ast.MyNode, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	node := new(ast.MyNode)
+	node := new(ast.Node)
 	node.Kind = ast.KIND_TYPE_ALIAS_DECL
 
 	alias := new(ast.TypeAlias)
@@ -674,7 +674,7 @@ func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
 	return attributes, nil
 }
 
-func (p *Parser) parseFnDecl() (*ast.MyNode, error) {
+func (p *Parser) parseFnDecl() (*ast.Node, error) {
 	var err error
 	fnDecl := new(ast.FnDecl)
 
@@ -721,7 +721,7 @@ func (p *Parser) parseFnDecl() (*ast.MyNode, error) {
 	}
 	fnDecl.Block = block
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_DECL
 	n.Node = fnDecl
 
@@ -855,7 +855,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 				return nil, fmt.Errorf("error: scope should not be null when validating function parameters")
 			}
 
-			n := new(ast.MyNode)
+			n := new(ast.Node)
 			n.Kind = ast.KIND_FIELD
 			n.Node = param
 
@@ -911,8 +911,8 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 	}, nil
 }
 
-func (p *Parser) parseReturnType(isPrototype bool) (*ast.MyExprType, error) {
-	ty := new(ast.MyExprType)
+func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
+	ty := new(ast.ExprType)
 
 	if (isPrototype && p.lex.NextIs(token.SEMICOLON)) ||
 		p.lex.NextIs(token.OPEN_CURLY) {
@@ -950,8 +950,8 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 	return tok, true
 }
 
-func (p *Parser) parseExprType() (*ast.MyExprType, error) {
-	t := new(ast.MyExprType)
+func (p *Parser) parseExprType() (*ast.ExprType, error) {
+	t := new(ast.ExprType)
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
@@ -996,8 +996,8 @@ func (p *Parser) parseExprType() (*ast.MyExprType, error) {
 	}
 }
 
-func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
-	n := new(ast.MyNode)
+func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
+	n := new(ast.Node)
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
@@ -1008,7 +1008,7 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
 
 		returnStmt := new(ast.ReturnStmt)
 		returnStmt.Return = tok
-		returnStmt.Value = &ast.MyNode{Kind: ast.KIND_VOID_EXPR, Node: nil}
+		returnStmt.Value = &ast.Node{Kind: ast.KIND_VOID_EXPR, Node: nil}
 
 		n.Node = returnStmt
 
@@ -1093,7 +1093,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
 
-	var statements []*ast.MyNode
+	var statements []*ast.Node
 
 	for {
 		tok := p.lex.Peek()
@@ -1136,7 +1136,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	}, nil
 }
 
-func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
+func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
@@ -1150,8 +1150,8 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
 	}
 }
 
-func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.MyNode, error) {
-	variables := make([]*ast.MyNode, 0)
+func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
+	variables := make([]*ast.Node, 0)
 	isDecl := false
 
 VarDecl:
@@ -1162,7 +1162,7 @@ VarDecl:
 			return nil, fmt.Errorf("expected ID")
 		}
 
-		n := new(ast.MyNode)
+		n := new(ast.Node)
 		n.Kind = ast.KIND_VAR_STMT
 		variable := &ast.VarStmt{
 			Name:           name,
@@ -1247,7 +1247,7 @@ VarDecl:
 		return variables[0], nil
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_MULTI_VAR_STMT
 	n.Node = &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}
 	return n, nil
@@ -1269,7 +1269,7 @@ func parseVarFrom(filename, input string) (ast.Stmt, error) {
 	return stmt.Node.(*ast.VarStmt), nil
 }
 
-func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
+func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	ifCond, err := p.parseIfCond(parentScope)
 	if err != nil {
 		return nil, err
@@ -1285,7 +1285,7 @@ func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.MyNode, error) {
 		return nil, err
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_COND_STMT
 	n.Node = &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}
 	return n, nil
@@ -1349,11 +1349,11 @@ func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock, Scope: elseScope}, nil
 }
 
-func (p *Parser) parseExpr() (*ast.MyNode, error) {
+func (p *Parser) parseExpr() (*ast.Node, error) {
 	return p.parseLogical()
 }
 
-func (p *Parser) parseLogical() (*ast.MyNode, error) {
+func (p *Parser) parseLogical() (*ast.Node, error) {
 	lhs, err := p.parseComparasion()
 	if err != nil {
 		return nil, err
@@ -1369,7 +1369,7 @@ func (p *Parser) parseLogical() (*ast.MyNode, error) {
 				return nil, err
 			}
 
-			lhs := new(ast.MyNode)
+			lhs := new(ast.Node)
 			lhs.Kind = ast.KIND_BINARY_EXPR
 			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
 		} else {
@@ -1380,7 +1380,7 @@ func (p *Parser) parseLogical() (*ast.MyNode, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseComparasion() (*ast.MyNode, error) {
+func (p *Parser) parseComparasion() (*ast.Node, error) {
 	lhs, err := p.parseTerm()
 	if err != nil {
 		return nil, err
@@ -1395,7 +1395,7 @@ func (p *Parser) parseComparasion() (*ast.MyNode, error) {
 				return nil, err
 			}
 
-			lhs := new(ast.MyNode)
+			lhs := new(ast.Node)
 			lhs.Kind = ast.KIND_BINARY_EXPR
 			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
 		} else {
@@ -1405,7 +1405,7 @@ func (p *Parser) parseComparasion() (*ast.MyNode, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseTerm() (*ast.MyNode, error) {
+func (p *Parser) parseTerm() (*ast.Node, error) {
 	lhs, err := p.parseFactor()
 	if err != nil {
 		return nil, err
@@ -1419,7 +1419,7 @@ func (p *Parser) parseTerm() (*ast.MyNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs := new(ast.MyNode)
+			lhs := new(ast.Node)
 			lhs.Kind = ast.KIND_BINARY_EXPR
 			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
 		} else {
@@ -1429,7 +1429,7 @@ func (p *Parser) parseTerm() (*ast.MyNode, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseFactor() (*ast.MyNode, error) {
+func (p *Parser) parseFactor() (*ast.Node, error) {
 	lhs, err := p.parseUnary()
 	if err != nil {
 		return nil, err
@@ -1443,7 +1443,7 @@ func (p *Parser) parseFactor() (*ast.MyNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs := new(ast.MyNode)
+			lhs := new(ast.Node)
 			lhs.Kind = ast.KIND_BINARY_EXPR
 			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
 		} else {
@@ -1454,7 +1454,7 @@ func (p *Parser) parseFactor() (*ast.MyNode, error) {
 
 }
 
-func (p *Parser) parseUnary() (*ast.MyNode, error) {
+func (p *Parser) parseUnary() (*ast.Node, error) {
 	next := p.lex.Peek()
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		p.lex.Skip()
@@ -1463,7 +1463,7 @@ func (p *Parser) parseUnary() (*ast.MyNode, error) {
 			return nil, err
 		}
 
-		unary := new(ast.MyNode)
+		unary := new(ast.Node)
 		unary.Kind = ast.KIND_UNARY_EXPR
 		unary.Node = &ast.UnaryExpr{Op: next.Kind, Value: rhs}
 		return unary, nil
@@ -1472,8 +1472,8 @@ func (p *Parser) parseUnary() (*ast.MyNode, error) {
 	return p.parsePrimary()
 }
 
-func (p *Parser) parsePrimary() (*ast.MyNode, error) {
-	n := new(ast.MyNode)
+func (p *Parser) parsePrimary() (*ast.Node, error) {
+	n := new(ast.Node)
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
@@ -1506,10 +1506,10 @@ func (p *Parser) parsePrimary() (*ast.MyNode, error) {
 		}
 		return expr, nil
 	default:
-		if _, ok := token.LITERAL_KIND[tok.Kind]; ok {
+		if tok.Kind.IsLiteral() {
 			p.lex.Skip()
 
-			ty := new(ast.MyExprType)
+			ty := new(ast.ExprType)
 			ty.Kind = ast.EXPR_TYPE_BASIC
 			ty.T = &ast.BasicType{Kind: tok.Kind}
 
@@ -1530,8 +1530,8 @@ func (p *Parser) parsePrimary() (*ast.MyNode, error) {
 	}
 }
 
-func (p *Parser) parseExprList(possibleEnds []token.Kind) ([]*ast.MyNode, error) {
-	var exprs []*ast.MyNode
+func (p *Parser) parseExprList(possibleEnds []token.Kind) ([]*ast.Node, error) {
+	var exprs []*ast.Node
 Var:
 	for {
 		for _, end := range possibleEnds {
@@ -1554,7 +1554,7 @@ Var:
 	return exprs, nil
 }
 
-func (parser *Parser) parseFnCall() (*ast.MyNode, error) {
+func (parser *Parser) parseFnCall() (*ast.Node, error) {
 	name, ok := parser.expect(token.ID)
 	if !ok {
 		return nil, fmt.Errorf("expected 'id'")
@@ -1577,20 +1577,20 @@ func (parser *Parser) parseFnCall() (*ast.MyNode, error) {
 		return nil, fmt.Errorf("expected ')'")
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_CALL
 	n.Node = &ast.FnCall{Name: name, Args: args}
 	return n, nil
 }
 
-func (parser *Parser) parseFieldAccess() (*ast.MyNode, error) {
+func (parser *Parser) parseFieldAccess() (*ast.Node, error) {
 	id, ok := parser.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("error: expected ID")
 	}
 
-	left := new(ast.MyNode)
+	left := new(ast.Node)
 	left.Kind = ast.KIND_ID_EXPR
 	left.Node = &ast.IdExpr{Name: id}
 
@@ -1605,13 +1605,13 @@ func (parser *Parser) parseFieldAccess() (*ast.MyNode, error) {
 		log.Fatal(err)
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_FIELD_ACCESS
 	n.Node = &ast.FieldAccess{Left: left, Right: right}
 	return n, nil
 }
 
-func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.MyNode, error) {
+func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	_, ok := parser.expect(token.FOR)
 	// TODO(errors): add proper error
 	if !ok {
@@ -1651,7 +1651,7 @@ func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.MyNode, error) 
 		return nil, err
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_FOR_LOOP_STMT
 	n.Node = &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block, Scope: forScope}
 	return n, nil
@@ -1683,7 +1683,7 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 	return whileLoop.Node.(*ast.WhileLoop), err
 }
 
-func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.MyNode, error) {
+func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	_, ok := p.expect(token.WHILE)
 	if !ok {
 		return nil, fmt.Errorf("expected 'while'")
@@ -1700,7 +1700,7 @@ func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.MyNode, error) {
 		return nil, err
 	}
 
-	n := new(ast.MyNode)
+	n := new(ast.Node)
 	n.Kind = ast.KIND_WHILE_LOOP_STMT
 	n.Node = &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}
 	return n, nil

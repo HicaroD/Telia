@@ -454,7 +454,7 @@ func (c *llvmCodegen) getExpr(
 	case *ast.LiteralExpr:
 		switch ty := currentExpr.Type.(type) {
 		case *ast.BasicType:
-			if ty.IsNumeric() {
+			if ty.IsIntegerType() {
 				integerValue, bitSize := c.getIntegerValue(currentExpr, ty)
 				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
 			}

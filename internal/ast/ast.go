@@ -1,10 +1,6 @@
 // Package ast defines the abstract syntax tree (AST) for a programming language.
 package ast
 
-type Node interface {
-	astNode()
-}
-
 type NodeKind int
 
 const (
@@ -46,19 +42,23 @@ const (
 	KIND_PROTO
 )
 
-type MyNode struct {
+type Node struct {
 	Kind NodeKind
 	Node any
 }
 
-func (n *MyNode) IsStmt() bool {
+func (n *Node) IsStmt() bool {
 	return n.Kind > STMT_START && n.Kind < STMT_END
 }
 
-func (n *MyNode) IsExpr() bool {
+func (n *Node) IsExpr() bool {
 	return n.Kind > EXPR_START && n.Kind < EXPR_END
 }
 
-func (n *MyNode) IsDecl() bool {
+func (n *Node) IsDecl() bool {
 	return n.Kind > DECL_START && n.Kind < DECL_END
+}
+
+func (n *Node) IsId() bool {
+	return n.Kind == KIND_ID_EXPR
 }

@@ -35,18 +35,8 @@ var UNARY map[token.Kind]bool = map[token.Kind]bool{
 	token.MINUS: true,
 }
 
-type Expr interface {
-	Node
-	IsId() bool
-	IsVoid() bool
-	IsFieldAccess() bool
-	exprNode()
-}
-
 // Used on empty return
-type VoidExpr struct {
-	Expr
-}
+type VoidExpr struct{}
 
 func (void VoidExpr) String() string {
 	return "void"
@@ -57,8 +47,7 @@ func (void VoidExpr) IsFieldAccess() bool { return false }
 func (void VoidExpr) exprNode()           {}
 
 type LiteralExpr struct {
-	Expr
-	Type  *MyExprType
+	Type  *ExprType
 	Value []byte
 }
 
@@ -71,7 +60,6 @@ func (literal LiteralExpr) IsFieldAccess() bool { return false }
 func (literal LiteralExpr) exprNode()           {}
 
 type IdExpr struct {
-	Expr
 	Name *token.Token
 }
 
@@ -85,10 +73,8 @@ func (idExpr IdExpr) IsFieldAccess() bool { return false }
 func (idExpr IdExpr) exprNode()           {}
 
 type FieldAccess struct {
-	Stmt
-	Expr
-	Left  *MyNode
-	Right *MyNode
+	Left  *Node
+	Right *Node
 }
 
 func (fieldAccess FieldAccess) String() string {
@@ -102,9 +88,8 @@ func (fieldAccess FieldAccess) stmtNode()           {}
 func (fieldAccess FieldAccess) exprNode()           {}
 
 type UnaryExpr struct {
-	Expr
 	Op    token.Kind
-	Value *MyNode
+	Value *Node
 }
 
 func (unary UnaryExpr) String() string {
@@ -116,10 +101,9 @@ func (unary UnaryExpr) IsFieldAccess() bool { return false }
 func (unary UnaryExpr) exprNode()           {}
 
 type BinaryExpr struct {
-	Expr
-	Left  *MyNode
+	Left  *Node
 	Op    token.Kind
-	Right *MyNode
+	Right *Node
 }
 
 func (binExpr BinaryExpr) String() string {

@@ -15,13 +15,15 @@ const (
 	// Identifier
 	ID
 
-	// Literals
+	LITERAL_START // literal start delimiter
+
 	INTEGER_LITERAL
 	STRING_LITERAL
 	TRUE_BOOL_LITERAL
 	FALSE_BOOL_LITERAL
 
-	// Keywords
+	LITERAL_END // literal end delimiter
+
 	FN
 	FOR
 	WHILE
@@ -32,12 +34,12 @@ const (
 	ELIF
 	ELSE
 	NOT
-	AND
-	OR
 	TYPE
 	USE
 
 	// Types
+	BASIC_TYPE_START // basic type start delimiter
+
 	BOOL_TYPE // bool
 
 	NUMERIC_TYPE_START // numeric type start delimiter
@@ -57,70 +59,53 @@ const (
 
 	NUMERIC_TYPE_END // numeric type end delimiter
 
+	STRING_TYPE  // string
+	CSTRING_TYPE // cstring
+
 	UNTYPED_STRING // string
-	STRING_TYPE    // string
-	CSTRING_TYPE   // cstring
 
 	// This type is not explicit. We don't have a keyword for this, the absence
 	// of an explicit type means a void type
 	VOID_TYPE
 
-	// (
+	BASIC_TYPE_END // basic type end delimiter
+
 	OPEN_PAREN
-	// )
 	CLOSE_PAREN
 
-	// {
 	OPEN_CURLY
-	// }
 	CLOSE_CURLY
 
-	// [
 	OPEN_BRACKET
-	// ]
 	CLOSE_BRACKET
 
-	// ,
 	COMMA
-
-	// ;
 	SEMICOLON
 
-	// .
 	DOT
-	// ..
 	DOT_DOT
-	// ...
 	DOT_DOT_DOT
-
-	// =
 	EQUAL
-	// :=
 	COLON_EQUAL
-	// !=
-	BANG_EQUAL
-	// ==
-	EQUAL_EQUAL
 
-	// >
+	LOGICAL_OP_START // logical op start delimiter
+
+	AND
+	OR
+	BANG_EQUAL
+	EQUAL_EQUAL
 	GREATER
-	// >=
 	GREATER_EQ
-	// <
 	LESS
-	// <=
 	LESS_EQ
 
-	// +
+	LOGICAL_OP_END // logical op end delimiter
+
 	PLUS
-	// -
 	MINUS
-	// *
 	STAR
-	// /
 	SLASH
 
-	// #
 	SHARP
 )
 
@@ -160,56 +145,8 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"cstring": CSTRING_TYPE,
 }
 
-var BASIC_TYPES map[Kind]bool = map[Kind]bool{
-	VOID_TYPE:    true,
-	BOOL_TYPE:    true,
-	UNTYPED_INT:  true,
-	I8_TYPE:      true,
-	I16_TYPE:     true,
-	I32_TYPE:     true,
-	I64_TYPE:     true,
-	UNTYPED_UINT: true,
-	U8_TYPE:      true,
-	U16_TYPE:     true,
-	U32_TYPE:     true,
-	U64_TYPE:     true,
-	STRING_TYPE:  true,
-	CSTRING_TYPE: true,
-}
-
-var LITERAL_KIND map[Kind]bool = map[Kind]bool{
-	INTEGER_LITERAL:    true,
-	STRING_LITERAL:     true,
-	TRUE_BOOL_LITERAL:  true,
-	FALSE_BOOL_LITERAL: true,
-}
-
-var NUMERIC_TYPES map[Kind]bool = map[Kind]bool{
-	UNTYPED_INT:  true,
-	I8_TYPE:      true,
-	I16_TYPE:     true,
-	I32_TYPE:     true,
-	I64_TYPE:     true,
-	UNTYPED_UINT: true,
-	U8_TYPE:      true,
-	U16_TYPE:     true,
-	U32_TYPE:     true,
-	U64_TYPE:     true,
-}
-
-var LOGICAL_OP map[Kind]bool = map[Kind]bool{
-	AND:         true,
-	OR:          true,
-	BANG_EQUAL:  true,
-	EQUAL_EQUAL: true,
-	GREATER:     true,
-	GREATER_EQ:  true,
-	LESS:        true,
-	LESS_EQ:     true,
-}
-
-func (kind Kind) BitSize() int {
-	switch kind {
+func (k Kind) BitSize() int {
+	switch k {
 	case UNTYPED_INT, UNTYPED_UINT:
 		return strconv.IntSize
 	case BOOL_TYPE:
@@ -227,13 +164,20 @@ func (kind Kind) BitSize() int {
 	}
 }
 
-func (kind Kind) IsBasicType() bool {
-	_, ok := BASIC_TYPES[kind]
-	return ok
+func (k Kind) IsBasicType() bool {
+	return k > BASIC_TYPE_START && k < BASIC_TYPE_END
 }
 
-func (kind Kind) String() string {
-	switch kind {
+func (k Kind) IsLiteral() bool {
+	return k > LITERAL_START && k < LITERAL_END
+}
+
+func (k Kind) IsLogicalOp() bool {
+	return k > LOGICAL_OP_START && k < LOGICAL_OP_END
+}
+
+func (k Kind) String() string {
+	switch k {
 	case EOF:
 		return "end of file"
 	case INVALID:
@@ -355,7 +299,7 @@ func (kind Kind) String() string {
 	case SHARP:
 		return "#"
 	default:
-		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
+		log.Fatalf("String() method not defined for the following token kind '%d'", k)
 	}
 	return ""
 }
