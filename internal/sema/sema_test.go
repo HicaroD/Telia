@@ -28,22 +28,22 @@ func TestVarDeclForInference(t *testing.T) {
 		},
 		{
 			input:    "age := 18;",
-			ty:       &ast.BasicType{Kind: token.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
 			inferred: true,
 		},
 		{
 			input:    "score := -18;",
-			ty:       &ast.BasicType{Kind: token.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 + 1;",
-			ty:       &ast.BasicType{Kind: token.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
 			inferred: true,
 		},
 		{
 			input:    "age := 1 - 1;",
-			ty:       &ast.BasicType{Kind: token.INT_TYPE},
+			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
 			inferred: true,
 		},
 		{
@@ -180,53 +180,53 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				},
 				{
 					input: "1",
-					ty:    &ast.BasicType{Kind: token.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
 					value: &ast.LiteralExpr{
 						Value: []byte("1"),
-						Type:  &ast.BasicType{Kind: token.INT_TYPE},
+						Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 					},
 				},
 				{
 					input: "1 + 1",
-					ty:    &ast.BasicType{Kind: token.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 						},
 					},
 				},
 				{
 					input: "-1",
-					ty:    &ast.BasicType{Kind: token.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
 					value: &ast.UnaryExpr{
 						Op: token.MINUS,
 						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 							Value: []byte("1"),
 						},
 					},
 				},
 				{
 					input: "-1 + 1",
-					ty:    &ast.BasicType{Kind: token.INT_TYPE},
+					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
 					value: &ast.BinaryExpr{
 						Left: &ast.UnaryExpr{
 							Op: token.MINUS,
 							Value: &ast.LiteralExpr{
-								Type:  &ast.BasicType{Kind: token.INT_TYPE},
+								Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 								Value: []byte("1"),
 							},
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 						},
 					},
 				},
@@ -363,7 +363,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
 							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 						},
 					},
 				},
@@ -373,7 +373,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 					value: &ast.BinaryExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.INT_TYPE},
+							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{

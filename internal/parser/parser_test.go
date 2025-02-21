@@ -1333,7 +1333,7 @@ func TestVar(t *testing.T) {
 					token.ID,
 					token.NewPosition(filename, 1, 1),
 				),
-				Type:           &ast.BasicType{Kind: token.INT_TYPE},
+				Type:           &ast.BasicType{Kind: token.UNTYPED_INT},
 				NeedsInference: false,
 				Value: &ast.LiteralExpr{
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},

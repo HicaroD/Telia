@@ -25,9 +25,6 @@ type llvmCodegen struct {
 	context llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
-
-	// NOTE: temporary - find a better way of doing this ( preferebly don't do this :) )
-	strLiterals map[string]llvm.Value
 }
 
 func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
@@ -45,8 +42,6 @@ func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 		context: context,
 		module:  module,
 		builder: builder,
-
-		strLiterals: map[string]llvm.Value{},
 	}
 }
 
@@ -395,7 +390,7 @@ func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
 		switch exprTy.Kind {
 		case token.BOOL_TYPE:
 			return c.context.Int1Type()
-		case token.INT_TYPE, token.UINT_TYPE:
+		case token.UNTYPED_INT, token.UNTYPED_UINT:
 			// 32 bits or 64 bits
 			bitSize := exprTy.Kind.BitSize()
 			return c.context.IntType(bitSize)

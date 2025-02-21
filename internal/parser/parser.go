@@ -1509,9 +1509,13 @@ func (p *Parser) parsePrimary() (*ast.MyNode, error) {
 		if _, ok := token.LITERAL_KIND[tok.Kind]; ok {
 			p.lex.Skip()
 
+			ty := new(ast.MyExprType)
+			ty.Kind = ast.EXPR_TYPE_BASIC
+			ty.T = &ast.BasicType{Kind: tok.Kind}
+
 			n.Kind = ast.KIND_LITERAl_EXPR
 			n.Node = &ast.LiteralExpr{
-				Type:  &ast.BasicType{Kind: tok.Kind},
+				Type:  ty,
 				Value: tok.Lexeme,
 			}
 

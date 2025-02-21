@@ -58,7 +58,7 @@ func (void VoidExpr) exprNode()           {}
 
 type LiteralExpr struct {
 	Expr
-	Type  ExprType
+	Type  *MyExprType
 	Value []byte
 }
 

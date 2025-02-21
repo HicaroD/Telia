@@ -20,6 +20,30 @@ type MyExprType struct {
 	T    any
 }
 
+func (ty *MyExprType) IsBoolean() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind == token.BOOL_TYPE
+}
+
+func (ty *MyExprType) IsVoid() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind == token.VOID_TYPE
+}
+
+func (ty *MyExprType) IsNumeric() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind > token.NUMERIC_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END
+}
+
 type ExprType interface {
 	IsVoid() bool
 	IsBoolean() bool
@@ -32,6 +56,14 @@ type ExprType interface {
 type BasicType struct {
 	ExprType
 	Kind token.Kind
+}
+
+func (bt *BasicType) IsAnyStringType() bool {
+	return bt.Kind == token.STRING_TYPE || bt.Kind == token.CSTRING_TYPE
+}
+
+func (bt *BasicType) IsIntegerType() bool {
+	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END
 }
 
 func (basicType BasicType) IsNumeric() bool {

@@ -40,17 +40,22 @@ const (
 	// Types
 	BOOL_TYPE // bool
 
-	INT_TYPE // int
-	I8_TYPE  // i8
-	I16_TYPE // i16
-	I32_TYPE // i32
-	I64_TYPE // i64
+	NUMERIC_TYPE_START // numeric type start delimiter
 
-	UINT_TYPE // uint
-	U8_TYPE   // u8
-	U16_TYPE  // u16
-	U32_TYPE  // u32
-	U64_TYPE  // u64
+	INTEGER_TYPE_START // integer type start delimiter
+	UNTYPED_INT        // int
+	I8_TYPE            // i8
+	I16_TYPE           // i16
+	I32_TYPE           // i32
+	I64_TYPE           // i64
+	UNTYPED_UINT       // uint
+	U8_TYPE            // u8
+	U16_TYPE           // u16
+	U32_TYPE           // u32
+	U64_TYPE           // u64
+	INTEGER_TYPE_END   // integer type end delimiter
+
+	NUMERIC_TYPE_END // numeric type end delimiter
 
 	UNTYPED_STRING // string
 	STRING_TYPE    // string
@@ -140,13 +145,13 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 	"bool": BOOL_TYPE,
 
-	"int": INT_TYPE,
+	"int": UNTYPED_INT,
 	"i8":  I8_TYPE,
 	"i16": I16_TYPE,
 	"i32": I32_TYPE,
 	"i64": I64_TYPE,
 
-	"uint":    UINT_TYPE,
+	"uint":    UNTYPED_UINT,
 	"u8":      U8_TYPE,
 	"u16":     U16_TYPE,
 	"u32":     U32_TYPE,
@@ -158,12 +163,12 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 var BASIC_TYPES map[Kind]bool = map[Kind]bool{
 	VOID_TYPE:    true,
 	BOOL_TYPE:    true,
-	INT_TYPE:     true,
+	UNTYPED_INT:  true,
 	I8_TYPE:      true,
 	I16_TYPE:     true,
 	I32_TYPE:     true,
 	I64_TYPE:     true,
-	UINT_TYPE:    true,
+	UNTYPED_UINT: true,
 	U8_TYPE:      true,
 	U16_TYPE:     true,
 	U32_TYPE:     true,
@@ -180,16 +185,16 @@ var LITERAL_KIND map[Kind]bool = map[Kind]bool{
 }
 
 var NUMERIC_TYPES map[Kind]bool = map[Kind]bool{
-	INT_TYPE:  true,
-	I8_TYPE:   true,
-	I16_TYPE:  true,
-	I32_TYPE:  true,
-	I64_TYPE:  true,
-	UINT_TYPE: true,
-	U8_TYPE:   true,
-	U16_TYPE:  true,
-	U32_TYPE:  true,
-	U64_TYPE:  true,
+	UNTYPED_INT:  true,
+	I8_TYPE:      true,
+	I16_TYPE:     true,
+	I32_TYPE:     true,
+	I64_TYPE:     true,
+	UNTYPED_UINT: true,
+	U8_TYPE:      true,
+	U16_TYPE:     true,
+	U32_TYPE:     true,
+	U64_TYPE:     true,
 }
 
 var LOGICAL_OP map[Kind]bool = map[Kind]bool{
@@ -205,7 +210,7 @@ var LOGICAL_OP map[Kind]bool = map[Kind]bool{
 
 func (kind Kind) BitSize() int {
 	switch kind {
-	case INT_TYPE, UINT_TYPE:
+	case UNTYPED_INT, UNTYPED_UINT:
 		return strconv.IntSize
 	case BOOL_TYPE:
 		return 1
@@ -273,7 +278,7 @@ func (kind Kind) String() string {
 		return "use"
 	case BOOL_TYPE:
 		return "bool"
-	case INT_TYPE:
+	case UNTYPED_INT:
 		return "int"
 	case I8_TYPE:
 		return "i8"
@@ -283,7 +288,7 @@ func (kind Kind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
-	case UINT_TYPE:
+	case UNTYPED_UINT:
 		return "uint"
 	case U8_TYPE:
 		return "u8"
