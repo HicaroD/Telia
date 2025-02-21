@@ -56,6 +56,7 @@ func main() {
 
 func buildModule(cliResult CliResult, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
+
 	program, err := p.ParseModuleDir(cliResult.ParentDirName, cliResult.Path)
 	if err != nil {
 		return nil, err

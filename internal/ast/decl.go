@@ -81,3 +81,16 @@ type PkgDecl struct {
 func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
 func (pkg PkgDecl) astNode()       {}
 func (pkg PkgDecl) declNode()      {}
+
+type UseDecl struct {
+	Decl
+	Path    []string
+	Std     bool
+	Package bool
+}
+
+func (imp UseDecl) String() string {
+	return fmt.Sprintf("USE: %s | Std: %v | Package: %v", imp.Path, imp.Std, imp.Package)
+}
+func (imp UseDecl) astNode()  {}
+func (imp UseDecl) declNode() {}

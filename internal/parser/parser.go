@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
@@ -73,9 +73,9 @@ func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
 
 func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
 	file := &ast.File{
-		Dir:                lex.ParentDirName,
-		Path:               lex.Path,
-		PackageNameDefined: false,
+		Dir:            lex.ParentDirName,
+		Path:           lex.Path,
+		PkgNameDefined: false,
 	}
 
 	p.lex = lex
@@ -107,16 +107,25 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
-		if _, ok := node.(*ast.PkgDecl); ok {
-			if file.PackageNameDefined {
+		if pkg, ok := node.(*ast.PkgDecl); ok {
+			if file.PkgNameDefined {
+				// TODO(errors)
 				return fmt.Errorf("redeclaration of package name\n")
 			}
-			file.PackageNameDefined = true
+
+			file.PkgName = pkg.Name.Name()
+			file.PkgNameDefined = true
 		} else if firstNode {
+			// TODO(errors)
 			return fmt.Errorf("expected package declaration as first node")
 		}
 		firstNode = false
 		decls = append(decls, node)
+	}
+
+	if !file.PkgNameDefined {
+		// TODO(errors)
+		return fmt.Errorf("Package name not defined\n")
 	}
 
 	file.Body = decls
@@ -127,9 +136,8 @@ func (p *Parser) buildModuleTree(path string, module *ast.Package) error {
 	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
 		switch {
 		case entry.IsDir():
-			childScope := ast.NewScope(module.Scope)
-
 			childModule := new(ast.Package)
+			childScope := ast.NewScope(module.Scope)
 			childModule.Name = filepath.Base(fullPath)
 			childModule.Scope = childScope
 			childModule.IsRoot = false
@@ -180,9 +188,12 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 		return nil, eof, nil
 	}
 	switch tok.Kind {
-	case token.PKG:
+	case token.PACKAGE:
 		pkgDecl, err := p.parsePkgDecl()
 		return pkgDecl, eof, err
+	case token.USE:
+		imp, err := p.parseUse()
+		return imp, eof, err
 	case token.TYPE:
 		_, err := p.parseTypeAlias()
 		return nil, eof, err
@@ -201,10 +212,6 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 				pos.Line,
 				pos.Column,
 			),
-		}
-
-		if config.DEBUG_MODE {
-			fmt.Printf("%s\n", tok.Kind.String())
 		}
 
 		p.collector.ReportAndSave(unexpectedTokenOnGlobalScope)
@@ -410,7 +417,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 }
 
 func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
-	pkg, ok := p.expect(token.PKG)
+	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
@@ -429,6 +436,48 @@ func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
 	}
 
 	return &ast.PkgDecl{Name: name}, nil
+}
+
+func (p *Parser) parseUse() (*ast.UseDecl, error) {
+	imp := new(ast.UseDecl)
+
+	use, ok := p.expect(token.USE)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
+	}
+
+	useStr, ok := p.expect(token.STRING_LITERAL)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
+	}
+
+	parts := strings.Split(useStr.Name(), "::")
+	// TODO(errors)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("error: bad formatted import string")
+	}
+
+	switch parts[0] {
+	case "std":
+		imp.Std = true
+	case "package":
+		imp.Package = true
+	default:
+		// TODO(errors)
+		return nil, fmt.Errorf("error: invalid use string prefix")
+	}
+
+	imp.Path = parts[1:]
+
+	semi, ok := p.expect(token.SEMICOLON)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+	}
+
+	return imp, nil
 }
 
 func (p *Parser) parseTypeAlias() (ast.ExprType, error) {
@@ -888,6 +937,7 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 		}
 		// TODO: add more id types, such as struct
 		if alias, ok := symbol.(*ast.TypeAlias); ok {
+			// NOTE: should I directly return the underlying type?
 			return alias.Type, nil
 		}
 		// NOTE: I think ast.IdType won't be necessary anymore

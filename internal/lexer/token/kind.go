@@ -27,7 +27,7 @@ const (
 	WHILE
 	RETURN
 	EXTERN
-	PKG
+	PACKAGE
 	IF
 	ELIF
 	ELSE
@@ -35,6 +35,7 @@ const (
 	AND
 	OR
 	TYPE
+	USE
 
 	// Types
 	BOOL_TYPE // bool
@@ -50,6 +51,10 @@ const (
 	U16_TYPE  // u16
 	U32_TYPE  // u32
 	U64_TYPE  // u64
+
+	UNTYPED_STRING // string
+	STRING_TYPE    // string
+	CSTRING_TYPE   // cstring
 
 	// This type is not explicit. We don't have a keyword for this, the absence
 	// of an explicit type means a void type
@@ -115,19 +120,20 @@ const (
 )
 
 var KEYWORDS map[string]Kind = map[string]Kind{
-	"fn":     FN,
-	"for":    FOR,
-	"while":  WHILE,
-	"return": RETURN,
-	"extern": EXTERN,
-	"pkg":    PKG,
-	"if":     IF,
-	"elif":   ELIF,
-	"else":   ELSE,
-	"not":    NOT,
-	"and":    AND,
-	"or":     OR,
-	"type":   TYPE,
+	"fn":      FN,
+	"for":     FOR,
+	"while":   WHILE,
+	"return":  RETURN,
+	"extern":  EXTERN,
+	"package": PACKAGE,
+	"if":      IF,
+	"elif":    ELIF,
+	"else":    ELSE,
+	"not":     NOT,
+	"and":     AND,
+	"or":      OR,
+	"type":    TYPE,
+	"use":     USE,
 
 	"true":  TRUE_BOOL_LITERAL,
 	"false": FALSE_BOOL_LITERAL,
@@ -140,26 +146,30 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"i32": I32_TYPE,
 	"i64": I64_TYPE,
 
-	"uint": UINT_TYPE,
-	"u8":   U8_TYPE,
-	"u16":  U16_TYPE,
-	"u32":  U32_TYPE,
-	"u64":  U64_TYPE,
+	"uint":    UINT_TYPE,
+	"u8":      U8_TYPE,
+	"u16":     U16_TYPE,
+	"u32":     U32_TYPE,
+	"u64":     U64_TYPE,
+	"string":  STRING_TYPE,
+	"cstring": CSTRING_TYPE,
 }
 
 var BASIC_TYPES map[Kind]bool = map[Kind]bool{
-	VOID_TYPE: true,
-	BOOL_TYPE: true,
-	INT_TYPE:  true,
-	I8_TYPE:   true,
-	I16_TYPE:  true,
-	I32_TYPE:  true,
-	I64_TYPE:  true,
-	UINT_TYPE: true,
-	U8_TYPE:   true,
-	U16_TYPE:  true,
-	U32_TYPE:  true,
-	U64_TYPE:  true,
+	VOID_TYPE:    true,
+	BOOL_TYPE:    true,
+	INT_TYPE:     true,
+	I8_TYPE:      true,
+	I16_TYPE:     true,
+	I32_TYPE:     true,
+	I64_TYPE:     true,
+	UINT_TYPE:    true,
+	U8_TYPE:      true,
+	U16_TYPE:     true,
+	U32_TYPE:     true,
+	U64_TYPE:     true,
+	STRING_TYPE:  true,
+	CSTRING_TYPE: true,
 }
 
 var LITERAL_KIND map[Kind]bool = map[Kind]bool{
@@ -243,8 +253,8 @@ func (kind Kind) String() string {
 		return "return"
 	case EXTERN:
 		return "extern"
-	case PKG:
-		return "pkg"
+	case PACKAGE:
+		return "package"
 	case IF:
 		return "if"
 	case ELIF:
@@ -259,6 +269,8 @@ func (kind Kind) String() string {
 		return "or"
 	case TYPE:
 		return "type"
+	case USE:
+		return "use"
 	case BOOL_TYPE:
 		return "bool"
 	case INT_TYPE:
@@ -281,6 +293,12 @@ func (kind Kind) String() string {
 		return "u32"
 	case U64_TYPE:
 		return "u64"
+	case UNTYPED_STRING:
+		return "untyped string"
+	case STRING_TYPE:
+		return "string"
+	case CSTRING_TYPE:
+		return "cstring"
 	case VOID_TYPE:
 		return "void"
 	case OPEN_PAREN:

@@ -1,4 +1,4 @@
-pkg main;
+package main;
 
 #[default_cc="c"]
 extern C {
