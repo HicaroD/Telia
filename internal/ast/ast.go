@@ -62,3 +62,11 @@ func (n *Node) IsDecl() bool {
 func (n *Node) IsId() bool {
 	return n.Kind == KIND_ID_EXPR
 }
+
+func (n *Node) IsReturn() bool {
+	return n.Kind == KIND_RETURN_STMT
+}
+
+func (n *Node) IsVoid() bool {
+	return n.Kind == KIND_VOID_EXPR
+}

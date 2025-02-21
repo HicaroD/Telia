@@ -1254,7 +1254,7 @@ VarDecl:
 }
 
 // Useful for testing
-func parseVarFrom(filename, input string) (ast.Stmt, error) {
+func parseVarFrom(filename, input string) (*ast.VarStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)

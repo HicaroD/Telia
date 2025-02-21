@@ -62,14 +62,14 @@ func (c *llvmCodegen) generateModule(module *ast.Package) {
 
 func (c *llvmCodegen) generateFile(file *ast.File) {
 	for _, node := range file.Body {
-		switch n := node.(type) {
-		case *ast.FnDecl:
-			c.generateFnDecl(n)
-		case *ast.ExternDecl:
-			c.generateExternDecl(n)
-		case *ast.PkgDecl:
+		switch node.Kind {
+		case ast.KIND_FN_DECL:
+			c.generateFnDecl(node.Node.(*ast.FnDecl))
+		case ast.KIND_EXTERN_DECL:
+			c.generateExternDecl(node.Node.(*ast.ExternDecl))
+		case ast.KIND_PKG_DECL:
 			continue
-		case *ast.UseDecl:
+		case ast.KIND_USE_DECL:
 			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
@@ -201,29 +201,29 @@ func (c *llvmCodegen) generateBlock(
 }
 
 func (c *llvmCodegen) generateStmt(
-	stmt ast.Stmt,
+	stmt *ast.Node,
 	function *Function,
 	parentScope *ast.Scope,
 ) {
-	switch statement := stmt.(type) {
-	case *ast.FnCall:
-		c.generateFunctionCall(statement, parentScope)
-	case *ast.ReturnStmt:
-		c.generateReturnStmt(statement, parentScope)
-	case *ast.VarStmt:
-		c.generateVar(statement, parentScope)
-	case *ast.MultiVarStmt:
-		c.generateMultiVar(statement, parentScope)
-	case *ast.FieldAccess:
-		c.generateFieldAccessStmt(statement, parentScope)
-	case *ast.CondStmt:
-		c.generateCondStmt(statement, function)
-	case *ast.ForLoop:
-		c.generateForLoop(statement, function)
-	case *ast.WhileLoop:
-		c.generateWhileLoop(statement, function)
+	switch stmt.Kind {
+	case ast.KIND_FN_CALL:
+		c.generateFunctionCall(stmt.Node.(*ast.FnCall), parentScope)
+	case ast.KIND_RETURN_STMT:
+		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
+	case ast.KIND_VAR_STMT:
+		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
+	case ast.KIND_MULTI_VAR_STMT:
+		c.generateMultiVar(stmt.Node.(*ast.MultiVarStmt), parentScope)
+	case ast.KIND_FIELD_ACCESS:
+		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
+	case ast.KIND_COND_STMT:
+		c.generateCondStmt(stmt.Node.(*ast.CondStmt), function)
+	case ast.KIND_FOR_LOOP_STMT:
+		c.generateForLoop(stmt.Node.(*ast.ForLoop), function)
+	case ast.KIND_WHILE_LOOP_STMT:
+		c.generateWhileLoop(stmt.Node.(*ast.WhileLoop), function)
 	default:
-		log.Fatalf("unimplemented block statement: %s", statement)
+		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
 }
 
@@ -245,7 +245,7 @@ func (c *llvmCodegen) generateMultiVar(
 	scope *ast.Scope,
 ) {
 	for _, variable := range varDecl.Variables {
-		c.generateVar(variable, scope)
+		c.generateVar(variable.Node.(*ast.VarStmt), scope)
 	}
 }
 
@@ -284,11 +284,12 @@ func (c *llvmCodegen) generateVarReassign(
 	symbol, _ := scope.LookupAcrossScopes(varDecl.Name.Name())
 
 	var variable *Variable
-	switch sy := symbol.(type) {
-	case *ast.VarStmt:
-		variable = sy.BackendType.(*Variable)
-	case *ast.Field:
-		variable = sy.BackendType.(*Variable)
+
+	switch symbol.Kind {
+	case ast.KIND_VAR_STMT:
+		variable = symbol.Node.(*ast.VarStmt).BackendType.(*Variable)
+	case ast.KIND_FIELD:
+		variable = symbol.Node.(*ast.Field).BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
 	}
@@ -320,7 +321,7 @@ func (c *llvmCodegen) generateFunctionCall(
 ) llvm.Value {
 	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
 
-	calledFunction := symbol.(*ast.FunctionDecl)
+	calledFunction := symbol.Node.(*ast.FnDecl)
 	calledFunctionLlvm := calledFunction.BackendType.(*Function)
 	args := c.getExprList(functionScope, functionCall.Args)
 
@@ -384,15 +385,16 @@ func (c *llvmCodegen) getCallingConvention(callingConvention string) llvm.CallCo
 	}
 }
 
-func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
-	switch exprTy := ty.(type) {
-	case *ast.BasicType:
-		switch exprTy.Kind {
+func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
+	switch ty.Kind {
+	case ast.EXPR_TYPE_BASIC:
+		b := ty.T.(*ast.BasicType)
+		switch b.Kind {
 		case token.BOOL_TYPE:
 			return c.context.Int1Type()
 		case token.UNTYPED_INT, token.UNTYPED_UINT:
 			// 32 bits or 64 bits
-			bitSize := exprTy.Kind.BitSize()
+			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)
 		case token.I8_TYPE, token.U8_TYPE:
 			return c.context.Int8Type()
@@ -407,19 +409,15 @@ func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
 		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
 		// NOTE: string type is actually more complex than that
 		case token.STRING_TYPE, token.CSTRING_TYPE:
-			u8Type := c.getType(&ast.BasicType{Kind: token.U8_TYPE})
+			u8 := new(ast.ExprType)
+			u8.Kind = ast.EXPR_TYPE_BASIC
+			u8.T = &ast.BasicType{Kind: token.U8_TYPE}
+			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
 		default:
-			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
+			log.Fatalf("invalid basic type token: '%s'", b.Kind)
 		}
-	case *ast.PointerType:
-		underlyingExprType := c.getType(exprTy.Type)
-		// TODO: learn about how to properly define a pointer address space
-		return llvm.PointerType(underlyingExprType, 0)
-	default:
-		log.Fatalf("invalid type: %s", reflect.TypeOf(exprTy))
 	}
-	// NOTE: this line should be unreachable
 	return c.context.VoidType()
 }
 
@@ -437,7 +435,7 @@ func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 
 func (c *llvmCodegen) getExprList(
 	parentScope *ast.Scope,
-	expressions []ast.Expr,
+	expressions []*ast.Node,
 ) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i, expr := range expressions {
@@ -447,23 +445,27 @@ func (c *llvmCodegen) getExprList(
 }
 
 func (c *llvmCodegen) getExpr(
-	expr ast.Expr,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) llvm.Value {
-	switch currentExpr := expr.(type) {
-	case *ast.LiteralExpr:
-		switch ty := currentExpr.Type.(type) {
-		case *ast.BasicType:
-			if ty.IsIntegerType() {
-				integerValue, bitSize := c.getIntegerValue(currentExpr, ty)
+	switch expr.Kind {
+	case ast.KIND_LITERAl_EXPR:
+		lit := expr.Node.(*ast.LiteralExpr)
+		switch lit.Type.Kind {
+		case ast.EXPR_TYPE_BASIC:
+			basic := lit.Type.T.(*ast.BasicType)
+
+			if basic.IsIntegerType() {
+				integerValue, bitSize := c.getIntegerValue(lit, basic)
 				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
 			}
-			switch ty.Kind {
+
+			switch basic.Kind {
 			case token.CSTRING_TYPE:
 				// globalStrPtr := c.builder.CreateGlobalStringPtr(string(currentExpr.Value), ".str")
 				// // NOTE: don't allow duplicates
-				arrTy := llvm.ArrayType(c.context.Int8Type(), len(currentExpr.Value))
-				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(currentExpr.Value))
+				arrTy := llvm.ArrayType(c.context.Int8Type(), len(lit.Value))
+				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value))
 
 				globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
 				globalVal.SetInitializer(arr)
@@ -480,35 +482,37 @@ func (c *llvmCodegen) getExpr(
 			default:
 				panic("unimplemented basic type")
 			}
-		case *ast.PointerType:
-			switch ptrTy := ty.Type.(type) {
-			default:
-				log.Fatalf("unimplemented ptr type: %s", ptrTy)
-			}
+		case ast.EXPR_TYPE_POINTER:
+			panic("unimplemented pointer type")
+		default:
+			panic("unimplemented literal type")
 		}
-	case *ast.IdExpr:
-		// REFACTOR: make it simpler to get the lexeme
-		varName := currentExpr.Name.Name()
+	case ast.KIND_ID_EXPR:
+		id := expr.Node.(*ast.IdExpr)
+
+		varName := id.Name.Name()
 		symbol, _ := scope.LookupAcrossScopes(varName)
 
 		var localVar *Variable
 
-		switch symbol.(type) {
-		case *ast.VarStmt:
-			variable := symbol.(*ast.VarStmt)
+		switch symbol.Kind {
+		case ast.KIND_VAR_STMT:
+			variable := symbol.Node.(*ast.VarStmt)
 			localVar = variable.BackendType.(*Variable)
-		case *ast.Field:
-			variable := symbol.(*ast.Field)
+		case ast.KIND_FIELD:
+			variable := symbol.Node.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable
-	case *ast.BinaryExpr:
-		lhs := c.getExpr(currentExpr.Left, scope)
-		rhs := c.getExpr(currentExpr.Right, scope)
+	case ast.KIND_BINARY_EXPR:
+		binary := expr.Node.(*ast.BinaryExpr)
 
-		switch currentExpr.Op {
+		lhs := c.getExpr(binary.Left, scope)
+		rhs := c.getExpr(binary.Right, scope)
+
+		switch binary.Op {
 		// TODO: deal with signed or unsigned operations
 		// I'm assuming all unsigned for now
 		case token.EQUAL_EQUAL:
@@ -533,29 +537,32 @@ func (c *llvmCodegen) getExpr(
 		case token.GREATER_EQ:
 			return c.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge")
 		default:
-			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
+			log.Fatalf("unimplemented binary operator: %s", binary.Op)
+			return llvm.Value{}
 		}
-	case *ast.FnCall:
-		call := c.generateFunctionCall(currentExpr, scope)
+	case ast.KIND_FN_CALL:
+		fnCall := expr.Node.(*ast.FnCall)
+		call := c.generateFunctionCall(fnCall, scope)
 		return call
-	case *ast.UnaryExpr:
-		switch currentExpr.Op {
+	case ast.KIND_UNARY_EXPR:
+		unary := expr.Node.(*ast.UnaryExpr)
+
+		switch unary.Op {
 		case token.MINUS:
-			expr := c.getExpr(currentExpr.Value, scope)
+			expr := c.getExpr(unary.Value, scope)
 			return c.builder.CreateNeg(expr, ".neg")
 		default:
-			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
+			log.Fatalf("unimplemented unary operator: %s", unary.Op)
+			return llvm.Value{}
 		}
-	case *ast.FieldAccess:
-		value := c.generateFieldAccessStmt(currentExpr, scope)
+	case ast.KIND_FIELD_ACCESS:
+		fieldAccess := expr.Node.(*ast.FieldAccess)
+		value := c.generateFieldAccessStmt(fieldAccess, scope)
 		return value
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
+		return llvm.Value{}
 	}
-
-	// NOTE: this line should be unreachable
-	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr")
-	return llvm.Value{}
 }
 
 func (c *llvmCodegen) llvmConstInt8s(data []byte) []llvm.Value {
@@ -618,13 +625,13 @@ func (c *llvmCodegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
 	scope *ast.Scope,
 ) llvm.Value {
-	idExpr := fieldAccess.Left.(*ast.IdExpr)
+	idExpr := fieldAccess.Left.Node.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
 	symbol, _ := scope.LookupAcrossScopes(id)
 
-	left := symbol.(*ast.ExternDecl)
-	right := fieldAccess.Right.(*ast.FunctionCall)
+	left := symbol.Node.(*ast.ExternDecl)
+	right := fieldAccess.Right.Node.(*ast.FnCall)
 	return c.generatePrototypeCall(left, right, scope)
 }
 
@@ -634,7 +641,7 @@ func (c *llvmCodegen) generatePrototypeCall(
 	callScope *ast.Scope,
 ) llvm.Value {
 	prototype, _ := extern.Scope.LookupCurrentScope(call.Name.Name())
-	proto := prototype.(*ast.Proto)
+	proto := prototype.Node.(*ast.Proto)
 	protoLlvm := proto.BackendType.(*Function)
 	args := c.getExprList(callScope, call.Args)
 
