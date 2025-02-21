@@ -100,7 +100,9 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 				return false, err
 			}
 		case *ast.PkgDecl:
-			continue
+			err := s.checkUseDecl()
+			if err != nil {
+			}
 		case *ast.UseDecl:
 			// TODO: verify if import declaration is valid
 			continue
@@ -108,7 +110,12 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
 		}
 	}
+
 	return foundMain, nil
+}
+
+func (sema *sema) checkUseDecl() error {
+	return nil
 }
 
 func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
@@ -456,6 +463,8 @@ func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 	return nil
 }
 
+// NOTE: any type mismatch could be identifier during this stage, no need to use
+// reflect.DeepEqual or something similar to compare structs
 func (sema *sema) inferExprTypeWithContext(
 	exprNode ast.Expr,
 	expectedType ast.ExprType,
@@ -466,37 +475,56 @@ func (sema *sema) inferExprTypeWithContext(
 		switch ty := expression.Type.(type) {
 		case *ast.BasicType:
 			switch ty.Kind {
-			case token.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
-				expression.Type = finalTy
-				return finalTy, nil
-			case token.INTEGER_LITERAL, token.INT_TYPE:
-				switch ty := expectedType.(type) {
+			// NOTE: does STRING_LITERAL still exists at this point?
+			case token.STRING_LITERAL, token.UNTYPED_STRING:
+				switch expTy := expectedType.(type) {
 				case *ast.BasicType:
+					if expTy.Kind != token.STRING_TYPE && expTy.Kind != token.CSTRING_TYPE {
+						return nil, fmt.Errorf("type mismatch for string literal")
+					}
+					finalTy := &ast.BasicType{Kind: expTy.Kind}
+					expression.Type = finalTy
+					return finalTy, nil
+				default:
+					return nil, fmt.Errorf("type mismatch for string literal")
+				}
+			// NOTE: does INTEGER_LITERAL still exists at this point?
+			case token.INTEGER_LITERAL, token.INT_TYPE:
+				// TODO: check if the expected type is actually an integer
+				switch expTy := expectedType.(type) {
+				case *ast.BasicType:
+					// NOTE: floats are numeric as well, but
+					// if the expected kind is float, it is a
+					// type mismatch here
+					if !expTy.IsNumeric() {
+						return nil, fmt.Errorf("error: type mismatch for integer")
+					}
 					value := string(expression.Value)
-					bitSize := ty.Kind.BitSize()
+					bitSize := expTy.Kind.BitSize()
 					// TODO(errors)
 					if bitSize == -1 {
-						return nil, fmt.Errorf("not a valid numeric type: %s", ty.Kind)
+						return nil, fmt.Errorf("not a valid numeric type: %s", expTy.Kind)
 					}
 					_, err := strconv.ParseUint(value, 10, bitSize)
 					// TODO(errors)
 					if err != nil {
-						return nil, fmt.Errorf("kind: %s bitSize: %d - integer overflow %s - error: %s", ty.Kind, bitSize, value, err)
+						return nil, fmt.Errorf("kind: %s bitSize: %d - integer overflow %s - error: %s", expTy.Kind, bitSize, value, err)
 					}
-					finalTy := &ast.BasicType{Kind: ty.Kind}
+					finalTy := &ast.BasicType{Kind: expTy.Kind}
 					expression.Type = finalTy
 					return finalTy, nil
 				default:
 					// TODO(errors)
-					log.Fatalf("unimplemented type at integer literal: %s %s", ty, reflect.TypeOf(ty))
+					return nil, fmt.Errorf("error: type mismatch for integer")
 				}
 			case token.TRUE_BOOL_LITERAL:
+				// TODO: check if the expected type is a boolean
 				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = []byte("1")
 				return finalTy, nil
 			case token.FALSE_BOOL_LITERAL:
+				// TODO: check if the expected type is a boolean
 				finalTy := &ast.BasicType{Kind: token.BOOL_TYPE}
 				expression.Type = finalTy
 				expression.Value = []byte("0")
@@ -515,15 +543,34 @@ func (sema *sema) inferExprTypeWithContext(
 		if err != nil {
 			return nil, err
 		}
+
+		var ty ast.ExprType
+
 		switch symTy := symbol.(type) {
 		case *ast.VarStmt:
-			return symTy.Type, nil
+			ty = symTy.Type
 		case *ast.Field:
-			return symTy.Type, nil
+			ty = symTy.Type
 		default:
 			// TODO(errors)
 			log.Fatalf("expected to be a variable or parameter, but got %s", reflect.TypeOf(symTy))
 		}
+
+		switch symTy := ty.(type) {
+		case *ast.BasicType:
+			switch expTy := expectedType.(type) {
+			case *ast.BasicType:
+				switch symTy.Kind {
+				case token.UNTYPED_STRING:
+					if expTy.Kind != token.STRING_TYPE && expTy.Kind != token.CSTRING_TYPE {
+						return nil, fmt.Errorf("type mismatch for untyped string")
+					}
+					symTy.Kind = expTy.Kind
+				}
+			}
+		}
+
+		return ty, nil
 	case *ast.BinaryExpr:
 		ty, err := sema.inferBinaryExprTypeWithContext(expression, expectedType, scope)
 		// TODO(errors)
@@ -621,11 +668,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 	case *ast.LiteralExpr:
 		switch ty := expression.Type.(type) {
 		case *ast.BasicType:
-			// TODO: what if I want a defined string type on my programming
-			// language? I don't think *i8 is correct type for this
 			switch ty.Kind {
 			case token.STRING_LITERAL:
-				finalTy := &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}}
+				finalTy := &ast.BasicType{Kind: token.UNTYPED_STRING}
 				expression.Type = finalTy
 				return finalTy, false, nil
 			case token.INTEGER_LITERAL:
@@ -737,7 +782,6 @@ func (sema *sema) inferExprTypeWithoutContext(
 	return nil, false, nil
 }
 
-// TODO: refactor this algorithm
 func (sema *sema) inferBinaryExprTypeWithoutContext(
 	expression *ast.BinaryExpr,
 	scope *ast.Scope,
@@ -758,7 +802,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		rhsTypeWithContext, err := sema.inferExprTypeWithContext(expression.Right, lhsType, scope)
 		// TODO(errors)
 		if err != nil {
-			log.Fatal(err)
+			return nil, false, err
 		}
 		rhsType = rhsTypeWithContext
 	}
@@ -766,18 +810,19 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		lhsTypeWithContext, err := sema.inferExprTypeWithContext(expression.Left, rhsType, scope)
 		// TODO(errors)
 		if err != nil {
-			log.Fatal(err)
+			return nil, false, err
 		}
 		lhsType = lhsTypeWithContext
 	}
 
+	// TODO: get rid of reflect.DeepEqual for comparing types somehow
 	// TODO(errors)
 	if !reflect.DeepEqual(lhsType, rhsType) {
-		log.Fatalf("mismatched types: %s %s %s", lhsType, expression.Op, rhsType)
+		return nil, false, fmt.Errorf("mismatched types: %s %s %s", lhsType, expression.Op, rhsType)
 	}
 
-	// TODO: it needs to be more flexible
-	// Automatically evaluate correct operators
+	// TODO: it needs to be more flexible - automatically evaluate correct
+	// operators
 	switch expression.Op {
 	case token.PLUS, token.MINUS, token.SLASH, token.STAR:
 		if lhsType.IsNumeric() && rhsType.IsNumeric() {
@@ -910,23 +955,8 @@ func (sema *sema) checkPrototypeCall(
 			}
 			for i := range minimumNumberOfArgs {
 				paramType := proto.Params.Fields[i].Type
-				argType, err := sema.inferExprTypeWithContext(
-					prototypeCall.Args[i],
-					paramType,
-					callScope,
-				)
-				// TODO(errors)
-				if err != nil {
+				if _, err := sema.inferExprTypeWithContext(prototypeCall.Args[i], paramType, callScope); err != nil {
 					return err
-				}
-				// TODO(errors)
-				if !reflect.DeepEqual(argType, paramType) {
-					log.Fatalf(
-						"mismatched argument type on prototype '%s', expected %s, but got %s",
-						proto.Name,
-						paramType,
-						argType,
-					)
 				}
 			}
 		} else {
@@ -936,15 +966,10 @@ func (sema *sema) checkPrototypeCall(
 			}
 			for i := range len(prototypeCall.Args) {
 				paramType := proto.Params.Fields[i].Type
-				argType, err := sema.inferExprTypeWithContext(prototypeCall.Args[i], paramType, callScope)
-				// TODO(errors)
-				if err != nil {
+				if _, err := sema.inferExprTypeWithContext(prototypeCall.Args[i], paramType, callScope); err != nil {
 					return err
 				}
-				// TODO(errors)
-				if !reflect.DeepEqual(argType, paramType) {
-					log.Fatalf("mismatched argument type on function '%s', expected %s, but got %s", proto.Name, paramType, argType)
-				}
+				fmt.Println(prototypeCall.Args[i])
 			}
 		}
 	} else {

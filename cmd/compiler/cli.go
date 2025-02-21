@@ -65,24 +65,22 @@ func cli() (CliResult, error) {
 		return result, fmt.Errorf("TODO: show help")
 	}
 
-	releaseBuild, debugBuild := false, false
+	releaseBuildSet, debugBuildSet := false, false
+	result.BuildType = config.DEBUG
+
 	for _, arg := range args[1:] {
 		switch arg {
 		case "-release":
-			releaseBuild = true
+			releaseBuildSet = true
 			result.BuildType = config.RELEASE
 		case "-debug":
-			debugBuild = true
+			debugBuildSet = true
 			result.BuildType = config.DEBUG
 		}
 	}
-
-	if releaseBuild && debugBuild {
+	// TODO(errors)
+	if releaseBuildSet && debugBuildSet {
 		return result, fmt.Errorf("choose either -release or -build, not both")
 	}
-	if !releaseBuild && !debugBuild {
-		result.BuildType = config.DEBUG
-	}
-
 	return result, nil
 }

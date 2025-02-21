@@ -1,19 +1,13 @@
 package main;
 
-type Cstring = *u8;
-
 #[default_cc="c"]
 extern libc {
-  fn printf(format Cstring, ...) i32;
-  fn puts(format Cstring) i32;
-}
-
-fn print(message Cstring) {
-  libc.puts(message);
-  return;
+  fn printf(format cstring, ...) i32;
+  fn puts(format cstring) i32;
 }
 
 fn main() i32 {
-  libc.puts("Hello world");
+  libc.puts("Hello, world!\n");
+  libc.puts("Hello, world!\n");
   return 0;
 }

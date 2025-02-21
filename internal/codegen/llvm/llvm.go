@@ -52,7 +52,7 @@ func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 
 func (c *llvmCodegen) Generate(buildType config.BuildType) error {
 	c.generateModule(c.program.Root)
-	err := c.generateExecutable(buildType)
+	err := c.generateExe(buildType)
 	return err
 }
 
@@ -94,7 +94,7 @@ func (c *llvmCodegen) exists(path string) (bool, error) {
 
 }
 
-func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
+func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
 
 	dirName := "__build__"
@@ -133,20 +133,20 @@ func (c *llvmCodegen) generateExecutable(buildType config.BuildType) error {
 	}
 
 	optLevel := ""
-	// TODO: if release, get rid of debug symbols, not needed
 	compilerFlags := ""
 
-	if buildType == config.RELEASE {
+	switch buildType {
+	case config.RELEASE:
 		optLevel = "-O3"
-		// note: remove symbol and debug information
 		compilerFlags = "-Wl,-s"
-	} else if buildType == config.DEBUG {
+	case config.DEBUG:
 		optLevel = "-O0"
-	} else {
+	default:
 		panic("invalid build type: " + buildType.String())
 	}
 
 	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	fmt.Println(cmd.String())
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -409,6 +409,11 @@ func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
 			return c.context.Int64Type()
 		case token.VOID_TYPE:
 			return c.context.VoidType()
+		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
+		// NOTE: string type is actually more complex than that
+		case token.STRING_TYPE, token.CSTRING_TYPE:
+			u8Type := c.getType(&ast.BasicType{Kind: token.U8_TYPE})
+			return c.getPtrType(u8Type)
 		default:
 			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
 		}
@@ -421,6 +426,10 @@ func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
 	}
 	// NOTE: this line should be unreachable
 	return c.context.VoidType()
+}
+
+func (c *llvmCodegen) getPtrType(ty llvm.Type) llvm.Type {
+	return llvm.PointerType(ty, 0)
 }
 
 func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
@@ -450,26 +459,36 @@ func (c *llvmCodegen) getExpr(
 	case *ast.LiteralExpr:
 		switch ty := currentExpr.Type.(type) {
 		case *ast.BasicType:
-			integerValue, bitSize := c.getIntegerValue(currentExpr, ty)
-			return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
+			if ty.IsNumeric() {
+				integerValue, bitSize := c.getIntegerValue(currentExpr, ty)
+				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
+			}
+			switch ty.Kind {
+			case token.CSTRING_TYPE:
+				// globalStrPtr := c.builder.CreateGlobalStringPtr(string(currentExpr.Value), ".str")
+				// // NOTE: don't allow duplicates
+				arrTy := llvm.ArrayType(c.context.Int8Type(), len(currentExpr.Value))
+				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(currentExpr.Value))
+
+				globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
+				globalVal.SetInitializer(arr)
+				globalVal.SetLinkage(llvm.PrivateLinkage)
+				globalVal.SetGlobalConstant(true)
+				globalVal.SetAlignment(1)
+				globalVal.SetUnnamedAddr(true)
+
+				zero := llvm.ConstInt(c.context.Int32Type(), 0, false)
+				indices := []llvm.Value{zero, zero}
+				ptr := llvm.ConstInBoundsGEP(arrTy, globalVal, indices)
+
+				return ptr
+			default:
+				panic("unimplemented basic type")
+			}
 		case *ast.PointerType:
 			switch ptrTy := ty.Type.(type) {
-			case *ast.BasicType:
-				switch ptrTy.Kind {
-				case token.U8_TYPE:
-					str := string(currentExpr.Value)
-					// NOTE: huge string literals can affect performance because it
-					// creates a new entry on the map
-					globalStrLiteral, ok := c.strLiterals[str]
-					if ok {
-						return globalStrLiteral
-					}
-					globalStrPtr := c.builder.CreateGlobalStringPtr(str, ".str")
-					c.strLiterals[str] = globalStrPtr
-					return globalStrPtr
-				default:
-					log.Fatalf("unimplemented ptr basic type: %s", ptrTy.Kind)
-				}
+			default:
+				log.Fatalf("unimplemented ptr type: %s", ptrTy)
 			}
 		}
 	case *ast.IdExpr:
@@ -486,9 +505,6 @@ func (c *llvmCodegen) getExpr(
 		case *ast.Field:
 			variable := symbol.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
-		default:
-			fmt.Printf("error: invalid type for local variable: %s\n", reflect.TypeOf(symbol))
-			return llvm.Value{}
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
@@ -545,6 +561,16 @@ func (c *llvmCodegen) getExpr(
 	// NOTE: this line should be unreachable
 	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr")
 	return llvm.Value{}
+}
+
+func (c *llvmCodegen) llvmConstInt8s(data []byte) []llvm.Value {
+	length := len(data)
+	out := make([]llvm.Value, length+1)
+	for i, b := range data {
+		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
+	}
+	out[length] = llvm.ConstInt(c.context.Int8Type(), 0, false)
+	return out
 }
 
 func (c *llvmCodegen) getIntegerValue(
