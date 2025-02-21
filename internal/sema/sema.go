@@ -194,11 +194,11 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 
 func (sema *sema) checkBlock(
 	block *ast.BlockStmt,
-	returnTy ast.ExprType,
+	returnTy *ast.MyExprType,
 	scope *ast.Scope,
 ) error {
-	for i := range block.Statements {
-		err := sema.checkStmt(block.Statements[i], scope, returnTy)
+	for _, statement := range block.Statements {
+		err := sema.checkStmt(statement, scope, returnTy)
 		if err != nil {
 			return err
 		}
@@ -207,48 +207,45 @@ func (sema *sema) checkBlock(
 }
 
 func (sema *sema) checkStmt(
-	stmt ast.Stmt,
+	stmt *ast.MyNode,
 	scope *ast.Scope,
-	returnTy ast.ExprType,
+	returnTy *ast.MyExprType,
 ) error {
-	switch statement := stmt.(type) {
-	case *ast.FunctionCall:
-		err := sema.checkFunctionCall(statement, scope)
+	switch stmt.Kind {
+	case ast.KIND_FN_CALL:
+		err := sema.checkFunctionCall(stmt.Node.(*ast.FnCall), scope)
 		return err
-	case *ast.MultiVarStmt, *ast.VarStmt:
-		err := sema.checkVarDecl(statement, scope)
+	case ast.KIND_MULTI_VAR_STMT, ast.KIND_VAR_STMT:
+		err := sema.checkVarDecl(stmt, scope)
 		return err
-	case *ast.CondStmt:
-		err := sema.checkCondStmt(statement, returnTy, scope)
+	case ast.KIND_COND_STMT:
+		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, scope)
 		return err
-	case *ast.ReturnStmt:
-		_, err := sema.inferExprTypeWithContext(statement.Value, returnTy, scope)
+	case ast.KIND_RETURN_STMT:
+		returnStmt := stmt.Node.(*ast.ReturnStmt)
+		_, err := sema.inferExprTypeWithContext(returnStmt.Value, returnTy, scope)
 		return err
-	case *ast.FieldAccess:
-		_, err := sema.checkFieldAccessExpr(statement, scope)
+	case ast.KIND_FOR_LOOP_STMT:
+		err := sema.checkForLoop(stmt.Node.(*ast.ForLoop), returnTy, scope)
 		return err
-	case *ast.ForLoop:
-		err := sema.checkForLoop(statement, scope, returnTy)
-		return err
-	case *ast.WhileLoop:
-		err := sema.checkWhileLoop(statement, scope, returnTy)
+	case ast.KIND_WHILE_LOOP_STMT:
+		err := sema.checkWhileLoop(stmt.Node.(*ast.WhileLoop), scope, returnTy)
 		return err
 	default:
-		log.Fatalf("unimplemented statement on sema: %s", statement)
+		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt)
 	}
-	return nil
 }
 
 func (sema *sema) checkVarDecl(
-	variable ast.Stmt,
+	variable *ast.MyNode,
 	currentScope *ast.Scope,
 ) error {
-	switch varStmt := variable.(type) {
-	case *ast.MultiVarStmt:
-		err := sema.checkMultiVar(varStmt, currentScope)
+	switch variable.Kind {
+	case ast.KIND_MULTI_VAR_STMT:
+		err := sema.checkMultiVar(variable.Node.(*ast.MultiVarStmt), currentScope)
 		return err
-	case *ast.VarStmt:
-		err := sema.checkVar(varStmt, currentScope)
+	case ast.KIND_VAR_STMT:
+		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
 		return err
 	}
 	return nil
@@ -258,8 +255,8 @@ func (sema *sema) checkMultiVar(
 	multi *ast.MultiVarStmt,
 	currentScope *ast.Scope,
 ) error {
-	for i := range multi.Variables {
-		err := sema.checkVar(multi.Variables[i], currentScope)
+	for _, variable := range multi.Variables {
+		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
 		if err != nil {
 			return err
 		}
@@ -308,7 +305,7 @@ func (sema *sema) checkVariableType(
 }
 
 // Useful for testing
-func checkVarDeclFrom(input, filename string) (ast.Stmt, error) {
+func checkVarDeclFrom(input, filename string) (*ast.VarStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -329,12 +326,12 @@ func checkVarDeclFrom(input, filename string) (ast.Stmt, error) {
 		return nil, err
 	}
 
-	return varStmt, nil
+	return varStmt.Node.(*ast.VarStmt), nil
 }
 
 func (sema *sema) checkCondStmt(
 	condStmt *ast.CondStmt,
-	returnTy ast.ExprType,
+	returnTy *ast.MyExprType,
 	outterScope *ast.Scope,
 ) error {
 	err := sema.checkIfExpr(condStmt.IfStmt.Expr, outterScope)
@@ -374,20 +371,20 @@ func (sema *sema) checkCondStmt(
 }
 
 func (sema *sema) checkFunctionCall(
-	functionCall *ast.FunctionCall,
+	fnCall *ast.FnCall,
 	currentScope *ast.Scope,
 ) error {
-	function, err := currentScope.LookupAcrossScopes(functionCall.Name.Name())
+	symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
 	if err != nil {
 		if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-			pos := functionCall.Name.Pos
+			pos := fnCall.Name.Pos
 			functionNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' not defined on scope",
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					functionCall.Name.Name(),
+					fnCall.Name.Name(),
 				),
 			}
 			sema.collector.ReportAndSave(functionNotDefined)
@@ -396,24 +393,25 @@ func (sema *sema) checkFunctionCall(
 		return err
 	}
 
-	decl, ok := function.(*ast.FunctionDecl)
-	if !ok {
-		pos := functionCall.Name.Pos
+	if symbol.Node == ast.KIND_FN_DECL {
+		pos := fnCall.Name.Pos
 		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
 				"%s:%d:%d: '%s' is not callable",
 				pos.Filename,
 				pos.Line,
 				pos.Column,
-				functionCall.Name.Name(),
+				fnCall.Name.Name(),
 			),
 		}
 		sema.collector.ReportAndSave(notCallable)
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	if len(functionCall.Args) != len(decl.Params.Fields) {
-		pos := functionCall.Name.Pos
+	fnDecl := symbol.Node.(*ast.FnDecl)
+
+	if len(fnCall.Args) != len(fnDecl.Params.Fields) {
+		pos := fnCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
 		notEnoughArguments := diagnostics.Diag{
@@ -422,16 +420,16 @@ func (sema *sema) checkFunctionCall(
 				pos.Filename,
 				pos.Line,
 				pos.Column,
-				functionCall.Name.Name(),
+				fnCall.Name.Name(),
 			),
 		}
 		sema.collector.ReportAndSave(notEnoughArguments)
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	for i := range len(functionCall.Args) {
-		paramType := decl.Params.Fields[i].Type
-		argType, err := sema.inferExprTypeWithContext(functionCall.Args[i], paramType, currentScope)
+	for i, arg := range fnCall.Args {
+		paramType := fnDecl.Params.Fields[i].Type
+		argType, err := sema.inferExprTypeWithContext(arg, paramType, currentScope)
 		if err != nil {
 			return err
 		}
@@ -449,7 +447,7 @@ func (sema *sema) checkFunctionCall(
 	return nil
 }
 
-func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
+func (sema *sema) checkIfExpr(expr *ast.MyNode, scope *ast.Scope) error {
 	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
 	// TODO(errors)
 	if err != nil {
@@ -467,8 +465,8 @@ func (sema *sema) checkIfExpr(expr ast.Expr, scope *ast.Scope) error {
 // NOTE: any type mismatch could be identifier during this stage, no need to use
 // reflect.DeepEqual or something similar to compare structs
 func (sema *sema) inferExprTypeWithContext(
-	exprNode ast.Expr,
-	expectedType ast.ExprType,
+	exprNode *ast.MyNode,
+	expectedType *ast.MyExprType,
 	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	switch expression := exprNode.(type) {
@@ -579,7 +577,7 @@ func (sema *sema) inferExprTypeWithContext(
 			return nil, err
 		}
 		return ty, nil
-	case *ast.FunctionCall:
+	case *ast.FnCall:
 		err := sema.checkFunctionCall(expression, scope)
 		// TODO(errors)
 		if err != nil {
@@ -624,7 +622,7 @@ func (sema *sema) inferExprTypeWithContext(
 func inferExprTypeWithoutContext(
 	input, filename string,
 	scope *ast.Scope,
-) (ast.Expr, ast.ExprType, error) {
+) (*ast.MyNode, *ast.MyExprType, error) {
 	collector := diagnostics.New()
 
 	expr, err := parser.ParseExprFrom(input, filename)
@@ -643,7 +641,7 @@ func inferExprTypeWithoutContext(
 // Useful for testing
 func inferExprTypeWithContext(
 	input, filename string,
-	ty ast.ExprType,
+	ty *ast.MyExprType,
 	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	collector := diagnostics.New()
@@ -662,9 +660,9 @@ func inferExprTypeWithContext(
 }
 
 func (sema *sema) inferExprTypeWithoutContext(
-	expr ast.Expr,
+	expr *ast.MyNode,
 	scope *ast.Scope,
-) (ast.ExprType, bool, error) {
+) (*ast.MyExprType, bool, error) {
 	switch expression := expr.(type) {
 	case *ast.LiteralExpr:
 		switch ty := expression.Type.(type) {
@@ -756,7 +754,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 			return nil, false, err
 		}
 		return ty, foundContext, nil
-	case *ast.FunctionCall:
+	case *ast.FnCall:
 		err := sema.checkFunctionCall(expression, scope)
 		// TODO(errors)
 		if err != nil {
@@ -841,7 +839,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 
 func (sema *sema) inferBinaryExprTypeWithContext(
 	expression *ast.BinaryExpr,
-	expectedType ast.ExprType,
+	expectedType *ast.MyExprType,
 	scope *ast.Scope,
 ) (ast.ExprType, error) {
 	lhsType, err := sema.inferExprTypeWithContext(expression.Left, expectedType, scope)
@@ -906,7 +904,7 @@ func (sema *sema) checkFieldAccessExpr(
 	switch sym := symbol.(type) {
 	case *ast.ExternDecl:
 		switch right := fieldAccess.Right.(type) {
-		case *ast.FunctionCall:
+		case *ast.FnCall:
 			err := sema.checkPrototypeCall(right, currentScope, sym)
 			if err != nil {
 				return nil, err
@@ -926,7 +924,7 @@ func (sema *sema) checkFieldAccessExpr(
 }
 
 func (sema *sema) checkPrototypeCall(
-	prototypeCall *ast.FunctionCall,
+	prototypeCall *ast.FnCall,
 	callScope *ast.Scope,
 	extern *ast.ExternDecl,
 ) error {
@@ -982,8 +980,8 @@ func (sema *sema) checkPrototypeCall(
 
 func (sema *sema) checkForLoop(
 	forLoop *ast.ForLoop,
+	returnTy *ast.MyExprType,
 	scope *ast.Scope,
-	returnTy ast.ExprType,
 ) error {
 	err := sema.checkStmt(forLoop.Init, scope, returnTy)
 	if err != nil {
@@ -1007,7 +1005,7 @@ func (sema *sema) checkForLoop(
 func (sema *sema) checkWhileLoop(
 	whileLoop *ast.WhileLoop,
 	scope *ast.Scope,
-	returnTy ast.ExprType,
+	returnTy *ast.MyExprType,
 ) error {
 	err := sema.checkIfExpr(whileLoop.Cond, scope)
 	if err != nil {

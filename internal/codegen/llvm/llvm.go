@@ -211,7 +211,7 @@ func (c *llvmCodegen) generateStmt(
 	parentScope *ast.Scope,
 ) {
 	switch statement := stmt.(type) {
-	case *ast.FunctionCall:
+	case *ast.FnCall:
 		c.generateFunctionCall(statement, parentScope)
 	case *ast.ReturnStmt:
 		c.generateReturnStmt(statement, parentScope)
@@ -320,7 +320,7 @@ func (c *llvmCodegen) generateParameters(
 }
 
 func (c *llvmCodegen) generateFunctionCall(
-	functionCall *ast.FunctionCall,
+	functionCall *ast.FnCall,
 	functionScope *ast.Scope,
 ) llvm.Value {
 	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
@@ -540,7 +540,7 @@ func (c *llvmCodegen) getExpr(
 		default:
 			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
 		}
-	case *ast.FunctionCall:
+	case *ast.FnCall:
 		call := c.generateFunctionCall(currentExpr, scope)
 		return call
 	case *ast.UnaryExpr:
@@ -635,7 +635,7 @@ func (c *llvmCodegen) generateFieldAccessStmt(
 
 func (c *llvmCodegen) generatePrototypeCall(
 	extern *ast.ExternDecl,
-	call *ast.FunctionCall,
+	call *ast.FnCall,
 	callScope *ast.Scope,
 ) llvm.Value {
 	prototype, _ := extern.Scope.LookupCurrentScope(call.Name.Name())

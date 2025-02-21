@@ -1575,7 +1575,7 @@ func (parser *Parser) parseFnCall() (*ast.MyNode, error) {
 
 	n := new(ast.MyNode)
 	n.Kind = ast.KIND_FN_CALL
-	n.Node = &ast.FunctionCall{Name: name, Args: args}
+	n.Node = &ast.FnCall{Name: name, Args: args}
 	return n, nil
 }
 

@@ -70,7 +70,7 @@ func (ret ReturnStmt) IsReturn() bool { return true }
 func (ret ReturnStmt) astNode()       {}
 func (ret ReturnStmt) stmtNode()      {}
 
-type FunctionCall struct {
+type FnCall struct {
 	Stmt
 	Expr
 	Name *token.Token
@@ -79,13 +79,13 @@ type FunctionCall struct {
 	BackendType any
 }
 
-func (call FunctionCall) String() string {
+func (call FnCall) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
-func (call FunctionCall) IsReturn() bool { return false }
-func (call FunctionCall) astNode()       {}
-func (call FunctionCall) stmtNode()      {}
-func (call FunctionCall) exprNode()      {}
+func (call FnCall) IsReturn() bool { return false }
+func (call FnCall) astNode()       {}
+func (call FnCall) stmtNode()      {}
+func (call FnCall) exprNode()      {}
 
 type CondStmt struct {
 	Stmt

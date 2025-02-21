@@ -1013,7 +1013,7 @@ func TestBinaryExpr(t *testing.T) {
 			node: &ast.BinaryExpr{
 				Left: &ast.BinaryExpr{
 					Left: &ast.BinaryExpr{
-						Left: &ast.FunctionCall{
+						Left: &ast.FnCall{
 							Name: token.New(
 								[]byte("get_celsius"),
 								token.ID,
@@ -1199,7 +1199,7 @@ func TestBinaryExpr(t *testing.T) {
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.PLUS,
-				Right: &ast.FunctionCall{
+				Right: &ast.FnCall{
 					Name: token.New([]byte("multiply_by_2"), token.ID, token.NewPosition(filename, 5, 1)),
 					Args: []ast.Expr{
 						&ast.LiteralExpr{
