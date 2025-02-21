@@ -567,11 +567,10 @@ func (c *llvmCodegen) getExpr(
 
 func (c *llvmCodegen) llvmConstInt8s(data []byte) []llvm.Value {
 	length := len(data)
-	out := make([]llvm.Value, length+1)
+	out := make([]llvm.Value, length)
 	for i, b := range data {
 		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
 	}
-	out[length] = llvm.ConstInt(c.context.Int8Type(), 0, false)
 	return out
 }
 

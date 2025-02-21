@@ -225,6 +225,9 @@ func (sema *sema) checkStmt(
 		returnStmt := stmt.Node.(*ast.ReturnStmt)
 		_, err := sema.inferExprTypeWithContext(returnStmt.Value, returnTy, scope)
 		return err
+	case ast.KIND_FIELD_ACCESS:
+		_, err := sema.checkFieldAccessExpr(stmt.Node.(*ast.FieldAccess), scope)
+		return err
 	case ast.KIND_FOR_LOOP_STMT:
 		err := sema.checkForLoop(stmt.Node.(*ast.ForLoop), returnTy, scope)
 		return err
