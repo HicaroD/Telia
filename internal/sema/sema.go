@@ -85,29 +85,30 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 	foundMain := false
 
 	for _, node := range file.Body {
-		switch n := node.(type) {
-		case *ast.FunctionDecl:
+		switch node.Kind {
+		case ast.KIND_FN_DECL:
+			fnDecl := node.Node.(*ast.FnDecl)
 			if !foundMain {
-				foundMain = n.Name.Name() == "main"
+				foundMain = fnDecl.Name.Name() == "main"
 			}
-			err := s.checkFnDecl(n)
+			err := s.checkFnDecl(fnDecl)
 			if err != nil {
 				return false, err
 			}
-		case *ast.ExternDecl:
-			err := s.checkExternDecl(n)
+		case ast.KIND_EXTERN_DECL:
+			err := s.checkExternDecl(node.Node.(*ast.ExternDecl))
 			if err != nil {
 				return false, err
 			}
-		case *ast.PkgDecl:
+		case ast.KIND_PKG_DECL:
 			err := s.checkUseDecl()
 			if err != nil {
+				return false, err
 			}
-		case *ast.UseDecl:
-			// TODO: verify if import declaration is valid
+		case ast.KIND_USE_DECL:
 			continue
 		default:
-			log.Fatalf("unimplemented ast node for sema: %s\n", reflect.TypeOf(n))
+			return false, fmt.Errorf("unimplemented ast node for sema: %s\n", reflect.TypeOf(node.Node))
 		}
 	}
 
@@ -118,7 +119,7 @@ func (sema *sema) checkUseDecl() error {
 	return nil
 }
 
-func (sema *sema) checkFnDecl(function *ast.FunctionDecl) error {
+func (sema *sema) checkFnDecl(function *ast.FnDecl) error {
 	err := sema.checkBlock(function.Block, function.RetType, function.Scope)
 	return err
 }

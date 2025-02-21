@@ -68,7 +68,7 @@ func (c *llvmCodegen) generateModule(module *ast.Package) {
 func (c *llvmCodegen) generateFile(file *ast.File) {
 	for _, node := range file.Body {
 		switch n := node.(type) {
-		case *ast.FunctionDecl:
+		case *ast.FnDecl:
 			c.generateFnDecl(n)
 		case *ast.ExternDecl:
 			c.generateExternDecl(n)
@@ -173,7 +173,7 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	return nil
 }
 
-func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FunctionDecl) {
+func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FnDecl) {
 	returnType := c.getType(functionDecl.RetType)
 	paramsTypes := c.getFieldListTypes(functionDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
@@ -303,7 +303,7 @@ func (c *llvmCodegen) generateVarReassign(
 
 func (c *llvmCodegen) generateParameters(
 	fnValue *Function,
-	functionNode *ast.FunctionDecl,
+	functionNode *ast.FnDecl,
 	paramsTypes []llvm.Type,
 ) {
 	// TODO: learn more about noundef parameter attribute
