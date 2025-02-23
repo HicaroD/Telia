@@ -51,7 +51,7 @@ type BasicType struct {
 func NewBasicType(kind token.Kind) *ExprType {
 	ty := new(ExprType)
 	ty.Kind = EXPR_TYPE_BASIC
-	ty.T = &BasicType{Kind: token.U8_TYPE}
+	ty.T = &BasicType{Kind: kind}
 	return ty
 }
 
