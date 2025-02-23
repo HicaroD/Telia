@@ -964,7 +964,6 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 
 		t.Kind = ast.EXPR_TYPE_POINTER
 		t.T = &ast.PointerType{Type: ty}
-		return t, nil
 	case token.ID:
 		p.lex.Skip()
 		symbol, err := p.moduleScope.LookupAcrossScopes(tok.Name())
@@ -984,7 +983,6 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		// NOTE: I think ast.IdType won't be necessary anymore
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
-		return t, nil
 	default:
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
@@ -994,6 +992,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		}
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+	return t, nil
 }
 
 func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
@@ -1508,10 +1507,7 @@ func (p *Parser) parsePrimary() (*ast.Node, error) {
 	default:
 		if tok.Kind.IsLiteral() {
 			p.lex.Skip()
-
-			ty := new(ast.ExprType)
-			ty.Kind = ast.EXPR_TYPE_BASIC
-			ty.T = &ast.BasicType{Kind: tok.Kind}
+			ty := ast.NewBasicType(tok.Kind)
 
 			n.Kind = ast.KIND_LITERAl_EXPR
 			n.Node = &ast.LiteralExpr{

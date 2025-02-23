@@ -892,9 +892,7 @@ func (sema *sema) inferBinaryExprTypeWithoutContext(
 		}
 	default:
 		if binary.Op.IsLogicalOp() {
-			t := new(ast.ExprType)
-			t.Kind = ast.EXPR_TYPE_BASIC
-			t.T = &ast.BasicType{Kind: token.BOOL_TYPE}
+			t := ast.NewBasicType(token.BOOL_TYPE)
 			return t, lhsFoundContext || rhsFoundContext, nil
 		}
 	}
@@ -933,10 +931,7 @@ func (sema *sema) inferIntegerType(value []byte) (*ast.ExprType, error) {
 		return nil, fmt.Errorf("can't parse integer literal: %s", value)
 	}
 
-	t := new(ast.ExprType)
-	t.Kind = ast.EXPR_TYPE_BASIC
-	t.T = &ast.BasicType{Kind: integerType}
-
+	t := ast.NewBasicType(integerType)
 	return t, nil
 }
 
