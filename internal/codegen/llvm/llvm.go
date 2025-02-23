@@ -141,18 +141,19 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	}
 
 	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	err = cmd.Run()
+	// TODO(errors)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
 	fmt.Println(cmd.String())
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		return err
-	}
-
-	// // TODO: ask user for optimization level
-	cmd = exec.Command("clang", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
-	err = cmd.Run()
-	// TODO(errors)
-	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 
@@ -409,9 +410,7 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
 		// NOTE: string type is actually more complex than that
 		case token.STRING_TYPE, token.CSTRING_TYPE:
-			u8 := new(ast.ExprType)
-			u8.Kind = ast.EXPR_TYPE_BASIC
-			u8.T = &ast.BasicType{Kind: token.U8_TYPE}
+			u8 := ast.NewBasicType(token.U8_TYPE)
 			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
 		default:
@@ -462,10 +461,9 @@ func (c *llvmCodegen) getExpr(
 
 			switch basic.Kind {
 			case token.CSTRING_TYPE:
-				// globalStrPtr := c.builder.CreateGlobalStringPtr(string(currentExpr.Value), ".str")
-				// // NOTE: don't allow duplicates
-				arrTy := llvm.ArrayType(c.context.Int8Type(), len(lit.Value))
-				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value))
+				strlen := len(lit.Value) + 1
+				arrTy := llvm.ArrayType(c.context.Int8Type(), strlen)
+				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value, strlen))
 
 				globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
 				globalVal.SetInitializer(arr)
@@ -565,12 +563,13 @@ func (c *llvmCodegen) getExpr(
 	}
 }
 
-func (c *llvmCodegen) llvmConstInt8s(data []byte) []llvm.Value {
-	length := len(data)
+func (c *llvmCodegen) llvmConstInt8s(data []byte, length int) []llvm.Value {
 	out := make([]llvm.Value, length)
 	for i, b := range data {
 		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
 	}
+	// c-string null terminated string
+	out[length-1] = llvm.ConstInt(c.context.Int8Type(), uint64(0), false)
 	return out
 }
 

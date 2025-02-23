@@ -48,6 +48,13 @@ type BasicType struct {
 	Kind token.Kind
 }
 
+func NewBasicType(kind token.Kind) *ExprType {
+	ty := new(ExprType)
+	ty.Kind = EXPR_TYPE_BASIC
+	ty.T = &BasicType{Kind: token.U8_TYPE}
+	return ty
+}
+
 func (basicType BasicType) String() string {
 	return basicType.Kind.String()
 }
