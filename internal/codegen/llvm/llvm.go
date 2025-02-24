@@ -334,7 +334,7 @@ func (c *llvmCodegen) generateExternDecl(external *ast.ExternDecl) {
 	}
 }
 
-func (c *llvmCodegen) generatePrototype(attributes *ast.ExternAttrs, prototype *ast.Proto) {
+func (c *llvmCodegen) generatePrototype(attributes *ast.Attributes, prototype *ast.Proto) {
 	returnTy := c.getType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)

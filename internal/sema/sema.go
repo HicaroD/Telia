@@ -128,7 +128,11 @@ var VALID_CALLING_CONVENTIONS []string = []string{
 	"c", "fast", "cold",
 }
 
-func (sema *sema) checkExternAttributes(attributes *ast.ExternAttrs) error {
+func (sema *sema) checkExternAttributes(attributes *ast.Attributes) error {
+	if attributes.Linkage != "" {
+		return fmt.Errorf("'linkage' is not a valid attribute for extern declaration\n")
+	}
+
 	ccFound := false
 	for _, cc := range VALID_CALLING_CONVENTIONS {
 		if cc == attributes.DefaultCallingConvention {
@@ -163,20 +167,29 @@ var VALID_FUNCTION_LINKAGES []string = []string{
 	"external", "internal", "weak", "link_once",
 }
 
+func (sema *sema) checkProtoAttributes(attributes *ast.Attributes) error {
+	linkageFound := false
+
+	if attributes.Linkage != "" {
+		for _, l := range VALID_FUNCTION_LINKAGES {
+			if l == attributes.Linkage {
+				linkageFound = true
+				break
+			}
+		}
+
+		if !linkageFound {
+			return fmt.Errorf("invalid linkage type: %s\n", attributes.Linkage)
+		}
+	}
+
+	return nil
+}
 func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto) error {
 	if proto.Attributes != nil {
-		linkageFound := false
-		if proto.Attributes.Linkage != "" {
-			for _, l := range VALID_FUNCTION_LINKAGES {
-				if l == proto.Attributes.Linkage {
-					linkageFound = true
-					break
-				}
-			}
-			// if not found, set a default linkage
-			if !linkageFound {
-				return fmt.Errorf("invalid linkage type: %s\n", proto.Attributes.Linkage)
-			}
+		err := sema.checkProtoAttributes(proto.Attributes)
+		if err != nil {
+			return err
 		}
 	}
 

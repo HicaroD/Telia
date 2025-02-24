@@ -193,6 +193,16 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 	// TODO: try to parse the attribute before the actual declaration
 	// TODO: single struct attribute to make it easier to parse
 
+	var err error
+	var attributes *ast.Attributes
+
+	if tok.Kind == token.SHARP {
+		attributes, err = p.parseAttributes()
+		if err != nil {
+			return nil, eof, err
+		}
+	}
+
 	switch tok.Kind {
 	case token.PACKAGE:
 		pkgDecl, err := p.parsePkgDecl()
@@ -204,10 +214,10 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 		_, err := p.parseTypeAlias()
 		return nil, eof, err
 	case token.EXTERN, token.SHARP:
-		externDecl, err := p.parseExternDecl()
+		externDecl, err := p.parseExternDecl(attributes)
 		return externDecl, eof, err
 	case token.FN:
-		fnDecl, err := p.parseFnDecl()
+		fnDecl, err := p.parseFnDecl(attributes)
 		return fnDecl, eof, err
 	default:
 		pos := tok.Pos
@@ -240,8 +250,8 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 	return exprAst, nil
 }
 
-func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
-	attributes := new(ast.ExternAttrs)
+func (p *Parser) parseAttributes() (*ast.Attributes, error) {
+	attributes := new(ast.Attributes)
 
 	_, ok := p.expect(token.SHARP)
 	if !ok {
@@ -276,6 +286,10 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 			attributes.LinkPrefix = attributeValue.Name()
 		case "link_name":
 			attributes.LinkName = attributeValue.Name()
+		case "linkage":
+			attributes.Linkage = attributeValue.Name()
+		default:
+			return nil, fmt.Errorf("invalid attribute for extern declaration: %s\n", attribute.Name())
 		}
 
 		if p.lex.NextIs(token.CLOSE_BRACKET) {
@@ -295,14 +309,10 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 	return attributes, nil
 }
 
-func (p *Parser) parseExternDecl() (*ast.Node, error) {
+func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	externDecl := new(ast.ExternDecl)
 
-	if p.lex.NextIs(token.SHARP) {
-		attributes, err := p.parseExternAttributes()
-		if err != nil {
-			return nil, err
-		}
+	if attributes != nil {
 		externDecl.Attributes = attributes
 	}
 
@@ -344,13 +354,22 @@ func (p *Parser) parseExternDecl() (*ast.Node, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	var err error
 	var prototypes []*ast.Proto
 	for {
 		if p.lex.NextIs(token.CLOSE_CURLY) {
 			break
 		}
 
-		proto, err := p.parsePrototype()
+		var attributes *ast.Attributes
+		if p.lex.NextIs(token.SHARP) {
+			attributes, err = p.parseAttributes()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		proto, err := p.parsePrototype(attributes)
 		if err != nil {
 			return nil, err
 		}
@@ -407,7 +426,7 @@ func (p *Parser) parseExternDecl() (*ast.Node, error) {
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
-	err := p.moduleScope.Insert(name.Name(), n)
+	err = p.moduleScope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			pos := name.Pos
@@ -549,16 +568,11 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	return node, nil
 }
 
-func (p *Parser) parsePrototype() (*ast.Proto, error) {
+func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) {
 	prototype := new(ast.Proto)
-
-	if p.lex.NextIs(token.SHARP) {
-		attributes, err := p.parseProtoAttribute()
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
+	if attributes != nil {
 		prototype.Attributes = attributes
+		attributes = nil
 	}
 
 	fn, ok := p.expect(token.FN)
@@ -625,62 +639,14 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	return prototype, nil
 }
 
-func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
-	attributes := new(ast.ProtoAttrs)
-
-	_, ok := p.expect(token.SHARP)
-	if !ok {
-		return nil, fmt.Errorf("expected '#'")
-	}
-
-	_, ok = p.expect(token.OPEN_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected '['")
-	}
-
-	for {
-		attribute, ok := p.expect(token.ID)
-		if !ok {
-			return nil, fmt.Errorf("expected identifier")
-		}
-
-		_, ok = p.expect(token.EQUAL)
-		if !ok {
-			return nil, fmt.Errorf("expected '='")
-		}
-
-		attributeValue, ok := p.expect(token.UNTYPED_STRING)
-		if !ok {
-			return nil, fmt.Errorf("expected string literal")
-		}
-
-		switch attribute.Name() {
-		case "linkage":
-			attributes.Linkage = attributeValue.Name()
-		case "link_name":
-			attributes.LinkName = attributeValue.Name()
-		}
-
-		if p.lex.NextIs(token.CLOSE_BRACKET) {
-			break
-		}
-
-		if !p.lex.NextIs(token.COMMA) {
-			return nil, fmt.Errorf("expected either comma or closing bracket")
-		}
-	}
-
-	_, ok = p.expect(token.CLOSE_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected ']'")
-	}
-
-	return attributes, nil
-}
-
-func (p *Parser) parseFnDecl() (*ast.Node, error) {
+func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	var err error
 	fnDecl := new(ast.FnDecl)
+
+	if attributes != nil {
+		fnDecl.Attributes = attributes
+		attributes = nil
+	}
 
 	_, ok := p.expect(token.FN)
 	if !ok {
@@ -758,7 +724,7 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	parser := NewWithLex(lexer, collector)
 	parser.moduleScope = scope
 
-	fnDecl, err := parser.parseFnDecl()
+	fnDecl, err := parser.parseFnDecl(nil)
 	if err != nil {
 		return nil, err
 	}
