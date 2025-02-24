@@ -390,7 +390,7 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 		switch b.Kind {
 		case token.BOOL_TYPE:
 			return c.context.Int1Type()
-		case token.UINT_TYPE, token.INT_TYPE:
+		case token.UINT_TYPE, token.INT_TYPE, token.UNTYPED_INT:
 			// 32 bits or 64 bits depends on the architecture
 			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)

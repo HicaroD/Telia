@@ -2,7 +2,7 @@ package main;
 
 #[default_cc="c"]
 extern libc {
-  fn printf(format *u8, ...) i32;
+  fn printf(format cstring, ...) i32;
 }
 
 fn fib(n int) int {

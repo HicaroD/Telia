@@ -41,7 +41,15 @@ func (ty *ExprType) IsNumeric() bool {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind > token.NUMERIC_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END
+	return basic.Kind > token.NUMERIC_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.UNTYPED_INT
+}
+
+func (ty *ExprType) IsUntyped() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind.IsLiteral()
 }
 
 type BasicType struct {
@@ -64,7 +72,7 @@ func (bt *BasicType) IsAnyStringType() bool {
 }
 
 func (bt *BasicType) IsIntegerType() bool {
-	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END
+	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END || bt.Kind == token.UNTYPED_INT
 }
 
 type IdType struct {

@@ -144,7 +144,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 func (k Kind) BitSize() int {
 	switch k {
-	case INT_TYPE, UINT_TYPE:
+	case INT_TYPE, UINT_TYPE, UNTYPED_INT:
 		return strconv.IntSize
 	case BOOL_TYPE:
 		return 1

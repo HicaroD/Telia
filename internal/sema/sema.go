@@ -654,7 +654,7 @@ func (sema *sema) inferBasicExprTypeWithContext(
 			goto error
 		}
 	default:
-		return nil, fmt.Errorf("unimplemented type: %s\n", actual.String())
+		return nil, fmt.Errorf("unimplemented type: %s %s\n", actual.String(), expected.String())
 	}
 	return expected, nil
 error:
@@ -769,7 +769,8 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 
 	switch variable.Kind {
 	case ast.KIND_VAR_STMT:
-		return variable.Node.(*ast.VarStmt).Type, true, nil
+		ty := variable.Node.(*ast.VarStmt).Type
+		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
 		return variable.Node.(*ast.Field).Type, true, nil
 	default:
