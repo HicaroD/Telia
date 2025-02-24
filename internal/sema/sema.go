@@ -120,6 +120,12 @@ func (sema *sema) checkUseDecl() error {
 }
 
 func (sema *sema) checkFnDecl(function *ast.FnDecl) error {
+	if function.Attributes != nil {
+		err := sema.checkFnAttributes(function.Attributes)
+		if err != nil {
+			return err
+		}
+	}
 	err := sema.checkBlock(function.Block, function.RetType, function.Scope)
 	return err
 }
@@ -167,7 +173,7 @@ var VALID_FUNCTION_LINKAGES []string = []string{
 	"external", "internal", "weak", "link_once",
 }
 
-func (sema *sema) checkProtoAttributes(attributes *ast.Attributes) error {
+func (sema *sema) checkFnAttributes(attributes *ast.Attributes) error {
 	linkageFound := false
 
 	if attributes.Linkage != "" {
@@ -185,9 +191,10 @@ func (sema *sema) checkProtoAttributes(attributes *ast.Attributes) error {
 
 	return nil
 }
+
 func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto) error {
 	if proto.Attributes != nil {
-		err := sema.checkProtoAttributes(proto.Attributes)
+		err := sema.checkFnAttributes(proto.Attributes)
 		if err != nil {
 			return err
 		}
