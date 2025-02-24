@@ -6,69 +6,97 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
-type ExprType interface {
-	IsVoid() bool
-	IsBoolean() bool
-	IsNumeric() bool
-	exprTypeNode()
+type ExprTypeKind int
+
+const (
+	EXPR_TYPE_BASIC ExprTypeKind = iota
+	EXPR_TYPE_ID
+	EXPR_TYPE_POINTER
+	EXPR_TYPE_ALIAS
+)
+
+type ExprType struct {
+	Kind ExprTypeKind
+	T    any
 }
 
-// void, bool, int, i8, i16, i32, i64, uint,
-// u8, u16, u32, u64, string, cstring
+func (ty *ExprType) IsBoolean() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind == token.BOOL_TYPE
+}
+
+func (ty *ExprType) IsVoid() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind == token.VOID_TYPE
+}
+
+func (ty *ExprType) IsNumeric() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind > token.NUMERIC_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.UNTYPED_INT
+}
+
+func (ty *ExprType) IsUntyped() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind.IsLiteral()
+}
+
 type BasicType struct {
-	ExprType
 	Kind token.Kind
 }
 
-func (basicType BasicType) IsNumeric() bool {
-	_, ok := token.NUMERIC_TYPES[basicType.Kind]
-	return ok
+func NewBasicType(kind token.Kind) *ExprType {
+	ty := new(ExprType)
+	ty.Kind = EXPR_TYPE_BASIC
+	ty.T = &BasicType{Kind: kind}
+	return ty
 }
-func (basicType BasicType) IsBoolean() bool { return basicType.Kind == token.BOOL_TYPE }
-func (basicType BasicType) IsVoid() bool    { return basicType.Kind == token.VOID_TYPE }
-func (basicType BasicType) exprTypeNode()   {}
+
 func (basicType BasicType) String() string {
 	return basicType.Kind.String()
 }
 
+func (bt *BasicType) IsAnyStringType() bool {
+	return bt.Kind == token.STRING_TYPE || bt.Kind == token.CSTRING_TYPE
+}
+
+func (bt *BasicType) IsIntegerType() bool {
+	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END || bt.Kind == token.UNTYPED_INT || bt.Kind == token.BOOL_TYPE
+}
+
 type IdType struct {
-	ExprType
 	Name *token.Token
 }
 
-func (idType IdType) IsNumeric() bool { return false }
-func (idType IdType) IsBoolean() bool { return false }
-func (idType IdType) IsVoid() bool    { return false }
-func (idType IdType) exprTypeNode()   {}
 func (idType IdType) String() string {
 	return fmt.Sprintf("IdType: %s", idType.Name.Lexeme)
 }
 
 type PointerType struct {
-	ExprType
-	Type ExprType
+	Type *ExprType
 }
 
-func (pointer PointerType) IsNumeric() bool { return false }
-func (pointer PointerType) IsBoolean() bool { return false }
-func (pointer PointerType) IsVoid() bool    { return false }
-func (pointer PointerType) exprTypeNode()   {}
 func (pointer PointerType) String() string {
-	return fmt.Sprintf("*%s", pointer.Type)
+	return fmt.Sprintf("*%v", pointer.Type)
 }
 
 type TypeAlias struct {
 	Node
-	ExprType
 	Name *token.Token
-	Type ExprType
+	Type *ExprType
 }
 
-func (alias TypeAlias) astNode()        {}
-func (alias TypeAlias) IsNumeric() bool { return false }
-func (alias TypeAlias) IsBoolean() bool { return false }
-func (alias TypeAlias) IsVoid() bool    { return false }
-func (alias TypeAlias) exprTypeNode()   {}
 func (alias TypeAlias) String() string {
-	return fmt.Sprintf("ALIAS: %s - TYPE: %s\n", alias.Name, alias.Type)
+	return fmt.Sprintf("ALIAS: %v - TYPE: %v\n", alias.Name, alias.Type)
 }

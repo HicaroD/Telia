@@ -6,45 +6,30 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
-type Stmt interface {
-	Node
-	IsReturn() bool
-	stmtNode()
-}
-
 type BlockStmt struct {
-	Stmt
 	OpenCurly  token.Pos
-	Statements []Stmt
+	Statements []*Node
 	CloseCurly token.Pos
 }
 
 func (block BlockStmt) String() string {
 	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
-func (block BlockStmt) IsReturn() bool { return false }
-func (block BlockStmt) astNode()       {}
-func (block BlockStmt) stmtNode()      {}
 
 type MultiVarStmt struct {
-	Stmt
 	IsDecl    bool
-	Variables []*VarStmt
+	Variables []*Node
 }
 
 func (multi MultiVarStmt) String() string {
 	return fmt.Sprintf("Multi: %v %v", multi.IsDecl, multi.Variables)
 }
-func (multi MultiVarStmt) IsReturn() bool { return false }
-func (multi MultiVarStmt) astNode()       {}
-func (multi MultiVarStmt) stmtNode()      {}
 
 type VarStmt struct {
-	Stmt
 	Decl           bool
 	Name           *token.Token
-	Type           ExprType
-	Value          Expr
+	Type           *ExprType
+	Value          *Node
 	NeedsInference bool
 
 	BackendType any // LLVM: *values.Variable
@@ -53,42 +38,28 @@ type VarStmt struct {
 func (variable VarStmt) String() string {
 	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
 }
-func (variable VarStmt) IsReturn() bool { return false }
-func (variable VarStmt) astNode()       {}
-func (variable VarStmt) stmtNode()      {}
 
 type ReturnStmt struct {
-	Stmt
 	Return *token.Token
-	Value  Expr
+	Value  *Node
 }
 
 func (ret ReturnStmt) String() string {
 	return fmt.Sprintf("RETURN: %s", ret.Value)
 }
-func (ret ReturnStmt) IsReturn() bool { return true }
-func (ret ReturnStmt) astNode()       {}
-func (ret ReturnStmt) stmtNode()      {}
 
-type FunctionCall struct {
-	Stmt
-	Expr
+type FnCall struct {
 	Name *token.Token
-	Args []Expr
+	Args []*Node
 
 	BackendType any
 }
 
-func (call FunctionCall) String() string {
+func (call FnCall) String() string {
 	return fmt.Sprintf("CALL: %s - ARGS: %s", call.Name, call.Args)
 }
-func (call FunctionCall) IsReturn() bool { return false }
-func (call FunctionCall) astNode()       {}
-func (call FunctionCall) stmtNode()      {}
-func (call FunctionCall) exprNode()      {}
 
 type CondStmt struct {
-	Stmt
 	IfStmt    *IfElifCond
 	ElifStmts []*IfElifCond
 	ElseStmt  *ElseCond
@@ -97,13 +68,10 @@ type CondStmt struct {
 func (condStmt CondStmt) String() string {
 	return "IF"
 }
-func (cond CondStmt) IsReturn() bool { return false }
-func (cond CondStmt) astNode()       {}
-func (cond CondStmt) stmtNode()      {}
 
 type IfElifCond struct {
 	If    *token.Pos
-	Expr  Expr
+	Expr  *Node
 	Block *BlockStmt
 	Scope *Scope
 }
@@ -115,10 +83,9 @@ type ElseCond struct {
 }
 
 type ForLoop struct {
-	Stmt
-	Init   Stmt
-	Cond   Expr
-	Update Stmt
+	Init   *Node
+	Cond   *Node
+	Update *Node
 	Block  *BlockStmt
 	Scope  *Scope
 }
@@ -132,13 +99,9 @@ func (forLoop ForLoop) String() string {
 		forLoop.Block,
 	)
 }
-func (forLoop ForLoop) IsReturn() bool { return false }
-func (forLoop ForLoop) astNode()       {}
-func (forLoop ForLoop) stmtNode()      {}
 
 type WhileLoop struct {
-	Stmt
-	Cond  Expr
+	Cond  *Node
 	Block *BlockStmt
 	Scope *Scope
 }
@@ -150,6 +113,3 @@ func (whileLoop WhileLoop) String() string {
 		whileLoop.Block,
 	)
 }
-func (whileLoop WhileLoop) IsReturn() bool { return false }
-func (whileLoop WhileLoop) astNode()       {}
-func (whileLoop WhileLoop) stmtNode()      {}

@@ -15,13 +15,6 @@ const (
 	// Identifier
 	ID
 
-	// Literals
-	INTEGER_LITERAL
-	STRING_LITERAL
-	TRUE_BOOL_LITERAL
-	FALSE_BOOL_LITERAL
-
-	// Keywords
 	FN
 	FOR
 	WHILE
@@ -32,90 +25,84 @@ const (
 	ELIF
 	ELSE
 	NOT
-	AND
-	OR
 	TYPE
 	USE
 
 	// Types
+	BASIC_TYPE_START // basic type start delimiter
+
 	BOOL_TYPE // bool
 
-	INT_TYPE // int
-	I8_TYPE  // i8
-	I16_TYPE // i16
-	I32_TYPE // i32
-	I64_TYPE // i64
+	NUMERIC_TYPE_START // numeric type start delimiter
 
-	UINT_TYPE // uint
-	U8_TYPE   // u8
-	U16_TYPE  // u16
-	U32_TYPE  // u32
-	U64_TYPE  // u64
+	INTEGER_TYPE_START // integer type start delimiter
+	INT_TYPE           // int
+	I8_TYPE            // i8
+	I16_TYPE           // i16
+	I32_TYPE           // i32
+	I64_TYPE           // i64
+	UINT_TYPE          // int
+	U8_TYPE            // u8
+	U16_TYPE           // u16
+	U32_TYPE           // u32
+	U64_TYPE           // u64
+	INTEGER_TYPE_END   // integer type end delimiter
 
-	UNTYPED_STRING // string
-	STRING_TYPE    // string
-	CSTRING_TYPE   // cstring
+	NUMERIC_TYPE_END // numeric type end delimiter
+
+	STRING_TYPE  // string
+	CSTRING_TYPE // cstring
+
+	LITERAL_START // literal start delimiter
+
+	UNTYPED_STRING
+	UNTYPED_INT
+	UNTYPED_BOOL
+
+	LITERAL_END // literal end delimiter
 
 	// This type is not explicit. We don't have a keyword for this, the absence
 	// of an explicit type means a void type
 	VOID_TYPE
 
-	// (
+	BASIC_TYPE_END // basic type end delimiter
+
 	OPEN_PAREN
-	// )
 	CLOSE_PAREN
 
-	// {
 	OPEN_CURLY
-	// }
 	CLOSE_CURLY
 
-	// [
 	OPEN_BRACKET
-	// ]
 	CLOSE_BRACKET
 
-	// ,
 	COMMA
-
-	// ;
 	SEMICOLON
 
-	// .
 	DOT
-	// ..
 	DOT_DOT
-	// ...
 	DOT_DOT_DOT
-
-	// =
 	EQUAL
-	// :=
 	COLON_EQUAL
-	// !=
-	BANG_EQUAL
-	// ==
-	EQUAL_EQUAL
 
-	// >
+	LOGICAL_OP_START // logical op start delimiter
+
+	AND
+	OR
+	BANG_EQUAL
+	EQUAL_EQUAL
 	GREATER
-	// >=
 	GREATER_EQ
-	// <
 	LESS
-	// <=
 	LESS_EQ
 
-	// +
+	LOGICAL_OP_END // logical op end delimiter
+
 	PLUS
-	// -
 	MINUS
-	// *
 	STAR
-	// /
 	SLASH
 
-	// #
 	SHARP
 )
 
@@ -135,8 +122,8 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"type":    TYPE,
 	"use":     USE,
 
-	"true":  TRUE_BOOL_LITERAL,
-	"false": FALSE_BOOL_LITERAL,
+	"true":  UNTYPED_BOOL,
+	"false": UNTYPED_BOOL,
 
 	"bool": BOOL_TYPE,
 
@@ -155,57 +142,9 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"cstring": CSTRING_TYPE,
 }
 
-var BASIC_TYPES map[Kind]bool = map[Kind]bool{
-	VOID_TYPE:    true,
-	BOOL_TYPE:    true,
-	INT_TYPE:     true,
-	I8_TYPE:      true,
-	I16_TYPE:     true,
-	I32_TYPE:     true,
-	I64_TYPE:     true,
-	UINT_TYPE:    true,
-	U8_TYPE:      true,
-	U16_TYPE:     true,
-	U32_TYPE:     true,
-	U64_TYPE:     true,
-	STRING_TYPE:  true,
-	CSTRING_TYPE: true,
-}
-
-var LITERAL_KIND map[Kind]bool = map[Kind]bool{
-	INTEGER_LITERAL:    true,
-	STRING_LITERAL:     true,
-	TRUE_BOOL_LITERAL:  true,
-	FALSE_BOOL_LITERAL: true,
-}
-
-var NUMERIC_TYPES map[Kind]bool = map[Kind]bool{
-	INT_TYPE:  true,
-	I8_TYPE:   true,
-	I16_TYPE:  true,
-	I32_TYPE:  true,
-	I64_TYPE:  true,
-	UINT_TYPE: true,
-	U8_TYPE:   true,
-	U16_TYPE:  true,
-	U32_TYPE:  true,
-	U64_TYPE:  true,
-}
-
-var LOGICAL_OP map[Kind]bool = map[Kind]bool{
-	AND:         true,
-	OR:          true,
-	BANG_EQUAL:  true,
-	EQUAL_EQUAL: true,
-	GREATER:     true,
-	GREATER_EQ:  true,
-	LESS:        true,
-	LESS_EQ:     true,
-}
-
-func (kind Kind) BitSize() int {
-	switch kind {
-	case INT_TYPE, UINT_TYPE:
+func (k Kind) BitSize() int {
+	switch k {
+	case INT_TYPE, UINT_TYPE, UNTYPED_INT:
 		return strconv.IntSize
 	case BOOL_TYPE:
 		return 1
@@ -222,27 +161,26 @@ func (kind Kind) BitSize() int {
 	}
 }
 
-func (kind Kind) IsBasicType() bool {
-	_, ok := BASIC_TYPES[kind]
-	return ok
+func (k Kind) IsBasicType() bool {
+	return k > BASIC_TYPE_START && k < BASIC_TYPE_END
 }
 
-func (kind Kind) String() string {
-	switch kind {
+func (k Kind) IsLiteral() bool {
+	return k > LITERAL_START && k < LITERAL_END
+}
+
+func (k Kind) IsLogicalOp() bool {
+	return k > LOGICAL_OP_START && k < LOGICAL_OP_END
+}
+
+func (k Kind) String() string {
+	switch k {
 	case EOF:
 		return "end of file"
 	case INVALID:
 		return "INVALID"
 	case ID:
 		return "identifier"
-	case INTEGER_LITERAL:
-		return "integer literal"
-	case STRING_LITERAL:
-		return "string literal"
-	case TRUE_BOOL_LITERAL:
-		return "true"
-	case FALSE_BOOL_LITERAL:
-		return "false"
 	case FN:
 		return "fn"
 	case FOR:
@@ -275,6 +213,12 @@ func (kind Kind) String() string {
 		return "bool"
 	case INT_TYPE:
 		return "int"
+	case UINT_TYPE:
+		return "untyped uint"
+	case UNTYPED_INT:
+		return "untyped int"
+	case UNTYPED_BOOL:
+		return "untyped bool"
 	case I8_TYPE:
 		return "i8"
 	case I16_TYPE:
@@ -283,8 +227,6 @@ func (kind Kind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
-	case UINT_TYPE:
-		return "uint"
 	case U8_TYPE:
 		return "u8"
 	case U16_TYPE:
@@ -350,7 +292,7 @@ func (kind Kind) String() string {
 	case SHARP:
 		return "#"
 	default:
-		log.Fatalf("String() method not defined for the following token kind '%d'", kind)
+		log.Fatalf("String() method not defined for the following token kind '%d'", k)
 	}
 	return ""
 }

@@ -25,9 +25,6 @@ type llvmCodegen struct {
 	context llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
-
-	// NOTE: temporary - find a better way of doing this ( preferebly don't do this :) )
-	strLiterals map[string]llvm.Value
 }
 
 func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
@@ -45,8 +42,6 @@ func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
 		context: context,
 		module:  module,
 		builder: builder,
-
-		strLiterals: map[string]llvm.Value{},
 	}
 }
 
@@ -67,14 +62,14 @@ func (c *llvmCodegen) generateModule(module *ast.Package) {
 
 func (c *llvmCodegen) generateFile(file *ast.File) {
 	for _, node := range file.Body {
-		switch n := node.(type) {
-		case *ast.FunctionDecl:
-			c.generateFnDecl(n)
-		case *ast.ExternDecl:
-			c.generateExternDecl(n)
-		case *ast.PkgDecl:
+		switch node.Kind {
+		case ast.KIND_FN_DECL:
+			c.generateFnDecl(node.Node.(*ast.FnDecl))
+		case ast.KIND_EXTERN_DECL:
+			c.generateExternDecl(node.Node.(*ast.ExternDecl))
+		case ast.KIND_PKG_DECL:
 			continue
-		case *ast.UseDecl:
+		case ast.KIND_USE_DECL:
 			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
@@ -146,15 +141,13 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	}
 
 	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
-	fmt.Println(cmd.String())
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	// // TODO: ask user for optimization level
-	cmd = exec.Command("clang", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -173,7 +166,7 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	return nil
 }
 
-func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FunctionDecl) {
+func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FnDecl) {
 	returnType := c.getType(functionDecl.RetType)
 	paramsTypes := c.getFieldListTypes(functionDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
@@ -206,29 +199,29 @@ func (c *llvmCodegen) generateBlock(
 }
 
 func (c *llvmCodegen) generateStmt(
-	stmt ast.Stmt,
+	stmt *ast.Node,
 	function *Function,
 	parentScope *ast.Scope,
 ) {
-	switch statement := stmt.(type) {
-	case *ast.FunctionCall:
-		c.generateFunctionCall(statement, parentScope)
-	case *ast.ReturnStmt:
-		c.generateReturnStmt(statement, parentScope)
-	case *ast.VarStmt:
-		c.generateVar(statement, parentScope)
-	case *ast.MultiVarStmt:
-		c.generateMultiVar(statement, parentScope)
-	case *ast.FieldAccess:
-		c.generateFieldAccessStmt(statement, parentScope)
-	case *ast.CondStmt:
-		c.generateCondStmt(statement, function)
-	case *ast.ForLoop:
-		c.generateForLoop(statement, function)
-	case *ast.WhileLoop:
-		c.generateWhileLoop(statement, function)
+	switch stmt.Kind {
+	case ast.KIND_FN_CALL:
+		c.generateFunctionCall(stmt.Node.(*ast.FnCall), parentScope)
+	case ast.KIND_RETURN_STMT:
+		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
+	case ast.KIND_VAR_STMT:
+		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
+	case ast.KIND_MULTI_VAR_STMT:
+		c.generateMultiVar(stmt.Node.(*ast.MultiVarStmt), parentScope)
+	case ast.KIND_FIELD_ACCESS:
+		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
+	case ast.KIND_COND_STMT:
+		c.generateCondStmt(stmt.Node.(*ast.CondStmt), function)
+	case ast.KIND_FOR_LOOP_STMT:
+		c.generateForLoop(stmt.Node.(*ast.ForLoop), function)
+	case ast.KIND_WHILE_LOOP_STMT:
+		c.generateWhileLoop(stmt.Node.(*ast.WhileLoop), function)
 	default:
-		log.Fatalf("unimplemented block statement: %s", statement)
+		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
 }
 
@@ -250,7 +243,7 @@ func (c *llvmCodegen) generateMultiVar(
 	scope *ast.Scope,
 ) {
 	for _, variable := range varDecl.Variables {
-		c.generateVar(variable, scope)
+		c.generateVar(variable.Node.(*ast.VarStmt), scope)
 	}
 }
 
@@ -269,14 +262,14 @@ func (c *llvmCodegen) generateVarDecl(
 	varDecl *ast.VarStmt,
 	scope *ast.Scope,
 ) {
-	varTy := c.getType(varDecl.Type)
-	varPtr := c.builder.CreateAlloca(varTy, ".ptr")
-	varExpr := c.getExpr(varDecl.Value, scope)
-	c.builder.CreateStore(varExpr, varPtr)
+	ty := c.getType(varDecl.Type)
+	ptr := c.builder.CreateAlloca(ty, ".ptr")
+	expr := c.getExpr(varDecl.Value, scope)
+	c.builder.CreateStore(expr, ptr)
 
 	variableLlvm := &Variable{
-		Ty:  varTy,
-		Ptr: varPtr,
+		Ty:  ty,
+		Ptr: ptr,
 	}
 	varDecl.BackendType = variableLlvm
 }
@@ -289,11 +282,14 @@ func (c *llvmCodegen) generateVarReassign(
 	symbol, _ := scope.LookupAcrossScopes(varDecl.Name.Name())
 
 	var variable *Variable
-	switch sy := symbol.(type) {
-	case *ast.VarStmt:
-		variable = sy.BackendType.(*Variable)
-	case *ast.Field:
-		variable = sy.BackendType.(*Variable)
+
+	switch symbol.Kind {
+	case ast.KIND_VAR_STMT:
+		node := symbol.Node.(*ast.VarStmt)
+		variable = node.BackendType.(*Variable)
+	case ast.KIND_FIELD:
+		node := symbol.Node.(*ast.Field)
+		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
 	}
@@ -303,7 +299,7 @@ func (c *llvmCodegen) generateVarReassign(
 
 func (c *llvmCodegen) generateParameters(
 	fnValue *Function,
-	functionNode *ast.FunctionDecl,
+	functionNode *ast.FnDecl,
 	paramsTypes []llvm.Type,
 ) {
 	// TODO: learn more about noundef parameter attribute
@@ -320,12 +316,12 @@ func (c *llvmCodegen) generateParameters(
 }
 
 func (c *llvmCodegen) generateFunctionCall(
-	functionCall *ast.FunctionCall,
+	functionCall *ast.FnCall,
 	functionScope *ast.Scope,
 ) llvm.Value {
 	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
 
-	calledFunction := symbol.(*ast.FunctionDecl)
+	calledFunction := symbol.Node.(*ast.FnDecl)
 	calledFunctionLlvm := calledFunction.BackendType.(*Function)
 	args := c.getExprList(functionScope, functionCall.Args)
 
@@ -389,15 +385,16 @@ func (c *llvmCodegen) getCallingConvention(callingConvention string) llvm.CallCo
 	}
 }
 
-func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
-	switch exprTy := ty.(type) {
-	case *ast.BasicType:
-		switch exprTy.Kind {
+func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
+	switch ty.Kind {
+	case ast.EXPR_TYPE_BASIC:
+		b := ty.T.(*ast.BasicType)
+		switch b.Kind {
 		case token.BOOL_TYPE:
 			return c.context.Int1Type()
-		case token.INT_TYPE, token.UINT_TYPE:
-			// 32 bits or 64 bits
-			bitSize := exprTy.Kind.BitSize()
+		case token.UINT_TYPE, token.INT_TYPE, token.UNTYPED_INT:
+			// 32 bits or 64 bits depends on the architecture
+			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)
 		case token.I8_TYPE, token.U8_TYPE:
 			return c.context.Int8Type()
@@ -412,19 +409,13 @@ func (c *llvmCodegen) getType(ty ast.ExprType) llvm.Type {
 		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
 		// NOTE: string type is actually more complex than that
 		case token.STRING_TYPE, token.CSTRING_TYPE:
-			u8Type := c.getType(&ast.BasicType{Kind: token.U8_TYPE})
+			u8 := ast.NewBasicType(token.U8_TYPE)
+			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
 		default:
-			log.Fatalf("invalid basic type token: '%s'", exprTy.Kind)
+			log.Fatalf("invalid basic type token: '%s'", b.Kind)
 		}
-	case *ast.PointerType:
-		underlyingExprType := c.getType(exprTy.Type)
-		// TODO: learn about how to properly define a pointer address space
-		return llvm.PointerType(underlyingExprType, 0)
-	default:
-		log.Fatalf("invalid type: %s", reflect.TypeOf(exprTy))
 	}
-	// NOTE: this line should be unreachable
 	return c.context.VoidType()
 }
 
@@ -442,7 +433,7 @@ func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 
 func (c *llvmCodegen) getExprList(
 	parentScope *ast.Scope,
-	expressions []ast.Expr,
+	expressions []*ast.Node,
 ) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i, expr := range expressions {
@@ -452,23 +443,24 @@ func (c *llvmCodegen) getExprList(
 }
 
 func (c *llvmCodegen) getExpr(
-	expr ast.Expr,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) llvm.Value {
-	switch currentExpr := expr.(type) {
-	case *ast.LiteralExpr:
-		switch ty := currentExpr.Type.(type) {
-		case *ast.BasicType:
-			if ty.IsNumeric() {
-				integerValue, bitSize := c.getIntegerValue(currentExpr, ty)
+	switch expr.Kind {
+	case ast.KIND_LITERAl_EXPR:
+		lit := expr.Node.(*ast.LiteralExpr)
+		switch lit.Type.Kind {
+		case ast.EXPR_TYPE_BASIC:
+			basic := lit.Type.T.(*ast.BasicType)
+
+			switch {
+			case basic.IsIntegerType():
+				integerValue, bitSize := c.getIntegerValue(lit, basic)
 				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
-			}
-			switch ty.Kind {
-			case token.CSTRING_TYPE:
-				// globalStrPtr := c.builder.CreateGlobalStringPtr(string(currentExpr.Value), ".str")
-				// // NOTE: don't allow duplicates
-				arrTy := llvm.ArrayType(c.context.Int8Type(), len(currentExpr.Value))
-				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(currentExpr.Value))
+			case basic.Kind == token.CSTRING_TYPE:
+				strlen := len(lit.Value) + 1
+				arrTy := llvm.ArrayType(c.context.Int8Type(), strlen)
+				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value, strlen))
 
 				globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
 				globalVal.SetInitializer(arr)
@@ -483,37 +475,40 @@ func (c *llvmCodegen) getExpr(
 
 				return ptr
 			default:
-				panic("unimplemented basic type")
+				log.Fatalf("unimplemented basic type: %s\n", lit)
+				return llvm.Value{}
 			}
-		case *ast.PointerType:
-			switch ptrTy := ty.Type.(type) {
-			default:
-				log.Fatalf("unimplemented ptr type: %s", ptrTy)
-			}
+		case ast.EXPR_TYPE_POINTER:
+			panic("unimplemented pointer type")
+		default:
+			panic("unimplemented literal type")
 		}
-	case *ast.IdExpr:
-		// REFACTOR: make it simpler to get the lexeme
-		varName := currentExpr.Name.Name()
+	case ast.KIND_ID_EXPR:
+		id := expr.Node.(*ast.IdExpr)
+
+		varName := id.Name.Name()
 		symbol, _ := scope.LookupAcrossScopes(varName)
 
 		var localVar *Variable
 
-		switch symbol.(type) {
-		case *ast.VarStmt:
-			variable := symbol.(*ast.VarStmt)
+		switch symbol.Kind {
+		case ast.KIND_VAR_STMT:
+			variable := symbol.Node.(*ast.VarStmt)
 			localVar = variable.BackendType.(*Variable)
-		case *ast.Field:
-			variable := symbol.(*ast.Field)
+		case ast.KIND_FIELD:
+			variable := symbol.Node.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
 		return loadedVariable
-	case *ast.BinaryExpr:
-		lhs := c.getExpr(currentExpr.Left, scope)
-		rhs := c.getExpr(currentExpr.Right, scope)
+	case ast.KIND_BINARY_EXPR:
+		binary := expr.Node.(*ast.BinaryExpr)
 
-		switch currentExpr.Op {
+		lhs := c.getExpr(binary.Left, scope)
+		rhs := c.getExpr(binary.Right, scope)
+
+		switch binary.Op {
 		// TODO: deal with signed or unsigned operations
 		// I'm assuming all unsigned for now
 		case token.EQUAL_EQUAL:
@@ -537,39 +532,44 @@ func (c *llvmCodegen) getExpr(
 			return c.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt")
 		case token.GREATER_EQ:
 			return c.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge")
+		case token.SLASH:
+			return c.builder.CreateExactSDiv(lhs, rhs, ".exactdiv")
 		default:
-			log.Fatalf("unimplemented binary operator: %s", currentExpr.Op)
+			log.Fatalf("unimplemented binary operator: %s", binary.Op)
+			return llvm.Value{}
 		}
-	case *ast.FunctionCall:
-		call := c.generateFunctionCall(currentExpr, scope)
+	case ast.KIND_FN_CALL:
+		fnCall := expr.Node.(*ast.FnCall)
+		call := c.generateFunctionCall(fnCall, scope)
 		return call
-	case *ast.UnaryExpr:
-		switch currentExpr.Op {
+	case ast.KIND_UNARY_EXPR:
+		unary := expr.Node.(*ast.UnaryExpr)
+
+		switch unary.Op {
 		case token.MINUS:
-			expr := c.getExpr(currentExpr.Value, scope)
+			expr := c.getExpr(unary.Value, scope)
 			return c.builder.CreateNeg(expr, ".neg")
 		default:
-			log.Fatalf("unimplemented unary operator: %s", currentExpr.Op)
+			log.Fatalf("unimplemented unary operator: %s", unary.Op)
+			return llvm.Value{}
 		}
-	case *ast.FieldAccess:
-		value := c.generateFieldAccessStmt(currentExpr, scope)
+	case ast.KIND_FIELD_ACCESS:
+		fieldAccess := expr.Node.(*ast.FieldAccess)
+		value := c.generateFieldAccessStmt(fieldAccess, scope)
 		return value
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
+		return llvm.Value{}
 	}
-
-	// NOTE: this line should be unreachable
-	log.Fatalf("REACHING AN UNREACHABLE LINE AT getExpr")
-	return llvm.Value{}
 }
 
-func (c *llvmCodegen) llvmConstInt8s(data []byte) []llvm.Value {
-	length := len(data)
-	out := make([]llvm.Value, length+1)
+func (c *llvmCodegen) llvmConstInt8s(data []byte, length int) []llvm.Value {
+	out := make([]llvm.Value, length)
 	for i, b := range data {
 		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
 	}
-	out[length] = llvm.ConstInt(c.context.Int8Type(), 0, false)
+	// c-string null terminated string
+	out[length-1] = llvm.ConstInt(c.context.Int8Type(), uint64(0), false)
 	return out
 }
 
@@ -579,6 +579,12 @@ func (c *llvmCodegen) getIntegerValue(
 ) (uint64, int) {
 	bitSize := ty.Kind.BitSize()
 	intLit := string(expr.Value)
+	switch intLit {
+	case "true":
+		intLit = "1"
+	case "false":
+		intLit = "0"
+	}
 	val, _ := strconv.ParseUint(intLit, 10, bitSize)
 	return val, bitSize
 }
@@ -592,7 +598,7 @@ func (c *llvmCodegen) generateCondStmt(
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	// If
-	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope)
+	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope.Parent)
 	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	c.builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, function, condStmt.IfStmt.Scope)
@@ -623,23 +629,23 @@ func (c *llvmCodegen) generateFieldAccessStmt(
 	fieldAccess *ast.FieldAccess,
 	scope *ast.Scope,
 ) llvm.Value {
-	idExpr := fieldAccess.Left.(*ast.IdExpr)
+	idExpr := fieldAccess.Left.Node.(*ast.IdExpr)
 	id := idExpr.Name.Name()
 
 	symbol, _ := scope.LookupAcrossScopes(id)
 
-	left := symbol.(*ast.ExternDecl)
-	right := fieldAccess.Right.(*ast.FunctionCall)
+	left := symbol.Node.(*ast.ExternDecl)
+	right := fieldAccess.Right.Node.(*ast.FnCall)
 	return c.generatePrototypeCall(left, right, scope)
 }
 
 func (c *llvmCodegen) generatePrototypeCall(
 	extern *ast.ExternDecl,
-	call *ast.FunctionCall,
+	call *ast.FnCall,
 	callScope *ast.Scope,
 ) llvm.Value {
 	prototype, _ := extern.Scope.LookupCurrentScope(call.Name.Name())
-	proto := prototype.(*ast.Proto)
+	proto := prototype.Node.(*ast.Proto)
 	protoLlvm := proto.BackendType.(*Function)
 	args := c.getExprList(callScope, call.Args)
 

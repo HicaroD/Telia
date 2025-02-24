@@ -32,13 +32,13 @@ func TestTokenKinds(t *testing.T) {
 		// Types
 		{"bool", token.BOOL_TYPE},
 
-		{"int", token.INT_TYPE},
+		{"int", token.UNTYPED_INT},
 		{"i8", token.I8_TYPE},
 		{"i16", token.I16_TYPE},
 		{"i32", token.I32_TYPE},
 		{"i64", token.I64_TYPE},
 
-		{"uint", token.UINT_TYPE},
+		{"uint", token.UNTYPED_UINT},
 		{"u8", token.U8_TYPE},
 		{"u16", token.U16_TYPE},
 		{"u32", token.U32_TYPE},

@@ -90,7 +90,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File,
 }
 
 func (p *Parser) parseFileDecls(file *ast.File) error {
-	var decls []ast.Decl
+	var decls []*ast.Node
 	firstNode := true
 
 	for {
@@ -107,7 +107,8 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
-		if pkg, ok := node.(*ast.PkgDecl); ok {
+		if node.Kind == ast.KIND_PKG_DECL {
+			pkg := node.Node.(*ast.PkgDecl)
 			if file.PkgNameDefined {
 				// TODO(errors)
 				return fmt.Errorf("redeclaration of package name\n")
@@ -119,6 +120,7 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			// TODO(errors)
 			return fmt.Errorf("expected package declaration as first node")
 		}
+
 		firstNode = false
 		decls = append(decls, node)
 	}
@@ -179,7 +181,7 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 	return nil
 }
 
-func (p *Parser) next() (ast.Decl, bool, error) {
+func (p *Parser) next() (*ast.Node, bool, error) {
 	eof := false
 
 	tok := p.lex.Peek()
@@ -187,6 +189,10 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 		eof = true
 		return nil, eof, nil
 	}
+
+	// TODO: try to parse the attribute before the actual declaration
+	// TODO: single struct attribute to make it easier to parse
+
 	switch tok.Kind {
 	case token.PACKAGE:
 		pkgDecl, err := p.parsePkgDecl()
@@ -220,7 +226,7 @@ func (p *Parser) next() (ast.Decl, bool, error) {
 }
 
 // Useful for testing
-func ParseExprFrom(expr, filename string) (ast.Expr, error) {
+func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 	collector := diagnostics.New()
 
 	src := []byte(expr)
@@ -258,7 +264,7 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 			return nil, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		attributeValue, ok := p.expect(token.UNTYPED_STRING)
 		if !ok {
 			return nil, fmt.Errorf("expected string literal")
 		}
@@ -289,7 +295,7 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 	return attributes, nil
 }
 
-func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
+func (p *Parser) parseExternDecl() (*ast.Node, error) {
 	externDecl := new(ast.ExternDecl)
 
 	if p.lex.NextIs(token.SHARP) {
@@ -320,6 +326,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		p.collector.ReportAndSave(expectedName)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+	externDecl.Name = name
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
@@ -349,6 +356,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		}
 		prototypes = append(prototypes, proto)
 	}
+	externDecl.Prototypes = prototypes
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
@@ -367,11 +375,16 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 	}
 
 	externScope := ast.NewScope(p.moduleScope)
-	for i := range prototypes {
-		prototypeName := prototypes[i].Name.Name()
-		err := externScope.Insert(prototypeName, prototypes[i])
+	externDecl.Scope = externScope
+
+	for i, prototype := range prototypes {
+		n := new(ast.Node)
+		n.Kind = ast.KIND_PROTO
+		n.Node = prototype
+
+		err := externScope.Insert(prototype.Name.Name(), n)
 		if err != nil {
-			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			if err == ast.ErrSymbolAlreadyDefinedOnScope {
 				pos := prototypes[i].Name.Pos
 				prototypeRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
@@ -379,7 +392,7 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 						pos.Filename,
 						pos.Line,
 						pos.Column,
-						prototypeName,
+						prototype.Name.Name(),
 						name.Name(),
 					),
 				}
@@ -390,13 +403,13 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		}
 	}
 
-	externDecl.Scope = externScope
-	externDecl.Name = name
-	externDecl.Prototypes = prototypes
+	n := new(ast.Node)
+	n.Kind = ast.KIND_EXTERN_DECL
+	n.Node = externDecl
 
-	err := p.moduleScope.Insert(name.Name(), externDecl)
+	err := p.moduleScope.Insert(name.Name(), n)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			pos := name.Pos
 			prototypeRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
@@ -413,10 +426,10 @@ func (p *Parser) parseExternDecl() (*ast.ExternDecl, error) {
 		return nil, err
 	}
 
-	return externDecl, nil
+	return n, nil
 }
 
-func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
+func (p *Parser) parsePkgDecl() (*ast.Node, error) {
 	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
@@ -435,10 +448,13 @@ func (p *Parser) parsePkgDecl() (*ast.PkgDecl, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	return &ast.PkgDecl{Name: name}, nil
+	node := new(ast.Node)
+	node.Kind = ast.KIND_PKG_DECL
+	node.Node = &ast.PkgDecl{Name: name}
+	return node, nil
 }
 
-func (p *Parser) parseUse() (*ast.UseDecl, error) {
+func (p *Parser) parseUse() (*ast.Node, error) {
 	imp := new(ast.UseDecl)
 
 	use, ok := p.expect(token.USE)
@@ -447,7 +463,7 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
 	}
 
-	useStr, ok := p.expect(token.STRING_LITERAL)
+	useStr, ok := p.expect(token.UNTYPED_STRING)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
@@ -468,7 +484,6 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
 	}
-
 	imp.Path = parts[1:]
 
 	semi, ok := p.expect(token.SEMICOLON)
@@ -477,10 +492,13 @@ func (p *Parser) parseUse() (*ast.UseDecl, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
-	return imp, nil
+	node := new(ast.Node)
+	node.Kind = ast.KIND_USE_DECL
+	node.Node = imp
+	return node, nil
 }
 
-func (p *Parser) parseTypeAlias() (ast.ExprType, error) {
+func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	pkg, ok := p.expect(token.TYPE)
 	// TODO(errors)
 	if !ok {
@@ -511,19 +529,24 @@ func (p *Parser) parseTypeAlias() (ast.ExprType, error) {
 		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
 	}
 
+	node := new(ast.Node)
+	node.Kind = ast.KIND_TYPE_ALIAS_DECL
+
 	alias := new(ast.TypeAlias)
 	alias.Name = name
 	alias.Type = ty
 
-	err = p.moduleScope.Insert(name.Name(), alias)
+	node.Node = alias
+
+	err = p.moduleScope.Insert(name.Name(), node)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			return nil, fmt.Errorf("symbol '%s' already declared on scope\n", name.Name())
 		}
 		return nil, err
 	}
 
-	return alias, nil
+	return node, nil
 }
 
 func (p *Parser) parsePrototype() (*ast.Proto, error) {
@@ -626,7 +649,7 @@ func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
 			return nil, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		attributeValue, ok := p.expect(token.UNTYPED_STRING)
 		if !ok {
 			return nil, fmt.Errorf("expected string literal")
 		}
@@ -655,8 +678,9 @@ func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
 	return attributes, nil
 }
 
-func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
+func (p *Parser) parseFnDecl() (*ast.Node, error) {
 	var err error
+	fnDecl := new(ast.FnDecl)
 
 	_, ok := p.expect(token.FN)
 	if !ok {
@@ -678,35 +702,36 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		p.collector.ReportAndSave(expectedIdentifier)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+	fnDecl.Name = name
 
 	fnScope := ast.NewScope(p.moduleScope)
+	fnDecl.Scope = fnScope
 
 	params, err := p.parseFunctionParams(name, fnScope, false)
 	if err != nil {
 		return nil, err
 	}
+	fnDecl.Params = params
 
 	returnType, err := p.parseReturnType( /*isPrototype=*/ false)
 	if err != nil {
 		return nil, err
 	}
+	fnDecl.RetType = returnType
 
 	block, err := p.parseBlock(fnScope)
 	if err != nil {
 		return nil, err
 	}
+	fnDecl.Block = block
 
-	fnDecl := &ast.FunctionDecl{
-		Scope:   fnScope,
-		Name:    name,
-		Params:  params,
-		Block:   block,
-		RetType: returnType,
-	}
+	n := new(ast.Node)
+	n.Kind = ast.KIND_FN_DECL
+	n.Node = fnDecl
 
-	err = p.moduleScope.Insert(name.Name(), fnDecl)
+	err = p.moduleScope.Insert(name.Name(), n)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			functionRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' already declared on scope",
@@ -721,11 +746,11 @@ func (p *Parser) parseFnDecl() (*ast.FunctionDecl, error) {
 		return nil, err
 	}
 
-	return fnDecl, nil
+	return n, nil
 }
 
 // Useful for testing
-func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FunctionDecl, error) {
+func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -738,7 +763,7 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FunctionDec
 		return nil, err
 	}
 
-	return fnDecl, nil
+	return fnDecl.Node.(*ast.FnDecl), nil
 }
 
 func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.FieldList, error) {
@@ -788,22 +813,26 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			break
 		}
 
-		paramName, ok := p.expect(token.ID)
+		param := new(ast.Field)
+
+		name, ok := p.expect(token.ID)
 		if !ok {
-			pos := paramName.Pos
+			pos := name.Pos
 			expectedCloseParenOrId := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter or ), not %s",
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					paramName.Kind,
+					name.Kind,
 				),
 			}
 			p.collector.ReportAndSave(expectedCloseParenOrId)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		paramType, err := p.parseExprType()
+		param.Name = name
+
+		ty, err := p.parseExprType()
 		if err != nil {
 			tok := p.lex.Peek()
 			pos := tok.Pos
@@ -813,15 +842,14 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					paramName.Lexeme,
+					name.Lexeme,
 					tok.Kind,
 				),
 			}
 			p.collector.ReportAndSave(expectedParamType)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-
-		param := &ast.Field{Name: paramName, Type: paramType}
+		param.Type = ty
 
 		// NOTE: prototypes parameters are validated at the semantic analyzer
 		// stage
@@ -830,9 +858,14 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 				// TODO(errors): add proper error
 				return nil, fmt.Errorf("error: scope should not be null when validating function parameters")
 			}
-			err = scope.Insert(param.Name.Name(), param)
+
+			n := new(ast.Node)
+			n.Kind = ast.KIND_FIELD
+			n.Node = param
+
+			err = scope.Insert(param.Name.Name(), n)
 			if err != nil {
-				if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				if err == ast.ErrSymbolAlreadyDefinedOnScope {
 					pos := param.Name.Pos
 					parameterRedeclaration := diagnostics.Diag{
 						Message: fmt.Sprintf(
@@ -882,10 +915,14 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 	}, nil
 }
 
-func (p *Parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
+func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
+	ty := new(ast.ExprType)
+
 	if (isPrototype && p.lex.NextIs(token.SEMICOLON)) ||
 		p.lex.NextIs(token.OPEN_CURLY) {
-		return &ast.BasicType{Kind: token.VOID_TYPE}, nil
+		ty.Kind = ast.EXPR_TYPE_BASIC
+		ty.T = &ast.BasicType{Kind: token.VOID_TYPE}
+		return ty, nil
 	}
 
 	returnType, err := p.parseExprType()
@@ -904,6 +941,7 @@ func (p *Parser) parseReturnType(isPrototype bool) (ast.ExprType, error) {
 		p.collector.ReportAndSave(expectedReturnTy)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+
 	return returnType, nil
 }
 
@@ -916,7 +954,9 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 	return tok, true
 }
 
-func (p *Parser) parseExprType() (ast.ExprType, error) {
+func (p *Parser) parseExprType() (*ast.ExprType, error) {
+	t := new(ast.ExprType)
+
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.STAR:
@@ -925,41 +965,59 @@ func (p *Parser) parseExprType() (ast.ExprType, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.PointerType{Type: ty}, nil
+
+		t.Kind = ast.EXPR_TYPE_POINTER
+		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
 		symbol, err := p.moduleScope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
-			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			if err == ast.ErrSymbolNotFoundOnScope {
 				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
 			}
 		}
 		// TODO: add more id types, such as struct
-		if alias, ok := symbol.(*ast.TypeAlias); ok {
-			// NOTE: should I directly return the underlying type?
+
+		if symbol.Kind == ast.KIND_TYPE_ALIAS_DECL {
+			alias := symbol.Node.(*ast.TypeAlias)
 			return alias.Type, nil
 		}
+
 		// NOTE: I think ast.IdType won't be necessary anymore
-		return &ast.IdType{Name: tok}, nil
+		t.Kind = ast.EXPR_TYPE_ID
+		t.T = &ast.IdType{Name: tok}
 	default:
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
-			return &ast.BasicType{Kind: tok.Kind}, nil
+			t.Kind = ast.EXPR_TYPE_BASIC
+			t.T = &ast.BasicType{Kind: tok.Kind}
+			return t, nil
 		}
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
+	return t, nil
 }
 
-func (p *Parser) parseStmt(parentScope *ast.Scope) (ast.Stmt, error) {
+func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
+	n := new(ast.Node)
+
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.RETURN:
 		p.lex.Skip()
-		returnStmt := &ast.ReturnStmt{Return: tok, Value: &ast.VoidExpr{}}
+
+		n.Kind = ast.KIND_RETURN_STMT
+
+		returnStmt := new(ast.ReturnStmt)
+		returnStmt.Return = tok
+		returnStmt.Value = &ast.Node{Kind: ast.KIND_VOID_EXPR, Node: nil}
+
+		n.Node = returnStmt
+
 		if p.lex.NextIs(token.SEMICOLON) {
 			p.lex.Skip()
-			return returnStmt, nil
+			return n, nil
 		}
 		returnValue, err := p.parseExpr()
 		if err != nil {
@@ -996,7 +1054,7 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (ast.Stmt, error) {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 
-		return returnStmt, nil
+		return n, nil
 	case token.ID:
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
@@ -1038,7 +1096,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
 
-	var statements []ast.Stmt
+	var statements []*ast.Node
 
 	for {
 		tok := p.lex.Peek()
@@ -1081,22 +1139,22 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	}, nil
 }
 
-func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (ast.Stmt, error) {
+func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
 		fnCall, err := p.parseFnCall()
 		return fnCall, err
 	case token.DOT:
-		fieldAccessing := p.parseFieldAccess()
-		return fieldAccessing, nil
+		fieldAccessing, err := p.parseFieldAccess()
+		return fieldAccessing, err
 	default:
 		return p.parseVar(parentScope)
 	}
 }
 
-func (p *Parser) parseVar(parentScope *ast.Scope) (ast.Stmt, error) {
-	variables := make([]*ast.VarStmt, 0)
+func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
+	variables := make([]*ast.Node, 0)
 	isDecl := false
 
 VarDecl:
@@ -1107,14 +1165,18 @@ VarDecl:
 			return nil, fmt.Errorf("expected ID")
 		}
 
+		n := new(ast.Node)
+		n.Kind = ast.KIND_VAR_STMT
 		variable := &ast.VarStmt{
 			Name:           name,
 			Type:           nil,
 			Value:          nil,
 			Decl:           true,
 			NeedsInference: true,
+			BackendType:    nil,
 		}
-		variables = append(variables, variable)
+		n.Node = variable
+		variables = append(variables, n)
 
 		next := p.lex.Peek()
 		switch next.Kind {
@@ -1155,29 +1217,30 @@ VarDecl:
 	if len(variables) != len(exprs) {
 		return nil, fmt.Errorf("%d != %d", len(variables), len(exprs))
 	}
-	for i := range variables {
-		variables[i].Value = exprs[i]
-		variables[i].Decl = isDecl
+	for i, n := range variables {
+		variable := n.Node.(*ast.VarStmt)
+		variable.Value = exprs[i]
+		variable.Decl = isDecl
 
-		if variables[i].Decl {
-			_, err := parentScope.LookupCurrentScope(variables[i].Name.Name())
+		if variable.Decl {
+			_, err := parentScope.LookupCurrentScope(variable.Name.Name())
 			// TODO(errors)
 			if err != nil {
-				if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-					return nil, fmt.Errorf("'%s' already declared in the current block", variables[i].Name.Name())
+				if err != ast.ErrSymbolNotFoundOnScope {
+					return nil, fmt.Errorf("'%s' already declared in the current block", variable.Name.Name())
 				}
 			}
-			err = parentScope.Insert(variables[i].Name.Name(), variables[i])
+			err = parentScope.Insert(variable.Name.Name(), n)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			_, err := parentScope.LookupAcrossScopes(variables[i].Name.Name())
+			_, err := parentScope.LookupAcrossScopes(variable.Name.Name())
 			// TODO(errors)
 			if err != nil {
-				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
-					name := variables[i].Name.Name()
-					pos := variables[i].Name.Pos
+				if err == ast.ErrSymbolNotFoundOnScope {
+					name := variable.Name.Name()
+					pos := variable.Name.Pos
 					return nil, fmt.Errorf("%s '%s' not declared in the current block", pos, name)
 				}
 			}
@@ -1187,11 +1250,15 @@ VarDecl:
 	if len(variables) == 1 {
 		return variables[0], nil
 	}
-	return &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}, nil
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_MULTI_VAR_STMT
+	n.Node = &ast.MultiVarStmt{IsDecl: isDecl, Variables: variables}
+	return n, nil
 }
 
 // Useful for testing
-func parseVarFrom(filename, input string) (ast.Stmt, error) {
+func parseVarFrom(filename, input string) (*ast.VarStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -1203,10 +1270,10 @@ func parseVarFrom(filename, input string) (ast.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stmt, nil
+	return stmt.Node.(*ast.VarStmt), nil
 }
 
-func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.CondStmt, error) {
+func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	ifCond, err := p.parseIfCond(parentScope)
 	if err != nil {
 		return nil, err
@@ -1222,7 +1289,10 @@ func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.CondStmt, error) {
 		return nil, err
 	}
 
-	return &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}, nil
+	n := new(ast.Node)
+	n.Kind = ast.KIND_COND_STMT
+	n.Node = &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}
+	return n, nil
 }
 
 func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
@@ -1283,11 +1353,11 @@ func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock, Scope: elseScope}, nil
 }
 
-func (p *Parser) parseExpr() (ast.Expr, error) {
+func (p *Parser) parseExpr() (*ast.Node, error) {
 	return p.parseLogical()
 }
 
-func (p *Parser) parseLogical() (ast.Expr, error) {
+func (p *Parser) parseLogical() (*ast.Node, error) {
 	lhs, err := p.parseComparasion()
 	if err != nil {
 		return nil, err
@@ -1302,15 +1372,20 @@ func (p *Parser) parseLogical() (ast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
 	}
+
 	return lhs, nil
 }
 
-func (p *Parser) parseComparasion() (ast.Expr, error) {
+func (p *Parser) parseComparasion() (*ast.Node, error) {
 	lhs, err := p.parseTerm()
 	if err != nil {
 		return nil, err
@@ -1324,7 +1399,11 @@ func (p *Parser) parseComparasion() (ast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1332,7 +1411,7 @@ func (p *Parser) parseComparasion() (ast.Expr, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseTerm() (ast.Expr, error) {
+func (p *Parser) parseTerm() (*ast.Node, error) {
 	lhs, err := p.parseFactor()
 	if err != nil {
 		return nil, err
@@ -1346,7 +1425,10 @@ func (p *Parser) parseTerm() (ast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1354,7 +1436,7 @@ func (p *Parser) parseTerm() (ast.Expr, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseFactor() (ast.Expr, error) {
+func (p *Parser) parseFactor() (*ast.Node, error) {
 	lhs, err := p.parseUnary()
 	if err != nil {
 		return nil, err
@@ -1368,7 +1450,10 @@ func (p *Parser) parseFactor() (ast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1377,7 +1462,7 @@ func (p *Parser) parseFactor() (ast.Expr, error) {
 
 }
 
-func (p *Parser) parseUnary() (ast.Expr, error) {
+func (p *Parser) parseUnary() (*ast.Node, error) {
 	next := p.lex.Peek()
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		p.lex.Skip()
@@ -1385,13 +1470,19 @@ func (p *Parser) parseUnary() (ast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.UnaryExpr{Op: next.Kind, Value: rhs}, nil
+
+		unary := new(ast.Node)
+		unary.Kind = ast.KIND_UNARY_EXPR
+		unary.Node = &ast.UnaryExpr{Op: next.Kind, Value: rhs}
+		return unary, nil
 	}
 
 	return p.parsePrimary()
 }
 
-func (p *Parser) parsePrimary() (ast.Expr, error) {
+func (p *Parser) parsePrimary() (*ast.Node, error) {
+	n := new(ast.Node)
+
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.ID:
@@ -1402,12 +1493,15 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 		case token.OPEN_PAREN:
 			return p.parseFnCall()
 		case token.DOT:
-			fieldAccess := p.parseFieldAccess()
-			return fieldAccess, nil
+			fieldAccess, err := p.parseFieldAccess()
+			return fieldAccess, err
 		}
 
 		p.lex.Skip()
-		return idExpr, nil
+
+		n.Kind = ast.KIND_ID_EXPR
+		n.Node = idExpr
+		return n, nil
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
 		expr, err := p.parseExpr()
@@ -1420,12 +1514,16 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 		}
 		return expr, nil
 	default:
-		if _, ok := token.LITERAL_KIND[tok.Kind]; ok {
+		if tok.Kind.IsLiteral() {
 			p.lex.Skip()
-			return &ast.LiteralExpr{
-				Type:  &ast.BasicType{Kind: tok.Kind},
+
+			n.Kind = ast.KIND_LITERAl_EXPR
+			n.Node = &ast.LiteralExpr{
+				Type:  ast.NewBasicType(tok.Kind),
 				Value: tok.Lexeme,
-			}, nil
+			}
+
+			return n, nil
 		}
 		return nil, fmt.Errorf(
 			"invalid token for expression parsing: %s %s %s",
@@ -1436,8 +1534,8 @@ func (p *Parser) parsePrimary() (ast.Expr, error) {
 	}
 }
 
-func (p *Parser) parseExprList(possibleEnds []token.Kind) ([]ast.Expr, error) {
-	var exprs []ast.Expr
+func (p *Parser) parseExprList(possibleEnds []token.Kind) ([]*ast.Node, error) {
+	var exprs []*ast.Node
 Var:
 	for {
 		for _, end := range possibleEnds {
@@ -1460,7 +1558,7 @@ Var:
 	return exprs, nil
 }
 
-func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
+func (parser *Parser) parseFnCall() (*ast.Node, error) {
 	name, ok := parser.expect(token.ID)
 	if !ok {
 		return nil, fmt.Errorf("expected 'id'")
@@ -1483,31 +1581,41 @@ func (parser *Parser) parseFnCall() (*ast.FunctionCall, error) {
 		return nil, fmt.Errorf("expected ')'")
 	}
 
-	return &ast.FunctionCall{Name: name, Args: args}, nil
+	n := new(ast.Node)
+	n.Kind = ast.KIND_FN_CALL
+	n.Node = &ast.FnCall{Name: name, Args: args}
+	return n, nil
 }
 
-func (parser *Parser) parseFieldAccess() *ast.FieldAccess {
+func (parser *Parser) parseFieldAccess() (*ast.Node, error) {
 	id, ok := parser.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
-		log.Fatal("expected ID")
+		return nil, fmt.Errorf("error: expected ID")
 	}
-	left := &ast.IdExpr{Name: id}
+
+	left := new(ast.Node)
+	left.Kind = ast.KIND_ID_EXPR
+	left.Node = &ast.IdExpr{Name: id}
 
 	_, ok = parser.expect(token.DOT)
 	// TODO(errors): add proper error
 	if !ok {
-		log.Fatal("expect a dot")
+		return nil, fmt.Errorf("error: expected a dot")
 	}
 
 	right, err := parser.parsePrimary()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &ast.FieldAccess{Left: left, Right: right}
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_FIELD_ACCESS
+	n.Node = &ast.FieldAccess{Left: left, Right: right}
+	return n, nil
 }
 
-func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.ForLoop, error) {
+func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	_, ok := parser.expect(token.FOR)
 	// TODO(errors): add proper error
 	if !ok {
@@ -1546,7 +1654,11 @@ func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.ForLoop, error)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block, Scope: forScope}, nil
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_FOR_LOOP_STMT
+	n.Node = &ast.ForLoop{Init: init, Cond: cond, Update: update, Block: block, Scope: forScope}
+	return n, nil
 }
 
 // Useful for testing
@@ -1559,7 +1671,7 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 
 	tempScope := ast.NewScope(nil)
 	forLoop, err := parser.parseForLoop(tempScope)
-	return forLoop, err
+	return forLoop.Node.(*ast.ForLoop), err
 }
 
 func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
@@ -1572,10 +1684,10 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 	// TODO: set scope properly
 	tempScope := ast.NewScope(nil)
 	whileLoop, err := parser.parseWhileLoop(tempScope)
-	return whileLoop, err
+	return whileLoop.Node.(*ast.WhileLoop), err
 }
 
-func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.WhileLoop, error) {
+func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	_, ok := p.expect(token.WHILE)
 	if !ok {
 		return nil, fmt.Errorf("expected 'while'")
@@ -1592,5 +1704,8 @@ func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.WhileLoop, error) 
 		return nil, err
 	}
 
-	return &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}, nil
+	n := new(ast.Node)
+	n.Kind = ast.KIND_WHILE_LOOP_STMT
+	n.Node = &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}
+	return n, nil
 }

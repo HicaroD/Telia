@@ -7,16 +7,14 @@ import (
 )
 
 type Field struct {
-	Node
 	Name        *token.Token
-	Type        ExprType
+	Type        *ExprType
 	BackendType any // LLVM: *values.Variable
 }
 
 func (field Field) String() string {
-	return fmt.Sprintf("Name: %s\nType: %s", field.Name, field.Type)
+	return fmt.Sprintf("Name: %v\nType: %v", field.Name, field.Type)
 }
-func (field Field) astNode() {}
 
 // Field list for function parameters
 type FieldList struct {

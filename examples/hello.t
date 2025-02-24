@@ -7,7 +7,7 @@ extern libc {
 }
 
 fn main() i32 {
-  libc.puts("Hello, world!\n");
-  libc.puts("Hello, world!\n");
+  libc.puts("Hello, world!");
+  libc.puts("Hello, world!");
   return 0;
 }

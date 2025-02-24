@@ -302,7 +302,7 @@ func (lex *Lexer) getStringLiteral() *token.Token {
 		lex.nextChar()
 	}
 
-	tok.Kind = token.STRING_LITERAL
+	tok.Kind = token.UNTYPED_STRING
 	tok.Lexeme = str
 
 	return tok
@@ -316,7 +316,7 @@ func (lex *Lexer) getNumberLiteral(position token.Pos) *token.Token {
 	// TODO: deal with floating pointer numbers
 	// if strings.Contains(number, ".") {}
 
-	token := token.New(number, token.INTEGER_LITERAL, position)
+	token := token.New(number, token.UNTYPED_INT, position)
 	return token
 }
 
