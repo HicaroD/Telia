@@ -1328,20 +1328,7 @@ func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 }
 
 func (p *Parser) parseExpr(parentScope *ast.Scope) (*ast.Node, error) {
-	expr, err := p.parseLogical(parentScope)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.lex.NextIs(token.AT) {
-		atOperator, err := p.parseAtOperator(parentScope)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Print(atOperator)
-	}
-
-	return expr, nil
+	return p.parseLogical(parentScope)
 }
 
 func (p *Parser) parseAtOperator(parentScope *ast.Scope) (*ast.AtOperator, error) {
@@ -1625,9 +1612,17 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected ')'")
 	}
 
+	var atOp *ast.AtOperator
+	if parser.lex.NextIs(token.AT) {
+		atOp, err = parser.parseAtOperator(parentScope)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_CALL
-	n.Node = &ast.FnCall{Name: name, Args: args}
+	n.Node = &ast.FnCall{Name: name, Args: args, AtOp: atOp}
 	return n, nil
 }
 

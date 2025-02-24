@@ -12,7 +12,8 @@ fn test() {
 }
 
 fn main() i32 {
-  libc.puts("Hello, world!");
-  libc.puts("Hello, world!");
+  libc.puts("Hello, world!") @fail;
+  libc.puts("Hello, world!") @prop;
+  libc.puts("Hello, world!") @catch err { return 0; };
   return 0;
 }
