@@ -380,7 +380,7 @@ func (p *Parser) parseExternDecl() (*ast.Node, error) {
 
 		err := externScope.Insert(prototype.Name.Name(), n)
 		if err != nil {
-			if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+			if err == ast.ErrSymbolAlreadyDefinedOnScope {
 				pos := prototypes[i].Name.Pos
 				prototypeRedeclaration := diagnostics.Diag{
 					Message: fmt.Sprintf(
@@ -405,7 +405,7 @@ func (p *Parser) parseExternDecl() (*ast.Node, error) {
 
 	err := p.moduleScope.Insert(name.Name(), n)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			pos := name.Pos
 			prototypeRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
@@ -536,7 +536,7 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 
 	err = p.moduleScope.Insert(name.Name(), node)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			return nil, fmt.Errorf("symbol '%s' already declared on scope\n", name.Name())
 		}
 		return nil, err
@@ -727,7 +727,7 @@ func (p *Parser) parseFnDecl() (*ast.Node, error) {
 
 	err = p.moduleScope.Insert(name.Name(), n)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			functionRedeclaration := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' already declared on scope",
@@ -861,7 +861,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 
 			err = scope.Insert(param.Name.Name(), n)
 			if err != nil {
-				if err == ast.ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE {
+				if err == ast.ErrSymbolAlreadyDefinedOnScope {
 					pos := param.Name.Pos
 					parameterRedeclaration := diagnostics.Diag{
 						Message: fmt.Sprintf(
@@ -969,7 +969,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		symbol, err := p.moduleScope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
-			if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+			if err == ast.ErrSymbolNotFoundOnScope {
 				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
 			}
 		}
@@ -1222,7 +1222,7 @@ VarDecl:
 			_, err := parentScope.LookupCurrentScope(variable.Name.Name())
 			// TODO(errors)
 			if err != nil {
-				if err != ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				if err != ast.ErrSymbolNotFoundOnScope {
 					return nil, fmt.Errorf("'%s' already declared in the current block", variable.Name.Name())
 				}
 			}
@@ -1234,7 +1234,7 @@ VarDecl:
 			_, err := parentScope.LookupAcrossScopes(variable.Name.Name())
 			// TODO(errors)
 			if err != nil {
-				if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+				if err == ast.ErrSymbolNotFoundOnScope {
 					name := variable.Name.Name()
 					pos := variable.Name.Pos
 					return nil, fmt.Errorf("%s '%s' not declared in the current block", pos, name)

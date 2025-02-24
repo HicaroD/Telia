@@ -88,7 +88,7 @@ type PointerType struct {
 }
 
 func (pointer PointerType) String() string {
-	return fmt.Sprintf("*%s", pointer.Type)
+	return fmt.Sprintf("*%v", pointer.Type)
 }
 
 type TypeAlias struct {
@@ -98,5 +98,5 @@ type TypeAlias struct {
 }
 
 func (alias TypeAlias) String() string {
-	return fmt.Sprintf("ALIAS: %s - TYPE: %s\n", alias.Name, alias.Type)
+	return fmt.Sprintf("ALIAS: %v - TYPE: %v\n", alias.Name, alias.Type)
 }

@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE = errors.New("symbol already defined on scope")
-	ERR_SYMBOL_NOT_FOUND_ON_SCOPE       = errors.New("symbol not found on scope")
+	ErrSymbolAlreadyDefinedOnScope = errors.New("symbol already defined on scope")
+	ErrSymbolNotFoundOnScope       = errors.New("symbol not found on scope")
 )
 
 type Scope struct {
@@ -21,7 +21,7 @@ func NewScope(parent *Scope) *Scope {
 
 func (scope *Scope) Insert(name string, element *Node) error {
 	if _, ok := scope.Nodes[name]; ok {
-		return ERR_SYMBOL_ALREADY_DEFINED_ON_SCOPE
+		return ErrSymbolAlreadyDefinedOnScope
 	}
 	scope.Nodes[name] = element
 	return nil
@@ -31,7 +31,7 @@ func (scope *Scope) LookupCurrentScope(name string) (*Node, error) {
 	if node, ok := scope.Nodes[name]; ok {
 		return node, nil
 	}
-	return nil, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
+	return nil, ErrSymbolNotFoundOnScope
 }
 
 func (scope *Scope) LookupAcrossScopes(name string) (*Node, error) {
@@ -39,7 +39,7 @@ func (scope *Scope) LookupAcrossScopes(name string) (*Node, error) {
 		return node, nil
 	}
 	if scope.Parent == nil {
-		return nil, ERR_SYMBOL_NOT_FOUND_ON_SCOPE
+		return nil, ErrSymbolNotFoundOnScope
 	}
 	return scope.Parent.LookupAcrossScopes(name)
 }

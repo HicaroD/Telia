@@ -379,7 +379,7 @@ func (sema *sema) checkFunctionCall(
 ) error {
 	symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
 	if err != nil {
-		if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+		if err == ast.ErrSymbolNotFoundOnScope {
 			pos := fnCall.Name.Pos
 			functionNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
@@ -919,7 +919,7 @@ func (sema *sema) checkFieldAccessExpr(
 
 	symbol, err := currentScope.LookupAcrossScopes(id)
 	if err != nil {
-		if err == ast.ERR_SYMBOL_NOT_FOUND_ON_SCOPE {
+		if err == ast.ErrSymbolNotFoundOnScope {
 			pos := idExpr.Name.Pos
 			symbolNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(

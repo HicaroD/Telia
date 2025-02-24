@@ -8,8 +8,6 @@ type Program struct {
 	Root *Package
 }
 
-func (program Program) astNode() {}
-
 type Package struct {
 	Name     string
 	Files    []*File
@@ -18,8 +16,6 @@ type Package struct {
 	IsRoot   bool // If true, "Scope" represents the universe
 }
 
-func (module Package) astNode() {}
-
 type File struct {
 	Dir            string
 	Path           string
@@ -27,5 +23,3 @@ type File struct {
 	PkgName        string
 	PkgNameDefined bool
 }
-
-func (file File) astNode() {}

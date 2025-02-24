@@ -17,7 +17,7 @@ type FnDecl struct {
 
 func (fnDecl FnDecl) String() string {
 	return fmt.Sprintf(
-		"Scope: %s\nName: %s\nParams: %s\nRetType: %s\nBlock: %s\n",
+		"Scope: %v\nName: %v\nParams: %v\nRetType: %v\nBlock: %v\n",
 		fnDecl.Scope,
 		fnDecl.Name,
 		fnDecl.Params,
