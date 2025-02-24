@@ -72,7 +72,7 @@ func (bt *BasicType) IsAnyStringType() bool {
 }
 
 func (bt *BasicType) IsIntegerType() bool {
-	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END || bt.Kind == token.UNTYPED_INT
+	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END || bt.Kind == token.UNTYPED_INT || bt.Kind == token.BOOL_TYPE
 }
 
 type IdType struct {

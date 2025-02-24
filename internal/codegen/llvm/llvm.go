@@ -262,14 +262,14 @@ func (c *llvmCodegen) generateVarDecl(
 	varDecl *ast.VarStmt,
 	scope *ast.Scope,
 ) {
-	varTy := c.getType(varDecl.Type)
-	varPtr := c.builder.CreateAlloca(varTy, ".ptr")
-	varExpr := c.getExpr(varDecl.Value, scope)
-	c.builder.CreateStore(varExpr, varPtr)
+	ty := c.getType(varDecl.Type)
+	ptr := c.builder.CreateAlloca(ty, ".ptr")
+	expr := c.getExpr(varDecl.Value, scope)
+	c.builder.CreateStore(expr, ptr)
 
 	variableLlvm := &Variable{
-		Ty:  varTy,
-		Ptr: varPtr,
+		Ty:  ty,
+		Ptr: ptr,
 	}
 	varDecl.BackendType = variableLlvm
 }
@@ -285,9 +285,11 @@ func (c *llvmCodegen) generateVarReassign(
 
 	switch symbol.Kind {
 	case ast.KIND_VAR_STMT:
-		variable = symbol.Node.(*ast.VarStmt).BackendType.(*Variable)
+		node := symbol.Node.(*ast.VarStmt)
+		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		variable = symbol.Node.(*ast.Field).BackendType.(*Variable)
+		node := symbol.Node.(*ast.Field)
+		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
 	}
@@ -451,13 +453,11 @@ func (c *llvmCodegen) getExpr(
 		case ast.EXPR_TYPE_BASIC:
 			basic := lit.Type.T.(*ast.BasicType)
 
-			if basic.IsIntegerType() {
+			switch {
+			case basic.IsIntegerType():
 				integerValue, bitSize := c.getIntegerValue(lit, basic)
 				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
-			}
-
-			switch basic.Kind {
-			case token.CSTRING_TYPE:
+			case basic.Kind == token.CSTRING_TYPE:
 				strlen := len(lit.Value) + 1
 				arrTy := llvm.ArrayType(c.context.Int8Type(), strlen)
 				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value, strlen))
@@ -475,7 +475,8 @@ func (c *llvmCodegen) getExpr(
 
 				return ptr
 			default:
-				panic("unimplemented basic type")
+				log.Fatalf("unimplemented basic type: %s\n", lit)
+				return llvm.Value{}
 			}
 		case ast.EXPR_TYPE_POINTER:
 			panic("unimplemented pointer type")
@@ -531,6 +532,8 @@ func (c *llvmCodegen) getExpr(
 			return c.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt")
 		case token.GREATER_EQ:
 			return c.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge")
+		case token.SLASH:
+			return c.builder.CreateExactSDiv(lhs, rhs, ".exactdiv")
 		default:
 			log.Fatalf("unimplemented binary operator: %s", binary.Op)
 			return llvm.Value{}
@@ -576,6 +579,12 @@ func (c *llvmCodegen) getIntegerValue(
 ) (uint64, int) {
 	bitSize := ty.Kind.BitSize()
 	intLit := string(expr.Value)
+	switch intLit {
+	case "true":
+		intLit = "1"
+	case "false":
+		intLit = "0"
+	}
 	val, _ := strconv.ParseUint(intLit, 10, bitSize)
 	return val, bitSize
 }

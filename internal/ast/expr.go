@@ -41,9 +41,8 @@ type LiteralExpr struct {
 }
 
 func (literal LiteralExpr) String() string {
-	return fmt.Sprintf("%s %s", literal.Type, literal.Value)
+	return fmt.Sprintf("%v %v\n", literal.Type, literal.Value)
 }
-func (literal LiteralExpr) exprNode() {}
 
 type IdExpr struct {
 	Name *token.Token
@@ -60,7 +59,7 @@ type FieldAccess struct {
 }
 
 func (fieldAccess FieldAccess) String() string {
-	return fmt.Sprintf("%s.%s", fieldAccess.Left, fieldAccess.Right)
+	return fmt.Sprintf("%v.%v\n", fieldAccess.Left, fieldAccess.Right)
 }
 
 type UnaryExpr struct {
@@ -69,7 +68,7 @@ type UnaryExpr struct {
 }
 
 func (unary UnaryExpr) String() string {
-	return fmt.Sprintf("%s %s", unary.Op, unary.Value)
+	return fmt.Sprintf("%v %v\n", unary.Op, unary.Value)
 }
 
 type BinaryExpr struct {
@@ -79,5 +78,5 @@ type BinaryExpr struct {
 }
 
 func (binExpr BinaryExpr) String() string {
-	return fmt.Sprintf("(%s) %s (%s)", binExpr.Left, binExpr.Op, binExpr.Right)
+	return fmt.Sprintf("(%v) %v (%v)\n", binExpr.Left, binExpr.Op, binExpr.Right)
 }

@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "exec",
             "program": "${workspaceFolder}/telia",
-            "args": ["build", "examples/forloop.t"],
+            "args": ["build", "examples/variables.t"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
         }

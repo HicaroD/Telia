@@ -6,8 +6,13 @@ extern C {
   fn puts(format cstring) i32;
 }
 
+fn print(message cstring) {
+  C.puts(message);
+  return;
+}
+
 fn main() i32 {
   message := "Hello, world";
-  puts(message);
+  print(message);
   return 0;
 }
