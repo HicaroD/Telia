@@ -260,7 +260,7 @@ func (p *Parser) parseExternAttributes() (*ast.ExternAttrs, error) {
 			return nil, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		attributeValue, ok := p.expect(token.UNTYPED_STRING)
 		if !ok {
 			return nil, fmt.Errorf("expected string literal")
 		}
@@ -459,7 +459,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
 	}
 
-	useStr, ok := p.expect(token.STRING_LITERAL)
+	useStr, ok := p.expect(token.UNTYPED_STRING)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
@@ -645,7 +645,7 @@ func (p *Parser) parseProtoAttribute() (*ast.ProtoAttrs, error) {
 			return nil, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.STRING_LITERAL)
+		attributeValue, ok := p.expect(token.UNTYPED_STRING)
 		if !ok {
 			return nil, fmt.Errorf("expected string literal")
 		}
@@ -1368,9 +1368,10 @@ func (p *Parser) parseLogical() (*ast.Node, error) {
 				return nil, err
 			}
 
-			lhs := new(ast.Node)
-			lhs.Kind = ast.KIND_BINARY_EXPR
-			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1394,9 +1395,10 @@ func (p *Parser) parseComparasion() (*ast.Node, error) {
 				return nil, err
 			}
 
-			lhs := new(ast.Node)
-			lhs.Kind = ast.KIND_BINARY_EXPR
-			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1418,9 +1420,10 @@ func (p *Parser) parseTerm() (*ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs := new(ast.Node)
-			lhs.Kind = ast.KIND_BINARY_EXPR
-			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1442,9 +1445,10 @@ func (p *Parser) parseFactor() (*ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs := new(ast.Node)
-			lhs.Kind = ast.KIND_BINARY_EXPR
-			lhs.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l := new(ast.Node)
+			l.Kind = ast.KIND_BINARY_EXPR
+			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			lhs = l
 		} else {
 			break
 		}
@@ -1507,11 +1511,10 @@ func (p *Parser) parsePrimary() (*ast.Node, error) {
 	default:
 		if tok.Kind.IsLiteral() {
 			p.lex.Skip()
-			ty := ast.NewBasicType(tok.Kind)
 
 			n.Kind = ast.KIND_LITERAl_EXPR
 			n.Node = &ast.LiteralExpr{
-				Type:  ty,
+				Type:  ast.NewBasicType(tok.Kind),
 				Value: tok.Lexeme,
 			}
 

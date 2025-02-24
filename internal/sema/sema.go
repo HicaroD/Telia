@@ -396,7 +396,7 @@ func (sema *sema) checkFunctionCall(
 		return err
 	}
 
-	if symbol.Node == ast.KIND_FN_DECL {
+	if symbol.Kind != ast.KIND_FN_DECL {
 		pos := fnCall.Name.Pos
 		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
@@ -495,7 +495,7 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 	scope *ast.Scope,
 ) (*ast.ExprType, error) {
 	// TODO(errors)
-	if literal.Type.Kind != ast.EXPR_TYPE_BASIC && expectedType.Kind != ast.EXPR_TYPE_BASIC {
+	if literal.Type.Kind != ast.EXPR_TYPE_BASIC || expectedType.Kind != ast.EXPR_TYPE_BASIC {
 		return nil, fmt.Errorf("error: type mismatch for literal expression")
 	}
 
@@ -631,30 +631,34 @@ func (sema *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
-
-	switch actual.Kind {
-	case token.STRING_LITERAL, token.UNTYPED_STRING:
-		if !expected.IsAnyStringType() {
-			return nil, fmt.Errorf("error: expected %s type, got string\n", expected.Kind)
+	switch {
+	case expected.Kind == token.BOOL_TYPE:
+		if actual.Kind == token.UNTYPED_BOOL {
+			actual.Kind = expected.Kind
 		}
-		actual.Kind = expected.Kind
-		return expected, nil
-	case token.INTEGER_LITERAL, token.UNTYPED_INT:
-		if !expected.IsIntegerType() {
-			return nil, fmt.Errorf("error: expected %s type, got integer\n", expected.Kind)
+		if actual.Kind != expected.Kind {
+			goto error
 		}
-		actual.Kind = expected.Kind
-		return expected, nil
-	case token.TRUE_BOOL_LITERAL, token.FALSE_BOOL_LITERAL:
-		if expected.Kind != token.BOOL_TYPE {
-			return nil, fmt.Errorf("expected %s type, got boolean\n", expected.Kind)
+	case expected.IsAnyStringType():
+		if actual.Kind == token.UNTYPED_STRING {
+			actual.Kind = expected.Kind
 		}
-		actual.Kind = token.BOOL_TYPE
-		return expected, nil
+		if actual.Kind != expected.Kind {
+			goto error
+		}
+	case expected.IsIntegerType():
+		if actual.Kind == token.UNTYPED_INT {
+			actual.Kind = expected.Kind
+		}
+		if actual.Kind != expected.Kind {
+			goto error
+		}
 	default:
-		// TODO(errors)
-		return nil, fmt.Errorf("error: type mismatch for literal expression")
+		return nil, fmt.Errorf("unimplemented type: %s\n", actual.String())
 	}
+	return expected, nil
+error:
+	return nil, fmt.Errorf("type mismatch - expected %s, got %s\n", expected.String(), actual.String())
 }
 
 // Useful for testing
@@ -713,44 +717,12 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferBinaryExprTypeWithoutContext(expr.Node.(*ast.BinaryExpr), scope)
 	case ast.KIND_FN_CALL:
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), scope)
+	case ast.KIND_FIELD_ACCESS:
+		return sema.inferFieldAccessExprTypeWithoutContext(expr.Node.(*ast.FieldAccess), scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
 	}
-
-	// switch expression := expr.(type) {
-	// case *ast.LiteralExpr:
-	// switch ty := expression.Type.(type) {
-	// case *ast.BasicType:
-	// case *ast.IdExpr:
-	// case *ast.UnaryExpr:
-	// case *ast.BinaryExpr:
-
-	// case *ast.FnCall:
-	// 	err := sema.checkFunctionCall(expression, scope)
-	// 	// TODO(errors)
-	// 	if err != nil {
-	// 		return nil, false, err
-	// 	}
-	// 	// At this point, function should exists!
-	// 	function, err := scope.LookupAcrossScopes(expression.Name.Name())
-	// 	if err != nil {
-	// 		// TODO(errors)
-	// 		log.Fatalf("panic: at this point, function '%s' should exists in current block", expression.Name)
-	// 	}
-	// 	functionDecl := function.(*ast.FunctionDecl)
-	// 	return functionDecl.RetType, true, nil
-	// case *ast.FieldAccess:
-	// 	proto, err := sema.checkFieldAccessExpr(expression, scope)
-	// 	return proto.RetType, true, err
-	// default:
-	// 	// TODO(errors)
-	// 	log.Fatalf("unimplemented expression on sema: %s", reflect.TypeOf(expression))
-	// }
-	// // TODO(errors)
-	// // NOTE: this should be unreachable
-	// log.Fatalf("UNREACHABLE - inferExprType: %s", reflect.TypeOf(expr))
-	// return nil, false, nil
 }
 
 func (sema *sema) inferLiteralExprTypeWithoutContext(
@@ -764,17 +736,17 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 
 	actualBasicType := literal.Type.T.(*ast.BasicType)
 	switch actualBasicType.Kind {
-	case token.STRING_LITERAL:
+	case token.UNTYPED_STRING:
 		actualBasicType.Kind = token.UNTYPED_STRING
 		return literal.Type, false, nil
-	case token.INTEGER_LITERAL:
+	case token.UNTYPED_INT:
 		ty, err := sema.inferIntegerType(literal.Value)
 		if err != nil {
 			return nil, false, err
 		}
 		literal.Type = ty
 		return literal.Type, false, nil
-	case token.TRUE_BOOL_LITERAL, token.FALSE_BOOL_LITERAL:
+	case token.UNTYPED_BOOL:
 		actualBasicType.Kind = token.BOOL_TYPE
 		return literal.Type, true, nil
 	default:
@@ -911,13 +883,17 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 		return nil, false, err
 	}
 	// At this point, function should exists!
-	function, err := scope.LookupAcrossScopes(fnCall.Name.Name())
-	if err != nil {
-		// TODO(errors)
-		log.Fatalf("panic: at this point, function '%s' should exists in current block", fnCall.Name)
-	}
+	function, _ := scope.LookupAcrossScopes(fnCall.Name.Name())
 	functionDecl := function.Node.(*ast.FnDecl)
 	return functionDecl.RetType, true, nil
+}
+
+func (sema *sema) inferFieldAccessExprTypeWithoutContext(
+	fieldAccess *ast.FieldAccess,
+	scope *ast.Scope,
+) (*ast.ExprType, bool, error) {
+	proto, err := sema.checkFieldAccessExpr(fieldAccess, scope)
+	return proto.RetType, true, err
 }
 
 // TODO: properly infer the type if possible
@@ -1034,7 +1010,7 @@ func (sema *sema) checkPrototypeCall(
 	if prototype.Params.IsVariadic {
 		for i := argIndex; i < len(prototypeCall.Args); i++ {
 			// TODO: deal with variadic argument
-			fmt.Println("variadic arg: %s\n", prototypeCall.Args[i])
+			fmt.Printf("variadic arg: %s\n", prototypeCall.Args[i])
 		}
 	}
 

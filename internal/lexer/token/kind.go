@@ -15,15 +15,6 @@ const (
 	// Identifier
 	ID
 
-	LITERAL_START // literal start delimiter
-
-	INTEGER_LITERAL
-	STRING_LITERAL
-	TRUE_BOOL_LITERAL
-	FALSE_BOOL_LITERAL
-
-	LITERAL_END // literal end delimiter
-
 	FN
 	FOR
 	WHILE
@@ -45,12 +36,12 @@ const (
 	NUMERIC_TYPE_START // numeric type start delimiter
 
 	INTEGER_TYPE_START // integer type start delimiter
-	UNTYPED_INT        // int
+	INT_TYPE           // int
 	I8_TYPE            // i8
 	I16_TYPE           // i16
 	I32_TYPE           // i32
 	I64_TYPE           // i64
-	UNTYPED_UINT       // uint
+	UINT_TYPE          // int
 	U8_TYPE            // u8
 	U16_TYPE           // u16
 	U32_TYPE           // u32
@@ -62,7 +53,13 @@ const (
 	STRING_TYPE  // string
 	CSTRING_TYPE // cstring
 
-	UNTYPED_STRING // string
+	LITERAL_START // literal start delimiter
+
+	UNTYPED_STRING
+	UNTYPED_INT
+	UNTYPED_BOOL
+
+	LITERAL_END // literal end delimiter
 
 	// This type is not explicit. We don't have a keyword for this, the absence
 	// of an explicit type means a void type
@@ -125,18 +122,18 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"type":    TYPE,
 	"use":     USE,
 
-	"true":  TRUE_BOOL_LITERAL,
-	"false": FALSE_BOOL_LITERAL,
+	"true":  UNTYPED_BOOL,
+	"false": UNTYPED_BOOL,
 
 	"bool": BOOL_TYPE,
 
-	"int": UNTYPED_INT,
+	"int": INT_TYPE,
 	"i8":  I8_TYPE,
 	"i16": I16_TYPE,
 	"i32": I32_TYPE,
 	"i64": I64_TYPE,
 
-	"uint":    UNTYPED_UINT,
+	"uint":    UINT_TYPE,
 	"u8":      U8_TYPE,
 	"u16":     U16_TYPE,
 	"u32":     U32_TYPE,
@@ -147,7 +144,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 func (k Kind) BitSize() int {
 	switch k {
-	case UNTYPED_INT, UNTYPED_UINT:
+	case INT_TYPE, UINT_TYPE:
 		return strconv.IntSize
 	case BOOL_TYPE:
 		return 1
@@ -184,14 +181,6 @@ func (k Kind) String() string {
 		return "INVALID"
 	case ID:
 		return "identifier"
-	case INTEGER_LITERAL:
-		return "integer literal"
-	case STRING_LITERAL:
-		return "string literal"
-	case TRUE_BOOL_LITERAL:
-		return "true"
-	case FALSE_BOOL_LITERAL:
-		return "false"
 	case FN:
 		return "fn"
 	case FOR:
@@ -222,8 +211,14 @@ func (k Kind) String() string {
 		return "use"
 	case BOOL_TYPE:
 		return "bool"
-	case UNTYPED_INT:
+	case INT_TYPE:
 		return "int"
+	case UINT_TYPE:
+		return "untyped uint"
+	case UNTYPED_INT:
+		return "untyped int"
+	case UNTYPED_BOOL:
+		return "untyped bool"
 	case I8_TYPE:
 		return "i8"
 	case I16_TYPE:
@@ -232,8 +227,6 @@ func (k Kind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
-	case UNTYPED_UINT:
-		return "uint"
 	case U8_TYPE:
 		return "u8"
 	case U16_TYPE:

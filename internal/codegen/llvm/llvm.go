@@ -144,16 +144,13 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
 	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
-	fmt.Println(cmd.String())
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -393,8 +390,8 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 		switch b.Kind {
 		case token.BOOL_TYPE:
 			return c.context.Int1Type()
-		case token.UNTYPED_INT, token.UNTYPED_UINT:
-			// 32 bits or 64 bits
+		case token.UINT_TYPE, token.INT_TYPE:
+			// 32 bits or 64 bits depends on the architecture
 			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)
 		case token.I8_TYPE, token.U8_TYPE:
