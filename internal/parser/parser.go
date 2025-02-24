@@ -184,6 +184,7 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 func (p *Parser) next() (*ast.Node, bool, error) {
 	var err error
 	var attributes *ast.Attributes
+	attributesFound := false
 	eof := false
 
 peekAgain:
@@ -193,10 +194,15 @@ peekAgain:
 		return nil, eof, nil
 	}
 	if tok.Kind == token.SHARP {
+		// TODO(errors)
+		if attributesFound {
+			return nil, eof, fmt.Errorf("attributes already defined\n")
+		}
 		attributes, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
 		}
+		attributesFound = true
 		goto peekAgain
 	}
 
