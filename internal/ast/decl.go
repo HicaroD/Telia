@@ -81,3 +81,25 @@ func (a *Attributes) String() string {
 	}
 	return fmt.Sprintf("LinkName: '%s' | Linkage: '%s' | DefaultCC: '%s' | LinkPrefix: '%s'\n", a.LinkName, a.Linkage, a.DefaultCallingConvention, a.LinkPrefix)
 }
+
+type AtOperatorKind int
+
+const (
+	// @fail
+	AT_OPERATOR_FAIL AtOperatorKind = iota
+	// @prop
+	AT_OPERATOR_PROP
+	// @catch <name> {...}
+	AT_OPERATOR_CATCH
+)
+
+type AtOperator struct {
+	Kind AtOperatorKind
+	Op   any
+}
+
+type CatchAtOperator struct {
+	Scope      *Scope
+	ErrVarName *token.Token
+	Block      *BlockStmt
+}

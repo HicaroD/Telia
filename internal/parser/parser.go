@@ -250,7 +250,7 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 	lex := lexer.New(filename, src, collector)
 	parser := NewWithLex(lex, collector)
 
-	exprAst, err := parser.parseExpr()
+	exprAst, err := parser.parseExpr(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -993,7 +993,7 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 			p.lex.Skip()
 			return n, nil
 		}
-		returnValue, err := p.parseExpr()
+		returnValue, err := p.parseExpr(parentScope)
 		if err != nil {
 			tok := p.lex.Peek()
 			pos := tok.Pos
@@ -1117,10 +1117,10 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
-		fnCall, err := p.parseFnCall()
+		fnCall, err := p.parseFnCall(parentScope)
 		return fnCall, err
 	case token.DOT:
-		fieldAccessing, err := p.parseFieldAccess()
+		fieldAccessing, err := p.parseFieldAccess(parentScope)
 		return fieldAccessing, err
 	default:
 		return p.parseVar(parentScope)
@@ -1182,7 +1182,7 @@ VarDecl:
 		}
 	}
 
-	exprs, err := p.parseExprList([]token.Kind{token.SEMICOLON, token.OPEN_CURLY})
+	exprs, err := p.parseExprList([]token.Kind{token.SEMICOLON, token.OPEN_CURLY}, parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1276,7 +1276,7 @@ func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
 		return nil, fmt.Errorf("expected 'if'")
 	}
 
-	ifExpr, err := p.parseExpr()
+	ifExpr, err := p.parseExpr(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1296,7 +1296,7 @@ func (p *Parser) parseElifConds(parentScope *ast.Scope) ([]*ast.IfElifCond, erro
 		if !ok {
 			break
 		}
-		elifExpr, err := p.parseExpr()
+		elifExpr, err := p.parseExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -1327,12 +1327,82 @@ func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock, Scope: elseScope}, nil
 }
 
-func (p *Parser) parseExpr() (*ast.Node, error) {
-	return p.parseLogical()
+func (p *Parser) parseExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	expr, err := p.parseLogical(parentScope)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.lex.NextIs(token.AT) {
+		atOperator, err := p.parseAtOperator(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Print(atOperator)
+	}
+
+	return expr, nil
 }
 
-func (p *Parser) parseLogical() (*ast.Node, error) {
-	lhs, err := p.parseComparasion()
+func (p *Parser) parseAtOperator(parentScope *ast.Scope) (*ast.AtOperator, error) {
+	_, ok := p.expect(token.AT)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected '@'\n")
+	}
+
+	name, ok := p.expect(token.ID)
+	// TODO(errors)
+	if !ok {
+		return nil, fmt.Errorf("expected operator name, not %s\n", name.Name())
+	}
+
+	op := new(ast.AtOperator)
+
+	switch name.Name() {
+	case "prop":
+		op.Kind = ast.AT_OPERATOR_PROP
+		op.Op = nil
+	case "fail":
+		op.Kind = ast.AT_OPERATOR_FAIL
+		op.Op = nil
+	case "catch":
+		op.Kind = ast.AT_OPERATOR_CATCH
+		catchOp, err := p.parseCatchOperator(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		op.Op = catchOp
+	default:
+		return nil, fmt.Errorf("invalid at operator '%s'\n", name.Name())
+	}
+
+	return op, nil
+}
+
+func (p *Parser) parseCatchOperator(parentScope *ast.Scope) (*ast.CatchAtOperator, error) {
+	catchOp := new(ast.CatchAtOperator)
+
+	scope := ast.NewScope(parentScope)
+	catchOp.Scope = scope
+
+	varName, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected an identifier, not %s\n", varName.Name())
+	}
+	catchOp.ErrVarName = varName
+
+	block, err := p.parseBlock(parentScope)
+	if err != nil {
+		return nil, err
+	}
+	catchOp.Block = block
+
+	return catchOp, nil
+}
+
+func (p *Parser) parseLogical(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs, err := p.parseComparasion(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1341,7 +1411,7 @@ func (p *Parser) parseLogical() (*ast.Node, error) {
 		next := p.lex.Peek()
 		if _, ok := ast.LOGICAL[next.Kind]; ok {
 			p.lex.Skip()
-			rhs, err := p.parseComparasion()
+			rhs, err := p.parseComparasion(parentScope)
 			// TODO(errors): add proper error
 			if err != nil {
 				return nil, err
@@ -1359,8 +1429,8 @@ func (p *Parser) parseLogical() (*ast.Node, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseComparasion() (*ast.Node, error) {
-	lhs, err := p.parseTerm()
+func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs, err := p.parseTerm(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1369,7 +1439,7 @@ func (p *Parser) parseComparasion() (*ast.Node, error) {
 		next := p.lex.Peek()
 		if _, ok := ast.COMPARASION[next.Kind]; ok {
 			p.lex.Skip()
-			rhs, err := p.parseTerm()
+			rhs, err := p.parseTerm(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -1385,8 +1455,8 @@ func (p *Parser) parseComparasion() (*ast.Node, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseTerm() (*ast.Node, error) {
-	lhs, err := p.parseFactor()
+func (p *Parser) parseTerm(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs, err := p.parseFactor(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1395,7 +1465,7 @@ func (p *Parser) parseTerm() (*ast.Node, error) {
 		next := p.lex.Peek()
 		if _, ok := ast.TERM[next.Kind]; ok {
 			p.lex.Skip()
-			rhs, err := p.parseFactor()
+			rhs, err := p.parseFactor(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -1410,8 +1480,8 @@ func (p *Parser) parseTerm() (*ast.Node, error) {
 	return lhs, nil
 }
 
-func (p *Parser) parseFactor() (*ast.Node, error) {
-	lhs, err := p.parseUnary()
+func (p *Parser) parseFactor(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs, err := p.parseUnary(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1420,7 +1490,7 @@ func (p *Parser) parseFactor() (*ast.Node, error) {
 		next := p.lex.Peek()
 		if _, ok := ast.FACTOR[next.Kind]; ok {
 			p.lex.Skip()
-			rhs, err := p.parseUnary()
+			rhs, err := p.parseUnary(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -1436,11 +1506,11 @@ func (p *Parser) parseFactor() (*ast.Node, error) {
 
 }
 
-func (p *Parser) parseUnary() (*ast.Node, error) {
+func (p *Parser) parseUnary(parentScope *ast.Scope) (*ast.Node, error) {
 	next := p.lex.Peek()
 	if _, ok := ast.UNARY[next.Kind]; ok {
 		p.lex.Skip()
-		rhs, err := p.parseUnary()
+		rhs, err := p.parseUnary(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -1451,10 +1521,10 @@ func (p *Parser) parseUnary() (*ast.Node, error) {
 		return unary, nil
 	}
 
-	return p.parsePrimary()
+	return p.parsePrimary(parentScope)
 }
 
-func (p *Parser) parsePrimary() (*ast.Node, error) {
+func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 	n := new(ast.Node)
 
 	tok := p.lex.Peek()
@@ -1465,9 +1535,9 @@ func (p *Parser) parsePrimary() (*ast.Node, error) {
 		next := p.lex.Peek1()
 		switch next.Kind {
 		case token.OPEN_PAREN:
-			return p.parseFnCall()
+			return p.parseFnCall(parentScope)
 		case token.DOT:
-			fieldAccess, err := p.parseFieldAccess()
+			fieldAccess, err := p.parseFieldAccess(parentScope)
 			return fieldAccess, err
 		}
 
@@ -1478,7 +1548,7 @@ func (p *Parser) parsePrimary() (*ast.Node, error) {
 		return n, nil
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
-		expr, err := p.parseExpr()
+		expr, err := p.parseExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -1508,7 +1578,7 @@ func (p *Parser) parsePrimary() (*ast.Node, error) {
 	}
 }
 
-func (p *Parser) parseExprList(possibleEnds []token.Kind) ([]*ast.Node, error) {
+func (p *Parser) parseExprList(possibleEnds []token.Kind, parentScope *ast.Scope) ([]*ast.Node, error) {
 	var exprs []*ast.Node
 Var:
 	for {
@@ -1518,7 +1588,7 @@ Var:
 			}
 		}
 
-		expr, err := p.parseExpr()
+		expr, err := p.parseExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -1532,7 +1602,7 @@ Var:
 	return exprs, nil
 }
 
-func (parser *Parser) parseFnCall() (*ast.Node, error) {
+func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 	name, ok := parser.expect(token.ID)
 	if !ok {
 		return nil, fmt.Errorf("expected 'id'")
@@ -1544,7 +1614,7 @@ func (parser *Parser) parseFnCall() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected '('")
 	}
 
-	args, err := parser.parseExprList([]token.Kind{token.CLOSE_PAREN})
+	args, err := parser.parseExprList([]token.Kind{token.CLOSE_PAREN}, parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1561,7 +1631,7 @@ func (parser *Parser) parseFnCall() (*ast.Node, error) {
 	return n, nil
 }
 
-func (parser *Parser) parseFieldAccess() (*ast.Node, error) {
+func (parser *Parser) parseFieldAccess(parentScope *ast.Scope) (*ast.Node, error) {
 	id, ok := parser.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
@@ -1578,7 +1648,7 @@ func (parser *Parser) parseFieldAccess() (*ast.Node, error) {
 		return nil, fmt.Errorf("error: expected a dot")
 	}
 
-	right, err := parser.parsePrimary()
+	right, err := parser.parsePrimary(parentScope)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1607,7 +1677,7 @@ func (parser *Parser) parseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected ';'")
 	}
 
-	cond, err := parser.parseExpr()
+	cond, err := parser.parseExpr(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -1667,7 +1737,7 @@ func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'while'")
 	}
 
-	expr, err := p.parseExpr()
+	expr, err := p.parseExpr(parentScope)
 	if err != nil {
 		return nil, err
 	}
