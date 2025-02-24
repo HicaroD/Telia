@@ -68,11 +68,16 @@ func (imp UseDecl) String() string {
 
 type Attributes struct {
 	LinkName string
+	Linkage  string
 
 	// Specific for extern declaration
 	DefaultCallingConvention string
 	LinkPrefix               string
+}
 
-	// Specific for prototype declaration
-	Linkage string
+func (a *Attributes) String() string {
+	if a == nil {
+		return "No attributes"
+	}
+	return fmt.Sprintf("LinkName: '%s' | Linkage: '%s' | DefaultCC: '%s' | LinkPrefix: '%s'\n", a.LinkName, a.Linkage, a.DefaultCallingConvention, a.LinkPrefix)
 }

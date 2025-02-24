@@ -182,26 +182,26 @@ func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntr
 }
 
 func (p *Parser) next() (*ast.Node, bool, error) {
+	var err error
+	var attributes *ast.Attributes
 	eof := false
 
+peekAgain:
 	tok := p.lex.Peek()
 	if tok.Kind == token.EOF {
 		eof = true
 		return nil, eof, nil
 	}
-
-	// TODO: try to parse the attribute before the actual declaration
-	// TODO: single struct attribute to make it easier to parse
-
-	var err error
-	var attributes *ast.Attributes
-
 	if tok.Kind == token.SHARP {
 		attributes, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
 		}
+		goto peekAgain
 	}
+
+	// TODO: try to parse the attribute before the actual declaration
+	// TODO: single struct attribute to make it easier to parse
 
 	switch tok.Kind {
 	case token.PACKAGE:
@@ -213,7 +213,7 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 	case token.TYPE:
 		_, err := p.parseTypeAlias()
 		return nil, eof, err
-	case token.EXTERN, token.SHARP:
+	case token.EXTERN:
 		externDecl, err := p.parseExternDecl(attributes)
 		return externDecl, eof, err
 	case token.FN:
@@ -223,10 +223,11 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
 			Message: fmt.Sprintf(
-				"%s:%d:%d: unexpected non-declaration statement on global scope",
+				"%s:%d:%d: unexpected non-declaration statement on global scope: %s\n",
 				pos.Filename,
 				pos.Line,
 				pos.Column,
+				tok.Kind.String(),
 			),
 		}
 
@@ -314,11 +315,12 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 
 	if attributes != nil {
 		externDecl.Attributes = attributes
+		attributes = nil
 	}
 
-	_, ok := p.expect(token.EXTERN)
+	ext, ok := p.expect(token.EXTERN)
 	if !ok {
-		return nil, fmt.Errorf("expected 'extern'")
+		return nil, fmt.Errorf("expected 'extern', not %s\n", ext.Kind.String())
 	}
 
 	name, ok := p.expect(token.ID)

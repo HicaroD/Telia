@@ -96,7 +96,8 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 				return false, err
 			}
 		case ast.KIND_EXTERN_DECL:
-			err := s.checkExternDecl(node.Node.(*ast.ExternDecl))
+			externDecl := node.Node.(*ast.ExternDecl)
+			err := s.checkExternDecl(externDecl)
 			if err != nil {
 				return false, err
 			}

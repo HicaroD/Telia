@@ -6,6 +6,11 @@ extern libc {
   fn puts(format cstring) i32;
 }
 
+#[linkage="external"]
+fn test() {
+  return;
+}
+
 fn main() i32 {
   libc.puts("Hello, world!");
   libc.puts("Hello, world!");
