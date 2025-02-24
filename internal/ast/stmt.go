@@ -51,6 +51,7 @@ func (ret ReturnStmt) String() string {
 type FnCall struct {
 	Name *token.Token
 	Args []*Node
+	AtOp *AtOperator
 
 	BackendType any
 }

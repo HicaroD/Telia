@@ -147,6 +147,9 @@ func (lex *Lexer) getToken(ch byte) *token.Token {
 	case '#':
 		tok = lex.consumeToken(nil, token.SHARP)
 		lex.nextChar()
+	case '@':
+		tok = lex.consumeToken(nil, token.AT)
+		lex.nextChar()
 	case '[':
 		tok = lex.consumeToken(nil, token.OPEN_BRACKET)
 		lex.nextChar()

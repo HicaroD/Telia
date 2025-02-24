@@ -104,6 +104,7 @@ const (
 	SLASH
 
 	SHARP
+	AT
 )
 
 var KEYWORDS map[string]Kind = map[string]Kind{
@@ -291,6 +292,8 @@ func (k Kind) String() string {
 		return "/"
 	case SHARP:
 		return "#"
+	case AT:
+		return "@"
 	default:
 		log.Fatalf("String() method not defined for the following token kind '%d'", k)
 	}

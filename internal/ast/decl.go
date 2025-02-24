@@ -8,6 +8,7 @@ import (
 
 type FnDecl struct {
 	Scope       *Scope
+	Attributes  *Attributes
 	Name        *token.Token
 	Params      *FieldList
 	RetType     *ExprType
@@ -27,8 +28,8 @@ func (fnDecl FnDecl) String() string {
 }
 
 type ExternDecl struct {
-	Attributes  *ExternAttrs
 	Scope       *Scope
+	Attributes  *Attributes
 	Name        *token.Token
 	Prototypes  []*Proto
 	BackendType any // LLVM: *values.Extern
@@ -38,13 +39,8 @@ func (extern ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
 
-type ProtoAttrs struct {
-	LinkName string
-	Linkage  string
-}
-
 type Proto struct {
-	Attributes *ProtoAttrs
+	Attributes *Attributes
 	Name       *token.Token
 	Params     *FieldList
 	RetType    *ExprType
@@ -53,12 +49,6 @@ type Proto struct {
 }
 
 func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
-
-type ExternAttrs struct {
-	DefaultCallingConvention string
-	LinkPrefix               string
-	LinkName                 string
-}
 
 type PkgDecl struct {
 	Name *token.Token
@@ -74,4 +64,42 @@ type UseDecl struct {
 
 func (imp UseDecl) String() string {
 	return fmt.Sprintf("USE: %s | Std: %v | Package: %v", imp.Path, imp.Std, imp.Package)
+}
+
+type Attributes struct {
+	LinkName string
+	Linkage  string
+
+	// Specific for extern declaration
+	DefaultCallingConvention string
+	LinkPrefix               string
+}
+
+func (a *Attributes) String() string {
+	if a == nil {
+		return "No attributes"
+	}
+	return fmt.Sprintf("LinkName: '%s' | Linkage: '%s' | DefaultCC: '%s' | LinkPrefix: '%s'\n", a.LinkName, a.Linkage, a.DefaultCallingConvention, a.LinkPrefix)
+}
+
+type AtOperatorKind int
+
+const (
+	// @fail
+	AT_OPERATOR_FAIL AtOperatorKind = iota
+	// @prop
+	AT_OPERATOR_PROP
+	// @catch <name> {...}
+	AT_OPERATOR_CATCH
+)
+
+type AtOperator struct {
+	Kind AtOperatorKind
+	Op   any
+}
+
+type CatchAtOperator struct {
+	Scope      *Scope
+	ErrVarName *token.Token
+	Block      *BlockStmt
 }
