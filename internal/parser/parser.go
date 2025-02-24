@@ -189,6 +189,10 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 		eof = true
 		return nil, eof, nil
 	}
+
+	// TODO: try to parse the attribute before the actual declaration
+	// TODO: single struct attribute to make it easier to parse
+
 	switch tok.Kind {
 	case token.PACKAGE:
 		pkgDecl, err := p.parsePkgDecl()

@@ -598,7 +598,7 @@ func (c *llvmCodegen) generateCondStmt(
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	// If
-	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope)
+	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope.Parent)
 	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	c.builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, function, condStmt.IfStmt.Scope)
