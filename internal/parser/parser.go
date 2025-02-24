@@ -1169,6 +1169,7 @@ VarDecl:
 			Value:          nil,
 			Decl:           true,
 			NeedsInference: true,
+			BackendType:    nil,
 		}
 		n.Node = variable
 		variables = append(variables, n)

@@ -630,34 +630,29 @@ func (sema *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
+	var untyped token.Kind
+
 	switch {
 	case expected.Kind == token.BOOL_TYPE:
-		if actual.Kind == token.UNTYPED_BOOL {
-			actual.Kind = expected.Kind
-		}
-		if actual.Kind != expected.Kind {
-			goto error
-		}
+		untyped = token.UNTYPED_BOOL
 	case expected.IsAnyStringType():
-		if actual.Kind == token.UNTYPED_STRING {
-			actual.Kind = expected.Kind
-		}
-		if actual.Kind != expected.Kind {
-			goto error
-		}
+		untyped = token.UNTYPED_STRING
 	case expected.IsIntegerType():
-		if actual.Kind == token.UNTYPED_INT {
-			actual.Kind = expected.Kind
-		}
-		if actual.Kind != expected.Kind {
-			goto error
-		}
+		untyped = token.UNTYPED_INT
 	default:
-		return nil, fmt.Errorf("unimplemented type: %s %s\n", actual.String(), expected.String())
+		return nil, fmt.Errorf("unimplemented type: %s %s", actual.String(), expected.String())
 	}
+
+	if actual.Kind == untyped {
+		actual.Kind = expected.Kind
+	}
+
+	// TODO: in the case of integer, i need to make sure that the value really fits the expected size in bits
+	if actual.Kind != expected.Kind {
+		return nil, fmt.Errorf("type mismatch - expected %s, got %s", expected.String(), actual.String())
+	}
+
 	return expected, nil
-error:
-	return nil, fmt.Errorf("type mismatch - expected %s, got %s\n", expected.String(), actual.String())
 }
 
 // Useful for testing
