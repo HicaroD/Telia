@@ -482,7 +482,7 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_FN_CALL:
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, scope)
 	case ast.KIND_VOID_EXPR:
-		return s.inferVoidExprTypeWithContext(expr.Node.(*ast.VoidExpr), expectedType, scope)
+		return s.inferVoidExprTypeWithContext(expectedType, scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -616,7 +616,6 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 }
 
 func (sema *sema) inferVoidExprTypeWithContext(
-	void *ast.VoidExpr,
 	expectedType *ast.ExprType,
 	scope *ast.Scope,
 ) (*ast.ExprType, error) {

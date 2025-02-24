@@ -2,7 +2,7 @@ package main;
 
 #[default_cc="c"]
 extern libc {
-  #[link_name="puts"] fn puts(format *u8) i32;
+  #[link_name="puts"] fn puts(format cstring) i32;
 }
 
 fn main() i32 {

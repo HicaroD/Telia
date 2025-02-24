@@ -2,8 +2,8 @@ package main;
 
 #[default_cc="c"]
 extern C {
-  fn puts(s *u8);
-  fn printf(format *u8, ...);
+  fn puts(s cstring);
+  fn printf(format cstring, ...);
 }
 
 fn sum_of_natural_numbers(n int) int {
