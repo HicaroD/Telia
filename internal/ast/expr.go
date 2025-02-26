@@ -80,3 +80,11 @@ type BinaryExpr struct {
 func (binExpr BinaryExpr) String() string {
 	return fmt.Sprintf("(%v) %v (%v)\n", binExpr.Left, binExpr.Op, binExpr.Right)
 }
+
+type TupleExpr struct {
+	Exprs []*Node
+}
+
+func (te TupleExpr) String() string {
+	return fmt.Sprintf("%v\n", te.Exprs)
+}
