@@ -961,6 +961,13 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		// NOTE: I think ast.IdType won't be necessary anymore
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
+	case token.OPEN_PAREN:
+		tupleType, err := p.parseTupleExpr()
+		if err != nil {
+			return nil, err
+		}
+		t.Kind = ast.EXPR_TYPE_TUPLE
+		t.T = tupleType
 	default:
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
@@ -971,6 +978,38 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	return t, nil
+}
+
+func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
+	_, ok := p.expect(token.OPEN_PAREN)
+	if !ok {
+		return nil, fmt.Errorf("expected (")
+	}
+
+	types := make([]*ast.ExprType, 0)
+	for {
+		if p.lex.NextIs(token.CLOSE_PAREN) {
+			break
+		}
+
+		ty, err := p.parseExprType()
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, ty)
+
+		if p.lex.NextIs(token.COMMA) {
+			p.lex.Skip() // ,
+			continue
+		}
+	}
+
+	_, ok = p.expect(token.CLOSE_PAREN)
+	if !ok {
+		return nil, fmt.Errorf("expected )")
+	}
+
+	return &ast.TupleType{Types: types}, nil
 }
 
 func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {

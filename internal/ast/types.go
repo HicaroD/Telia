@@ -93,7 +93,6 @@ func (pointer PointerType) String() string {
 }
 
 type TypeAlias struct {
-	Node
 	Name *token.Token
 	Type *ExprType
 }
@@ -103,7 +102,6 @@ func (alias TypeAlias) String() string {
 }
 
 type TupleType struct {
-	Node
 	Types []*ExprType
 }
 
