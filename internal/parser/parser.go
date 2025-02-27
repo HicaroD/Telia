@@ -1220,7 +1220,7 @@ VarDecl:
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_VAR_STMT
-	n.Node = &ast.Var{IsDecl: isDecl, Names: variables, Expr: expr}
+	n.Node = &ast.VarStmt{IsDecl: isDecl, Names: variables, Expr: expr}
 	return n, nil
 }
 

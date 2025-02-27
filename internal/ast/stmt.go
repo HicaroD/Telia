@@ -23,14 +23,14 @@ type VarId struct {
 	BackendType    any
 }
 
-type Var struct {
+type VarStmt struct {
 	IsDecl bool
 	Names  []*VarId
 	Expr   *Node
 }
 
-func (v Var) String() string {
-	return fmt.Sprintf("Var: %v %v %v", v.IsDecl, v.Names, v.Expr)
+func (v VarStmt) String() string {
+	return fmt.Sprintf("VarStmt: %v %v %v", v.IsDecl, v.Names, v.Expr)
 }
 
 type ReturnStmt struct {

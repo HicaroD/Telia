@@ -11,7 +11,7 @@ fn get(value i32) (i32, i32) {
 }
 
 fn main() i32 {
-  a, b, c, d := get(1), get(2);
-  libc.printf("%d %d %d %d", a, b, c, d);
+  a, b, c, d, e := get(1), 1, get(2);
+  libc.printf("%d %d %d %d %d", a, b, c, d, e);
   return 0;
 }

@@ -237,7 +237,7 @@ func (sema *sema) checkStmt(
 		err := sema.checkFnCall(stmt.Node.(*ast.FnCall), scope)
 		return err
 	case ast.KIND_VAR_STMT:
-		err := sema.checkVar(stmt.Node.(*ast.Var), scope)
+		err := sema.checkVar(stmt.Node.(*ast.VarStmt), scope)
 		return err
 	case ast.KIND_COND_STMT:
 		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, scope)
@@ -260,7 +260,7 @@ func (sema *sema) checkStmt(
 	}
 }
 
-func (sema *sema) checkVar(variable *ast.Var, currentScope *ast.Scope) error {
+func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
 	for _, currentVar := range variable.Names {
 		if variable.IsDecl {
 			_, err := currentScope.LookupCurrentScope(currentVar.Name.Name())
@@ -335,7 +335,7 @@ func (sema *sema) checkVar(variable *ast.Var, currentScope *ast.Scope) error {
 	return nil
 }
 
-func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.Var, tuple *ast.TupleExpr, currentScope *ast.Scope) error {
+func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple *ast.TupleExpr, currentScope *ast.Scope) error {
 	numExprs, err := sema.countExprsOnTuple(tuple, currentScope)
 	if err != nil {
 		return err
@@ -343,7 +343,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.Var, tuple *ast
 
 	// TODO(errors)
 	if len(variable.Names) != numExprs {
-		return fmt.Errorf("%d != %d", len(tuple.Exprs), numExprs)
+		return fmt.Errorf("%d != %d", len(variable.Names), numExprs)
 	}
 
 	t := 0
@@ -369,9 +369,9 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.Var, tuple *ast
 			}
 			fnDecl := symbol.Node.(*ast.FnDecl)
 			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-				fnTupleType := fnDecl.RetType.T.(*ast.TupleType)
-				affectedVariables := variable.Names[t : t+len(tuple.Exprs)]
-				sema.checkTupleTypeAssignedToVariable(affectedVariables, fnTupleType, currentScope)
+				tupleType := fnDecl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
+				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, currentScope)
 				t += len(affectedVariables)
 			} else {
 				err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
@@ -465,7 +465,6 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, scope *ast.Scope) (int
 		}
 	}
 
-	fmt.Println(counter)
 	return counter, nil
 }
 
@@ -486,7 +485,7 @@ func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 	sema := New(collector)
 	parent := ast.NewScope(nil)
 	scope := ast.NewScope(parent)
-	err = sema.checkVar(varStmt.Node.(*ast.Var), scope)
+	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), scope)
 	if err != nil {
 		return nil, err
 	}

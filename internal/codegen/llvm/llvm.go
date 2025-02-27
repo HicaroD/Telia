@@ -209,7 +209,7 @@ func (c *llvmCodegen) generateStmt(
 	case ast.KIND_RETURN_STMT:
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
 	case ast.KIND_VAR_STMT:
-		c.generateVarr(stmt.Node.(*ast.Var), parentScope)
+		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
 	case ast.KIND_FIELD_ACCESS:
 		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
 	case ast.KIND_COND_STMT:
@@ -236,7 +236,7 @@ func (c *llvmCodegen) generateReturnStmt(
 	c.builder.CreateRet(returnValue)
 }
 
-func (c *llvmCodegen) generateVarr(variable *ast.Var, scope *ast.Scope) {
+func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
@@ -256,7 +256,8 @@ func (c *llvmCodegen) generateVarr(variable *ast.Var, scope *ast.Scope) {
 				fnDecl := symbol.Node.(*ast.FnDecl)
 
 				if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-					affectedVariables := variable.Names[t : t+len(tuple.Exprs)]
+					tupleType := fnDecl.RetType.T.(*ast.TupleType)
+					affectedVariables := variable.Names[t : t+len(tupleType.Types)]
 					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl, scope)
 					t += len(affectedVariables)
 				} else {
