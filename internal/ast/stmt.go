@@ -16,6 +16,23 @@ func (block BlockStmt) String() string {
 	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
 
+type VarId struct {
+	Name           *token.Token
+	Type           *ExprType
+	NeedsInference bool
+	BackendType    any
+}
+
+type Var struct {
+	IsDecl bool
+	Names  []*VarId
+	Expr   *Node
+}
+
+func (v Var) String() string {
+	return fmt.Sprintf("Var: %v %v %v", v.IsDecl, v.Names, v.Expr)
+}
+
 type MultiVarStmt struct {
 	IsDecl    bool
 	Variables []*Node

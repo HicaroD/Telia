@@ -208,10 +208,8 @@ func (c *llvmCodegen) generateStmt(
 		c.generateFunctionCall(stmt.Node.(*ast.FnCall), parentScope)
 	case ast.KIND_RETURN_STMT:
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
-	case ast.KIND_VAR_STMT:
-		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
-	case ast.KIND_MULTI_VAR_STMT:
-		c.generateMultiVar(stmt.Node.(*ast.MultiVarStmt), parentScope)
+	case ast.KIND_VARR_STMT:
+		c.generateVarr(stmt.Node.(*ast.Var), parentScope)
 	case ast.KIND_FIELD_ACCESS:
 		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
 	case ast.KIND_COND_STMT:
@@ -238,48 +236,62 @@ func (c *llvmCodegen) generateReturnStmt(
 	c.builder.CreateRet(returnValue)
 }
 
-func (c *llvmCodegen) generateMultiVar(
-	varDecl *ast.MultiVarStmt,
-	scope *ast.Scope,
-) {
-	for _, variable := range varDecl.Variables {
-		c.generateVar(variable.Node.(*ast.VarStmt), scope)
+func (c *llvmCodegen) generateVarr(variable *ast.Var, scope *ast.Scope) {
+	switch variable.Expr.Kind {
+	case ast.KIND_TUPLE_EXPR:
+		tuple := variable.Expr.Node.(*ast.TupleExpr)
+
+		t := 0
+		for _, expr := range tuple.Exprs {
+			switch expr.Kind {
+			case ast.KIND_TUPLE_EXPR:
+				innerTupleExpr := expr.Node.(*ast.TupleExpr)
+				for _, innerExpr := range innerTupleExpr.Exprs {
+					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl, scope)
+					t++
+				}
+			default:
+				c.generateVariable(variable.Names[t], expr, variable.IsDecl, scope)
+				t++
+			}
+		}
+	default:
+		c.generateVariable(variable.Names[0], variable.Expr, variable.IsDecl, scope)
 	}
 }
 
-func (c *llvmCodegen) generateVar(
-	varStmt *ast.VarStmt,
-	scope *ast.Scope,
-) {
-	if varStmt.Decl {
-		c.generateVarDecl(varStmt, scope)
+func (c *llvmCodegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool, scope *ast.Scope) {
+	if isDecl {
+		c.generateVarDecl(name, expr, scope)
 	} else {
-		c.generateVarReassign(varStmt, scope)
+		c.generateVarReassign(name, expr, scope)
 	}
 }
 
 func (c *llvmCodegen) generateVarDecl(
-	varDecl *ast.VarStmt,
+	name *ast.VarId,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) {
-	ty := c.getType(varDecl.Type)
+	ty := c.getType(name.Type)
 	ptr := c.builder.CreateAlloca(ty, ".ptr")
-	expr := c.getExpr(varDecl.Value, scope)
-	c.builder.CreateStore(expr, ptr)
+	generatedExpr := c.getExpr(expr, scope)
+	c.builder.CreateStore(generatedExpr, ptr)
 
 	variableLlvm := &Variable{
 		Ty:  ty,
 		Ptr: ptr,
 	}
-	varDecl.BackendType = variableLlvm
+	name.BackendType = variableLlvm
 }
 
 func (c *llvmCodegen) generateVarReassign(
-	varDecl *ast.VarStmt,
+	name *ast.VarId,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) {
-	expr := c.getExpr(varDecl.Value, scope)
-	symbol, _ := scope.LookupAcrossScopes(varDecl.Name.Name())
+	generatedExpr := c.getExpr(expr, scope)
+	symbol, _ := scope.LookupAcrossScopes(name.Name.Name())
 
 	var variable *Variable
 
@@ -294,7 +306,7 @@ func (c *llvmCodegen) generateVarReassign(
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
 	}
 
-	c.builder.CreateStore(expr, variable.Ptr)
+	c.builder.CreateStore(generatedExpr, variable.Ptr)
 }
 
 func (c *llvmCodegen) generateParameters(
@@ -492,8 +504,8 @@ func (c *llvmCodegen) getExpr(
 		var localVar *Variable
 
 		switch symbol.Kind {
-		case ast.KIND_VAR_STMT:
-			variable := symbol.Node.(*ast.VarStmt)
+		case ast.KIND_VAR_ID_STMT:
+			variable := symbol.Node.(*ast.VarId)
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
 			variable := symbol.Node.(*ast.Field)

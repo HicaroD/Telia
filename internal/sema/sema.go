@@ -236,6 +236,9 @@ func (sema *sema) checkStmt(
 	case ast.KIND_FN_CALL:
 		err := sema.checkFunctionCall(stmt.Node.(*ast.FnCall), scope)
 		return err
+	case ast.KIND_VARR_STMT:
+		err := sema.checkVarr(stmt.Node.(*ast.Var), scope)
+		return err
 	case ast.KIND_MULTI_VAR_STMT, ast.KIND_VAR_STMT:
 		err := sema.checkVarDecl(stmt, scope)
 		return err
@@ -258,6 +261,132 @@ func (sema *sema) checkStmt(
 	default:
 		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt)
 	}
+}
+
+func (sema *sema) checkVarr(variable *ast.Var, currentScope *ast.Scope) error {
+	for _, currentVar := range variable.Names {
+		if variable.IsDecl {
+			_, err := currentScope.LookupCurrentScope(currentVar.Name.Name())
+			// TODO(errors)
+			// if err != nil {
+			// 	if err != ast.ErrSymbolNotFoundOnScope {
+			// 		return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
+			// 	}
+			// 	return err
+			// }
+			if err == nil {
+				return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
+			}
+
+			n := new(ast.Node)
+			n.Kind = ast.KIND_VAR_ID_STMT
+			n.Node = currentVar
+
+			err = currentScope.Insert(currentVar.Name.Name(), n)
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := currentScope.LookupAcrossScopes(currentVar.Name.Name())
+			// TODO(errors)
+			if err != nil {
+				if err == ast.ErrSymbolNotFoundOnScope {
+					name := currentVar.Name.Name()
+					pos := currentVar.Name.Pos
+					return fmt.Errorf("%s '%s' not declared in the current block", pos, name)
+				}
+				return err
+			}
+		}
+	}
+
+	switch variable.Expr.Kind {
+	case ast.KIND_TUPLE_EXPR:
+		tuple := variable.Expr.Node.(*ast.TupleExpr)
+		numExprs := sema.countExprsOnTuple(tuple)
+
+		// TODO(errors)
+		if len(variable.Names) != numExprs {
+			return fmt.Errorf("%d != %d", len(tuple.Exprs), numExprs)
+		}
+
+		t := 0
+		for _, expr := range tuple.Exprs {
+			switch expr.Kind {
+			case ast.KIND_TUPLE_EXPR:
+				innerTupleExpr := expr.Node.(*ast.TupleExpr)
+				for _, innerExpr := range innerTupleExpr.Exprs {
+					err := sema.checkVarExpr(variable.Names[t], innerExpr, currentScope)
+					if err != nil {
+						return err
+					}
+					t++
+				}
+			default:
+				err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		}
+	default:
+		if len(variable.Names) != 1 {
+			return fmt.Errorf("more variables than expressions\n")
+		}
+		err := sema.checkVarExpr(variable.Names[0], variable.Expr, currentScope)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, scope *ast.Scope) error {
+	if variable.NeedsInference {
+		// TODO(errors): need a test for it
+		if variable.Type != nil {
+			return fmt.Errorf(
+				"needs inference, but variable already has a type: %s",
+				variable.Type,
+			)
+		}
+		exprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
+		// TODO(errors)
+		if err != nil {
+			return err
+		}
+		variable.Type = exprType
+	} else {
+		// TODO(errors)
+		if variable.Type == nil {
+			log.Fatalf("variable does not have a type and it said it does not need inference")
+		}
+		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, scope)
+		// TODO(errors): Deal with type mismatch
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(variable.Type, exprTy) {
+			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
+		}
+	}
+	return nil
+}
+
+func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr) int {
+	counter := 0
+	for _, expr := range tuple.Exprs {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_EXPR:
+			varTuple := expr.Node.(*ast.TupleExpr)
+			counter += sema.countExprsOnTuple(varTuple)
+		default:
+			counter++
+		}
+	}
+	return counter
 }
 
 func (sema *sema) checkVarDecl(
@@ -504,6 +633,7 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, scope)
 	case ast.KIND_VOID_EXPR:
 		return s.inferVoidExprTypeWithContext(expectedType, scope)
+	// TODO: infer tuple expr with context
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -734,6 +864,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), scope)
 	case ast.KIND_FIELD_ACCESS:
 		return sema.inferFieldAccessExprTypeWithoutContext(expr.Node.(*ast.FieldAccess), scope)
+	// TODO: infer tuple expr without context
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
