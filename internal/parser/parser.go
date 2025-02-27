@@ -1219,13 +1219,13 @@ VarDecl:
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_VARR_STMT
+	n.Kind = ast.KIND_VAR_STMT
 	n.Node = &ast.Var{IsDecl: isDecl, Names: variables, Expr: expr}
 	return n, nil
 }
 
 // Useful for testing
-func parseVarFrom(filename, input string) (*ast.VarStmt, error) {
+func parseVarFrom(filename, input string) (*ast.VarId, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -1237,7 +1237,7 @@ func parseVarFrom(filename, input string) (*ast.VarStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stmt.Node.(*ast.VarStmt), nil
+	return stmt.Node.(*ast.VarId), nil
 }
 
 func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {

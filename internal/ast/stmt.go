@@ -33,29 +33,6 @@ func (v Var) String() string {
 	return fmt.Sprintf("Var: %v %v %v", v.IsDecl, v.Names, v.Expr)
 }
 
-type MultiVarStmt struct {
-	IsDecl    bool
-	Variables []*Node
-}
-
-func (multi MultiVarStmt) String() string {
-	return fmt.Sprintf("Multi: %v %v", multi.IsDecl, multi.Variables)
-}
-
-type VarStmt struct {
-	Decl           bool
-	Name           *token.Token
-	Type           *ExprType
-	Value          *Node
-	NeedsInference bool
-
-	BackendType any // LLVM: *values.Variable
-}
-
-func (variable VarStmt) String() string {
-	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
-}
-
 type ReturnStmt struct {
 	Return *token.Token
 	Value  *Node

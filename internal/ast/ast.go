@@ -19,8 +19,6 @@ const (
 	STMT_START // statement node start delimiter
 	KIND_BLOCK_STMT
 	KIND_VAR_ID_STMT
-	KIND_VARR_STMT
-	KIND_MULTI_VAR_STMT
 	KIND_VAR_STMT
 	KIND_RETURN_STMT
 	KIND_COND_STMT
@@ -90,8 +88,6 @@ func (n *Node) String() string {
 		return "KIND_TYPE_ALIAS_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
-	case KIND_MULTI_VAR_STMT:
-		return "KIND_MULTI_VAR_STMT"
 	case KIND_VAR_STMT:
 		return "KIND_VAR_STMT"
 	case KIND_RETURN_STMT:

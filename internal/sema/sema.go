@@ -236,11 +236,8 @@ func (sema *sema) checkStmt(
 	case ast.KIND_FN_CALL:
 		err := sema.checkFunctionCall(stmt.Node.(*ast.FnCall), scope)
 		return err
-	case ast.KIND_VARR_STMT:
-		err := sema.checkVarr(stmt.Node.(*ast.Var), scope)
-		return err
-	case ast.KIND_MULTI_VAR_STMT, ast.KIND_VAR_STMT:
-		err := sema.checkVarDecl(stmt, scope)
+	case ast.KIND_VAR_STMT:
+		err := sema.checkVar(stmt.Node.(*ast.Var), scope)
 		return err
 	case ast.KIND_COND_STMT:
 		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, scope)
@@ -263,7 +260,7 @@ func (sema *sema) checkStmt(
 	}
 }
 
-func (sema *sema) checkVarr(variable *ast.Var, currentScope *ast.Scope) error {
+func (sema *sema) checkVar(variable *ast.Var, currentScope *ast.Scope) error {
 	for _, currentVar := range variable.Names {
 		if variable.IsDecl {
 			_, err := currentScope.LookupCurrentScope(currentVar.Name.Name())
@@ -382,76 +379,8 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr) int {
 	return counter
 }
 
-func (sema *sema) checkVarDecl(
-	variable *ast.Node,
-	currentScope *ast.Scope,
-) error {
-	switch variable.Kind {
-	case ast.KIND_MULTI_VAR_STMT:
-		err := sema.checkMultiVar(variable.Node.(*ast.MultiVarStmt), currentScope)
-		return err
-	case ast.KIND_VAR_STMT:
-		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
-		return err
-	}
-	return nil
-}
-
-func (sema *sema) checkMultiVar(
-	multi *ast.MultiVarStmt,
-	currentScope *ast.Scope,
-) error {
-	for _, variable := range multi.Variables {
-		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
-	err := sema.checkVariableType(variable, currentScope)
-	return err
-}
-
-func (sema *sema) checkVariableType(
-	varDecl *ast.VarStmt,
-	currentScope *ast.Scope,
-) error {
-	if varDecl.NeedsInference {
-		// TODO(errors): need a test for it
-		if varDecl.Type != nil {
-			return fmt.Errorf(
-				"needs inference, but variable already has a type: %s",
-				varDecl.Type,
-			)
-		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
-		// TODO(errors)
-		if err != nil {
-			return err
-		}
-		varDecl.Type = exprType
-	} else {
-		// TODO(errors)
-		if varDecl.Type == nil {
-			log.Fatalf("variable does not have a type and it said it does not need inference")
-		}
-		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
-		// TODO(errors): Deal with type mismatch
-		if err != nil {
-			return err
-		}
-		if !reflect.DeepEqual(varDecl.Type, exprTy) {
-			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
-		}
-	}
-	return nil
-}
-
 // Useful for testing
-func checkVarDeclFrom(input, filename string) (*ast.VarStmt, error) {
+func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -467,12 +396,12 @@ func checkVarDeclFrom(input, filename string) (*ast.VarStmt, error) {
 	sema := New(collector)
 	parent := ast.NewScope(nil)
 	scope := ast.NewScope(parent)
-	err = sema.checkVarDecl(varStmt, scope)
+	err = sema.checkVar(varStmt.Node.(*ast.Var), scope)
 	if err != nil {
 		return nil, err
 	}
 
-	return varStmt.Node.(*ast.VarStmt), nil
+	return varStmt.Node.(*ast.VarId), nil
 }
 
 func (sema *sema) checkCondStmt(
@@ -668,8 +597,8 @@ func (sema *sema) inferIdExprTypeWithContext(
 	var ty *ast.ExprType
 
 	switch symbol.Kind {
-	case ast.KIND_VAR_STMT:
-		ty = symbol.Node.(*ast.VarStmt).Type
+	case ast.KIND_VAR_ID_STMT:
+		ty = symbol.Node.(*ast.VarId).Type
 	case ast.KIND_FIELD:
 		ty = symbol.Node.(*ast.Field).Type
 	default:
@@ -907,8 +836,8 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	}
 
 	switch variable.Kind {
-	case ast.KIND_VAR_STMT:
-		ty := variable.Node.(*ast.VarStmt).Type
+	case ast.KIND_VAR_ID_STMT:
+		ty := variable.Node.(*ast.VarId).Type
 		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
 		return variable.Node.(*ast.Field).Type, true, nil

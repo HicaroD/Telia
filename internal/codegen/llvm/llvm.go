@@ -208,7 +208,7 @@ func (c *llvmCodegen) generateStmt(
 		c.generateFunctionCall(stmt.Node.(*ast.FnCall), parentScope)
 	case ast.KIND_RETURN_STMT:
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
-	case ast.KIND_VARR_STMT:
+	case ast.KIND_VAR_STMT:
 		c.generateVarr(stmt.Node.(*ast.Var), parentScope)
 	case ast.KIND_FIELD_ACCESS:
 		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
@@ -296,8 +296,8 @@ func (c *llvmCodegen) generateVarReassign(
 	var variable *Variable
 
 	switch symbol.Kind {
-	case ast.KIND_VAR_STMT:
-		node := symbol.Node.(*ast.VarStmt)
+	case ast.KIND_VAR_ID_STMT:
+		node := symbol.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
 		node := symbol.Node.(*ast.Field)
@@ -502,6 +502,7 @@ func (c *llvmCodegen) getExpr(
 		symbol, _ := scope.LookupAcrossScopes(varName)
 
 		var localVar *Variable
+
 		switch symbol.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := symbol.Node.(*ast.VarId)
