@@ -12,7 +12,7 @@ const (
 	EOF Kind = iota
 	INVALID
 
-	// Identifier
+	NEWLINE
 	ID
 
 	FN
@@ -180,6 +180,8 @@ func (k Kind) String() string {
 		return "end of file"
 	case INVALID:
 		return "INVALID"
+	case NEWLINE:
+		return "new line"
 	case ID:
 		return "identifier"
 	case FN:

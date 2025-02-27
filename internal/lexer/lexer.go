@@ -112,6 +112,10 @@ func (lex *Lexer) getToken(ch byte) *token.Token {
 	tok.Kind = token.INVALID
 
 	switch ch {
+	case '\n':
+		fmt.Println("detected newline")
+		tok = lex.consumeToken(nil, token.NEWLINE)
+		lex.nextChar()
 	case '(':
 		tok = lex.consumeToken(nil, token.OPEN_PAREN)
 		lex.nextChar()
@@ -336,7 +340,7 @@ func (lex *Lexer) consumeToken(lexeme []byte, kind token.Kind) *token.Token {
 }
 
 func (lex *Lexer) skipWhitespace() {
-	lex.readWhile(func(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' })
+	lex.readWhile(func(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\r' })
 }
 
 func (lex *Lexer) readWhile(isValid func(byte) bool) []byte {
