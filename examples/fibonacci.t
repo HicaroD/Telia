@@ -1,22 +1,22 @@
-package main;
+package main
 
 #[default_cc="c"]
 extern libc {
-  fn printf(format cstring, ...) i32;
+  fn printf(format cstring, ...) i32
 }
 
 fn fib(n int) int {
   if n <= 1 {
-    return n;
+    return n
   }
-  return fib(n - 1) + fib(n - 2);
+  return fib(n - 1) + fib(n - 2)
 }
 
 fn main() i32 {
-  n := 40;
+  n := 40
   for i := 0; i < n; i = i + 1  {
-    result := fib(i);
-    libc.printf("%d ", result);
+    result := fib(i)
+    libc.printf("%d ", result)
   }
-  return 0;
+  return 0
 }

@@ -280,9 +280,13 @@ func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
 func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnCall, isDecl bool, scope *ast.Scope) {
 	genFnCall := c.generateFnCall(fnCall, scope)
 
-	for i, currentVar := range variables {
-		value := c.builder.CreateExtractValue(genFnCall, i, ".arg")
-		c.generateVariableWithValue(currentVar, value, isDecl, scope)
+	if len(variables) == 1 {
+		c.generateVariableWithValue(variables[0], genFnCall, isDecl, scope)
+	} else {
+		for i, currentVar := range variables {
+			value := c.builder.CreateExtractValue(genFnCall, i, ".arg")
+			c.generateVariableWithValue(currentVar, value, isDecl, scope)
+		}
 	}
 }
 

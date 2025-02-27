@@ -189,11 +189,11 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 
 peekAgain:
 	tok := p.lex.Peek()
-	if tok.Kind == token.EOF {
+	switch tok.Kind {
+	case token.EOF:
 		eof = true
 		return nil, eof, nil
-	}
-	if tok.Kind == token.SHARP {
+	case token.SHARP:
 		// TODO(errors)
 		if attributesFound {
 			return nil, eof, fmt.Errorf("attributes already defined\n")
@@ -203,6 +203,9 @@ peekAgain:
 			return nil, eof, err
 		}
 		attributesFound = true
+		goto peekAgain
+	case token.NEWLINE:
+		p.skipNewLines()
 		goto peekAgain
 	}
 
@@ -359,6 +362,22 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	newline, ok := p.expect(token.NEWLINE)
+	if !ok {
+		pos := openCurly.Pos
+		expectedOpenCurly := diagnostics.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: expected new line after {, not %s",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				newline.Kind,
+			),
+		}
+		p.collector.ReportAndSave(expectedOpenCurly)
+		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
+
 	var err error
 	var prototypes []*ast.Proto
 	for {
@@ -378,6 +397,7 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		if err != nil {
 			return nil, err
 		}
+
 		prototypes = append(prototypes, proto)
 	}
 	externDecl.Prototypes = prototypes
@@ -453,6 +473,12 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	return n, nil
 }
 
+func (p *Parser) skipNewLines() {
+	for p.lex.Peek().Kind == token.NEWLINE {
+		p.lex.Skip()
+	}
+}
+
 func (p *Parser) parsePkgDecl() (*ast.Node, error) {
 	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
@@ -466,10 +492,10 @@ func (p *Parser) parsePkgDecl() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected package name, not %s\n", name.Kind.String())
 	}
 
-	semi, ok := p.expect(token.SEMICOLON)
+	newline, ok := p.expect(token.NEWLINE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
 	node := new(ast.Node)
@@ -510,10 +536,10 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	}
 	imp.Path = parts[1:]
 
-	semi, ok := p.expect(token.SEMICOLON)
+	newline, ok := p.expect(token.NEWLINE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
 	node := new(ast.Node)
@@ -538,7 +564,7 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	_, ok = p.expect(token.EQUAL)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected semicolon, not %s\n", name.Kind.String())
+		return nil, fmt.Errorf("expected equal sign, not %s\n", name.Kind.String())
 	}
 
 	ty, err := p.parseExprType()
@@ -547,10 +573,10 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected valid alias type for '%s'\n", name.Name())
 	}
 
-	semi, ok := p.expect(token.SEMICOLON)
+	newline, ok := p.expect(token.NEWLINE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected semicolon, not %s\n", semi.Kind.String())
+		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
 	node := new(ast.Node)
@@ -625,19 +651,19 @@ func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) 
 	}
 	prototype.RetType = returnType
 
-	semicolon, ok := p.expect(token.SEMICOLON)
+	newline, ok := p.expect(token.NEWLINE)
 	if !ok {
-		pos := semicolon.Pos
-		expectedSemicolon := diagnostics.Diag{
+		pos := newline.Pos
+		expectedNewLine := diagnostics.Diag{
 			Message: fmt.Sprintf(
-				"%s:%d:%d: expected ; at the end of prototype, not %s",
+				"%s:%d:%d: expected new line at the end of prototype, not %s",
 				pos.Filename,
 				pos.Line,
 				pos.Column,
-				semicolon.Kind,
+				newline.Kind,
 			),
 		}
-		p.collector.ReportAndSave(expectedSemicolon)
+		p.collector.ReportAndSave(expectedNewLine)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
@@ -889,7 +915,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 	ty := new(ast.ExprType)
 
-	if (isPrototype && p.lex.NextIs(token.SEMICOLON)) ||
+	if (isPrototype && p.lex.NextIs(token.NEWLINE)) ||
 		p.lex.NextIs(token.OPEN_CURLY) {
 		ty.Kind = ast.EXPR_TYPE_BASIC
 		ty.T = &ast.BasicType{Kind: token.VOID_TYPE}
@@ -1011,93 +1037,94 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 
 func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	n := new(ast.Node)
+	endsWithNewLine := false
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.RETURN:
+		endsWithNewLine = true
+
 		p.lex.Skip()
 
 		n.Kind = ast.KIND_RETURN_STMT
-
 		returnStmt := new(ast.ReturnStmt)
 		returnStmt.Return = tok
 		returnStmt.Value = &ast.Node{Kind: ast.KIND_VOID_EXPR, Node: nil}
-
 		n.Node = returnStmt
 
-		if p.lex.NextIs(token.SEMICOLON) {
-			p.lex.Skip()
-			return n, nil
+		if p.lex.NextIs(token.NEWLINE) {
+			goto endOfStatement
 		}
-		returnValue, err := p.parseAnyExpr([]token.Kind{token.SEMICOLON}, parentScope)
+
+		returnValue, err := p.parseAnyExpr([]token.Kind{token.NEWLINE}, parentScope)
 		if err != nil {
 			tok := p.lex.Peek()
 			pos := tok.Pos
-			expectedSemicolon := diagnostics.Diag{
+			expectedNewline := diagnostics.Diag{
 				Message: fmt.Sprintf(
-					"%s:%d:%d: expected expression or ;, not %s",
+					"%s:%d:%d: expected expression or new line, not %s",
 					pos.Filename,
 					pos.Line,
 					pos.Column,
 					tok.Kind,
 				),
 			}
-			p.collector.ReportAndSave(expectedSemicolon)
+			p.collector.ReportAndSave(expectedNewline)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-
-		_, ok := p.expect(token.SEMICOLON)
-		if !ok {
-			tok := p.lex.Peek()
-			pos := tok.Pos
-			expectedSemicolon := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: expected ; at the end of statement, not %s",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					tok.Kind,
-				),
-			}
-			p.collector.ReportAndSave(expectedSemicolon)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
-		}
-
-		return n, nil
 	case token.ID:
+		endsWithNewLine = true
+
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
 			return nil, err
 		}
-		semicolon, ok := p.expect(token.SEMICOLON)
+		n = idStmt
+	case token.IF:
+		condStmt, err := p.parseCondStmt(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = condStmt
+	case token.FOR:
+		forLoop, err := p.parseForLoop(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = forLoop
+	case token.WHILE:
+		whileLoop, err := p.parseWhileLoop(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = whileLoop
+	default:
+		log.Fatalf("unimplemented: %s\n", tok.Kind)
+		return nil, nil
+	}
+
+endOfStatement:
+	if endsWithNewLine {
+		_, ok := p.expect(token.NEWLINE)
 		if !ok {
-			pos := semicolon.Pos
-			expectedSemicolon := diagnostics.Diag{
+			tok := p.lex.Peek()
+			pos := tok.Pos
+			expectedNewline := diagnostics.Diag{
 				Message: fmt.Sprintf(
-					"%s:%d:%d: expected ; at the end of statement, not %s",
+					"%s:%d:%d: expected new line at the end of statement, not %s",
 					pos.Filename,
 					pos.Line,
 					pos.Column,
-					semicolon.Kind,
+					tok.Kind,
 				),
 			}
-			p.collector.ReportAndSave(expectedSemicolon)
+			p.collector.ReportAndSave(expectedNewline)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		return idStmt, err
-	case token.IF:
-		condStmt, err := p.parseCondStmt(parentScope)
-		return condStmt, err
-	case token.FOR:
-		forLoop, err := p.parseForLoop(parentScope)
-		return forLoop, err
-	case token.WHILE:
-		whileLoop, err := p.parseWhileLoop(parentScope)
-		return whileLoop, err
-	default:
-		return nil, nil
 	}
+
+	return n, nil
 }
 
 func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
@@ -1112,6 +1139,10 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		tok := p.lex.Peek()
 		if tok.Kind == token.CLOSE_CURLY {
 			break
+		}
+		if tok.Kind == token.NEWLINE {
+			p.skipNewLines()
+			continue
 		}
 
 		stmt, err := p.parseStmt(parentScope)
@@ -1213,7 +1244,7 @@ VarDecl:
 		}
 	}
 
-	expr, err := p.parseAnyExpr([]token.Kind{token.SEMICOLON, token.AT}, parentScope)
+	expr, err := p.parseAnyExpr([]token.Kind{token.NEWLINE, token.AT, token.SEMICOLON, token.OPEN_CURLY}, parentScope)
 	if err != nil {
 		return nil, err
 	}

@@ -1,14 +1,14 @@
-package main;
+package main
 
-use "std::core";
-use "package::something";
+use "std::core"
+use "package::something"
 
 #[default_cc="c"]
 extern C {
-  fn puts(s cstring);
-  fn printf(format cstring, ...);
+  fn puts(s cstring)
+  fn printf(format cstring, ...)
 }
 
 fn main() {
-  return;
+  return
 }

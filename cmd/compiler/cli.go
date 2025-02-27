@@ -68,6 +68,7 @@ func cli() (CliResult, error) {
 	releaseBuildSet, debugBuildSet := false, false
 	result.BuildType = config.DEBUG
 
+	// TODO: check for unknown flags, the user might mispell the command
 	for _, arg := range args[1:] {
 		switch arg {
 		case "-release":

@@ -1,5 +1,5 @@
-package utils;
+package utils
 
 fn function() {
-  return;
+  return
 }

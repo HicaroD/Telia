@@ -113,7 +113,6 @@ func (lex *Lexer) getToken(ch byte) *token.Token {
 
 	switch ch {
 	case '\n':
-		fmt.Println("detected newline")
 		tok = lex.consumeToken(nil, token.NEWLINE)
 		lex.nextChar()
 	case '(':

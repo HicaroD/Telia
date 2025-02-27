@@ -1,20 +1,20 @@
-package main;
+package main
 
 #[default_cc="c"]
 extern libc {
-  fn puts(format cstring) i32;
+  fn puts(format cstring) i32
 }
 
 fn main() i32 {
-  can_vote := true;
+  can_vote := true
   if can_vote {
-    other_bool := true;
+    other_bool := true
     if other_bool {
-      libc.puts("Hey, can_vote is true and other_bool as well!");
+      libc.puts("Hey, can_vote is true and other_bool as well!")
     }
-    libc.puts("Hey, can_vote is true!");
+    libc.puts("Hey, can_vote is true!")
   } else {
-    libc.puts("Hey, can_vote is NOT true!");
+    libc.puts("Hey, can_vote is NOT true!")
   }
-  return 0;
+  return 0
 }
