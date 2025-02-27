@@ -502,7 +502,6 @@ func (c *llvmCodegen) getExpr(
 		symbol, _ := scope.LookupAcrossScopes(varName)
 
 		var localVar *Variable
-
 		switch symbol.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := symbol.Node.(*ast.VarId)

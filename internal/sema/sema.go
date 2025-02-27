@@ -267,13 +267,6 @@ func (sema *sema) checkVarr(variable *ast.Var, currentScope *ast.Scope) error {
 	for _, currentVar := range variable.Names {
 		if variable.IsDecl {
 			_, err := currentScope.LookupCurrentScope(currentVar.Name.Name())
-			// TODO(errors)
-			// if err != nil {
-			// 	if err != ast.ErrSymbolNotFoundOnScope {
-			// 		return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
-			// 	}
-			// 	return err
-			// }
 			if err == nil {
 				return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
 			}
