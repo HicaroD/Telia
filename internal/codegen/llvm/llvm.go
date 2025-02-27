@@ -281,7 +281,7 @@ func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast
 	genFnCall := c.generateFnCall(fnCall, scope)
 
 	for i, currentVar := range variables {
-		value := c.builder.CreateExtractValue(genFnCall, i, fmt.Sprintf(".arg.%d", i))
+		value := c.builder.CreateExtractValue(genFnCall, i, ".arg")
 		c.generateVariableWithValue(currentVar, value, isDecl, scope)
 	}
 }
