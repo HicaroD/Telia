@@ -234,10 +234,10 @@ func (sema *sema) checkStmt(
 ) error {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
-		err := sema.checkFunctionCall(stmt.Node.(*ast.FnCall), scope)
+		err := sema.checkFnCall(stmt.Node.(*ast.FnCall), scope)
 		return err
-	case ast.KIND_MULTI_VAR_STMT, ast.KIND_VAR_STMT:
-		err := sema.checkVarDecl(stmt, scope)
+	case ast.KIND_VAR_STMT:
+		err := sema.checkVar(stmt.Node.(*ast.VarStmt), scope)
 		return err
 	case ast.KIND_COND_STMT:
 		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, scope)
@@ -260,76 +260,216 @@ func (sema *sema) checkStmt(
 	}
 }
 
-func (sema *sema) checkVarDecl(
-	variable *ast.Node,
-	currentScope *ast.Scope,
-) error {
-	switch variable.Kind {
-	case ast.KIND_MULTI_VAR_STMT:
-		err := sema.checkMultiVar(variable.Node.(*ast.MultiVarStmt), currentScope)
-		return err
-	case ast.KIND_VAR_STMT:
-		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
-		return err
+func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
+	for _, currentVar := range variable.Names {
+		if variable.IsDecl {
+			_, err := currentScope.LookupCurrentScope(currentVar.Name.Name())
+			if err == nil {
+				return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
+			}
+
+			n := new(ast.Node)
+			n.Kind = ast.KIND_VAR_ID_STMT
+			n.Node = currentVar
+
+			err = currentScope.Insert(currentVar.Name.Name(), n)
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := currentScope.LookupAcrossScopes(currentVar.Name.Name())
+			// TODO(errors)
+			if err != nil {
+				if err == ast.ErrSymbolNotFoundOnScope {
+					name := currentVar.Name.Name()
+					pos := currentVar.Name.Pos
+					return fmt.Errorf("%s '%s' not declared in the current block", pos, name)
+				}
+				return err
+			}
+		}
 	}
+
+	switch variable.Expr.Kind {
+	case ast.KIND_TUPLE_EXPR:
+		tuple := variable.Expr.Node.(*ast.TupleExpr)
+		err := sema.checkTupleExprAssignedToVariable(variable, tuple, currentScope)
+		return err
+	case ast.KIND_FN_CALL:
+		fnCall := variable.Expr.Node.(*ast.FnCall)
+		// TODO(errors)
+		symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
+		if err != nil {
+			return err
+		}
+		// TODO(errors)
+		if symbol.Kind != ast.KIND_FN_DECL {
+			return fmt.Errorf("%s is not callable\n")
+		}
+
+		fnDecl := symbol.Node.(*ast.FnDecl)
+		if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnDecl.RetType.T.(*ast.TupleType), currentScope)
+			return err
+		} else {
+			// TODO(errors)
+			if len(variable.Names) != 1 {
+				return fmt.Errorf("more variables than expressions\n")
+			}
+			err := sema.checkVarExpr(variable.Names[0], variable.Expr, currentScope)
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		// TODO(errors)
+		if len(variable.Names) != 1 {
+			return fmt.Errorf("more variables than expressions\n")
+		}
+		err := sema.checkVarExpr(variable.Names[0], variable.Expr, currentScope)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (sema *sema) checkMultiVar(
-	multi *ast.MultiVarStmt,
-	currentScope *ast.Scope,
-) error {
-	for _, variable := range multi.Variables {
-		err := sema.checkVar(variable.Node.(*ast.VarStmt), currentScope)
-		if err != nil {
-			return err
+func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple *ast.TupleExpr, currentScope *ast.Scope) error {
+	numExprs, err := sema.countExprsOnTuple(tuple, currentScope)
+	if err != nil {
+		return err
+	}
+
+	// TODO(errors)
+	if len(variable.Names) != numExprs {
+		return fmt.Errorf("%d != %d", len(variable.Names), numExprs)
+	}
+
+	t := 0
+	for _, expr := range tuple.Exprs {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_EXPR:
+			innerTupleExpr := expr.Node.(*ast.TupleExpr)
+			for _, innerExpr := range innerTupleExpr.Exprs {
+				err := sema.checkVarExpr(variable.Names[t], innerExpr, currentScope)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
+			if err != nil {
+				return err
+			}
+			if symbol.Kind != ast.KIND_FN_DECL {
+				return fmt.Errorf("'%s' is not callable\n", fnCall.Name.Name())
+			}
+			fnDecl := symbol.Node.(*ast.FnDecl)
+			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnDecl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
+				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, currentScope)
+				t += len(affectedVariables)
+			} else {
+				err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		default:
+			err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
+			if err != nil {
+				return err
+			}
+			t++
 		}
 	}
 	return nil
 }
 
-func (sema *sema) checkVar(variable *ast.VarStmt, currentScope *ast.Scope) error {
-	err := sema.checkVariableType(variable, currentScope)
-	return err
+func (sema *sema) checkTupleTypeAssignedToVariable(variables []*ast.VarId, tupleTy *ast.TupleType, currentScope *ast.Scope) error {
+	if len(variables) != len(tupleTy.Types) {
+		return fmt.Errorf("expected %d variables, but got %d", len(tupleTy.Types), len(variables))
+	}
+	for i, ty := range tupleTy.Types {
+		variables[i].Type = ty
+	}
+	return nil
 }
 
-func (sema *sema) checkVariableType(
-	varDecl *ast.VarStmt,
-	currentScope *ast.Scope,
-) error {
-	if varDecl.NeedsInference {
+func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, scope *ast.Scope) error {
+	if variable.NeedsInference {
 		// TODO(errors): need a test for it
-		if varDecl.Type != nil {
+		if variable.Type != nil {
 			return fmt.Errorf(
 				"needs inference, but variable already has a type: %s",
-				varDecl.Type,
+				variable.Type,
 			)
 		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(varDecl.Value, currentScope)
+		exprType, _, err := sema.inferExprTypeWithoutContext(expr, scope)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		varDecl.Type = exprType
+		variable.Type = exprType
 	} else {
 		// TODO(errors)
-		if varDecl.Type == nil {
+		if variable.Type == nil {
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
-		exprTy, err := sema.inferExprTypeWithContext(varDecl.Value, varDecl.Type, currentScope)
+		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, scope)
 		// TODO(errors): Deal with type mismatch
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(varDecl.Type, exprTy) {
-			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", varDecl.Type, exprTy)
+		if !reflect.DeepEqual(variable.Type, exprTy) {
+			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
 		}
 	}
 	return nil
 }
 
+func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, scope *ast.Scope) (int, error) {
+	counter := 0
+	for _, expr := range tuple.Exprs {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_EXPR:
+			varTuple := expr.Node.(*ast.TupleExpr)
+			innerTupleExprs, err := sema.countExprsOnTuple(varTuple, scope)
+			if err != nil {
+				return -1, err
+			}
+			counter += innerTupleExprs
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			symbol, err := scope.LookupAcrossScopes(fnCall.Name.Name())
+			if err != nil {
+				return -1, err
+			}
+			if symbol.Kind != ast.KIND_FN_DECL {
+				return -1, fmt.Errorf("%s is not callable\n", fnCall.Name.Name())
+			}
+			fnDecl := symbol.Node.(*ast.FnDecl)
+			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				fnTuple := fnDecl.RetType.T.(*ast.TupleType)
+				counter += len(fnTuple.Types)
+			} else {
+				counter++
+			}
+		default:
+			counter++
+		}
+	}
+
+	return counter, nil
+}
+
 // Useful for testing
-func checkVarDeclFrom(input, filename string) (*ast.VarStmt, error) {
+func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -345,12 +485,12 @@ func checkVarDeclFrom(input, filename string) (*ast.VarStmt, error) {
 	sema := New(collector)
 	parent := ast.NewScope(nil)
 	scope := ast.NewScope(parent)
-	err = sema.checkVarDecl(varStmt, scope)
+	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), scope)
 	if err != nil {
 		return nil, err
 	}
 
-	return varStmt.Node.(*ast.VarStmt), nil
+	return varStmt.Node.(*ast.VarId), nil
 }
 
 func (sema *sema) checkCondStmt(
@@ -394,7 +534,7 @@ func (sema *sema) checkCondStmt(
 	return nil
 }
 
-func (sema *sema) checkFunctionCall(
+func (sema *sema) checkFnCall(
 	fnCall *ast.FnCall,
 	currentScope *ast.Scope,
 ) error {
@@ -504,6 +644,8 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, scope)
 	case ast.KIND_VOID_EXPR:
 		return s.inferVoidExprTypeWithContext(expectedType, scope)
+	case ast.KIND_TUPLE_EXPR:
+		return s.inferTupleExprTypeWithContext(expr.Node.(*ast.TupleExpr), expectedType, scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -545,8 +687,8 @@ func (sema *sema) inferIdExprTypeWithContext(
 	var ty *ast.ExprType
 
 	switch symbol.Kind {
-	case ast.KIND_VAR_STMT:
-		ty = symbol.Node.(*ast.VarStmt).Type
+	case ast.KIND_VAR_ID_STMT:
+		ty = symbol.Node.(*ast.VarId).Type
 	case ast.KIND_FIELD:
 		ty = symbol.Node.(*ast.Field).Type
 	default:
@@ -626,7 +768,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	expectedType *ast.ExprType,
 	scope *ast.Scope,
 ) (*ast.ExprType, error) {
-	err := sema.checkFunctionCall(fnCall, scope)
+	err := sema.checkFnCall(fnCall, scope)
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -645,6 +787,40 @@ func (sema *sema) inferVoidExprTypeWithContext(
 		return nil, fmt.Errorf("expected return type to be '%s'", expectedType)
 	}
 	return expectedType, nil
+}
+
+func (sema *sema) inferTupleExprTypeWithContext(
+	tuple *ast.TupleExpr,
+	expectedType *ast.ExprType,
+	scope *ast.Scope,
+) (*ast.ExprType, error) {
+	// TODO(errors)
+	if expectedType.Kind != ast.EXPR_TYPE_TUPLE {
+		return nil, fmt.Errorf("expected to be %s, got tuple\n", expectedType)
+	}
+	expectedTuple := expectedType.T.(*ast.TupleType)
+
+	// TODO(errors)
+	if len(expectedTuple.Types) != len(tuple.Exprs) {
+		return nil, fmt.Errorf("expected %d expressions, but got %d\n", len(expectedTuple.Types), len(tuple.Exprs))
+	}
+
+	tupleTy := new(ast.ExprType)
+	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
+
+	types := make([]*ast.ExprType, 0)
+	for i, expr := range tuple.Exprs {
+		ty, err := sema.inferExprTypeWithContext(expr, expectedTuple.Types[i], scope)
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, ty)
+	}
+
+	ty := &ast.TupleType{Types: types}
+	tupleTy.T = ty
+	tuple.Type = ty
+	return tupleTy, nil
 }
 
 func (sema *sema) inferBasicExprTypeWithContext(
@@ -734,6 +910,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), scope)
 	case ast.KIND_FIELD_ACCESS:
 		return sema.inferFieldAccessExprTypeWithoutContext(expr.Node.(*ast.FieldAccess), scope)
+	case ast.KIND_TUPLE_EXPR:
+		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -783,8 +961,8 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	}
 
 	switch variable.Kind {
-	case ast.KIND_VAR_STMT:
-		ty := variable.Node.(*ast.VarStmt).Type
+	case ast.KIND_VAR_ID_STMT:
+		ty := variable.Node.(*ast.VarId).Type
 		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
 		return variable.Node.(*ast.Field).Type, true, nil
@@ -893,7 +1071,7 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	fnCall *ast.FnCall,
 	scope *ast.Scope,
 ) (*ast.ExprType, bool, error) {
-	err := sema.checkFunctionCall(fnCall, scope)
+	err := sema.checkFnCall(fnCall, scope)
 	// TODO(errors)
 	if err != nil {
 		return nil, false, err
@@ -910,6 +1088,26 @@ func (sema *sema) inferFieldAccessExprTypeWithoutContext(
 ) (*ast.ExprType, bool, error) {
 	proto, err := sema.checkFieldAccessExpr(fieldAccess, scope)
 	return proto.RetType, true, err
+}
+
+func (sema *sema) inferTupleExprTypeWithoutContext(
+	tuple *ast.TupleExpr,
+	scope *ast.Scope,
+) (*ast.ExprType, bool, error) {
+	tupleTy := new(ast.ExprType)
+	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
+
+	types := make([]*ast.ExprType, 0)
+	for _, expr := range tuple.Exprs {
+		innerTy, _, err := sema.inferExprTypeWithoutContext(expr, scope)
+		if err != nil {
+			return nil, false, err
+		}
+		types = append(types, innerTy)
+	}
+
+	tupleTy.T = &ast.TupleType{Types: types}
+	return tupleTy, false, nil
 }
 
 // TODO: properly infer the type if possible

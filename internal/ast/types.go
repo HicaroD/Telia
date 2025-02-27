@@ -13,6 +13,7 @@ const (
 	EXPR_TYPE_ID
 	EXPR_TYPE_POINTER
 	EXPR_TYPE_ALIAS
+	EXPR_TYPE_TUPLE
 )
 
 type ExprType struct {
@@ -92,11 +93,18 @@ func (pointer PointerType) String() string {
 }
 
 type TypeAlias struct {
-	Node
 	Name *token.Token
 	Type *ExprType
 }
 
 func (alias TypeAlias) String() string {
 	return fmt.Sprintf("ALIAS: %v - TYPE: %v\n", alias.Name, alias.Type)
+}
+
+type TupleType struct {
+	Types []*ExprType
+}
+
+func (tt TupleType) String() string {
+	return fmt.Sprintf("TUPLE: %v\n", tt.Types)
 }

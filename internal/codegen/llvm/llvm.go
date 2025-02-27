@@ -205,13 +205,11 @@ func (c *llvmCodegen) generateStmt(
 ) {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
-		c.generateFunctionCall(stmt.Node.(*ast.FnCall), parentScope)
+		c.generateFnCall(stmt.Node.(*ast.FnCall), parentScope)
 	case ast.KIND_RETURN_STMT:
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
 	case ast.KIND_VAR_STMT:
 		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
-	case ast.KIND_MULTI_VAR_STMT:
-		c.generateMultiVar(stmt.Node.(*ast.MultiVarStmt), parentScope)
 	case ast.KIND_FIELD_ACCESS:
 		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
 	case ast.KIND_COND_STMT:
@@ -238,54 +236,102 @@ func (c *llvmCodegen) generateReturnStmt(
 	c.builder.CreateRet(returnValue)
 }
 
-func (c *llvmCodegen) generateMultiVar(
-	varDecl *ast.MultiVarStmt,
-	scope *ast.Scope,
-) {
-	for _, variable := range varDecl.Variables {
-		c.generateVar(variable.Node.(*ast.VarStmt), scope)
+func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
+	switch variable.Expr.Kind {
+	case ast.KIND_TUPLE_EXPR:
+		tuple := variable.Expr.Node.(*ast.TupleExpr)
+
+		t := 0
+		for _, expr := range tuple.Exprs {
+			switch expr.Kind {
+			case ast.KIND_TUPLE_EXPR:
+				innerTupleExpr := expr.Node.(*ast.TupleExpr)
+				for _, innerExpr := range innerTupleExpr.Exprs {
+					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl, scope)
+					t++
+				}
+			case ast.KIND_FN_CALL:
+				fnCall := expr.Node.(*ast.FnCall)
+				symbol, _ := scope.LookupAcrossScopes(fnCall.Name.Name())
+				fnDecl := symbol.Node.(*ast.FnDecl)
+
+				if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+					tupleType := fnDecl.RetType.T.(*ast.TupleType)
+					affectedVariables := variable.Names[t : t+len(tupleType.Types)]
+					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl, scope)
+					t += len(affectedVariables)
+				} else {
+					c.generateVariable(variable.Names[t], expr, variable.IsDecl, scope)
+					t++
+				}
+			default:
+				c.generateVariable(variable.Names[t], expr, variable.IsDecl, scope)
+				t++
+			}
+		}
+	case ast.KIND_FN_CALL:
+		fnCall := variable.Expr.Node.(*ast.FnCall)
+		c.generateFnCallForTuple(variable.Names, fnCall, variable.IsDecl, scope)
+	default:
+		c.generateVariable(variable.Names[0], variable.Expr, variable.IsDecl, scope)
 	}
 }
 
-func (c *llvmCodegen) generateVar(
-	varStmt *ast.VarStmt,
-	scope *ast.Scope,
-) {
-	if varStmt.Decl {
-		c.generateVarDecl(varStmt, scope)
+func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnCall, isDecl bool, scope *ast.Scope) {
+	genFnCall := c.generateFnCall(fnCall, scope)
+
+	for i, currentVar := range variables {
+		value := c.builder.CreateExtractValue(genFnCall, i, fmt.Sprintf(".arg.%d", i))
+		c.generateVariableWithValue(currentVar, value, isDecl, scope)
+	}
+}
+
+func (c *llvmCodegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool, scope *ast.Scope) {
+	if isDecl {
+		c.generateVarDecl(name, expr, scope)
 	} else {
-		c.generateVarReassign(varStmt, scope)
+		c.generateVarReassign(name, expr, scope)
+	}
+}
+
+func (c *llvmCodegen) generateVariableWithValue(name *ast.VarId, value llvm.Value, isDecl bool, scope *ast.Scope) {
+	if isDecl {
+		c.generateVarDeclWithValue(name, value)
+	} else {
+		c.generateVarReassignWithValue(name, value, scope)
 	}
 }
 
 func (c *llvmCodegen) generateVarDecl(
-	varDecl *ast.VarStmt,
+	name *ast.VarId,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) {
-	ty := c.getType(varDecl.Type)
+	ty := c.getType(name.Type)
 	ptr := c.builder.CreateAlloca(ty, ".ptr")
-	expr := c.getExpr(varDecl.Value, scope)
-	c.builder.CreateStore(expr, ptr)
+	generatedExpr := c.getExpr(expr, scope)
+	c.builder.CreateStore(generatedExpr, ptr)
 
 	variableLlvm := &Variable{
 		Ty:  ty,
 		Ptr: ptr,
 	}
-	varDecl.BackendType = variableLlvm
+	name.BackendType = variableLlvm
 }
 
 func (c *llvmCodegen) generateVarReassign(
-	varDecl *ast.VarStmt,
+	name *ast.VarId,
+	expr *ast.Node,
 	scope *ast.Scope,
 ) {
-	expr := c.getExpr(varDecl.Value, scope)
-	symbol, _ := scope.LookupAcrossScopes(varDecl.Name.Name())
+	generatedExpr := c.getExpr(expr, scope)
+	symbol, _ := scope.LookupAcrossScopes(name.Name.Name())
 
 	var variable *Variable
 
 	switch symbol.Kind {
-	case ast.KIND_VAR_STMT:
-		node := symbol.Node.(*ast.VarStmt)
+	case ast.KIND_VAR_ID_STMT:
+		node := symbol.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
 		node := symbol.Node.(*ast.Field)
@@ -294,7 +340,45 @@ func (c *llvmCodegen) generateVarReassign(
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
 	}
 
-	c.builder.CreateStore(expr, variable.Ptr)
+	c.builder.CreateStore(generatedExpr, variable.Ptr)
+}
+
+func (c *llvmCodegen) generateVarDeclWithValue(
+	name *ast.VarId,
+	value llvm.Value,
+) {
+	ty := c.getType(name.Type)
+	ptr := c.builder.CreateAlloca(ty, ".ptr")
+	c.builder.CreateStore(value, ptr)
+
+	variableLlvm := &Variable{
+		Ty:  ty,
+		Ptr: ptr,
+	}
+	name.BackendType = variableLlvm
+}
+
+func (c *llvmCodegen) generateVarReassignWithValue(
+	name *ast.VarId,
+	value llvm.Value,
+	scope *ast.Scope,
+) {
+	symbol, _ := scope.LookupAcrossScopes(name.Name.Name())
+
+	var variable *Variable
+
+	switch symbol.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		node := symbol.Node.(*ast.VarId)
+		variable = node.BackendType.(*Variable)
+	case ast.KIND_FIELD:
+		node := symbol.Node.(*ast.Field)
+		variable = node.BackendType.(*Variable)
+	default:
+		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
+	}
+
+	c.builder.CreateStore(value, variable.Ptr)
 }
 
 func (c *llvmCodegen) generateParameters(
@@ -315,7 +399,7 @@ func (c *llvmCodegen) generateParameters(
 	}
 }
 
-func (c *llvmCodegen) generateFunctionCall(
+func (c *llvmCodegen) generateFnCall(
 	functionCall *ast.FnCall,
 	functionScope *ast.Scope,
 ) llvm.Value {
@@ -326,6 +410,19 @@ func (c *llvmCodegen) generateFunctionCall(
 	args := c.getExprList(functionScope, functionCall.Args)
 
 	return c.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
+}
+
+func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr, scope *ast.Scope) llvm.Value {
+	types := c.getTypes(tuple.Type.Types)
+	tupleTy := c.context.StructType(types, false)
+
+	tupleVal := llvm.ConstNull(tupleTy)
+	for i, expr := range tuple.Exprs {
+		generatedExpr := c.getExpr(expr, scope)
+		tupleVal = c.builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
+	}
+
+	return tupleVal
 }
 
 func (c *llvmCodegen) generateExternDecl(external *ast.ExternDecl) {
@@ -415,12 +512,27 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 		default:
 			log.Fatalf("invalid basic type token: '%s'", b.Kind)
 		}
+	case ast.EXPR_TYPE_TUPLE:
+		tuple := ty.T.(*ast.TupleType)
+		innerTypes := c.getTypes(tuple.Types)
+		tupleTy := c.context.StructType(innerTypes, false)
+		return tupleTy
+	default:
+		log.Fatalf("unimplemented type: %v\n", ty.Kind)
 	}
 	return c.context.VoidType()
 }
 
 func (c *llvmCodegen) getPtrType(ty llvm.Type) llvm.Type {
 	return llvm.PointerType(ty, 0)
+}
+
+func (c *llvmCodegen) getTypes(types []*ast.ExprType) []llvm.Type {
+	tys := make([]llvm.Type, len(types))
+	for i, ty := range types {
+		tys[i] = c.getType(ty)
+	}
+	return tys
 }
 
 func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
@@ -492,8 +604,8 @@ func (c *llvmCodegen) getExpr(
 		var localVar *Variable
 
 		switch symbol.Kind {
-		case ast.KIND_VAR_STMT:
-			variable := symbol.Node.(*ast.VarStmt)
+		case ast.KIND_VAR_ID_STMT:
+			variable := symbol.Node.(*ast.VarId)
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
 			variable := symbol.Node.(*ast.Field)
@@ -540,7 +652,7 @@ func (c *llvmCodegen) getExpr(
 		}
 	case ast.KIND_FN_CALL:
 		fnCall := expr.Node.(*ast.FnCall)
-		call := c.generateFunctionCall(fnCall, scope)
+		call := c.generateFnCall(fnCall, scope)
 		return call
 	case ast.KIND_UNARY_EXPR:
 		unary := expr.Node.(*ast.UnaryExpr)
@@ -557,6 +669,8 @@ func (c *llvmCodegen) getExpr(
 		fieldAccess := expr.Node.(*ast.FieldAccess)
 		value := c.generateFieldAccessStmt(fieldAccess, scope)
 		return value
+	case ast.KIND_TUPLE_EXPR:
+		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr), scope)
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 		return llvm.Value{}

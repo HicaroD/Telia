@@ -16,27 +16,21 @@ func (block BlockStmt) String() string {
 	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
 
-type MultiVarStmt struct {
-	IsDecl    bool
-	Variables []*Node
-}
-
-func (multi MultiVarStmt) String() string {
-	return fmt.Sprintf("Multi: %v %v", multi.IsDecl, multi.Variables)
+type VarId struct {
+	Name           *token.Token
+	Type           *ExprType
+	NeedsInference bool
+	BackendType    any
 }
 
 type VarStmt struct {
-	Decl           bool
-	Name           *token.Token
-	Type           *ExprType
-	Value          *Node
-	NeedsInference bool
-
-	BackendType any // LLVM: *values.Variable
+	IsDecl bool
+	Names  []*VarId
+	Expr   *Node
 }
 
-func (variable VarStmt) String() string {
-	return fmt.Sprintf("Variable: %s %v %s", variable.Name, variable.NeedsInference, variable.Value)
+func (v VarStmt) String() string {
+	return fmt.Sprintf("VarStmt: %v %v %v", v.IsDecl, v.Names, v.Expr)
 }
 
 type ReturnStmt struct {
