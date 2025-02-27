@@ -234,7 +234,7 @@ func (sema *sema) checkStmt(
 ) error {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
-		err := sema.checkFunctionCall(stmt.Node.(*ast.FnCall), scope)
+		err := sema.checkFnCall(stmt.Node.(*ast.FnCall), scope)
 		return err
 	case ast.KIND_VAR_STMT:
 		err := sema.checkVar(stmt.Node.(*ast.Var), scope)
@@ -293,34 +293,36 @@ func (sema *sema) checkVar(variable *ast.Var, currentScope *ast.Scope) error {
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
-		numExprs := sema.countExprsOnTuple(tuple)
-
+		err := sema.checkTupleExprAssignedToVariable(variable, tuple, currentScope)
+		return err
+	case ast.KIND_FN_CALL:
+		fnCall := variable.Expr.Node.(*ast.FnCall)
 		// TODO(errors)
-		if len(variable.Names) != numExprs {
-			return fmt.Errorf("%d != %d", len(tuple.Exprs), numExprs)
+		symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
+		if err != nil {
+			return err
+		}
+		// TODO(errors)
+		if symbol.Kind != ast.KIND_FN_DECL {
+			return fmt.Errorf("%s is not callable\n")
 		}
 
-		t := 0
-		for _, expr := range tuple.Exprs {
-			switch expr.Kind {
-			case ast.KIND_TUPLE_EXPR:
-				innerTupleExpr := expr.Node.(*ast.TupleExpr)
-				for _, innerExpr := range innerTupleExpr.Exprs {
-					err := sema.checkVarExpr(variable.Names[t], innerExpr, currentScope)
-					if err != nil {
-						return err
-					}
-					t++
-				}
-			default:
-				err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
-				if err != nil {
-					return err
-				}
-				t++
+		fnDecl := symbol.Node.(*ast.FnDecl)
+		if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnDecl.RetType.T.(*ast.TupleType), currentScope)
+			return err
+		} else {
+			// TODO(errors)
+			if len(variable.Names) != 1 {
+				return fmt.Errorf("more variables than expressions\n")
+			}
+			err := sema.checkVarExpr(variable.Names[0], variable.Expr, currentScope)
+			if err != nil {
+				return err
 			}
 		}
 	default:
+		// TODO(errors)
 		if len(variable.Names) != 1 {
 			return fmt.Errorf("more variables than expressions\n")
 		}
@@ -330,6 +332,72 @@ func (sema *sema) checkVar(variable *ast.Var, currentScope *ast.Scope) error {
 		}
 	}
 
+	return nil
+}
+
+func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.Var, tuple *ast.TupleExpr, currentScope *ast.Scope) error {
+	numExprs, err := sema.countExprsOnTuple(tuple, currentScope)
+	if err != nil {
+		return err
+	}
+
+	// TODO(errors)
+	if len(variable.Names) != numExprs {
+		return fmt.Errorf("%d != %d", len(tuple.Exprs), numExprs)
+	}
+
+	t := 0
+	for _, expr := range tuple.Exprs {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_EXPR:
+			innerTupleExpr := expr.Node.(*ast.TupleExpr)
+			for _, innerExpr := range innerTupleExpr.Exprs {
+				err := sema.checkVarExpr(variable.Names[t], innerExpr, currentScope)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			symbol, err := currentScope.LookupAcrossScopes(fnCall.Name.Name())
+			if err != nil {
+				return err
+			}
+			if symbol.Kind != ast.KIND_FN_DECL {
+				return fmt.Errorf("'%s' is not callable\n", fnCall.Name.Name())
+			}
+			fnDecl := symbol.Node.(*ast.FnDecl)
+			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				fnTupleType := fnDecl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Names[t : t+len(tuple.Exprs)]
+				sema.checkTupleTypeAssignedToVariable(affectedVariables, fnTupleType, currentScope)
+				t += len(affectedVariables)
+			} else {
+				err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		default:
+			err := sema.checkVarExpr(variable.Names[t], expr, currentScope)
+			if err != nil {
+				return err
+			}
+			t++
+		}
+	}
+	return nil
+}
+
+func (sema *sema) checkTupleTypeAssignedToVariable(variables []*ast.VarId, tupleTy *ast.TupleType, currentScope *ast.Scope) error {
+	if len(variables) != len(tupleTy.Types) {
+		return fmt.Errorf("expected %d variables, but got %d", len(tupleTy.Types), len(variables))
+	}
+	for i, ty := range tupleTy.Types {
+		variables[i].Type = ty
+	}
 	return nil
 }
 
@@ -365,18 +433,40 @@ func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, scope *ast.S
 	return nil
 }
 
-func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr) int {
+func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, scope *ast.Scope) (int, error) {
 	counter := 0
 	for _, expr := range tuple.Exprs {
 		switch expr.Kind {
 		case ast.KIND_TUPLE_EXPR:
 			varTuple := expr.Node.(*ast.TupleExpr)
-			counter += sema.countExprsOnTuple(varTuple)
+			innerTupleExprs, err := sema.countExprsOnTuple(varTuple, scope)
+			if err != nil {
+				return -1, err
+			}
+			counter += innerTupleExprs
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			symbol, err := scope.LookupAcrossScopes(fnCall.Name.Name())
+			if err != nil {
+				return -1, err
+			}
+			if symbol.Kind != ast.KIND_FN_DECL {
+				return -1, fmt.Errorf("%s is not callable\n", fnCall.Name.Name())
+			}
+			fnDecl := symbol.Node.(*ast.FnDecl)
+			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				fnTuple := fnDecl.RetType.T.(*ast.TupleType)
+				counter += len(fnTuple.Types)
+			} else {
+				counter++
+			}
 		default:
 			counter++
 		}
 	}
-	return counter
+
+	fmt.Println(counter)
+	return counter, nil
 }
 
 // Useful for testing
@@ -445,7 +535,7 @@ func (sema *sema) checkCondStmt(
 	return nil
 }
 
-func (sema *sema) checkFunctionCall(
+func (sema *sema) checkFnCall(
 	fnCall *ast.FnCall,
 	currentScope *ast.Scope,
 ) error {
@@ -555,7 +645,8 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, scope)
 	case ast.KIND_VOID_EXPR:
 		return s.inferVoidExprTypeWithContext(expectedType, scope)
-	// TODO: infer tuple expr with context
+	case ast.KIND_TUPLE_EXPR:
+		return s.inferTupleExprTypeWithContext(expr.Node.(*ast.TupleExpr), expectedType, scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -678,7 +769,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	expectedType *ast.ExprType,
 	scope *ast.Scope,
 ) (*ast.ExprType, error) {
-	err := sema.checkFunctionCall(fnCall, scope)
+	err := sema.checkFnCall(fnCall, scope)
 	// TODO(errors)
 	if err != nil {
 		return nil, err
@@ -697,6 +788,40 @@ func (sema *sema) inferVoidExprTypeWithContext(
 		return nil, fmt.Errorf("expected return type to be '%s'", expectedType)
 	}
 	return expectedType, nil
+}
+
+func (sema *sema) inferTupleExprTypeWithContext(
+	tuple *ast.TupleExpr,
+	expectedType *ast.ExprType,
+	scope *ast.Scope,
+) (*ast.ExprType, error) {
+	// TODO(errors)
+	if expectedType.Kind != ast.EXPR_TYPE_TUPLE {
+		return nil, fmt.Errorf("expected to be %s, got tuple\n", expectedType)
+	}
+	expectedTuple := expectedType.T.(*ast.TupleType)
+
+	// TODO(errors)
+	if len(expectedTuple.Types) != len(tuple.Exprs) {
+		return nil, fmt.Errorf("expected %d expressions, but got %d\n", len(expectedTuple.Types), len(tuple.Exprs))
+	}
+
+	tupleTy := new(ast.ExprType)
+	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
+
+	types := make([]*ast.ExprType, 0)
+	for i, expr := range tuple.Exprs {
+		ty, err := sema.inferExprTypeWithContext(expr, expectedTuple.Types[i], scope)
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, ty)
+	}
+
+	ty := &ast.TupleType{Types: types}
+	tupleTy.T = ty
+	tuple.Type = ty
+	return tupleTy, nil
 }
 
 func (sema *sema) inferBasicExprTypeWithContext(
@@ -786,7 +911,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), scope)
 	case ast.KIND_FIELD_ACCESS:
 		return sema.inferFieldAccessExprTypeWithoutContext(expr.Node.(*ast.FieldAccess), scope)
-	// TODO: infer tuple expr without context
+	case ast.KIND_TUPLE_EXPR:
+		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), scope)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -946,7 +1072,7 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	fnCall *ast.FnCall,
 	scope *ast.Scope,
 ) (*ast.ExprType, bool, error) {
-	err := sema.checkFunctionCall(fnCall, scope)
+	err := sema.checkFnCall(fnCall, scope)
 	// TODO(errors)
 	if err != nil {
 		return nil, false, err
@@ -963,6 +1089,26 @@ func (sema *sema) inferFieldAccessExprTypeWithoutContext(
 ) (*ast.ExprType, bool, error) {
 	proto, err := sema.checkFieldAccessExpr(fieldAccess, scope)
 	return proto.RetType, true, err
+}
+
+func (sema *sema) inferTupleExprTypeWithoutContext(
+	tuple *ast.TupleExpr,
+	scope *ast.Scope,
+) (*ast.ExprType, bool, error) {
+	tupleTy := new(ast.ExprType)
+	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
+
+	types := make([]*ast.ExprType, 0)
+	for _, expr := range tuple.Exprs {
+		innerTy, _, err := sema.inferExprTypeWithoutContext(expr, scope)
+		if err != nil {
+			return nil, false, err
+		}
+		types = append(types, innerTy)
+	}
+
+	tupleTy.T = &ast.TupleType{Types: types}
+	return tupleTy, false, nil
 }
 
 // TODO: properly infer the type if possible

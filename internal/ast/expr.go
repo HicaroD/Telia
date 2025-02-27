@@ -82,6 +82,7 @@ func (binExpr BinaryExpr) String() string {
 }
 
 type TupleExpr struct {
+	Type  *TupleType
 	Exprs []*Node
 }
 

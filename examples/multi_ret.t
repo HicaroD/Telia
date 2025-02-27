@@ -6,8 +6,12 @@ extern libc {
   fn puts(format cstring) i32;
 }
 
+fn get(value i32) (i32, i32) {
+  return 1, 2 + value;
+}
+
 fn main() i32 {
-  a := 1;
-  libc.printf("%d", a);
+  a, b, c, d := get(1), get(2);
+  libc.printf("%d %d %d %d", a, b, c, d);
   return 0;
 }
