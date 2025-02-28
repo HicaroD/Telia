@@ -1,5 +1,7 @@
 package token
 
+import "fmt"
+
 type Token struct {
 	Lexeme []byte
 	Kind   Kind
@@ -15,4 +17,8 @@ func (token *Token) Name() string {
 		return string(token.Lexeme)
 	}
 	return token.Kind.String()
+}
+
+func (token *Token) String() string {
+	return fmt.Sprintf("%s | %s | %s", string(token.Lexeme), token.Kind, token.Pos)
 }

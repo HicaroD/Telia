@@ -18,33 +18,37 @@ func TestTokenKinds(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenKindTest{
-		// Keywords
+		{"\n", token.NEWLINE},
 		{"fn", token.FN},
 		{"for", token.FOR},
 		{"while", token.WHILE},
 		{"return", token.RETURN},
 		{"extern", token.EXTERN},
+		{"package", token.PACKAGE},
 		{"if", token.IF},
 		{"elif", token.ELIF},
 		{"else", token.ELSE},
 		{"not", token.NOT},
+		{"type", token.TYPE},
+		{"use", token.USE},
 
-		// Types
 		{"bool", token.BOOL_TYPE},
 
-		{"int", token.UNTYPED_INT},
+		{"string", token.STRING_TYPE},
+		{"cstring", token.CSTRING_TYPE},
+		{"int", token.INT_TYPE},
+		{"int", token.INT_TYPE},
 		{"i8", token.I8_TYPE},
 		{"i16", token.I16_TYPE},
 		{"i32", token.I32_TYPE},
 		{"i64", token.I64_TYPE},
 
-		{"uint", token.UNTYPED_UINT},
+		{"uint", token.UINT_TYPE},
 		{"u8", token.U8_TYPE},
 		{"u16", token.U16_TYPE},
 		{"u32", token.U32_TYPE},
 		{"u64", token.U64_TYPE},
 
-		// Other tokens
 		{"(", token.OPEN_PAREN},
 		{")", token.CLOSE_PAREN},
 		{"{", token.OPEN_CURLY},
@@ -65,7 +69,8 @@ func TestTokenKinds(t *testing.T) {
 		{"+", token.PLUS},
 		{"-", token.MINUS},
 		{"*", token.STAR},
-		{"/", token.SLASH},
+		{"#", token.SHARP},
+		{"@", token.AT},
 	}
 
 	for _, test := range tests {
@@ -103,20 +108,23 @@ func TestTokenPos(t *testing.T) {
 
 	tests := []*tokenPosTest{
 		{";", []token.Pos{
-			{Filename: "test.tt", Line: 1, Column: 1},
-			{Filename: "test.tt", Line: 1, Column: 2}},
+			{Filename: "test.tt", Line: 1, Column: 1},  // ;
+			{Filename: "test.tt", Line: 1, Column: 2}}, // eof
 		},
 		{";\n;", []token.Pos{
-			{Filename: "test.tt", Line: 1, Column: 1},
-			{Filename: "test.tt", Line: 2, Column: 1},
-			{Filename: "test.tt", Line: 2, Column: 2}},
+			{Filename: "test.tt", Line: 1, Column: 1},  // ;
+			{Filename: "test.tt", Line: 1, Column: 2},  // \n
+			{Filename: "test.tt", Line: 2, Column: 1},  // ;
+			{Filename: "test.tt", Line: 2, Column: 2}}, // eof
 		},
 		{"fn\nhello world\n;", []token.Pos{
-			{Filename: "test.tt", Line: 1, Column: 1},
-			{Filename: "test.tt", Line: 2, Column: 1},
-			{Filename: "test.tt", Line: 2, Column: 7},
-			{Filename: "test.tt", Line: 3, Column: 1},
-			{Filename: "test.tt", Line: 3, Column: 2}},
+			{Filename: "test.tt", Line: 1, Column: 1},  // fn
+			{Filename: "test.tt", Line: 1, Column: 3},  // \n
+			{Filename: "test.tt", Line: 2, Column: 1},  // hello
+			{Filename: "test.tt", Line: 2, Column: 7},  // world
+			{Filename: "test.tt", Line: 2, Column: 12}, // \n
+			{Filename: "test.tt", Line: 3, Column: 1},  // ;
+			{Filename: "test.tt", Line: 3, Column: 2}}, // eof
 		},
 	}
 
@@ -137,6 +145,7 @@ func TestTokenPos(t *testing.T) {
 			}
 
 			if len(tokenResult) != len(test.positions) {
+				fmt.Println(tokenResult)
 				t.Errorf(
 					"expected len(tokenResult) == len(expectedPos.positions), expected %d, but got %d",
 					len(tokenResult),
@@ -148,7 +157,8 @@ func TestTokenPos(t *testing.T) {
 				actualPos := tokenResult[i].Pos
 				if expectedPos != actualPos {
 					t.Errorf(
-						"expected token position to be the same, expected %q, but got %q",
+						"expected position of '%s' to be the same, expected %q, but got %q",
+						tokenResult[i].Kind,
 						expectedPos,
 						actualPos,
 					)
@@ -239,20 +249,20 @@ func TestIsLiteral(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenLiteralTest{
-		{"1", token.INTEGER_LITERAL},
-		{"2", token.INTEGER_LITERAL},
-		{"3", token.INTEGER_LITERAL},
-		{"4", token.INTEGER_LITERAL},
-		{"5", token.INTEGER_LITERAL},
-		{"6", token.INTEGER_LITERAL},
-		{"7", token.INTEGER_LITERAL},
-		{"8", token.INTEGER_LITERAL},
-		{"9", token.INTEGER_LITERAL},
-		{"123456789", token.INTEGER_LITERAL},
+		{"1", token.UNTYPED_INT},
+		{"2", token.UNTYPED_INT},
+		{"3", token.UNTYPED_INT},
+		{"4", token.UNTYPED_INT},
+		{"5", token.UNTYPED_INT},
+		{"6", token.UNTYPED_INT},
+		{"7", token.UNTYPED_INT},
+		{"8", token.UNTYPED_INT},
+		{"9", token.UNTYPED_INT},
+		{"123456789", token.UNTYPED_INT},
 		// TODO: add float here
-		{"\"Hello world\"", token.STRING_LITERAL},
-		{"true", token.TRUE_BOOL_LITERAL},
-		{"false", token.FALSE_BOOL_LITERAL},
+		{"\"Hello world\"", token.UNTYPED_STRING},
+		{"true", token.UNTYPED_BOOL},
+		{"false", token.UNTYPED_BOOL},
 	}
 
 	for _, test := range tests {
