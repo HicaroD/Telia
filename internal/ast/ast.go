@@ -26,6 +26,7 @@ const (
 	KIND_ELSE_STMT
 	KIND_FOR_LOOP_STMT
 	KIND_WHILE_LOOP_STMT
+	KIND_DEFER_STMT
 
 	EXPR_START // expression node start delimiter
 
@@ -102,6 +103,8 @@ func (n *Node) String() string {
 		return "KIND_FOR_LOOP_STMT"
 	case KIND_WHILE_LOOP_STMT:
 		return "KIND_WHILE_LOOP_STMT"
+	case KIND_DEFER_STMT:
+		return "KIND_DEFER_STMT"
 	case KIND_FN_CALL:
 		return "KIND_FN_CALL"
 	case KIND_FIELD_ACCESS:

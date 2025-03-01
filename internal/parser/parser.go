@@ -1035,7 +1035,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 	return &ast.TupleType{Types: types}, nil
 }
 
-func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1075,7 +1075,6 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		returnStmt.Value = returnValue
 	case token.ID:
 		endsWithNewLine = true
-
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
 			return nil, err
@@ -1099,6 +1098,17 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 			return nil, err
 		}
 		n = whileLoop
+	case token.DEFER:
+		// TODO(errors)
+		if !allowDefer {
+			return nil, fmt.Errorf("invalid nested defer statement")
+		}
+		// endsWithNewLine = true
+		deferStmt, err := p.parseDefer(block, parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = deferStmt
 	default:
 		log.Fatalf("unimplemented: %s\n", tok.Kind)
 		return nil, nil
@@ -1128,10 +1138,14 @@ endOfStatement:
 }
 
 func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
+	block := new(ast.BlockStmt)
+	block.DeferStack = make([]*ast.Node, 0)
+
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
+	block.OpenCurly = openCurly.Pos
 
 	var statements []*ast.Node
 
@@ -1145,7 +1159,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 			continue
 		}
 
-		stmt, err := p.parseStmt(parentScope)
+		stmt, err := p.parseStmt(block, parentScope, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1156,6 +1170,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 			break
 		}
 	}
+	block.Statements = statements
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
@@ -1172,12 +1187,8 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		p.collector.ReportAndSave(expectedStatementOrCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
-
-	return &ast.BlockStmt{
-		OpenCurly:  openCurly.Pos,
-		Statements: statements,
-		CloseCurly: closeCurly.Pos,
-	}, nil
+	block.CloseCurly = closeCurly.Pos
+	return block, nil
 }
 
 func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
@@ -1786,5 +1797,23 @@ func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	n := new(ast.Node)
 	n.Kind = ast.KIND_WHILE_LOOP_STMT
 	n.Node = &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}
+	return n, nil
+}
+
+func (p *Parser) parseDefer(block *ast.BlockStmt, parentScope *ast.Scope) (*ast.Node, error) {
+	_, ok := p.expect(token.DEFER)
+	if !ok {
+		return nil, fmt.Errorf("expected 'while'")
+	}
+
+	stmt, err := p.parseStmt(block, parentScope, false)
+	if err != nil {
+		return nil, err
+	}
+
+	block.DeferStack = append(block.DeferStack, stmt)
+	n := new(ast.Node)
+	n.Kind = ast.KIND_DEFER_STMT
+	n.Node = &ast.DeferStmt{Stmt: stmt}
 	return n, nil
 }

@@ -185,17 +185,33 @@ func (c *llvmCodegen) generateBlock(
 	block *ast.BlockStmt,
 	function *Function,
 	parentScope *ast.Scope,
-) (stoppedOnReturn bool) {
-	stoppedOnReturn = false
+) bool {
+	// NOTE: there is a huge problem in this code logic The code has already
+	// been parsed, so all defer statements were collected, if the code stopped
+	// on return, it will generate all defer statements as expected, however
+	// even those who were defined after the return statement will be
+	// generated, which will cause a bad behavior
+	//
+	// So I need to handle this case, defer's defined after the returned
+	// statement can't be generated
+	stoppedOnReturn := false
 
 	for _, stmt := range block.Statements {
 		c.generateStmt(stmt, function, parentScope)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
-			return
+			goto Defer
 		}
 	}
-	return
+
+Defer:
+	if len(block.DeferStack) > 0 {
+		for i := len(block.DeferStack) - 1; i >= 0; i-- {
+			c.generateStmt(block.DeferStack[i], function, parentScope)
+		}
+	}
+
+	return stoppedOnReturn
 }
 
 func (c *llvmCodegen) generateStmt(
@@ -218,9 +234,14 @@ func (c *llvmCodegen) generateStmt(
 		c.generateForLoop(stmt.Node.(*ast.ForLoop), function)
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.generateWhileLoop(stmt.Node.(*ast.WhileLoop), function)
+	case ast.KIND_DEFER_STMT:
+		// NOTE: ignored because defer statements are handled during block
+		// generation
+		goto Ignore
 	default:
 		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
+Ignore:
 }
 
 func (c *llvmCodegen) generateReturnStmt(

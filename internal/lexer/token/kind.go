@@ -27,6 +27,7 @@ const (
 	NOT
 	TYPE
 	USE
+	DEFER
 
 	// Types
 	BASIC_TYPE_START // basic type start delimiter
@@ -122,6 +123,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"or":      OR,
 	"type":    TYPE,
 	"use":     USE,
+	"defer":   DEFER,
 
 	"true":  UNTYPED_BOOL,
 	"false": UNTYPED_BOOL,
@@ -212,6 +214,8 @@ func (k Kind) String() string {
 		return "type"
 	case USE:
 		return "use"
+	case DEFER:
+		return "defer"
 	case BOOL_TYPE:
 		return "bool"
 	case INT_TYPE:
