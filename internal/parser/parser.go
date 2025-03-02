@@ -188,6 +188,8 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 	var eof bool
 
 peekAgain:
+	p.skipNewLines()
+
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.EOF:
@@ -203,9 +205,6 @@ peekAgain:
 			return nil, eof, err
 		}
 		attributesFound = true
-		goto peekAgain
-	case token.NEWLINE:
-		p.skipNewLines()
 		goto peekAgain
 	}
 
@@ -381,6 +380,8 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	var err error
 	var prototypes []*ast.Proto
 	for {
+		p.skipNewLines()
+
 		if p.lex.NextIs(token.CLOSE_CURLY) {
 			break
 		}
@@ -474,8 +475,11 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 }
 
 func (p *Parser) skipNewLines() {
-	for p.lex.Peek().Kind == token.NEWLINE {
-		p.lex.Skip()
+	for {
+		newline := p.skipSingleNewLine()
+		if !newline {
+			break
+		}
 	}
 }
 
@@ -1149,13 +1153,11 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	var statements []*ast.Node
 
 	for {
+		p.skipNewLines()
+
 		tok := p.lex.Peek()
 		if tok.Kind == token.CLOSE_CURLY {
 			break
-		}
-		if tok.Kind == token.NEWLINE {
-			p.skipNewLines()
-			continue
 		}
 
 		stmt, err := p.parseStmt(block, parentScope, true)
@@ -1287,20 +1289,43 @@ func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, err
 	}
 
+	p.skipSingleNewLine()
+
+	// TODO: validate proximity of if and elifs
 	elifConds, err := p.parseElifConds(parentScope)
 	if err != nil {
 		return nil, err
 	}
+
+	isNewLineBeforeElse := p.skipSingleNewLine()
 
 	elseCond, err := p.parseElseCond(parentScope)
 	if err != nil {
 		return nil, err
 	}
 
+	isNewLine := p.skipSingleNewLine()
+	if !isNewLine && elseCond != nil {
+		return nil, fmt.Errorf("expected new line at the end of else block")
+	}
+
+	if isNewLineBeforeElse && p.lex.NextIs(token.NEWLINE) {
+		return nil, fmt.Errorf("invalid isolated else, considering removing the line between if/elif and else")
+	}
+
 	n := new(ast.Node)
 	n.Kind = ast.KIND_COND_STMT
 	n.Node = &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}
 	return n, nil
+}
+
+func (p *Parser) skipSingleNewLine() bool {
+	next := p.lex.Peek().Kind
+	isNewLine := next == token.NEWLINE
+	if isNewLine {
+		p.lex.Skip()
+	}
+	return isNewLine
 }
 
 func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
