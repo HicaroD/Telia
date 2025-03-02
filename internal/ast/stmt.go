@@ -7,10 +7,11 @@ import (
 )
 
 type BlockStmt struct {
-	OpenCurly  token.Pos
-	DeferStack []*Node
-	Statements []*Node
-	CloseCurly token.Pos
+	OpenCurly   token.Pos
+	DeferStack  []*DeferStmt
+	Statements  []*Node
+	FoundReturn bool
+	CloseCurly  token.Pos
 }
 
 func (block BlockStmt) String() string {
@@ -112,6 +113,7 @@ func (whileLoop WhileLoop) String() string {
 
 type DeferStmt struct {
 	Stmt *Node
+	Skip bool
 }
 
 func (d DeferStmt) String() string {

@@ -1039,7 +1039,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 	return &ast.TupleType{Types: types}, nil
 }
 
-func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer bool) (*ast.Node, error) {
+func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer, foundReturn bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1107,7 +1107,6 @@ func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDe
 		if !allowDefer {
 			return nil, fmt.Errorf("invalid nested defer statement")
 		}
-		// endsWithNewLine = true
 		deferStmt, err := p.parseDefer(block, parentScope)
 		if err != nil {
 			return nil, err
@@ -1142,7 +1141,7 @@ func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDe
 
 func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	block := new(ast.BlockStmt)
-	block.DeferStack = make([]*ast.Node, 0)
+	block.DeferStack = make([]*ast.DeferStmt, 0)
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
@@ -1160,15 +1159,17 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 			break
 		}
 
-		stmt, err := p.parseStmt(block, parentScope, true)
+		stmt, err := p.parseStmt(block, parentScope, true, block.FoundReturn)
 		if err != nil {
 			return nil, err
 		}
+		if stmt == nil {
+			continue
+		}
 
-		if stmt != nil {
-			statements = append(statements, stmt)
-		} else {
-			break
+		statements = append(statements, stmt)
+		if stmt.Kind == ast.KIND_RETURN_STMT {
+			block.FoundReturn = true
 		}
 	}
 	block.Statements = statements
@@ -1830,14 +1831,16 @@ func (p *Parser) parseDefer(block *ast.BlockStmt, parentScope *ast.Scope) (*ast.
 		return nil, fmt.Errorf("expected 'while'")
 	}
 
-	stmt, err := p.parseStmt(block, parentScope, false)
+	stmt, err := p.parseStmt(block, parentScope, block.FoundReturn, false)
 	if err != nil {
 		return nil, err
 	}
 
-	block.DeferStack = append(block.DeferStack, stmt)
+	def := &ast.DeferStmt{Stmt: stmt, Skip: block.FoundReturn}
+	block.DeferStack = append(block.DeferStack, def)
+
 	n := new(ast.Node)
 	n.Kind = ast.KIND_DEFER_STMT
-	n.Node = &ast.DeferStmt{Stmt: stmt}
+	n.Node = def
 	return n, nil
 }
