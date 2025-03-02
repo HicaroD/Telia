@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"unicode"
 
@@ -83,10 +84,16 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 func (lex *Lexer) next() *token.Token {
 	lex.skipWhitespace()
 	character := lex.peekChar()
+
+	tok := &token.Token{}
+	tok.Kind = token.INVALID
+
 	if character == eof {
-		return lex.consumeToken(nil, token.EOF)
+		lex.consumeToken(tok, nil, token.EOF)
+		return tok
 	}
-	token := lex.getToken(character)
+
+	token := lex.getToken(tok, character)
 	return token
 }
 
@@ -106,58 +113,54 @@ func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	return tokens, nil
 }
 
-func (lex *Lexer) getToken(ch byte) *token.Token {
-	tok := &token.Token{}
-	tok.Lexeme = nil
-	tok.Kind = token.INVALID
-
+func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	switch ch {
 	case '\n':
-		tok = lex.consumeToken(nil, token.NEWLINE)
+		lex.consumeToken(tok, nil, token.NEWLINE)
 		lex.nextChar()
 	case '(':
-		tok = lex.consumeToken(nil, token.OPEN_PAREN)
+		lex.consumeToken(tok, nil, token.OPEN_PAREN)
 		lex.nextChar()
 	case ')':
-		tok = lex.consumeToken(nil, token.CLOSE_PAREN)
+		lex.consumeToken(tok, nil, token.CLOSE_PAREN)
 		lex.nextChar()
 	case '{':
-		tok = lex.consumeToken(nil, token.OPEN_CURLY)
+		lex.consumeToken(tok, nil, token.OPEN_CURLY)
 		lex.nextChar()
 	case '}':
-		tok = lex.consumeToken(nil, token.CLOSE_CURLY)
+		lex.consumeToken(tok, nil, token.CLOSE_CURLY)
 		lex.nextChar()
 	case '"':
-		tok = lex.getStringLiteral()
+		lex.getStringLiteral(tok)
 	case ',':
-		tok = lex.consumeToken(nil, token.COMMA)
+		lex.consumeToken(tok, nil, token.COMMA)
 		lex.nextChar()
 	case ';':
-		tok = lex.consumeToken(nil, token.SEMICOLON)
+		lex.consumeToken(tok, nil, token.SEMICOLON)
 		lex.nextChar()
 	case '+':
-		tok = lex.consumeToken(nil, token.PLUS)
+		lex.consumeToken(tok, nil, token.PLUS)
 		lex.nextChar()
 	case '-':
-		tok = lex.consumeToken(nil, token.MINUS)
+		lex.consumeToken(tok, nil, token.MINUS)
 		lex.nextChar()
 	case '*':
-		tok = lex.consumeToken(nil, token.STAR)
+		lex.consumeToken(tok, nil, token.STAR)
 		lex.nextChar()
 	case '/':
-		tok = lex.consumeToken(nil, token.SLASH)
+		lex.consumeToken(tok, nil, token.SLASH)
 		lex.nextChar()
 	case '#':
-		tok = lex.consumeToken(nil, token.SHARP)
+		lex.consumeToken(tok, nil, token.SHARP)
 		lex.nextChar()
 	case '@':
-		tok = lex.consumeToken(nil, token.AT)
+		lex.consumeToken(tok, nil, token.AT)
 		lex.nextChar()
 	case '[':
-		tok = lex.consumeToken(nil, token.OPEN_BRACKET)
+		lex.consumeToken(tok, nil, token.OPEN_BRACKET)
 		lex.nextChar()
 	case ']':
-		tok = lex.consumeToken(nil, token.CLOSE_BRACKET)
+		lex.consumeToken(tok, nil, token.CLOSE_BRACKET)
 		lex.nextChar()
 	case '!':
 		tok.Pos = lex.pos
@@ -283,13 +286,44 @@ func (lex *Lexer) getToken(ch byte) *token.Token {
 	return tok
 }
 
-func (lex *Lexer) getStringLiteral() *token.Token {
-	tok := &token.Token{}
-	tok.Kind = token.INVALID
+func (lex *Lexer) getStringLiteral(tok *token.Token) *token.Token {
 	tok.Pos = lex.pos
-
 	lex.nextChar() // "
-	str := lex.readWhile(func(ch byte) bool { return ch != '"' })
+
+	var str []byte
+	for {
+		ch := lex.peekChar()
+		if ch == eof || ch == '"' {
+			break
+		}
+
+		if ch == '\\' {
+			lex.nextChar()
+			escapeSym := lex.peekChar()
+
+			var escape byte
+
+			switch escapeSym {
+			case 'n': // new line
+				escape = '\n'
+			case 't': // tab
+				escape = '\t'
+			case '\\': // /
+				escape = '\\'
+			case '"': // "
+				escape = '"'
+			default:
+				// TODO(errors)
+				log.Fatalf("invalid escape sequence: %b", escape)
+				return tok
+			}
+			str = append(str, escape)
+		} else {
+			str = append(str, ch)
+		}
+
+		lex.nextChar()
+	}
 
 	ch := lex.peekChar()
 	if ch != '"' {
@@ -310,7 +344,6 @@ func (lex *Lexer) getStringLiteral() *token.Token {
 
 	tok.Kind = token.UNTYPED_STRING
 	tok.Lexeme = str
-
 	return tok
 }
 
@@ -334,8 +367,10 @@ func (lex *Lexer) classifyIdentifier(identifier []byte, position token.Pos) *tok
 	return token.New(identifier, token.ID, position)
 }
 
-func (lex *Lexer) consumeToken(lexeme []byte, kind token.Kind) *token.Token {
-	return token.New(lexeme, kind, lex.pos)
+func (lex *Lexer) consumeToken(tok *token.Token, lexeme []byte, kind token.Kind) {
+	tok.Lexeme = lexeme
+	tok.Kind = kind
+	tok.Pos = lex.pos
 }
 
 func (lex *Lexer) skipWhitespace() {
