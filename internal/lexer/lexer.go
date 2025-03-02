@@ -131,7 +131,9 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.consumeToken(tok, nil, token.CLOSE_CURLY)
 		lex.nextChar()
 	case '"':
-		lex.getStringLiteral(tok)
+		// TODO: implement raw strings
+		isRaw := false
+		lex.getStringLiteral(tok, isRaw)
 	case ',':
 		lex.consumeToken(tok, nil, token.COMMA)
 		lex.nextChar()
@@ -286,7 +288,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	return tok
 }
 
-func (lex *Lexer) getStringLiteral(tok *token.Token) *token.Token {
+func (lex *Lexer) getStringLiteral(tok *token.Token, isRaw bool) *token.Token {
 	tok.Pos = lex.pos
 	lex.nextChar() // "
 
@@ -297,7 +299,7 @@ func (lex *Lexer) getStringLiteral(tok *token.Token) *token.Token {
 			break
 		}
 
-		if ch == '\\' {
+		if ch == '\\' && !isRaw {
 			lex.nextChar()
 			escapeSym := lex.peekChar()
 
