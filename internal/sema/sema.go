@@ -27,8 +27,6 @@ func (s *sema) Check(program *ast.Program) error {
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
-	// TODO(erros)
-	// TODO: maybe restricting "main" as name for a package is not the way to go
 	if pkg.Name == "main" {
 		return fmt.Errorf("package name is not allowed to be 'main'")
 	}
