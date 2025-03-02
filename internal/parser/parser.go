@@ -1039,7 +1039,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 	return &ast.TupleType{Types: types}, nil
 }
 
-func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer, foundReturn bool) (*ast.Node, error) {
+func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1159,7 +1159,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 			break
 		}
 
-		stmt, err := p.parseStmt(block, parentScope, true, block.FoundReturn)
+		stmt, err := p.parseStmt(block, parentScope, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1831,7 +1831,7 @@ func (p *Parser) parseDefer(block *ast.BlockStmt, parentScope *ast.Scope) (*ast.
 		return nil, fmt.Errorf("expected 'while'")
 	}
 
-	stmt, err := p.parseStmt(block, parentScope, block.FoundReturn, false)
+	stmt, err := p.parseStmt(block, parentScope, false)
 	if err != nil {
 		return nil, err
 	}
