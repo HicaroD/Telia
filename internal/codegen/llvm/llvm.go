@@ -144,6 +144,9 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
+		}
 		return err
 	}
 
@@ -151,6 +154,9 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
+		}
 		return err
 	}
 
@@ -185,28 +191,43 @@ func (c *llvmCodegen) generateBlock(
 	block *ast.BlockStmt,
 	function *Function,
 	parentScope *ast.Scope,
-) (stoppedOnReturn bool) {
-	stoppedOnReturn = false
+) bool {
+	// NOTE: there is a huge problem in this code logic The code has already
+	// been parsed, so all defer statements were collected, if the code stopped
+	// on return, it will generate all defer statements as expected, however
+	// even those who were defined after the return statement will be
+	// generated, which will cause a bad behavior
+	//
+	// So I need to handle this case, defer's defined after the returned
+	// statement can't be generated
+	stoppedOnReturn := false
 
 	for _, stmt := range block.Statements {
-		c.generateStmt(stmt, function, parentScope)
+		c.generateStmt(stmt, function, block, parentScope)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
-			return
+			break
 		}
 	}
-	return
+
+	return stoppedOnReturn
 }
 
 func (c *llvmCodegen) generateStmt(
 	stmt *ast.Node,
 	function *Function,
+	block *ast.BlockStmt,
 	parentScope *ast.Scope,
 ) {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
 		c.generateFnCall(stmt.Node.(*ast.FnCall), parentScope)
 	case ast.KIND_RETURN_STMT:
+		if len(block.DeferStack) > 0 {
+			for i := len(block.DeferStack) - 1; i >= 0; i-- {
+				c.generateStmt(block.DeferStack[i], function, block, parentScope)
+			}
+		}
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
 	case ast.KIND_VAR_STMT:
 		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
@@ -218,9 +239,14 @@ func (c *llvmCodegen) generateStmt(
 		c.generateForLoop(stmt.Node.(*ast.ForLoop), function)
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.generateWhileLoop(stmt.Node.(*ast.WhileLoop), function)
+	case ast.KIND_DEFER_STMT:
+		// NOTE: ignored because defer statements are handled during block
+		// generation
+		goto Ignore
 	default:
 		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
+Ignore:
 }
 
 func (c *llvmCodegen) generateReturnStmt(
@@ -782,7 +808,7 @@ func (c *llvmCodegen) generateForLoop(
 
 	c.builder.CreateBr(forPrepBlock)
 	c.builder.SetInsertPointAtEnd(forPrepBlock)
-	c.generateStmt(forLoop.Init, function, forLoop.Scope)
+	c.generateStmt(forLoop.Init, function, forLoop.Block, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 	c.builder.SetInsertPointAtEnd(forInitBlock)
@@ -796,7 +822,7 @@ func (c *llvmCodegen) generateForLoop(
 
 	c.builder.CreateBr(forUpdateBlock)
 	c.builder.SetInsertPointAtEnd(forUpdateBlock)
-	c.generateStmt(forLoop.Update, function, forLoop.Scope)
+	c.generateStmt(forLoop.Update, function, forLoop.Block, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 

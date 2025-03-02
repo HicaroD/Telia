@@ -188,6 +188,8 @@ func (p *Parser) next() (*ast.Node, bool, error) {
 	var eof bool
 
 peekAgain:
+	p.skipNewLines()
+
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.EOF:
@@ -203,9 +205,6 @@ peekAgain:
 			return nil, eof, err
 		}
 		attributesFound = true
-		goto peekAgain
-	case token.NEWLINE:
-		p.skipNewLines()
 		goto peekAgain
 	}
 
@@ -381,6 +380,8 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	var err error
 	var prototypes []*ast.Proto
 	for {
+		p.skipNewLines()
+
 		if p.lex.NextIs(token.CLOSE_CURLY) {
 			break
 		}
@@ -474,8 +475,11 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 }
 
 func (p *Parser) skipNewLines() {
-	for p.lex.Peek().Kind == token.NEWLINE {
-		p.lex.Skip()
+	for {
+		newline := p.skipSingleNewLine()
+		if !newline {
+			break
+		}
 	}
 }
 
@@ -1035,7 +1039,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 	return &ast.TupleType{Types: types}, nil
 }
 
-func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1053,7 +1057,7 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		n.Node = returnStmt
 
 		if p.lex.NextIs(token.NEWLINE) {
-			goto endOfStatement
+			break
 		}
 
 		returnValue, err := p.parseAnyExpr([]token.Kind{token.NEWLINE}, parentScope)
@@ -1075,7 +1079,6 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		returnStmt.Value = returnValue
 	case token.ID:
 		endsWithNewLine = true
-
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
 			return nil, err
@@ -1099,12 +1102,22 @@ func (p *Parser) parseStmt(parentScope *ast.Scope) (*ast.Node, error) {
 			return nil, err
 		}
 		n = whileLoop
+	case token.DEFER:
+		// TODO(errors)
+		if !allowDefer {
+			return nil, fmt.Errorf("invalid nested defer statement")
+		}
+		// endsWithNewLine = true
+		deferStmt, err := p.parseDefer(block, parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = deferStmt
 	default:
 		log.Fatalf("unimplemented: %s\n", tok.Kind)
 		return nil, nil
 	}
 
-endOfStatement:
 	if endsWithNewLine {
 		_, ok := p.expect(token.NEWLINE)
 		if !ok {
@@ -1128,24 +1141,26 @@ endOfStatement:
 }
 
 func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
+	block := new(ast.BlockStmt)
+	block.DeferStack = make([]*ast.Node, 0)
+
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
 		return nil, fmt.Errorf("expected '{', but got %s", openCurly)
 	}
+	block.OpenCurly = openCurly.Pos
 
 	var statements []*ast.Node
 
 	for {
+		p.skipNewLines()
+
 		tok := p.lex.Peek()
 		if tok.Kind == token.CLOSE_CURLY {
 			break
 		}
-		if tok.Kind == token.NEWLINE {
-			p.skipNewLines()
-			continue
-		}
 
-		stmt, err := p.parseStmt(parentScope)
+		stmt, err := p.parseStmt(block, parentScope, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1156,6 +1171,7 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 			break
 		}
 	}
+	block.Statements = statements
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
@@ -1172,12 +1188,8 @@ func (p *Parser) parseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		p.collector.ReportAndSave(expectedStatementOrCloseCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
-
-	return &ast.BlockStmt{
-		OpenCurly:  openCurly.Pos,
-		Statements: statements,
-		CloseCurly: closeCurly.Pos,
-	}, nil
+	block.CloseCurly = closeCurly.Pos
+	return block, nil
 }
 
 func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
@@ -1277,20 +1289,43 @@ func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, err
 	}
 
+	p.skipSingleNewLine()
+
+	// TODO: validate proximity of if and elifs
 	elifConds, err := p.parseElifConds(parentScope)
 	if err != nil {
 		return nil, err
 	}
+
+	isNewLineBeforeElse := p.skipSingleNewLine()
 
 	elseCond, err := p.parseElseCond(parentScope)
 	if err != nil {
 		return nil, err
 	}
 
+	isNewLine := p.skipSingleNewLine()
+	if !isNewLine && elseCond != nil {
+		return nil, fmt.Errorf("expected new line at the end of else block")
+	}
+
+	if isNewLineBeforeElse && p.lex.NextIs(token.NEWLINE) {
+		return nil, fmt.Errorf("invalid isolated else, considering removing the line between if/elif and else")
+	}
+
 	n := new(ast.Node)
 	n.Kind = ast.KIND_COND_STMT
 	n.Node = &ast.CondStmt{IfStmt: ifCond, ElifStmts: elifConds, ElseStmt: elseCond}
 	return n, nil
+}
+
+func (p *Parser) skipSingleNewLine() bool {
+	next := p.lex.Peek().Kind
+	isNewLine := next == token.NEWLINE
+	if isNewLine {
+		p.lex.Skip()
+	}
+	return isNewLine
 }
 
 func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
@@ -1786,5 +1821,23 @@ func (p *Parser) parseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 	n := new(ast.Node)
 	n.Kind = ast.KIND_WHILE_LOOP_STMT
 	n.Node = &ast.WhileLoop{Cond: expr, Block: block, Scope: whileScope}
+	return n, nil
+}
+
+func (p *Parser) parseDefer(block *ast.BlockStmt, parentScope *ast.Scope) (*ast.Node, error) {
+	_, ok := p.expect(token.DEFER)
+	if !ok {
+		return nil, fmt.Errorf("expected 'while'")
+	}
+
+	stmt, err := p.parseStmt(block, parentScope, false)
+	if err != nil {
+		return nil, err
+	}
+
+	block.DeferStack = append(block.DeferStack, stmt)
+	n := new(ast.Node)
+	n.Kind = ast.KIND_DEFER_STMT
+	n.Node = &ast.DeferStmt{Stmt: stmt}
 	return n, nil
 }

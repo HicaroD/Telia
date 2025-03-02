@@ -8,6 +8,7 @@ import (
 
 type BlockStmt struct {
 	OpenCurly  token.Pos
+	DeferStack []*Node
 	Statements []*Node
 	CloseCurly token.Pos
 }
@@ -107,4 +108,12 @@ func (whileLoop WhileLoop) String() string {
 		whileLoop.Cond,
 		whileLoop.Block,
 	)
+}
+
+type DeferStmt struct {
+	Stmt *Node
+}
+
+func (d DeferStmt) String() string {
+	return fmt.Sprintf("defer %s;", d.Stmt)
 }

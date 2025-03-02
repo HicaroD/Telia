@@ -9,9 +9,11 @@ extern libc {
 fn main() i32 {
   if true {
     libc.puts("Hey, it is true!")
-  } else {
+  } 
+  else {
     libc.puts("Hey, it is NOT true!")
   }
+
   libc.puts("Printing after conditions")
   return 0
 }

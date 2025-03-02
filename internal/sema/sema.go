@@ -255,8 +255,12 @@ func (sema *sema) checkStmt(
 	case ast.KIND_WHILE_LOOP_STMT:
 		err := sema.checkWhileLoop(stmt.Node.(*ast.WhileLoop), scope, returnTy)
 		return err
+	case ast.KIND_DEFER_STMT:
+		deferStmt := stmt.Node.(*ast.DeferStmt)
+		err := sema.checkStmt(deferStmt.Stmt, scope, returnTy)
+		return err
 	default:
-		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt)
+		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt.Kind)
 	}
 }
 
