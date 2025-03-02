@@ -92,24 +92,12 @@ func (c *llvmCodegen) exists(path string) (bool, error) {
 func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
 
-	dirName := "__build__"
-	exists, err := c.exists(dirName)
-	if err != nil {
-		return err
-	}
-	if exists {
-		err := os.RemoveAll(dirName)
-		if err != nil {
-			return err
-		}
-	}
-
-	err = os.Mkdir(dirName, os.ModePerm)
+	dir, err := os.MkdirTemp("", "build")
 	if err != nil {
 		return err
 	}
 
-	irFileName := filepath.Join(dirName, c.program.Root.Loc.Name)
+	irFileName := filepath.Join(dir, c.program.Root.Loc.Name)
 	irFilepath := irFileName + ".ll"
 	optimizedIrFilepath := irFileName + "_optimized.ll"
 
@@ -163,7 +151,7 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	if config.DEBUG_MODE {
 		fmt.Println("[DEBUG MODE] keeping __build__ directory")
 	} else {
-		err = os.RemoveAll(dirName)
+		err = os.RemoveAll(dir)
 		if err != nil {
 			return err
 		}
