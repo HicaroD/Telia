@@ -3,6 +3,7 @@ package token
 import "fmt"
 
 type Pos struct {
+	Dir          string
 	Filename     string
 	Line, Column int
 }

@@ -19,7 +19,7 @@ import (
 )
 
 type llvmCodegen struct {
-	path    string
+	loc     *ast.Loc
 	program *ast.Program
 
 	context llvm.Context
@@ -27,16 +27,16 @@ type llvmCodegen struct {
 	builder llvm.Builder
 }
 
-func NewCG(parentDirName, path string, program *ast.Program) *llvmCodegen {
+func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
 	context := llvm.NewContext()
-	module := context.NewModule(parentDirName)
+	module := context.NewModule(loc.Dir)
 	builder := context.NewBuilder()
 
 	defaultTargetTriple := llvm.DefaultTargetTriple()
 	module.SetTarget(defaultTargetTriple)
 
 	return &llvmCodegen{
-		path:    path,
+		loc:     loc,
 		program: program,
 
 		context: context,
@@ -90,7 +90,7 @@ func (c *llvmCodegen) exists(path string) (bool, error) {
 }
 
 func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
-	filenameNoExt := strings.TrimSuffix(filepath.Base(c.path), filepath.Ext(c.path))
+	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
 
 	dirName := "__build__"
 	exists, err := c.exists(dirName)
@@ -109,7 +109,7 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 		return err
 	}
 
-	irFileName := filepath.Join(dirName, c.program.Root.Name)
+	irFileName := filepath.Join(dirName, c.program.Root.Loc.Name)
 	irFilepath := irFileName + ".ll"
 	optimizedIrFilepath := irFileName + "_optimized.ll"
 

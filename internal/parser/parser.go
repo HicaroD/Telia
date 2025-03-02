@@ -14,16 +14,15 @@ import (
 )
 
 type Parser struct {
-	lex       *lexer.Lexer
-	collector *diagnostics.Collector
-
-	moduleScope *ast.Scope
+	lex          *lexer.Lexer
+	collector    *diagnostics.Collector
+	packageScope *ast.Scope
 }
 
 func New(collector *diagnostics.Collector) *Parser {
 	parser := new(Parser)
 	parser.lex = nil
-	parser.moduleScope = nil
+	parser.packageScope = nil
 	parser.collector = collector
 	return parser
 }
@@ -33,16 +32,16 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParseModuleDir(dirName, path string) (*ast.Program, error) {
+func (p *Parser) ParsePackage(loc *ast.Loc) (*ast.Program, error) {
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 
 	root := new(ast.Package)
-	root.Name = dirName
+	root.Loc = loc
 	root.Scope = universe
 	root.IsRoot = true
 
-	err := p.buildModuleTree(path, root)
+	err := p.buildPackageTree(root)
 	if err != nil {
 		return nil, err
 	}
@@ -50,36 +49,40 @@ func (p *Parser) ParseModuleDir(dirName, path string) (*ast.Program, error) {
 	return &ast.Program{Root: root}, nil
 }
 
-func (p *Parser) ParseFileAsProgram(lex *lexer.Lexer) (*ast.Program, error) {
-	// Universe scope has a nil parent
-	universe := ast.NewScope(nil)
-	moduleScope := ast.NewScope(universe)
-
-	file, err := p.parseFile(lex, moduleScope)
+func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
 		return nil, err
 	}
 
-	module := &ast.Package{
-		Name:   lex.ParentDirName,
+	// Universe scope has a nil parent
+	universe := ast.NewScope(nil)
+	packageScope := ast.NewScope(universe)
+
+	file, err := p.parseFile(l, packageScope)
+	if err != nil {
+		return nil, err
+	}
+
+	pkg := &ast.Package{
+		Loc:    loc,
 		Files:  []*ast.File{file},
-		Scope:  moduleScope,
+		Scope:  packageScope,
 		IsRoot: true,
 	}
-	program := &ast.Program{Root: module}
+	program := &ast.Program{Root: pkg}
 
 	return program, nil
 }
 
-func (p *Parser) parseFile(lex *lexer.Lexer, moduleScope *ast.Scope) (*ast.File, error) {
+func (p *Parser) parseFile(lex *lexer.Lexer, packageScope *ast.Scope) (*ast.File, error) {
 	file := &ast.File{
-		Dir:            lex.ParentDirName,
-		Path:           lex.Path,
+		Loc:            lex.Loc,
 		PkgNameDefined: false,
 	}
 
 	p.lex = lex
-	p.moduleScope = moduleScope
+	p.packageScope = packageScope
 
 	err := p.parseFileDecls(file)
 	if err != nil {
@@ -113,7 +116,6 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 				// TODO(errors)
 				return fmt.Errorf("redeclaration of package name\n")
 			}
-
 			file.PkgName = pkg.Name.Name()
 			file.PkgNameDefined = true
 		} else if firstNode {
@@ -134,39 +136,36 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 	return nil
 }
 
-func (p *Parser) buildModuleTree(path string, module *ast.Package) error {
-	return p.processModuleEntries(path, func(entry os.DirEntry, fullPath string) error {
+func (p *Parser) buildPackageTree(pkg *ast.Package) error {
+	return p.processPackageEntries(pkg.Loc.Path, func(entry os.DirEntry, fullPath string) error {
 		switch {
 		case entry.IsDir():
-			childModule := new(ast.Package)
-			childScope := ast.NewScope(module.Scope)
-			childModule.Name = filepath.Base(fullPath)
-			childModule.Scope = childScope
-			childModule.IsRoot = false
-
-			module.Packages = append(module.Packages, childModule)
-
-			return p.buildModuleTree(fullPath, childModule)
+			childPackage := new(ast.Package)
+			childScope := ast.NewScope(pkg.Scope)
+			childPackage.Scope = childScope
+			childPackage.IsRoot = false
+			childPackage.Loc = ast.LocFromPath(fullPath)
+			pkg.Packages = append(pkg.Packages, childPackage)
+			return p.buildPackageTree(childPackage)
 		case filepath.Ext(entry.Name()) == ".t":
-			fileDirName := filepath.Base(filepath.Dir(fullPath))
-
-			lex, err := lexer.NewFromFilePath(fileDirName, fullPath, p.collector)
+			loc := ast.LocFromPath(fullPath)
+			lex, err := lexer.NewFromFilePath(loc, p.collector)
 			if err != nil {
 				return err
 			}
 
-			file, err := p.parseFile(lex, module.Scope)
+			file, err := p.parseFile(lex, pkg.Scope)
 			if err != nil {
 				return err
 			}
 
-			module.Files = append(module.Files, file)
+			pkg.Files = append(pkg.Files, file)
 		}
 		return nil
 	})
 }
 
-func (p *Parser) processModuleEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
+func (p *Parser) processPackageEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %q: %w", path, err)
@@ -246,7 +245,9 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 	collector := diagnostics.New()
 
 	src := []byte(expr)
-	lex := lexer.New(filename, src, collector)
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
 	parser := NewWithLex(lex, collector)
 
 	exprAst, err := parser.parseSingleExpr(nil)
@@ -419,7 +420,7 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	externScope := ast.NewScope(p.moduleScope)
+	externScope := ast.NewScope(p.packageScope)
 	externDecl.Scope = externScope
 
 	for i, prototype := range prototypes {
@@ -452,7 +453,7 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
-	err = p.moduleScope.Insert(name.Name(), n)
+	err = p.packageScope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			pos := name.Pos
@@ -592,7 +593,7 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 
 	node.Node = alias
 
-	err = p.moduleScope.Insert(name.Name(), node)
+	err = p.packageScope.Insert(name.Name(), node)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			return nil, fmt.Errorf("symbol '%s' already declared on scope\n", name.Name())
@@ -705,7 +706,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	}
 	fnDecl.Name = name
 
-	fnScope := ast.NewScope(p.moduleScope)
+	fnScope := ast.NewScope(p.packageScope)
 	fnDecl.Scope = fnScope
 
 	params, err := p.parseFunctionParams(name, fnScope, false)
@@ -730,7 +731,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	n.Kind = ast.KIND_FN_DECL
 	n.Node = fnDecl
 
-	err = p.moduleScope.Insert(name.Name(), n)
+	err = p.packageScope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			functionRedeclaration := diagnostics.Diag{
@@ -755,9 +756,11 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	collector := diagnostics.New()
 
 	src := []byte(input)
-	lexer := lexer.New(filename, src, collector)
-	parser := NewWithLex(lexer, collector)
-	parser.moduleScope = scope
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
+	parser := NewWithLex(lex, collector)
+	parser.packageScope = scope
 
 	fnDecl, err := parser.parseFnDecl(nil)
 	if err != nil {
@@ -971,7 +974,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
-		symbol, err := p.moduleScope.LookupAcrossScopes(tok.Name())
+		symbol, err := p.packageScope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
 			if err == ast.ErrSymbolNotFoundOnScope {
@@ -1273,7 +1276,9 @@ func parseVarFrom(filename, input string) (*ast.VarId, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
-	lex := lexer.New(filename, src, collector)
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
 	parser := NewWithLex(lex, collector)
 
 	tmpScope := ast.NewScope(nil)
@@ -1781,7 +1786,9 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
-	lex := lexer.New(filename, src, collector)
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
 	parser := NewWithLex(lex, collector)
 
 	tempScope := ast.NewScope(nil)
@@ -1793,7 +1800,9 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
-	lex := lexer.New(filename, src, collector)
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
 	parser := NewWithLex(lex, collector)
 
 	// TODO: set scope properly

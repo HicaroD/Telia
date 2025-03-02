@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/config"
 )
 
@@ -16,13 +15,9 @@ const (
 )
 
 type CliResult struct {
-	Command Command
-
-	IsModuleBuild bool   // true if 'Command' is build and 'Path' is directory
-	ParentDirName string // name of parent dir
-	Path          string // path to directory / file (treated as module)
-
+	Command   Command
 	BuildType config.BuildType
+	Loc       *ast.Loc
 }
 
 func cli() (CliResult, error) {
@@ -39,28 +34,11 @@ func cli() (CliResult, error) {
 	case "build":
 		result.Command = COMMAND_BUILD
 
-		fileOrDir := "."
+		fileOrDirPath := "."
 		if len(args) >= 2 {
-			fileOrDir = args[1]
+			fileOrDirPath = args[1]
 		}
-
-		info, err := os.Stat(fileOrDir)
-		if err != nil {
-			log.Fatalf("os.Stat error: %s\n", err)
-		}
-
-		path, err := filepath.Abs(fileOrDir)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		result.Path = path
-		result.IsModuleBuild = info.Mode().IsDir()
-		if result.IsModuleBuild {
-			result.ParentDirName = filepath.Base(path)
-		} else {
-			result.ParentDirName = filepath.Base(filepath.Dir(path))
-		}
+		result.Loc = ast.LocFromPath(fileOrDirPath)
 	default:
 		return result, fmt.Errorf("TODO: show help")
 	}

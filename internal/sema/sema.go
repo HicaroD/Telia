@@ -27,7 +27,7 @@ func (s *sema) Check(program *ast.Program) error {
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
-	if pkg.Name == "main" {
+	if pkg.Loc.Name == "main" {
 		return fmt.Errorf("package name is not allowed to be 'main'")
 	}
 
@@ -48,8 +48,8 @@ func (s *sema) checkPackage(pkg *ast.Package) error {
 			// TODO(errors)
 			return fmt.Errorf("error: expected package name to be 'main'\n")
 		}
-		if !requiresMain && file.PkgName != pkg.Name {
-			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Name)
+		if !requiresMain && file.PkgName != pkg.Loc.Name {
+			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Loc.Name)
 		}
 
 		fileHasMain, err := s.checkFile(file)
@@ -475,8 +475,10 @@ func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
-	lexer := lexer.New(filename, src, collector)
-	par := parser.NewWithLex(lexer, collector)
+	loc := new(ast.Loc)
+	loc.Name = filename
+	lex := lexer.New(loc, src, collector)
+	par := parser.NewWithLex(lex, collector)
 
 	tmpScope := ast.NewScope(nil)
 	varStmt, err := par.ParseIdStmt(tmpScope)
