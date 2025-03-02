@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
@@ -60,6 +61,7 @@ func TestTokenKinds(t *testing.T) {
 		{"...", token.DOT_DOT_DOT},
 		{"=", token.EQUAL},
 		{":=", token.COLON_EQUAL},
+		{"::", token.COLON_COLON},
 		{"!=", token.BANG_EQUAL},
 		{"==", token.EQUAL_EQUAL},
 		{">", token.GREATER},
@@ -78,9 +80,11 @@ func TestTokenKinds(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.lexeme)
-			lexer := New(filename, src, collector)
+			loc := new(ast.Loc)
+			loc.Name = filename
+			lex := New(loc, src, collector)
 
-			tokenResult, err := lexer.Tokenize()
+			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}
@@ -133,9 +137,11 @@ func TestTokenPos(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.input)
-			lexer := New(filename, src, collector)
+			loc := new(ast.Loc)
+			loc.Name = filename
+			lex := New(loc, src, collector)
 
-			tokenResult, err := lexer.Tokenize()
+			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}
@@ -221,9 +227,11 @@ func TestIsIdentifier(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.lexeme)
-			lexer := New(filename, src, collector)
+			loc := new(ast.Loc)
+			loc.Name = filename
+			lex := New(loc, src, collector)
 
-			tokenResult, err := lexer.Tokenize()
+			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}
@@ -270,8 +278,10 @@ func TestIsLiteral(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.lexeme)
-			lexer := New(filename, src, collector)
-			tokenResult, err := lexer.Tokenize()
+			loc := new(ast.Loc)
+			loc.Name = filename
+			lex := New(loc, src, collector)
+			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
 			}
@@ -323,7 +333,7 @@ func TestLexicalErrors(t *testing.T) {
 			},
 		},
 		{
-			input: "::",
+			input: ":#",
 			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character :",
@@ -361,7 +371,9 @@ func TestLexicalErrors(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.input)
-			lex := New(filename, src, collector)
+			loc := new(ast.Loc)
+			loc.Name = filename
+			lex := New(loc, src, collector)
 			_, err := lex.Tokenize()
 			if err == nil {
 				t.Fatal("expected to have lexical errors, but got nothing")

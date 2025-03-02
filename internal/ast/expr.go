@@ -53,13 +53,13 @@ func (idExpr IdExpr) String() string {
 	return idExpr.Name.Name()
 }
 
-type FieldAccess struct {
-	Left  *Node
+type NamespaceAccess struct {
+	Left  *IdExpr
 	Right *Node
 }
 
-func (fieldAccess FieldAccess) String() string {
-	return fmt.Sprintf("%v.%v\n", fieldAccess.Left, fieldAccess.Right)
+func (namespaceAccess NamespaceAccess) String() string {
+	return fmt.Sprintf("%v.%v\n", namespaceAccess.Left, namespaceAccess.Right)
 }
 
 type UnaryExpr struct {

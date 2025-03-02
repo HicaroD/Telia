@@ -1,12 +1,8 @@
 package main
 
-#[default_cc="c"]
-extern libc {
-  fn printf(format cstring, ...) i32
-  fn puts(format cstring) i32
-}
+use "std::io"
 
 fn main() i32 {
-  libc.printf("Hello,\t world!\n")
+  io::println("Hello,\t world!\n")
   return 0
 }

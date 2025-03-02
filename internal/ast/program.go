@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -22,20 +21,20 @@ type Loc struct {
 	IsPackage bool
 }
 
-func LocFromPath(path string) *Loc {
+func LocFromPath(path string) (*Loc, error) {
 	loc := new(Loc)
 
 	fullPath, err := filepath.Abs(path)
 	// TODO(errors)
 	if err != nil {
-		log.Fatalf("Error getting absolute path: %v\n", err)
+		return nil, err
 	}
 	loc.Path = fullPath
 
 	info, err := os.Stat(fullPath)
 	// TODO(errors)
 	if err != nil {
-		log.Fatalf("Error stating the path: %v\n", err)
+		return nil, err
 	}
 
 	mode := info.Mode()
@@ -49,7 +48,7 @@ func LocFromPath(path string) *Loc {
 		loc.IsPackage = false
 	}
 
-	return loc
+	return loc, nil
 }
 
 func (l Loc) String() string {

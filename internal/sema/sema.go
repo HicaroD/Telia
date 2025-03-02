@@ -14,12 +14,17 @@ import (
 )
 
 type sema struct {
+	pkg              *ast.Package
 	mainPackageFound bool
 	collector        *diagnostics.Collector
 }
 
 func New(collector *diagnostics.Collector) *sema {
-	return &sema{false, collector}
+	s := new(sema)
+	s.pkg = nil
+	s.mainPackageFound = false
+	s.collector = collector
+	return s
 }
 
 func (s *sema) Check(program *ast.Program) error {
@@ -27,12 +32,14 @@ func (s *sema) Check(program *ast.Program) error {
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
+	s.pkg = pkg
+
 	if pkg.Loc.Name == "main" {
 		return fmt.Errorf("package name is not allowed to be 'main'")
 	}
 
-	requiresMain := false
 	hasMainMethod := false
+	requiresMainMethod := false
 
 	for _, file := range pkg.Files {
 		if file.PkgName == "main" {
@@ -41,14 +48,14 @@ func (s *sema) checkPackage(pkg *ast.Package) error {
 				return fmt.Errorf("error: main package already defined somewhere else")
 			}
 			s.mainPackageFound = true
-			requiresMain = true
+			requiresMainMethod = true
 		}
 
-		if requiresMain && file.PkgName != "main" {
+		if requiresMainMethod && file.PkgName != "main" {
 			// TODO(errors)
 			return fmt.Errorf("error: expected package name to be 'main'\n")
 		}
-		if !requiresMain && file.PkgName != pkg.Loc.Name {
+		if !requiresMainMethod && file.PkgName != pkg.Loc.Name {
 			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Loc.Name)
 		}
 
@@ -60,12 +67,12 @@ func (s *sema) checkPackage(pkg *ast.Package) error {
 	}
 
 	// TODO(errors)
-	if requiresMain && !hasMainMethod {
+	if requiresMainMethod && !hasMainMethod {
 		return fmt.Errorf("main package requires a 'main' method as entrypoint\n")
 	}
 
 	// TODO(errors)
-	if !requiresMain && hasMainMethod {
+	if !requiresMainMethod && hasMainMethod {
 		return fmt.Errorf("'main' method not allowed on non-main packages\n")
 	}
 
@@ -80,13 +87,14 @@ func (s *sema) checkPackage(pkg *ast.Package) error {
 }
 
 func (s *sema) checkFile(file *ast.File) (bool, error) {
-	foundMain := false
+	var foundMain bool
 
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
 			fnDecl := node.Node.(*ast.FnDecl)
 			if !foundMain {
+				fmt.Println(foundMain)
 				foundMain = fnDecl.Name.Name() == "main"
 			}
 			err := s.checkFnDecl(fnDecl)
@@ -99,23 +107,14 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			if err != nil {
 				return false, err
 			}
-		case ast.KIND_PKG_DECL:
-			err := s.checkUseDecl()
-			if err != nil {
-				return false, err
-			}
-		case ast.KIND_USE_DECL:
-			continue
+		case ast.KIND_PKG_DECL, ast.KIND_USE_DECL:
+			break
 		default:
 			return false, fmt.Errorf("unimplemented ast node for sema: %s\n", reflect.TypeOf(node.Node))
 		}
 	}
 
 	return foundMain, nil
-}
-
-func (sema *sema) checkUseDecl() error {
-	return nil
 }
 
 func (sema *sema) checkFnDecl(function *ast.FnDecl) error {
@@ -244,8 +243,8 @@ func (sema *sema) checkStmt(
 		returnStmt := stmt.Node.(*ast.ReturnStmt)
 		_, err := sema.inferExprTypeWithContext(returnStmt.Value, returnTy, scope)
 		return err
-	case ast.KIND_FIELD_ACCESS:
-		_, err := sema.checkFieldAccessExpr(stmt.Node.(*ast.FieldAccess), scope)
+	case ast.KIND_NAMESPACE_ACCESS:
+		_, err := sema.checkNamespaceAccess(stmt.Node.(*ast.NamespaceAccess), scope)
 		return err
 	case ast.KIND_FOR_LOOP_STMT:
 		err := sema.checkForLoop(stmt.Node.(*ast.ForLoop), returnTy, scope)
@@ -912,8 +911,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferBinaryExprTypeWithoutContext(expr.Node.(*ast.BinaryExpr), scope)
 	case ast.KIND_FN_CALL:
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), scope)
-	case ast.KIND_FIELD_ACCESS:
-		return sema.inferFieldAccessExprTypeWithoutContext(expr.Node.(*ast.FieldAccess), scope)
+	case ast.KIND_NAMESPACE_ACCESS:
+		return sema.inferNamespaceAccessExprTypeWithoutContext(expr.Node.(*ast.NamespaceAccess), scope)
 	case ast.KIND_TUPLE_EXPR:
 		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), scope)
 	default:
@@ -1086,12 +1085,12 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	return functionDecl.RetType, true, nil
 }
 
-func (sema *sema) inferFieldAccessExprTypeWithoutContext(
-	fieldAccess *ast.FieldAccess,
+func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
+	namespaceAccess *ast.NamespaceAccess,
 	scope *ast.Scope,
 ) (*ast.ExprType, bool, error) {
-	proto, err := sema.checkFieldAccessExpr(fieldAccess, scope)
-	return proto.RetType, true, err
+	ty, err := sema.checkNamespaceAccess(namespaceAccess, scope)
+	return ty, true, err
 }
 
 func (sema *sema) inferTupleExprTypeWithoutContext(
@@ -1129,21 +1128,29 @@ func (sema *sema) inferIntegerType(value []byte) (*ast.ExprType, error) {
 	return t, nil
 }
 
-func (sema *sema) checkFieldAccessExpr(
-	fieldAccess *ast.FieldAccess,
+func (sema *sema) checkNamespaceAccess(
+	namespaceAccess *ast.NamespaceAccess,
 	currentScope *ast.Scope,
-) (*ast.Proto, error) {
-	if !fieldAccess.Left.IsId() {
-		return nil, fmt.Errorf("invalid expression on field accessing: %s", fieldAccess.Left)
+) (*ast.ExprType, error) {
+	left, _ := currentScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
+	switch left.Kind {
+	case ast.KIND_PACKAGE:
+		pkg := left.Node.(*ast.Package)
+		return sema.checkImportAccess(pkg, namespaceAccess.Right, currentScope)
+	case ast.KIND_EXTERN_DECL:
+		externDecl := left.Node.(*ast.ExternDecl)
+		return sema.checkExternAccess(externDecl, right, currentScope)
+	default:
+		// TODO(errors)
+		return nil, fmt.Errorf("invalid access")
 	}
+}
 
-	idExpr := fieldAccess.Left.Node.(*ast.IdExpr)
-	id := idExpr.Name.Name()
-
-	symbol, err := currentScope.LookupAcrossScopes(id)
+func (sema *sema) checkNamespaceAccessSymbolType(id *ast.IdExpr, right *ast.Node, currentScope *ast.Scope) (*ast.ExprType, error) {
+	symbol, err := currentScope.LookupAcrossScopes(id.Name.Name())
 	if err != nil {
 		if err == ast.ErrSymbolNotFoundOnScope {
-			pos := idExpr.Name.Pos
+			pos := id.Name.Pos
 			symbolNotDefined := diagnostics.Diag{
 				Message: fmt.Sprintf(
 					"%s:%d:%d: '%s' not defined on scope",
@@ -1162,34 +1169,55 @@ func (sema *sema) checkFieldAccessExpr(
 	switch symbol.Kind {
 	case ast.KIND_EXTERN_DECL:
 		extern := symbol.Node.(*ast.ExternDecl)
-		switch fieldAccess.Right.Kind {
-		case ast.KIND_FN_CALL:
-			fnCall := fieldAccess.Right.Node.(*ast.FnCall)
-			err := sema.checkPrototypeCall(fnCall, currentScope, extern)
-			if err != nil {
-				return nil, err
-			}
 
-			proto, err := extern.Scope.LookupCurrentScope(fnCall.Name.Name())
-			if err != nil {
-				return nil, err
-			}
-
-			return proto.Node.(*ast.Proto), nil
-		default:
-			return nil, fmt.Errorf("expected prototype function in the right side, not %s\n", fieldAccess.Right.Kind)
+		if right.Kind != ast.KIND_FN_CALL {
+			return nil, fmt.Errorf("expected prototype function in the right side, not %s\n", right.Kind)
 		}
+		fnCall := right.Node.(*ast.FnCall)
+
+		ty, err := sema.checkPrototypeCall(extern, fnCall, currentScope)
+		return ty.RetType, err
 	default:
 		// TODO(errors)
-		return nil, fmt.Errorf("invalid expression %s when accessing field", fieldAccess.Right.Kind)
+		return nil, fmt.Errorf("invalid expression %s when accessing field", right.Kind)
+	}
+}
+
+func (sema *sema) checkImportAccess(package *ast.Package, right *ast.Node, currentScope *ast.Scope) (*ast.ExprType, error) {
+	importedPackage, found := sema.pkg.Imports[id.Name.Name()]
+	if !found {
+		return nil, fmt.Errorf("symbol '%s' not found", id.Name.Name())
+	}
+
+	switch right.Kind {
+	case ast.KIND_FN_CALL:
+		fnCall := right.Node.(*ast.FnCall)
+		sym, err := importedPackage.Scope.LookupAcrossScopes(fnCall.Name.Name())
+		if err != nil {
+			return nil, err
+		}
+		if sym.Kind != ast.KIND_FN_DECL {
+			return nil, fmt.Errorf("'%s' is not callable\n", fnCall.Name.Name())
+		}
+		fnDecl := sym.Node.(*ast.FnDecl)
+		return fnDecl.RetType, nil
+	case ast.KIND_NAMESPACE_ACCESS:
+		namespaceAccess := right.Node.(*ast.NamespaceAccess)
+		id := namespaceAccess.Left
+		ty, err := sema.checkImportAccess(id, namespaceAccess.Right, currentScope)
+		return ty, err
+	case ast.KIND_EXTERN_DECL:
+		return nil, fmt.Errorf("nothing do with a extern declaration, try accessing a prototype")
+	default:
+		return nil, fmt.Errorf("unimplemented symbol to import: %s\n", right.Kind)
 	}
 }
 
 func (sema *sema) checkPrototypeCall(
+	extern *ast.ExternDecl,
 	prototypeCall *ast.FnCall,
 	callScope *ast.Scope,
-	extern *ast.ExternDecl,
-) error {
+) (*ast.Proto, error) {
 	symbol, err := extern.Scope.LookupCurrentScope(prototypeCall.Name.Name())
 	if err != nil {
 		pos := prototypeCall.Name.Pos
@@ -1204,23 +1232,23 @@ func (sema *sema) checkPrototypeCall(
 			),
 		}
 		sema.collector.ReportAndSave(prototypeNotFound)
-		return diagnostics.COMPILER_ERROR_FOUND
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	if symbol.Kind != ast.KIND_PROTO {
-		return fmt.Errorf("expected prototype function, not %s\n", symbol.Kind)
+		return nil, fmt.Errorf("expected prototype function, not %s\n", symbol.Kind)
 	}
 
 	prototype := symbol.Node.(*ast.Proto)
 	if prototype.Params.IsVariadic && len(prototypeCall.Args) < len(prototype.Params.Fields) {
-		return fmt.Errorf("expected at least %d arguments, got %s\n", len(prototype.Params.Fields), len(prototypeCall.Args))
+		return nil, fmt.Errorf("expected at least %d arguments, got %s\n", len(prototype.Params.Fields), len(prototypeCall.Args))
 	}
 
 	argIndex := 0
 	for i, param := range prototype.Params.Fields {
 		arg := prototypeCall.Args[i]
 		if _, err := sema.inferExprTypeWithContext(arg, param.Type, callScope); err != nil {
-			return err
+			return nil, err
 		}
 		argIndex++
 	}
@@ -1232,7 +1260,7 @@ func (sema *sema) checkPrototypeCall(
 		}
 	}
 
-	return nil
+	return prototype, nil
 }
 
 func (sema *sema) checkForLoop(

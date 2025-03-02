@@ -1,9 +1,7 @@
 package llvm
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -20,6 +18,7 @@ import (
 
 type llvmCodegen struct {
 	loc     *ast.Loc
+	pkg     *ast.Package
 	program *ast.Program
 
 	context llvm.Context
@@ -46,17 +45,20 @@ func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
 }
 
 func (c *llvmCodegen) Generate(buildType config.BuildType) error {
-	c.generateModule(c.program.Root)
+	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
 	return err
 }
 
-func (c *llvmCodegen) generateModule(module *ast.Package) {
-	for _, file := range module.Files {
+func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
+	c.pkg = pkg
+
+	for _, file := range pkg.Files {
 		c.generateFile(file)
 	}
-	for _, module := range module.Packages {
-		c.generateModule(module)
+
+	for _, module := range pkg.Packages {
+		c.generatePackage(module)
 	}
 }
 
@@ -67,26 +69,12 @@ func (c *llvmCodegen) generateFile(file *ast.File) {
 			c.generateFnDecl(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.generateExternDecl(node.Node.(*ast.ExternDecl))
-		case ast.KIND_PKG_DECL:
-			continue
-		case ast.KIND_USE_DECL:
+		case ast.KIND_PKG_DECL, ast.KIND_USE_DECL:
 			continue
 		default:
 			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
 		}
 	}
-}
-
-func (c *llvmCodegen) exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return false, err
-
 }
 
 func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
@@ -214,8 +202,8 @@ func (c *llvmCodegen) generateStmt(
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
 	case ast.KIND_VAR_STMT:
 		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
-	case ast.KIND_FIELD_ACCESS:
-		c.generateFieldAccessStmt(stmt.Node.(*ast.FieldAccess), parentScope)
+	case ast.KIND_NAMESPACE_ACCESS:
+		c.generateNamespaceAccess(stmt.Node.(*ast.NamespaceAccess), parentScope)
 	case ast.KIND_COND_STMT:
 		c.generateCondStmt(stmt.Node.(*ast.CondStmt), function)
 	case ast.KIND_FOR_LOOP_STMT:
@@ -421,7 +409,6 @@ func (c *llvmCodegen) generateFnCall(
 	calledFunction := symbol.Node.(*ast.FnDecl)
 	calledFunctionLlvm := calledFunction.BackendType.(*Function)
 	args := c.getExprList(functionScope, functionCall.Args)
-
 	return c.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
 }
 
@@ -678,9 +665,9 @@ func (c *llvmCodegen) getExpr(
 			log.Fatalf("unimplemented unary operator: %s", unary.Op)
 			return llvm.Value{}
 		}
-	case ast.KIND_FIELD_ACCESS:
-		fieldAccess := expr.Node.(*ast.FieldAccess)
-		value := c.generateFieldAccessStmt(fieldAccess, scope)
+	case ast.KIND_NAMESPACE_ACCESS:
+		namespaceAccess := expr.Node.(*ast.NamespaceAccess)
+		value := c.generateNamespaceAccess(namespaceAccess, scope)
 		return value
 	case ast.KIND_TUPLE_EXPR:
 		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr), scope)
@@ -752,18 +739,35 @@ func (c *llvmCodegen) generateCondStmt(
 	c.builder.SetInsertPointAtEnd(endBlock)
 }
 
-func (c *llvmCodegen) generateFieldAccessStmt(
-	fieldAccess *ast.FieldAccess,
+func (c *llvmCodegen) generateNamespaceAccess(
+	namespaceAccess *ast.NamespaceAccess,
 	scope *ast.Scope,
 ) llvm.Value {
-	idExpr := fieldAccess.Left.Node.(*ast.IdExpr)
-	id := idExpr.Name.Name()
+	pkg := c.pkg.Imports[imp]
+	imp := namespaceAccess.Left.Name.Name()
 
-	symbol, _ := scope.LookupAcrossScopes(id)
+	switch namespaceAccess.Right.Kind {
+	case ast.KIND_NAMESPACE_ACCESS:
+		namespaceAccess := right.Node.(*ast.NamespaceAccess)
 
-	left := symbol.Node.(*ast.ExternDecl)
-	right := fieldAccess.Right.Node.(*ast.FnCall)
-	return c.generatePrototypeCall(left, right, scope)
+		symbol, _ := pkg.Scope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
+		switch symbol.Kind {
+		case ast.KIND_EXTERN_DECL:
+			extern := symbol.Node.(*ast.ExternDecl)
+			return c.generatePrototypeCall(extern)
+		}
+
+		return c.generateNamespaceAccess(namespaceAccess, pkg.Scope)
+	case ast.KIND_FN_CALL:
+		call := right.Node.(*ast.FnCall)
+		return c.generateFnCall(call, currentScope)
+	case ast.KIND_EXTERN_DECL:
+		log.Fatal("invalid extern decl at import access")
+		return llvm.Value{}
+	default:
+		log.Fatal("invalid symbol from import access")
+		return llvm.Value{}
+	}
 }
 
 func (c *llvmCodegen) generatePrototypeCall(

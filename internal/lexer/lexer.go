@@ -27,6 +27,7 @@ func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
 	lexer.Loc = loc
+	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.Collector = collector
 	lexer.src = src
 	lexer.offset = 0
@@ -73,7 +74,7 @@ func (lex *Lexer) Peek() *token.Token {
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
-	token := lex.next()
+	token := lex.Next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -86,8 +87,8 @@ func (lex *Lexer) Peek1() *token.Token {
 
 	var token *token.Token
 
-	_ = lex.next()
-	token = lex.next()
+	_ = lex.Next()
+	token = lex.Next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -96,7 +97,7 @@ func (lex *Lexer) Peek1() *token.Token {
 }
 
 func (lex *Lexer) Skip() {
-	lex.next()
+	lex.Next()
 }
 
 func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
@@ -104,7 +105,7 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 	return token.Kind == expectedKind
 }
 
-func (lex *Lexer) next() *token.Token {
+func (lex *Lexer) Next() *token.Token {
 	lex.skipWhitespace()
 	character := lex.peekChar()
 
@@ -124,7 +125,7 @@ func (lex *Lexer) next() *token.Token {
 func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
-		tok := lex.next()
+		tok := lex.Next()
 		if tok.Kind == token.INVALID {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
@@ -283,10 +284,15 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			lex.Collector.ReportAndSave(invalidCharacter)
 			return tok
 		}
+
 		if next == '=' {
 			lex.nextChar() // =
 			tok.Kind = token.COLON_EQUAL
-			return tok
+			break
+		} else if next == ':' {
+			lex.nextChar() // :
+			tok.Kind = token.COLON_COLON
+			break
 		}
 
 		lex.Collector.ReportAndSave(invalidCharacter)

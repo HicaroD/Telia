@@ -57,7 +57,7 @@ func main() {
 
 func buildPackage(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
-	program, err := p.ParsePackage(loc)
+	program, err := p.ParsePackageAsProgram(loc)
 	return program, err
 }
 

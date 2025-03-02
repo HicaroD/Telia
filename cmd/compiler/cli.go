@@ -46,7 +46,11 @@ func cli() (CliResult, error) {
 			log.Fatalf("No such file or directory: %s\n", fileOrDirPath)
 		}
 
-		result.Loc = ast.LocFromPath(fileOrDirPath)
+		loc, err := ast.LocFromPath(fileOrDirPath)
+		if err != nil {
+			return result, err
+		}
+		result.Loc = loc
 	default:
 		return result, fmt.Errorf("TODO: show help")
 	}

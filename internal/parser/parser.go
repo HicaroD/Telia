@@ -14,15 +14,18 @@ import (
 )
 
 type Parser struct {
-	lex          *lexer.Lexer
-	collector    *diagnostics.Collector
-	packageScope *ast.Scope
+	lex       *lexer.Lexer
+	collector *diagnostics.Collector
+
+	root *ast.Package
+	pkg  *ast.Package
 }
 
 func New(collector *diagnostics.Collector) *Parser {
 	parser := new(Parser)
 	parser.lex = nil
-	parser.packageScope = nil
+	parser.root = nil
+	parser.pkg = nil
 	parser.collector = collector
 	return parser
 }
@@ -32,21 +35,61 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParsePackage(loc *ast.Loc) (*ast.Program, error) {
-	// Universe scope has a nil parent
-	universe := ast.NewScope(nil)
+func (p *Parser) ParsePackageAsProgram(loc *ast.Loc) (*ast.Program, error) {
+	root, err := p.parsePackage(loc, true)
+	if err != nil {
+		return nil, err
+	}
+	p.root = root
+	return &ast.Program{Root: root}, nil
+}
+
+func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
+	scope := ast.NewScope(nil)
 
 	root := new(ast.Package)
 	root.Loc = loc
-	root.Scope = universe
-	root.IsRoot = true
+	root.Scope = scope
+	root.IsRoot = isRoot
 
 	err := p.buildPackageTree(root)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ast.Program{Root: root}, nil
+	return root, nil
+}
+
+func (p *Parser) addStdPackage(path []string) (string, *ast.Node, error) {
+	pkgPath := strings.Join(path, "/")
+	// TODO: get path to std directory
+	fullPkgPath := filepath.Join("./std", pkgPath)
+
+	loc, err := ast.LocFromPath(fullPkgPath)
+	if err != nil {
+		return "", nil, err
+	}
+
+	currentLex := p.lex
+	currentPkg := p.pkg
+
+	pkg, err := p.parsePackage(loc, false)
+	if err != nil {
+		return "", nil, err
+	}
+
+	p.lex = currentLex
+	p.pkg = currentPkg
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_PACKAGE
+	n.Node = pkg
+
+	return pkgPath, n, nil
+}
+
+func (p *Parser) addLocalPackage(path []string) (*ast.Node, error) {
+	return nil, nil
 }
 
 func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
@@ -57,32 +100,36 @@ func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collect
 
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
-	packageScope := ast.NewScope(universe)
 
-	file, err := p.parseFile(l, packageScope)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: add builtins to universe scope
+
+	packageScope := ast.NewScope(universe)
 
 	pkg := &ast.Package{
 		Loc:    loc,
-		Files:  []*ast.File{file},
 		Scope:  packageScope,
 		IsRoot: true,
 	}
-	program := &ast.Program{Root: pkg}
 
+	file, err := p.parseFile(l, pkg)
+	if err != nil {
+		return nil, err
+	}
+	pkg.Files = []*ast.File{file}
+
+	p.pkg = pkg
+	program := &ast.Program{Root: pkg}
 	return program, nil
 }
 
-func (p *Parser) parseFile(lex *lexer.Lexer, packageScope *ast.Scope) (*ast.File, error) {
+func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error) {
 	file := &ast.File{
 		Loc:            lex.Loc,
 		PkgNameDefined: false,
 	}
 
 	p.lex = lex
-	p.packageScope = packageScope
+	p.pkg = pkg
 
 	err := p.parseFileDecls(file)
 	if err != nil {
@@ -144,17 +191,27 @@ func (p *Parser) buildPackageTree(pkg *ast.Package) error {
 			childScope := ast.NewScope(pkg.Scope)
 			childPackage.Scope = childScope
 			childPackage.IsRoot = false
-			childPackage.Loc = ast.LocFromPath(fullPath)
+			childPackage.Packages = make([]*ast.Package, 0)
+
+			loc, err := ast.LocFromPath(fullPath)
+			if err != nil {
+				return err
+			}
+			childPackage.Loc = loc
+
 			pkg.Packages = append(pkg.Packages, childPackage)
 			return p.buildPackageTree(childPackage)
 		case filepath.Ext(entry.Name()) == ".t":
-			loc := ast.LocFromPath(fullPath)
+			loc, err := ast.LocFromPath(fullPath)
+			if err != nil {
+				return err
+			}
 			lex, err := lexer.NewFromFilePath(loc, p.collector)
 			if err != nil {
 				return err
 			}
 
-			file, err := p.parseFile(lex, pkg.Scope)
+			file, err := p.parseFile(lex, pkg)
 			if err != nil {
 				return err
 			}
@@ -420,7 +477,7 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	externScope := ast.NewScope(p.packageScope)
+	externScope := ast.NewScope(p.pkg.Scope)
 	externDecl.Scope = externScope
 
 	for i, prototype := range prototypes {
@@ -453,7 +510,7 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
-	err = p.packageScope.Insert(name.Name(), n)
+	err = p.pkg.Scope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			pos := name.Pos
@@ -530,11 +587,12 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("error: bad formatted import string")
 	}
 
+	var std bool
 	switch parts[0] {
 	case "std":
-		imp.Std = true
+		std = true
 	case "package":
-		imp.Package = true
+		std = false
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
@@ -545,6 +603,24 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
+	}
+
+	var path string
+	var pkg *ast.Node
+	var err error
+
+	if std {
+		path, pkg, err = p.addStdPackage(imp.Path)
+	} else {
+		pkg, err = p.addLocalPackage(imp.Path)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.pkg.Scope.Insert(path, pkg)
+	if err != nil {
+		return nil, err
 	}
 
 	node := new(ast.Node)
@@ -593,7 +669,7 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 
 	node.Node = alias
 
-	err = p.packageScope.Insert(name.Name(), node)
+	err = p.pkg.Scope.Insert(name.Name(), node)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			return nil, fmt.Errorf("symbol '%s' already declared on scope\n", name.Name())
@@ -706,7 +782,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	}
 	fnDecl.Name = name
 
-	fnScope := ast.NewScope(p.packageScope)
+	fnScope := ast.NewScope(p.pkg.Scope)
 	fnDecl.Scope = fnScope
 
 	params, err := p.parseFunctionParams(name, fnScope, false)
@@ -731,7 +807,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	n.Kind = ast.KIND_FN_DECL
 	n.Node = fnDecl
 
-	err = p.packageScope.Insert(name.Name(), n)
+	err = p.pkg.Scope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
 			functionRedeclaration := diagnostics.Diag{
@@ -760,7 +836,7 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	loc.Name = filename
 	lex := lexer.New(loc, src, collector)
 	parser := NewWithLex(lex, collector)
-	parser.packageScope = scope
+	parser.pkg.Scope = scope
 
 	fnDecl, err := parser.parseFnDecl(nil)
 	if err != nil {
@@ -974,7 +1050,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
-		symbol, err := p.packageScope.LookupAcrossScopes(tok.Name())
+		symbol, err := p.pkg.Scope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
 			if err == ast.ErrSymbolNotFoundOnScope {
@@ -1202,9 +1278,11 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.OPEN_PAREN:
 		fnCall, err := p.parseFnCall(parentScope)
 		return fnCall, err
+	case token.COLON_COLON:
+		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
+		return namespaceAccessing, err
 	case token.DOT:
-		fieldAccessing, err := p.parseFieldAccess(parentScope)
-		return fieldAccessing, err
+		return nil, fmt.Errorf("unimplemented field access with dot")
 	default:
 		return p.parseVar(parentScope)
 	}
@@ -1604,8 +1682,8 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		switch next.Kind {
 		case token.OPEN_PAREN:
 			return p.parseFnCall(parentScope)
-		case token.DOT:
-			fieldAccess, err := p.parseFieldAccess(parentScope)
+		case token.DOT, token.COLON_COLON:
+			fieldAccess, err := p.parseNamespaceAccess(parentScope)
 			return fieldAccess, err
 		}
 
@@ -1707,31 +1785,31 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 	return n, nil
 }
 
-func (parser *Parser) parseFieldAccess(parentScope *ast.Scope) (*ast.Node, error) {
-	id, ok := parser.expect(token.ID)
+func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error) {
+	id, ok := p.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("error: expected ID")
 	}
 
-	left := new(ast.Node)
-	left.Kind = ast.KIND_ID_EXPR
-	left.Node = &ast.IdExpr{Name: id}
-
-	_, ok = parser.expect(token.DOT)
-	// TODO(errors): add proper error
-	if !ok {
-		return nil, fmt.Errorf("error: expected a dot")
+	_, err := parentScope.LookupAcrossScopes(id.Name())
+	if err != nil {
+		if err == ast.ErrSymbolNotFoundOnScope {
+			fmt.Println("'%s' not found on scope\n", id.Name())
+			return nil, err
+		}
 	}
 
-	right, err := parser.parsePrimary(parentScope)
+	p.lex.Skip() // ::
+
+	right, err := p.parsePrimary(parentScope)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_FIELD_ACCESS
-	n.Node = &ast.FieldAccess{Left: left, Right: right}
+	n.Kind = ast.KIND_NAMESPACE_ACCESS
+	n.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: id}, Right: right}
 	return n, nil
 }
 
