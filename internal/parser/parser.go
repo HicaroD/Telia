@@ -1053,7 +1053,7 @@ func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDe
 		n.Node = returnStmt
 
 		if p.lex.NextIs(token.NEWLINE) {
-			goto endOfStatement
+			break
 		}
 
 		returnValue, err := p.parseAnyExpr([]token.Kind{token.NEWLINE}, parentScope)
@@ -1114,7 +1114,6 @@ func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDe
 		return nil, nil
 	}
 
-endOfStatement:
 	if endsWithNewLine {
 		_, ok := p.expect(token.NEWLINE)
 		if !ok {
