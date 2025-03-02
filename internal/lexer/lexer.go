@@ -89,7 +89,7 @@ func (lex *Lexer) next() *token.Token {
 	tok.Kind = token.INVALID
 
 	if character == eof {
-		lex.consumeToken(tok, nil, token.EOF)
+		lex.consumeTokenNoLex(tok, token.EOF)
 		return tok
 	}
 
@@ -116,53 +116,53 @@ func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	switch ch {
 	case '\n':
-		lex.consumeToken(tok, nil, token.NEWLINE)
+		lex.consumeTokenNoLex(tok, token.NEWLINE)
 		lex.nextChar()
 	case '(':
-		lex.consumeToken(tok, nil, token.OPEN_PAREN)
+		lex.consumeTokenNoLex(tok, token.OPEN_PAREN)
 		lex.nextChar()
 	case ')':
-		lex.consumeToken(tok, nil, token.CLOSE_PAREN)
+		lex.consumeTokenNoLex(tok, token.CLOSE_PAREN)
 		lex.nextChar()
 	case '{':
-		lex.consumeToken(tok, nil, token.OPEN_CURLY)
+		lex.consumeTokenNoLex(tok, token.OPEN_CURLY)
 		lex.nextChar()
 	case '}':
-		lex.consumeToken(tok, nil, token.CLOSE_CURLY)
+		lex.consumeTokenNoLex(tok, token.CLOSE_CURLY)
 		lex.nextChar()
 	case '"':
 		// TODO: implement raw strings
 		isRaw := false
 		lex.getStringLiteral(tok, isRaw)
 	case ',':
-		lex.consumeToken(tok, nil, token.COMMA)
+		lex.consumeTokenNoLex(tok, token.COMMA)
 		lex.nextChar()
 	case ';':
-		lex.consumeToken(tok, nil, token.SEMICOLON)
+		lex.consumeTokenNoLex(tok, token.SEMICOLON)
 		lex.nextChar()
 	case '+':
-		lex.consumeToken(tok, nil, token.PLUS)
+		lex.consumeTokenNoLex(tok, token.PLUS)
 		lex.nextChar()
 	case '-':
-		lex.consumeToken(tok, nil, token.MINUS)
+		lex.consumeTokenNoLex(tok, token.MINUS)
 		lex.nextChar()
 	case '*':
-		lex.consumeToken(tok, nil, token.STAR)
+		lex.consumeTokenNoLex(tok, token.STAR)
 		lex.nextChar()
 	case '/':
-		lex.consumeToken(tok, nil, token.SLASH)
+		lex.consumeTokenNoLex(tok, token.SLASH)
 		lex.nextChar()
 	case '#':
-		lex.consumeToken(tok, nil, token.SHARP)
+		lex.consumeTokenNoLex(tok, token.SHARP)
 		lex.nextChar()
 	case '@':
-		lex.consumeToken(tok, nil, token.AT)
+		lex.consumeTokenNoLex(tok, token.AT)
 		lex.nextChar()
 	case '[':
-		lex.consumeToken(tok, nil, token.OPEN_BRACKET)
+		lex.consumeTokenNoLex(tok, token.OPEN_BRACKET)
 		lex.nextChar()
 	case ']':
-		lex.consumeToken(tok, nil, token.CLOSE_BRACKET)
+		lex.consumeTokenNoLex(tok, token.CLOSE_BRACKET)
 		lex.nextChar()
 	case '!':
 		tok.Pos = lex.pos
@@ -369,8 +369,8 @@ func (lex *Lexer) classifyIdentifier(identifier []byte, position token.Pos) *tok
 	return token.New(identifier, token.ID, position)
 }
 
-func (lex *Lexer) consumeToken(tok *token.Token, lexeme []byte, kind token.Kind) {
-	tok.Lexeme = lexeme
+func (lex *Lexer) consumeTokenNoLex(tok *token.Token, kind token.Kind) {
+	tok.Lexeme = nil
 	tok.Kind = kind
 	tok.Pos = lex.pos
 }
