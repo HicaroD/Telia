@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -38,6 +39,13 @@ func cli() (CliResult, error) {
 		if len(args) >= 2 {
 			fileOrDirPath = args[1]
 		}
+
+		_, err := os.Stat(fileOrDirPath)
+		// TODO(errors)
+		if err != nil {
+			log.Fatalf("No such file or directory: %s\n", fileOrDirPath)
+		}
+
 		result.Loc = ast.LocFromPath(fileOrDirPath)
 	default:
 		return result, fmt.Errorf("TODO: show help")
