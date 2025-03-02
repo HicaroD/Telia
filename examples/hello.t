@@ -7,10 +7,6 @@ extern libc {
 }
 
 fn main() i32 {
-  libc.printf("Hello, world!\n") @fail
-  libc.printf("Hello, world!\n") @prop
-  libc.printf("Hello, world!\n") @catch err {
-    return 1
-  }
+  libc.printf("Hello,\t world!\n")
   return 0
 }

@@ -306,13 +306,13 @@ func (lex *Lexer) getStringLiteral(tok *token.Token, isRaw bool) *token.Token {
 			var escape byte
 
 			switch escapeSym {
-			case 'n': // new line
+			case 'n':
 				escape = '\n'
-			case 't': // tab
+			case 't':
 				escape = '\t'
-			case '\\': // /
+			case '\\':
 				escape = '\\'
-			case '"': // "
+			case '"':
 				escape = '"'
 			default:
 				// TODO(errors)
