@@ -60,6 +60,7 @@ type Package struct {
 	Files    []*File
 	Packages []*Package
 	Scope    *Scope
+	Imports  map[string]*Package
 	IsRoot   bool // If true, "Scope" represents the universe
 }
 

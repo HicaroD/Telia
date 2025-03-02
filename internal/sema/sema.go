@@ -1134,12 +1134,20 @@ func (sema *sema) checkNamespaceAccess(
 ) (*ast.ExprType, error) {
 	left, _ := currentScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
 	switch left.Kind {
-	case ast.KIND_PACKAGE:
-		pkg := left.Node.(*ast.Package)
+	case ast.KIND_USE_DECL:
+		useDecl := left.Node.(*ast.UseDecl)
+		pkg := sema.pkg.Imports[useDecl.Path]
 		return sema.checkImportAccess(pkg, namespaceAccess.Right, currentScope)
 	case ast.KIND_EXTERN_DECL:
 		externDecl := left.Node.(*ast.ExternDecl)
-		return sema.checkExternAccess(externDecl, right, currentScope)
+		if namespaceAccess.Right.Kind != ast.KIND_FN_CALL {
+			return nil, fmt.Errorf("expecetd prototype call")
+		}
+		protoCall, err := sema.checkPrototypeCall(externDecl, namespaceAccess.Right.Node.(*ast.FnCall), currentScope)
+		if err != nil {
+			return nil, err
+		}
+		return protoCall.RetType, nil
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("invalid access")
@@ -1183,16 +1191,11 @@ func (sema *sema) checkNamespaceAccessSymbolType(id *ast.IdExpr, right *ast.Node
 	}
 }
 
-func (sema *sema) checkImportAccess(package *ast.Package, right *ast.Node, currentScope *ast.Scope) (*ast.ExprType, error) {
-	importedPackage, found := sema.pkg.Imports[id.Name.Name()]
-	if !found {
-		return nil, fmt.Errorf("symbol '%s' not found", id.Name.Name())
-	}
-
+func (sema *sema) checkImportAccess(pkg *ast.Package, right *ast.Node, currentScope *ast.Scope) (*ast.ExprType, error) {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
-		sym, err := importedPackage.Scope.LookupAcrossScopes(fnCall.Name.Name())
+		sym, err := pkg.Scope.LookupAcrossScopes(fnCall.Name.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -1203,14 +1206,24 @@ func (sema *sema) checkImportAccess(package *ast.Package, right *ast.Node, curre
 		return fnDecl.RetType, nil
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
-		id := namespaceAccess.Left
-		ty, err := sema.checkImportAccess(id, namespaceAccess.Right, currentScope)
+		ty, err := sema.checkNamespaceAccess(namespaceAccess, currentScope)
 		return ty, err
 	case ast.KIND_EXTERN_DECL:
 		return nil, fmt.Errorf("nothing do with a extern declaration, try accessing a prototype")
 	default:
 		return nil, fmt.Errorf("unimplemented symbol to import: %s\n", right.Kind)
 	}
+}
+
+func (sema *sema) checkExternAccess(externDecl *ast.ExternDecl, right *ast.Node, currentScope *ast.Scope) (*ast.ExprType, error) {
+	if right.Kind != ast.KIND_FN_CALL {
+		return nil, fmt.Errorf("expecetd prototype call")
+	}
+	protoCall, err := sema.checkPrototypeCall(externDecl, right.Node.(*ast.FnCall), currentScope)
+	if err != nil {
+		return nil, err
+	}
+	return protoCall.RetType, nil
 }
 
 func (sema *sema) checkPrototypeCall(

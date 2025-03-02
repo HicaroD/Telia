@@ -52,11 +52,9 @@ func (c *llvmCodegen) Generate(buildType config.BuildType) error {
 
 func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
 	c.pkg = pkg
-
 	for _, file := range pkg.Files {
 		c.generateFile(file)
 	}
-
 	for _, module := range pkg.Packages {
 		c.generatePackage(module)
 	}
@@ -148,19 +146,20 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	return nil
 }
 
-func (c *llvmCodegen) generateFnDecl(functionDecl *ast.FnDecl) {
-	returnType := c.getType(functionDecl.RetType)
-	paramsTypes := c.getFieldListTypes(functionDecl.Params)
-	functionType := llvm.FunctionType(returnType, paramsTypes, functionDecl.Params.IsVariadic)
-	functionValue := llvm.AddFunction(c.module, functionDecl.Name.Name(), functionType)
+func (c *llvmCodegen) generateFnDecl(fnDecl *ast.FnDecl) {
+	fmt.Println(fnDecl.Name)
+	returnType := c.getType(fnDecl.RetType)
+	paramsTypes := c.getFieldListTypes(fnDecl.Params)
+	functionType := llvm.FunctionType(returnType, paramsTypes, fnDecl.Params.IsVariadic)
+	functionValue := llvm.AddFunction(c.module, fnDecl.Name.Name(), functionType)
 	functionBlock := c.context.AddBasicBlock(functionValue, "entry")
 	c.builder.SetInsertPointAtEnd(functionBlock)
 
 	fnValue := NewFunctionValue(functionValue, functionType, &functionBlock)
-	functionDecl.BackendType = fnValue
+	fnDecl.BackendType = fnValue
 
-	c.generateParameters(fnValue, functionDecl, paramsTypes)
-	_ = c.generateBlock(functionDecl.Block, fnValue, functionDecl.Scope)
+	c.generateParameters(fnValue, fnDecl, paramsTypes)
+	_ = c.generateBlock(fnDecl.Block, fnValue, fnDecl.Scope)
 }
 
 func (c *llvmCodegen) generateBlock(
@@ -405,7 +404,6 @@ func (c *llvmCodegen) generateFnCall(
 	functionScope *ast.Scope,
 ) llvm.Value {
 	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
-
 	calledFunction := symbol.Node.(*ast.FnDecl)
 	calledFunctionLlvm := calledFunction.BackendType.(*Function)
 	args := c.getExprList(functionScope, functionCall.Args)
@@ -743,30 +741,33 @@ func (c *llvmCodegen) generateNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
 	scope *ast.Scope,
 ) llvm.Value {
-	pkg := c.pkg.Imports[imp]
-	imp := namespaceAccess.Left.Name.Name()
+	left, _ := scope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
+	switch left.Kind {
+	case ast.KIND_USE_DECL:
+		useDecl := left.Node.(*ast.UseDecl)
+		pkg := c.pkg.Imports[useDecl.Path]
+		return c.generateImportAccess(pkg, namespaceAccess.Right, scope)
+	case ast.KIND_EXTERN_DECL:
+		externDecl := left.Node.(*ast.ExternDecl)
+		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
+		return c.generatePrototypeCall(externDecl, fnCall, scope)
+	default:
+		panic("unreachable")
+	}
+}
 
-	switch namespaceAccess.Right.Kind {
+func (c *llvmCodegen) generateImportAccess(pkg *ast.Package, right *ast.Node, currentScope *ast.Scope) llvm.Value {
+	switch right.Kind {
+	case ast.KIND_FN_CALL:
+		fnCall := right.Node.(*ast.FnCall)
+		sym, _ := pkg.Scope.LookupAcrossScopes(fnCall.Name.Name())
+		fnDecl := sym.Node.(*ast.FnDecl)
+		return c.generateFnCall(fnCall, fnDecl.Scope)
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
-
-		symbol, _ := pkg.Scope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
-		switch symbol.Kind {
-		case ast.KIND_EXTERN_DECL:
-			extern := symbol.Node.(*ast.ExternDecl)
-			return c.generatePrototypeCall(extern)
-		}
-
-		return c.generateNamespaceAccess(namespaceAccess, pkg.Scope)
-	case ast.KIND_FN_CALL:
-		call := right.Node.(*ast.FnCall)
-		return c.generateFnCall(call, currentScope)
-	case ast.KIND_EXTERN_DECL:
-		log.Fatal("invalid extern decl at import access")
-		return llvm.Value{}
+		return c.generateNamespaceAccess(namespaceAccess, currentScope)
 	default:
-		log.Fatal("invalid symbol from import access")
-		return llvm.Value{}
+		panic("unimplemented import access")
 	}
 }
 

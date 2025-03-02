@@ -48,6 +48,7 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	scope := ast.NewScope(nil)
 
 	root := new(ast.Package)
+	root.Imports = make(map[string]*ast.Package)
 	root.Loc = loc
 	root.Scope = scope
 	root.IsRoot = isRoot
@@ -60,7 +61,7 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	return root, nil
 }
 
-func (p *Parser) addStdPackage(path []string) (string, *ast.Node, error) {
+func (p *Parser) addStdPackage(path []string) (string, *ast.Package, error) {
 	pkgPath := strings.Join(path, "/")
 	// TODO: get path to std directory
 	fullPkgPath := filepath.Join("./std", pkgPath)
@@ -81,14 +82,10 @@ func (p *Parser) addStdPackage(path []string) (string, *ast.Node, error) {
 	p.lex = currentLex
 	p.pkg = currentPkg
 
-	n := new(ast.Node)
-	n.Kind = ast.KIND_PACKAGE
-	n.Node = pkg
-
-	return pkgPath, n, nil
+	return pkgPath, pkg, nil
 }
 
-func (p *Parser) addLocalPackage(path []string) (*ast.Node, error) {
+func (p *Parser) addLocalPackage(path []string) (*ast.Package, error) {
 	return nil, nil
 }
 
@@ -106,9 +103,10 @@ func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collect
 	packageScope := ast.NewScope(universe)
 
 	pkg := &ast.Package{
-		Loc:    loc,
-		Scope:  packageScope,
-		IsRoot: true,
+		Loc:     loc,
+		Imports: make(map[string]*ast.Package),
+		Scope:   packageScope,
+		IsRoot:  true,
 	}
 
 	file, err := p.parseFile(l, pkg)
@@ -597,7 +595,6 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
 	}
-	imp.Path = parts[1:]
 
 	newline, ok := p.expect(token.NEWLINE)
 	// TODO(errors)
@@ -606,27 +603,33 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	}
 
 	var path string
-	var pkg *ast.Node
+	var pkg *ast.Package
 	var err error
 
 	if std {
-		path, pkg, err = p.addStdPackage(imp.Path)
+		path, pkg, err = p.addStdPackage(parts[1:])
 	} else {
-		pkg, err = p.addLocalPackage(imp.Path)
+		pkg, err = p.addLocalPackage(parts[1:])
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.pkg.Scope.Insert(path, pkg)
-	if err != nil {
-		return nil, err
+	imp.Path = path
+
+	_, found := p.pkg.Imports[path]
+	// TODO(errors)
+	if found {
+		return nil, fmt.Errorf("name conflict for import")
 	}
+	p.pkg.Imports[path] = pkg
 
 	node := new(ast.Node)
 	node.Kind = ast.KIND_USE_DECL
 	node.Node = imp
-	return node, nil
+
+	err = p.pkg.Scope.Insert(path, node)
+	return node, err
 }
 
 func (p *Parser) parseTypeAlias() (*ast.Node, error) {
