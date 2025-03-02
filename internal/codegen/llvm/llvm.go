@@ -144,6 +144,9 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
+		}
 		return err
 	}
 
@@ -151,6 +154,9 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
+		}
 		return err
 	}
 
@@ -197,17 +203,10 @@ func (c *llvmCodegen) generateBlock(
 	stoppedOnReturn := false
 
 	for _, stmt := range block.Statements {
-		c.generateStmt(stmt, function, parentScope)
+		c.generateStmt(stmt, function, block, parentScope)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
-			goto Defer
-		}
-	}
-
-Defer:
-	if len(block.DeferStack) > 0 {
-		for i := len(block.DeferStack) - 1; i >= 0; i-- {
-			c.generateStmt(block.DeferStack[i], function, parentScope)
+			break
 		}
 	}
 
@@ -217,12 +216,18 @@ Defer:
 func (c *llvmCodegen) generateStmt(
 	stmt *ast.Node,
 	function *Function,
+	block *ast.BlockStmt,
 	parentScope *ast.Scope,
 ) {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
 		c.generateFnCall(stmt.Node.(*ast.FnCall), parentScope)
 	case ast.KIND_RETURN_STMT:
+		if len(block.DeferStack) > 0 {
+			for i := len(block.DeferStack) - 1; i >= 0; i-- {
+				c.generateStmt(block.DeferStack[i], function, block, parentScope)
+			}
+		}
 		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
 	case ast.KIND_VAR_STMT:
 		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
@@ -803,7 +808,7 @@ func (c *llvmCodegen) generateForLoop(
 
 	c.builder.CreateBr(forPrepBlock)
 	c.builder.SetInsertPointAtEnd(forPrepBlock)
-	c.generateStmt(forLoop.Init, function, forLoop.Scope)
+	c.generateStmt(forLoop.Init, function, forLoop.Block, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 	c.builder.SetInsertPointAtEnd(forInitBlock)
@@ -817,7 +822,7 @@ func (c *llvmCodegen) generateForLoop(
 
 	c.builder.CreateBr(forUpdateBlock)
 	c.builder.SetInsertPointAtEnd(forUpdateBlock)
-	c.generateStmt(forLoop.Update, function, forLoop.Scope)
+	c.generateStmt(forLoop.Update, function, forLoop.Block, forLoop.Scope)
 
 	c.builder.CreateBr(forInitBlock)
 
