@@ -139,9 +139,11 @@ func (p *Parser) ParseFileAsProgram(argLoc string, loc *ast.Loc, collector *diag
 
 func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error) {
 	file := &ast.File{
-		Loc:            lex.Loc,
-		PkgNameDefined: false,
-		Imports:        make(map[string]*ast.UseDecl),
+		Loc:              lex.Loc,
+		PkgNameDefined:   false,
+		Imports:          make(map[string]*ast.UseDecl),
+		IsFirstNode:      true,
+		AnyDeclNodeFound: false,
 	}
 
 	p.lex = lex
@@ -158,10 +160,9 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 
 func (p *Parser) parseFileDecls(file *ast.File) error {
 	var decls []*ast.Node
-	isFirstNode := true
 
 	for {
-		node, eof, err := p.next()
+		node, eof, err := p.next(file)
 		if err != nil {
 			return err
 		}
@@ -174,27 +175,7 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
-		if isFirstNode {
-			if node.Kind != ast.KIND_PKG_DECL {
-				return fmt.Errorf("expected package declaration as first node")
-			}
-
-			pkg := node.Node.(*ast.PkgDecl)
-			if file.PkgNameDefined {
-				// TODO(errors)
-				return fmt.Errorf("redeclaration of package name\n")
-			}
-			file.PkgName = pkg.Name.Name()
-			file.PkgNameDefined = true
-		}
-
-		isFirstNode = false
 		decls = append(decls, node)
-	}
-
-	if !file.PkgNameDefined {
-		// TODO(errors)
-		return fmt.Errorf("Package name not defined\n")
 	}
 
 	file.Body = decls
@@ -236,7 +217,7 @@ func (p *Parser) processPackageFiles(path string, handler func(entry os.DirEntry
 	return nil
 }
 
-func (p *Parser) next() (*ast.Node, bool, error) {
+func (p *Parser) next(file *ast.File) (*ast.Node, bool, error) {
 	var err error
 	var attributes *ast.Attributes
 	var attributesFound bool
@@ -265,19 +246,37 @@ peekAgain:
 
 	switch tok.Kind {
 	case token.PACKAGE:
-		pkgDecl, err := p.parsePkgDecl()
+		if !file.IsFirstNode {
+			return nil, eof, fmt.Errorf("expected package declaration as first node")
+		}
+		pkgName, pkgDecl, err := p.parsePkgDecl()
+		if err != nil {
+			return nil, false, err
+		}
+		if file.PkgNameDefined {
+			// TODO(errors)
+			return nil, eof, fmt.Errorf("redeclaration of package name\n")
+		}
+		file.PkgName = pkgName
+		file.PkgNameDefined = true
 		return pkgDecl, eof, err
 	case token.USE:
+		if file.AnyDeclNodeFound {
+			return nil, eof, fmt.Errorf("use statements should be placed at the top of file")
+		}
 		imp, err := p.parseUse()
 		return imp, eof, err
 	case token.TYPE:
 		_, err := p.parseTypeAlias()
+		file.AnyDeclNodeFound = true
 		return nil, eof, err
 	case token.EXTERN:
 		externDecl, err := p.parseExternDecl(attributes)
+		file.AnyDeclNodeFound = true
 		return externDecl, eof, err
 	case token.FN:
 		fnDecl, err := p.parseFnDecl(attributes)
+		file.AnyDeclNodeFound = true
 		return fnDecl, eof, err
 	default:
 		pos := tok.Pos
@@ -540,29 +539,29 @@ func (p *Parser) skipNewLines() {
 	}
 }
 
-func (p *Parser) parsePkgDecl() (*ast.Node, error) {
+func (p *Parser) parsePkgDecl() (string, *ast.Node, error) {
 	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
+		return "", nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
 	}
 
 	name, ok := p.expect(token.ID)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected package name, not %s\n", name.Kind.String())
+		return "", nil, fmt.Errorf("expected package name, not %s\n", name.Kind.String())
 	}
 
 	newline, ok := p.expect(token.NEWLINE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
+		return "", nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
 	node := new(ast.Node)
 	node.Kind = ast.KIND_PKG_DECL
 	node.Node = &ast.PkgDecl{Name: name}
-	return node, nil
+	return name.Name(), node, nil
 }
 
 func (p *Parser) parseUse() (*ast.Node, error) {

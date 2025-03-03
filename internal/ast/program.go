@@ -72,9 +72,13 @@ func (p *Package) String() string {
 }
 
 type File struct {
-	Loc            *Loc
-	PkgName        string
-	PkgNameDefined bool
-	Imports        map[string]*UseDecl
-	Body           []*Node
+	Loc     *Loc
+	PkgName string
+	Imports map[string]*UseDecl
+	Body    []*Node
+
+	// Helper state
+	PkgNameDefined   bool
+	IsFirstNode      bool
+	AnyDeclNodeFound bool
 }
