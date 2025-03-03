@@ -17,19 +17,19 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	argLoc string
-	root   *ast.Package
-	pkg    *ast.Package
-	file   *ast.File
+	argLoc  string
+	imports map[string]*ast.Package
+	pkg     *ast.Package
+	file    *ast.File
 }
 
 func New(collector *diagnostics.Collector) *Parser {
 	parser := new(Parser)
 	parser.lex = nil
 	parser.argLoc = ""
-	parser.root = nil
 	parser.pkg = nil
 	parser.file = nil
+	parser.imports = make(map[string]*ast.Package)
 	parser.collector = collector
 	return parser
 }
@@ -55,9 +55,8 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	pkg.Loc = loc
 	pkg.Scope = scope
 	pkg.IsRoot = isRoot
-	pkg.AllImports = make(map[string]*ast.Package)
 	if isRoot {
-		p.root = pkg
+		p.imports = make(map[string]*ast.Package)
 	}
 
 	err := p.buildPackage(pkg)
@@ -80,7 +79,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	}
 
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
-	if pkg, found := p.root.AllImports[fullPkgPath]; found {
+	if pkg, found := p.imports[fullPkgPath]; found {
 		return path[len(path)-1], fullPkgPath, pkg, nil
 	}
 
@@ -103,7 +102,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 		return "", "", nil, err
 	}
 
-	p.root.AllImports[fullPkgPath] = pkg
+	p.imports[fullPkgPath] = pkg
 	return path[len(path)-1], fullPkgPath, pkg, nil
 }
 
@@ -121,12 +120,10 @@ func (p *Parser) ParseFileAsProgram(argLoc string, loc *ast.Loc, collector *diag
 	packageScope := ast.NewScope(universe)
 
 	pkg := &ast.Package{
-		Loc:        loc,
-		Scope:      packageScope,
-		IsRoot:     true,
-		AllImports: make(map[string]*ast.Package),
+		Loc:    loc,
+		Scope:  packageScope,
+		IsRoot: true,
 	}
-	p.root = pkg
 
 	file, err := p.parseFile(l, pkg)
 	if err != nil {

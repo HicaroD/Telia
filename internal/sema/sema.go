@@ -31,12 +31,6 @@ func New(collector *diagnostics.Collector) *sema {
 }
 
 func (s *sema) Check(program *ast.Program) error {
-	// for _, pkg := range program.Root.AllImports {
-	// 	err := s.checkPackage(pkg)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
 	return s.checkPackage(program.Root)
 }
 
