@@ -25,7 +25,6 @@ type llvmCodegen struct {
 
 	program *ast.Program
 	pkg     *ast.Package
-	file    *ast.File
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
@@ -46,7 +45,12 @@ func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
 }
 
 func (c *llvmCodegen) Generate(buildType config.BuildType) error {
+	for _, pkg := range c.program.Root.AllImports {
+		c.generatePackage(pkg)
+	}
+
 	c.generatePackage(c.program.Root)
+
 	err := c.generateExe(buildType)
 	return err
 }
@@ -54,7 +58,6 @@ func (c *llvmCodegen) Generate(buildType config.BuildType) error {
 func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
 	currentPkg := pkg
 	defer func() { c.pkg = currentPkg }()
-
 	c.pkg = pkg
 
 	for _, currentPkg := range pkg.Packages {
@@ -62,10 +65,6 @@ func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
 	}
 
 	for _, file := range pkg.Files {
-		for _, imp := range file.Imports {
-			c.generatePackage(imp)
-		}
-		c.file = file
 		c.generateDeclarations(file)
 	}
 
@@ -775,14 +774,13 @@ func (c *llvmCodegen) generateWhileLoop(
 }
 
 func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
-	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
-
 	dir, err := os.MkdirTemp("", "build")
 	if err != nil {
 		return err
 	}
 
-	irFileName := filepath.Join(dir, c.program.Root.Loc.Name)
+	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
+	irFileName := filepath.Join(dir, filenameNoExt)
 	irFilepath := irFileName + ".ll"
 	optimizedIrFilepath := irFileName + "_optimized.ll"
 
@@ -834,7 +832,7 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 	}
 
 	if config.DEBUG_MODE {
-		fmt.Println("[DEBUG MODE] keeping __build__ directory")
+		fmt.Printf("[DEBUG MODE] keeping '%s' build directory\n", dir)
 	} else {
 		err = os.RemoveAll(dir)
 		if err != nil {

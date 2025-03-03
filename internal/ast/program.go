@@ -56,11 +56,12 @@ func (l Loc) String() string {
 }
 
 type Package struct {
-	Loc      *Loc
-	Files    []*File
-	Packages []*Package
-	Scope    *Scope
-	IsRoot   bool // If true, "Scope" represents the universe
+	Loc        *Loc
+	Files      []*File
+	AllImports map[string]*Package
+	Packages   []*Package
+	Scope      *Scope
+	IsRoot     bool // If true, "Scope" represents the universe
 }
 
 func (p *Package) String() string {
@@ -74,6 +75,6 @@ type File struct {
 	Loc            *Loc
 	PkgName        string
 	PkgNameDefined bool
-	Imports        map[string]*Package
+	Imports        map[string]*UseDecl
 	Body           []*Node
 }

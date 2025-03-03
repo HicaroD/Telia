@@ -57,11 +57,12 @@ type PkgDecl struct {
 func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
 
 type UseDecl struct {
-	Path string
+	Name    string
+	Package *Package
 }
 
 func (imp UseDecl) String() string {
-	return fmt.Sprintf("USE: %s", imp.Path)
+	return fmt.Sprintf("USE: %s", imp.Name)
 }
 
 type Attributes struct {

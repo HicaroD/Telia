@@ -17,15 +17,16 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	rootLoc *ast.Loc
-	root    *ast.Package
-	pkg     *ast.Package
-	file    *ast.File
+	argLoc string
+	root   *ast.Package
+	pkg    *ast.Package
+	file   *ast.File
 }
 
 func New(collector *diagnostics.Collector) *Parser {
 	parser := new(Parser)
 	parser.lex = nil
+	parser.argLoc = ""
 	parser.root = nil
 	parser.pkg = nil
 	parser.file = nil
@@ -38,33 +39,36 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParsePackageAsProgram(loc *ast.Loc) (*ast.Program, error) {
-	p.rootLoc = loc
+func (p *Parser) ParsePackageAsProgram(argLoc string, loc *ast.Loc) (*ast.Program, error) {
+	p.argLoc = argLoc
 	root, err := p.parsePackage(loc, true)
 	if err != nil {
 		return nil, err
 	}
-	p.root = root
 	return &ast.Program{Root: root}, nil
 }
 
 func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	scope := ast.NewScope(nil)
 
-	root := new(ast.Package)
-	root.Loc = loc
-	root.Scope = scope
-	root.IsRoot = isRoot
+	pkg := new(ast.Package)
+	pkg.Loc = loc
+	pkg.Scope = scope
+	pkg.IsRoot = isRoot
+	pkg.AllImports = make(map[string]*ast.Package)
+	if isRoot {
+		p.root = pkg
+	}
 
-	err := p.buildPackageTree(root)
+	err := p.buildPackageTree(pkg)
 	if err != nil {
 		return nil, err
 	}
 
-	return root, nil
+	return pkg, nil
 }
 
-func (p *Parser) addPackage(std bool, path []string) (string, *ast.Package, error) {
+func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Package, error) {
 	pkgPath := strings.Join(path, "/")
 
 	var prefixPath string
@@ -72,15 +76,14 @@ func (p *Parser) addPackage(std bool, path []string) (string, *ast.Package, erro
 		// TODO: get path to std directory from env
 		prefixPath = "./std"
 	} else {
-		prefixPath = p.rootLoc.Path
+		prefixPath = p.argLoc
 	}
 
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	loc, err := ast.LocFromPath(fullPkgPath)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
-	fmt.Println(loc.Path)
 
 	currentLex := p.lex
 	currentPkg := p.pkg
@@ -93,14 +96,13 @@ func (p *Parser) addPackage(std bool, path []string) (string, *ast.Package, erro
 
 	pkg, err := p.parsePackage(loc, false)
 	if err != nil {
-		return "", nil, err
+		return "", "", nil, err
 	}
-
-	return pkgPath, pkg, nil
+	return path[len(path)-1], fullPkgPath, pkg, nil
 }
 
-func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
-	p.rootLoc = loc
+func (p *Parser) ParseFileAsProgram(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
@@ -109,16 +111,16 @@ func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collect
 
 	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
-
 	// TODO: add builtins to universe scope
-
 	packageScope := ast.NewScope(universe)
 
 	pkg := &ast.Package{
-		Loc:    loc,
-		Scope:  packageScope,
-		IsRoot: true,
+		Loc:        loc,
+		Scope:      packageScope,
+		IsRoot:     true,
+		AllImports: make(map[string]*ast.Package),
 	}
+	p.root = pkg
 
 	file, err := p.parseFile(l, pkg)
 	if err != nil {
@@ -135,7 +137,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 	file := &ast.File{
 		Loc:            lex.Loc,
 		PkgNameDefined: false,
-		Imports:        make(map[string]*ast.Package),
+		Imports:        make(map[string]*ast.UseDecl),
 	}
 
 	p.lex = lex
@@ -203,6 +205,7 @@ func (p *Parser) buildPackageTree(pkg *ast.Package) error {
 			childPackage.Scope = childScope
 			childPackage.IsRoot = false
 			childPackage.Packages = make([]*ast.Package, 0)
+			childPackage.AllImports = make(map[string]*ast.Package)
 
 			loc, err := ast.LocFromPath(fullPath)
 			if err != nil {
@@ -578,8 +581,6 @@ func (p *Parser) parsePkgDecl() (*ast.Node, error) {
 }
 
 func (p *Parser) parseUse() (*ast.Node, error) {
-	imp := new(ast.UseDecl)
-
 	use, ok := p.expect(token.USE)
 	// TODO(errors)
 	if !ok {
@@ -615,20 +616,23 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
-	path, pkg, err := p.addPackage(std, parts[1:])
+	impName, fullPath, pkg, err := p.addPackage(std, parts[1:])
 	if err != nil {
 		return nil, err
 	}
 
-	imp.Path = path
+	// NOTE: by default, import name is the last name of the import
+	// TODO: add custom import name
 
-	_, found := p.file.Imports[path]
+	_, found := p.file.Imports[fullPath]
 	// TODO(errors)
 	if found {
-		return nil, fmt.Errorf("name conflict for import: %s\n", path)
+		return nil, fmt.Errorf("name conflict for import: %s\n", impName)
 	}
 
-	p.file.Imports[path] = pkg
+	p.root.AllImports[fullPath] = pkg
+	p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
+
 	return nil, nil
 }
 

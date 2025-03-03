@@ -24,9 +24,9 @@ func main() {
 		collector := diagnostics.New()
 
 		if args.Loc.IsPackage {
-			program, err = buildPackage(args.Loc, collector)
+			program, err = buildPackage(args.ArgLoc, args.Loc, collector)
 		} else {
-			program, err = buildFile(args.Loc, collector)
+			program, err = buildFile(args.ArgLoc, args.Loc, collector)
 		}
 
 		// TODO(errors)
@@ -55,14 +55,14 @@ func main() {
 	}
 }
 
-func buildPackage(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildPackage(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
-	program, err := p.ParsePackageAsProgram(loc)
+	program, err := p.ParsePackageAsProgram(argLoc, loc)
 	return program, err
 }
 
-func buildFile(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildFile(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
-	program, err := p.ParseFileAsProgram(loc, collector)
+	program, err := p.ParseFileAsProgram(argLoc, loc, collector)
 	return program, err
 }

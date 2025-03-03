@@ -31,6 +31,14 @@ func New(collector *diagnostics.Collector) *sema {
 }
 
 func (s *sema) Check(program *ast.Program) error {
+	for _, pkg := range program.Root.AllImports {
+		fmt.Printf("CHECKING IMPORT: %s\n", pkg.Loc.Path)
+		err := s.checkPackage(pkg)
+		if err != nil {
+			return err
+		}
+	}
+
 	return s.checkPackage(program.Root)
 }
 
@@ -64,17 +72,11 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 	requiresMainMethod := false
 
 	for _, file := range pkg.Files {
+		fmt.Printf("CHECKING FILE: %s\n", file.Loc.Path)
 		prevFile := s.file
 		defer func() { s.file = prevFile }()
 
 		s.file = file
-
-		for _, imp := range file.Imports {
-			err := s.checkPackage(imp)
-			if err != nil {
-				return err
-			}
-		}
 
 		if file.PkgName == "main" {
 			if s.mainPackageFound {
@@ -1157,11 +1159,11 @@ func (sema *sema) checkNamespaceAccess(
 ) (*ast.ExprType, error) {
 	if namespaceAccess.IsImport {
 		imp := namespaceAccess.Left.Name.Name()
-		pkg, ok := sema.file.Imports[imp]
+		useDecl, ok := sema.file.Imports[imp]
 		if !ok {
-			panic("package not found")
+			panic("import not found")
 		}
-		return sema.checkImportAccess(namespaceAccess.Right, referenceScope, pkg.Scope)
+		return sema.checkImportAccess(namespaceAccess.Right, referenceScope, useDecl.Package.Scope)
 	}
 
 	left, err := referenceScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())

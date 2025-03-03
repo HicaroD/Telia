@@ -18,6 +18,7 @@ const (
 type CliResult struct {
 	Command   Command
 	BuildType config.BuildType
+	ArgLoc    string
 	Loc       *ast.Loc
 }
 
@@ -50,6 +51,7 @@ func cli() (CliResult, error) {
 		if err != nil {
 			return result, err
 		}
+		result.ArgLoc = fileOrDirPath
 		result.Loc = loc
 	default:
 		return result, fmt.Errorf("TODO: show help")
