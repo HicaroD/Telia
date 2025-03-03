@@ -6,7 +6,6 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/codegen/llvm"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
 )
@@ -24,10 +23,10 @@ func main() {
 
 		collector := diagnostics.New()
 
-		if args.IsModuleBuild {
-			program, err = buildModule(args, collector)
+		if args.Loc.IsPackage {
+			program, err = buildPackage(args.ArgLoc, args.Loc, collector)
 		} else {
-			program, err = buildFile(args, collector)
+			program, err = buildFile(args.ArgLoc, args.Loc, collector)
 		}
 
 		// TODO(errors)
@@ -45,7 +44,9 @@ func main() {
 		// TODO: define flag for setting the back-end
 		// Currently I only have one type of back-end, but, in the future, I
 		// could have more
-		codegen := llvm.NewCG(args.ParentDirName, args.Path, program)
+
+		// TODO: properly set directory
+		codegen := llvm.NewCG(args.Loc, program)
 		err = codegen.Generate(args.BuildType)
 		// TODO(errors)
 		if err != nil {
@@ -54,28 +55,14 @@ func main() {
 	}
 }
 
-func buildModule(cliResult CliResult, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildPackage(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
-
-	program, err := p.ParseModuleDir(cliResult.ParentDirName, cliResult.Path)
-	if err != nil {
-		return nil, err
-	}
-
-	return program, nil
+	program, err := p.ParsePackageAsProgram(argLoc, loc)
+	return program, err
 }
 
-func buildFile(cliResult CliResult, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildFile(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
 	p := parser.New(collector)
-
-	l, err := lexer.NewFromFilePath(cliResult.ParentDirName, cliResult.Path, collector)
-	if err != nil {
-		return nil, err
-	}
-	program, err := p.ParseFileAsProgram(l)
-	if err != nil {
-		return nil, err
-	}
-
-	return program, nil
+	program, err := p.ParseFileAsProgram(argLoc, loc, collector)
+	return program, err
 }

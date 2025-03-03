@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"unicode"
 
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
@@ -13,44 +15,66 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	ParentDirName string
-	Path          string
+	Loc       *ast.Loc
+	Collector *diagnostics.Collector
 
 	src    []byte
 	offset int
 	pos    token.Pos
-
-	collector *diagnostics.Collector
 }
 
-func New(path string, src []byte, collector *diagnostics.Collector) *Lexer {
+func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
-	lexer.ParentDirName = ""
-	lexer.Path = path
-	lexer.collector = collector
+	lexer.Loc = loc
+	lexer.pos = token.NewPosition(loc.Name, 1, 1)
+	lexer.Collector = collector
 	lexer.src = src
 	lexer.offset = 0
-	lexer.pos = token.NewPosition(path, 1, 1)
 
 	return lexer
 }
 
-func NewFromFilePath(parentDirName, path string, collector *diagnostics.Collector) (*Lexer, error) {
-	src, err := os.ReadFile(path)
+func FilePosFromPath(path string) token.Pos {
+	fullPath, err := filepath.Abs(path)
+	// TODO(errors)
+	if err != nil {
+		log.Fatalf("Error getting absolute path: %v\n", err)
+	}
+
+	info, err := os.Stat(fullPath)
+	// TODO(errors)
+	if err != nil {
+		log.Fatalf("Error stating the path: %v\n", err)
+	}
+
+	// TODO(errors)
+	if !info.Mode().IsRegular() {
+		log.Fatalf("path is not a file: %s\n", path)
+	}
+
+	dirName := filepath.Dir(fullPath)
+	fileName := filepath.Base(fullPath)
+
+	return token.Pos{Dir: dirName, Filename: fileName, Line: 1, Column: 1}
+}
+
+func NewFromFilePath(loc *ast.Loc, collector *diagnostics.Collector) (*Lexer, error) {
+	src, err := os.ReadFile(loc.Path)
 	if err != nil {
 		return nil, err
 	}
-	l := New(path, src, collector)
-	l.ParentDirName = parentDirName
+	l := New(loc, src, collector)
 	return l, nil
 }
+
+func (lex *Lexer) Filename() string { return lex.pos.Filename }
 
 func (lex *Lexer) Peek() *token.Token {
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
-	token := lex.next()
+	token := lex.Next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -63,8 +87,8 @@ func (lex *Lexer) Peek1() *token.Token {
 
 	var token *token.Token
 
-	_ = lex.next()
-	token = lex.next()
+	_ = lex.Next()
+	token = lex.Next()
 
 	lex.pos.SetPosition(prevPos)
 	lex.offset = prevOffset
@@ -73,7 +97,7 @@ func (lex *Lexer) Peek1() *token.Token {
 }
 
 func (lex *Lexer) Skip() {
-	lex.next()
+	lex.Next()
 }
 
 func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
@@ -81,7 +105,7 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 	return token.Kind == expectedKind
 }
 
-func (lex *Lexer) next() *token.Token {
+func (lex *Lexer) Next() *token.Token {
 	lex.skipWhitespace()
 	character := lex.peekChar()
 
@@ -101,7 +125,7 @@ func (lex *Lexer) next() *token.Token {
 func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
 	for {
-		tok := lex.next()
+		tok := lex.Next()
 		if tok.Kind == token.INVALID {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
@@ -179,7 +203,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 
 		next := lex.peekChar()
 		if next == eof {
-			lex.collector.ReportAndSave(invalidCharacter)
+			lex.Collector.ReportAndSave(invalidCharacter)
 			return tok
 		}
 		if next == '=' {
@@ -188,7 +212,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			return tok
 		}
 
-		lex.collector.ReportAndSave(invalidCharacter)
+		lex.Collector.ReportAndSave(invalidCharacter)
 		return tok
 	case '>':
 		tok.Pos = lex.pos
@@ -257,16 +281,21 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 
 		next := lex.peekChar()
 		if next == eof {
-			lex.collector.ReportAndSave(invalidCharacter)
-			return tok
-		}
-		if next == '=' {
-			lex.nextChar() // =
-			tok.Kind = token.COLON_EQUAL
+			lex.Collector.ReportAndSave(invalidCharacter)
 			return tok
 		}
 
-		lex.collector.ReportAndSave(invalidCharacter)
+		if next == '=' {
+			lex.nextChar() // =
+			tok.Kind = token.COLON_EQUAL
+			break
+		} else if next == ':' {
+			lex.nextChar() // :
+			tok.Kind = token.COLON_COLON
+			break
+		}
+
+		lex.Collector.ReportAndSave(invalidCharacter)
 	default:
 		position := lex.pos
 
@@ -282,7 +311,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			invalidCharacter := diagnostics.Diag{
 				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, ch),
 			}
-			lex.collector.ReportAndSave(invalidCharacter)
+			lex.Collector.ReportAndSave(invalidCharacter)
 		}
 	}
 	return tok
@@ -337,7 +366,7 @@ func (lex *Lexer) getStringLiteral(tok *token.Token, isRaw bool) *token.Token {
 				tok.Pos.Column,
 			),
 		}
-		lex.collector.ReportAndSave(unterminatedStringLiteral)
+		lex.Collector.ReportAndSave(unterminatedStringLiteral)
 		return tok
 	}
 	if ch == '"' {

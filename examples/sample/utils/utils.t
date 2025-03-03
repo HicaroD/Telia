@@ -1,5 +1,8 @@
 package utils
 
-fn function() {
+use "std::io"
+
+fn foo() {
+  io::println("from utils package")
   return
 }

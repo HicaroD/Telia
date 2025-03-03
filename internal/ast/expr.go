@@ -46,6 +46,9 @@ func (literal LiteralExpr) String() string {
 
 type IdExpr struct {
 	Name *token.Token
+
+	// Codegen
+	N *Node
 }
 
 func (idExpr IdExpr) String() string {
@@ -53,13 +56,14 @@ func (idExpr IdExpr) String() string {
 	return idExpr.Name.Name()
 }
 
-type FieldAccess struct {
-	Left  *Node
-	Right *Node
+type NamespaceAccess struct {
+	IsImport bool
+	Left     *IdExpr
+	Right    *Node
 }
 
-func (fieldAccess FieldAccess) String() string {
-	return fmt.Sprintf("%v.%v\n", fieldAccess.Left, fieldAccess.Right)
+func (namespaceAccess NamespaceAccess) String() string {
+	return fmt.Sprintf("%v.%v\n", namespaceAccess.Left, namespaceAccess.Right)
 }
 
 type UnaryExpr struct {

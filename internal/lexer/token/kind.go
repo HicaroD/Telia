@@ -85,6 +85,7 @@ const (
 	DOT_DOT_DOT
 	EQUAL
 	COLON_EQUAL
+	COLON_COLON
 
 	LOGICAL_OP_START // logical op start delimiter
 
@@ -276,6 +277,8 @@ func (k Kind) String() string {
 		return "="
 	case COLON_EQUAL:
 		return ":="
+	case COLON_COLON:
+		return "::"
 	case BANG_EQUAL:
 		return "!="
 	case EQUAL_EQUAL:

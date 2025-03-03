@@ -30,8 +30,8 @@ const (
 
 	EXPR_START // expression node start delimiter
 
-	KIND_FN_CALL      // expression and statement
-	KIND_FIELD_ACCESS // expression and statement
+	KIND_FN_CALL          // expression and statement
+	KIND_NAMESPACE_ACCESS // expression and statement
 
 	STMT_END // statement node end delimiter
 	KIND_VOID_EXPR
@@ -42,6 +42,7 @@ const (
 	KIND_TUPLE_EXPR
 	EXPR_END // expression node start delimiter
 
+	KIND_PACKAGE
 	KIND_FIELD
 	KIND_PROTO
 )
@@ -107,8 +108,8 @@ func (n *Node) String() string {
 		return "KIND_DEFER_STMT"
 	case KIND_FN_CALL:
 		return "KIND_FN_CALL"
-	case KIND_FIELD_ACCESS:
-		return "KIND_FIELD_ACCESS"
+	case KIND_NAMESPACE_ACCESS:
+		return "KIND_NAMESPACE_ACCESS"
 	case KIND_VOID_EXPR:
 		return "KIND_VOID_EXPR"
 	case KIND_LITERAl_EXPR:

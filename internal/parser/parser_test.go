@@ -1236,11 +1236,11 @@ func TestFieldAccessExpr(t *testing.T) {
 	tests := []exprTest{
 		{
 			input: "first.second.third",
-			node: &ast.FieldAccess{
+			node: &ast.NamespaceAccess{
 				Left: &ast.IdExpr{
 					Name: token.New([]byte("first"), token.ID, token.NewPosition(filename, 1, 1)),
 				},
-				Right: &ast.FieldAccess{
+				Right: &ast.NamespaceAccess{
 					Left: &ast.IdExpr{
 						Name: token.New([]byte("second"), token.ID, token.NewPosition(filename, 7, 1)),
 					},
@@ -1252,7 +1252,7 @@ func TestFieldAccessExpr(t *testing.T) {
 		},
 		{
 			input: "first.second",
-			node: &ast.FieldAccess{
+			node: &ast.NamespaceAccess{
 				Left: &ast.IdExpr{
 					Name: token.New([]byte("first"), token.ID, token.NewPosition(filename, 1, 1)),
 				},
