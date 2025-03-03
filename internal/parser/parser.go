@@ -60,7 +60,7 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 		p.root = pkg
 	}
 
-	err := p.buildPackageTree(pkg)
+	err := p.buildPackage(pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +80,10 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	}
 
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
+	if pkg, found := p.root.AllImports[fullPkgPath]; found {
+		return path[len(path)-1], fullPkgPath, pkg, nil
+	}
+
 	loc, err := ast.LocFromPath(fullPkgPath)
 	if err != nil {
 		return "", "", nil, err
@@ -98,6 +102,8 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	if err != nil {
 		return "", "", nil, err
 	}
+
+	p.root.AllImports[fullPkgPath] = pkg
 	return path[len(path)-1], fullPkgPath, pkg, nil
 }
 
@@ -196,26 +202,9 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 	return nil
 }
 
-func (p *Parser) buildPackageTree(pkg *ast.Package) error {
-	return p.processPackageEntries(pkg.Loc.Path, func(entry os.DirEntry, fullPath string) error {
-		switch {
-		case entry.IsDir():
-			childPackage := new(ast.Package)
-			childScope := ast.NewScope(pkg.Scope)
-			childPackage.Scope = childScope
-			childPackage.IsRoot = false
-			childPackage.Packages = make([]*ast.Package, 0)
-			childPackage.AllImports = make(map[string]*ast.Package)
-
-			loc, err := ast.LocFromPath(fullPath)
-			if err != nil {
-				return err
-			}
-			childPackage.Loc = loc
-
-			pkg.Packages = append(pkg.Packages, childPackage)
-			return p.buildPackageTree(childPackage)
-		case filepath.Ext(entry.Name()) == ".t":
+func (p *Parser) buildPackage(pkg *ast.Package) error {
+	return p.processPackageFiles(pkg.Loc.Path, func(entry os.DirEntry, fullPath string) error {
+		if filepath.Ext(entry.Name()) == ".t" {
 			loc, err := ast.LocFromPath(fullPath)
 			if err != nil {
 				return err
@@ -224,24 +213,21 @@ func (p *Parser) buildPackageTree(pkg *ast.Package) error {
 			if err != nil {
 				return err
 			}
-
 			file, err := p.parseFile(lex, pkg)
 			if err != nil {
 				return err
 			}
-
 			pkg.Files = append(pkg.Files, file)
 		}
 		return nil
 	})
 }
 
-func (p *Parser) processPackageEntries(path string, handler func(entry os.DirEntry, fullPath string) error) error {
+func (p *Parser) processPackageFiles(path string, handler func(entry os.DirEntry, fullPath string) error) error {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %q: %w", path, err)
 	}
-
 	for _, entry := range entries {
 		fullPath := filepath.Join(path, entry.Name())
 		if err := handler(entry, fullPath); err != nil {
@@ -629,10 +615,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	if found {
 		return nil, fmt.Errorf("name conflict for import: %s\n", impName)
 	}
-
-	p.root.AllImports[fullPath] = pkg
 	p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
-
 	return nil, nil
 }
 

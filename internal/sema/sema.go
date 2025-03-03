@@ -31,21 +31,22 @@ func New(collector *diagnostics.Collector) *sema {
 }
 
 func (s *sema) Check(program *ast.Program) error {
-	for _, pkg := range program.Root.AllImports {
-		fmt.Printf("CHECKING IMPORT: %s\n", pkg.Loc.Path)
-		err := s.checkPackage(pkg)
-		if err != nil {
-			return err
-		}
-	}
-
+	// for _, pkg := range program.Root.AllImports {
+	// 	err := s.checkPackage(pkg)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	return s.checkPackage(program.Root)
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
+	if pkg.Analyzed {
+		return nil
+	}
+
 	prevPkg := s.pkg
 	defer func() { s.pkg = prevPkg }()
-
 	s.pkg = pkg
 
 	err := s.checkPackageFiles(pkg)
@@ -53,13 +54,7 @@ func (s *sema) checkPackage(pkg *ast.Package) error {
 		return err
 	}
 
-	for _, innerPackage := range pkg.Packages {
-		err := s.checkPackage(innerPackage)
-		if err != nil {
-			return err
-		}
-	}
-
+	pkg.Analyzed = true
 	return nil
 }
 
@@ -72,11 +67,17 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 	requiresMainMethod := false
 
 	for _, file := range pkg.Files {
-		fmt.Printf("CHECKING FILE: %s\n", file.Loc.Path)
 		prevFile := s.file
 		defer func() { s.file = prevFile }()
 
 		s.file = file
+
+		for _, imp := range file.Imports {
+			err := s.checkPackage(imp.Package)
+			if err != nil {
+				return err
+			}
+		}
 
 		if file.PkgName == "main" {
 			if s.mainPackageFound {

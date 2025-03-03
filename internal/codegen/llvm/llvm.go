@@ -45,32 +45,32 @@ func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
 }
 
 func (c *llvmCodegen) Generate(buildType config.BuildType) error {
-	for _, pkg := range c.program.Root.AllImports {
-		c.generatePackage(pkg)
-	}
-
 	c.generatePackage(c.program.Root)
-
 	err := c.generateExe(buildType)
 	return err
 }
 
 func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
-	currentPkg := pkg
+	if pkg.Processed {
+		return
+	}
+
+	currentPkg := c.pkg
 	defer func() { c.pkg = currentPkg }()
 	c.pkg = pkg
 
-	for _, currentPkg := range pkg.Packages {
-		c.generatePackage(currentPkg)
-	}
-
 	for _, file := range pkg.Files {
+		for _, imp := range file.Imports {
+			c.generatePackage(imp.Package)
+		}
 		c.generateDeclarations(file)
 	}
 
 	for _, file := range pkg.Files {
 		c.generateBodies(file)
 	}
+
+	pkg.Processed = true
 }
 
 func (c *llvmCodegen) generateDeclarations(file *ast.File) {
@@ -80,9 +80,6 @@ func (c *llvmCodegen) generateDeclarations(file *ast.File) {
 			c.generateFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.generateExternDecl(node.Node.(*ast.ExternDecl))
-		case ast.KIND_PKG_DECL, ast.KIND_USE_DECL:
-			// TODO
-			continue
 		default:
 			continue
 		}
@@ -359,8 +356,8 @@ func (c *llvmCodegen) generateFnCall(
 func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr, scope *ast.Scope) llvm.Value {
 	types := c.getTypes(tuple.Type.Types)
 	tupleTy := c.context.StructType(types, false)
-
 	tupleVal := llvm.ConstNull(tupleTy)
+
 	for i, expr := range tuple.Exprs {
 		generatedExpr := c.getExpr(expr, scope)
 		tupleVal = c.builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
