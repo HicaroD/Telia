@@ -17,10 +17,11 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	argLoc  string
-	imports map[string]*ast.Package
-	pkg     *ast.Package
-	file    *ast.File
+	argLoc     string
+	imports    map[string]*ast.Package
+	processing map[string]bool
+	pkg        *ast.Package
+	file       *ast.File
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -31,6 +32,7 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.file = nil
 	parser.imports = make(map[string]*ast.Package)
 	parser.collector = collector
+	parser.processing = make(map[string]bool)
 	return parser
 }
 
@@ -57,6 +59,7 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	pkg.IsRoot = isRoot
 	if isRoot {
 		p.imports = make(map[string]*ast.Package)
+		p.imports[p.argLoc] = pkg
 	}
 
 	err := p.buildPackage(pkg)
@@ -83,6 +86,13 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	if pkg, found := p.imports[fullPkgPath]; found {
 		return impName, fullPkgPath, pkg, nil
 	}
+
+	// TODO(errors)
+	if _, processing := p.processing[fullPkgPath]; processing {
+		return "", "", nil, fmt.Errorf("circular import detected: %s", fullPkgPath)
+	}
+	p.processing[fullPkgPath] = true
+	defer delete(p.processing, fullPkgPath)
 
 	loc, err := ast.LocFromPath(fullPkgPath)
 	if err != nil {
