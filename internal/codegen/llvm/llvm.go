@@ -17,13 +17,15 @@ import (
 )
 
 type llvmCodegen struct {
-	loc     *ast.Loc
-	pkg     *ast.Package
-	program *ast.Program
-
 	context llvm.Context
 	module  llvm.Module
 	builder llvm.Builder
+
+	loc *ast.Loc
+
+	program *ast.Program
+	pkg     *ast.Package
+	file    *ast.File
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
@@ -37,7 +39,6 @@ func NewCG(loc *ast.Loc, program *ast.Program) *llvmCodegen {
 	return &llvmCodegen{
 		loc:     loc,
 		program: program,
-
 		context: context,
 		module:  module,
 		builder: builder,
@@ -51,115 +52,88 @@ func (c *llvmCodegen) Generate(buildType config.BuildType) error {
 }
 
 func (c *llvmCodegen) generatePackage(pkg *ast.Package) {
+	currentPkg := pkg
+	defer func() { c.pkg = currentPkg }()
+
 	c.pkg = pkg
-	for _, file := range pkg.Files {
-		c.generateFile(file)
+
+	for _, currentPkg := range pkg.Packages {
+		c.generatePackage(currentPkg)
 	}
-	for _, module := range pkg.Packages {
-		c.generatePackage(module)
+
+	for _, file := range pkg.Files {
+		for _, imp := range file.Imports {
+			c.generatePackage(imp)
+		}
+		c.file = file
+		c.generateDeclarations(file)
+	}
+
+	for _, file := range pkg.Files {
+		c.generateBodies(file)
 	}
 }
 
-func (c *llvmCodegen) generateFile(file *ast.File) {
+func (c *llvmCodegen) generateDeclarations(file *ast.File) {
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
-			c.generateFnDecl(node.Node.(*ast.FnDecl))
+			c.generateFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.generateExternDecl(node.Node.(*ast.ExternDecl))
 		case ast.KIND_PKG_DECL, ast.KIND_USE_DECL:
+			// TODO
 			continue
 		default:
-			log.Fatalf("unimplemented: %s\n", reflect.TypeOf(node))
+			continue
 		}
 	}
 }
 
-func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
-	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
-
-	dir, err := os.MkdirTemp("", "build")
-	if err != nil {
-		return err
-	}
-
-	irFileName := filepath.Join(dir, c.program.Root.Loc.Name)
-	irFilepath := irFileName + ".ll"
-	optimizedIrFilepath := irFileName + "_optimized.ll"
-
-	irFile, err := os.Create(irFilepath)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-	defer irFile.Close()
-
-	module := c.module.String()
-	_, err = irFile.WriteString(module)
-	// TODO(errors)
-	if err != nil {
-		return err
-	}
-
-	optLevel := ""
-	compilerFlags := ""
-
-	switch buildType {
-	case config.RELEASE:
-		optLevel = "-O3"
-		compilerFlags = "-Wl,-s"
-	case config.DEBUG:
-		optLevel = "-O0"
-	default:
-		panic("invalid build type: " + buildType.String())
-	}
-
-	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
-	err = cmd.Run()
-	// TODO(errors)
-	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
-		}
-		return err
-	}
-
-	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
-	err = cmd.Run()
-	// TODO(errors)
-	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
-		}
-		return err
-	}
-
-	if config.DEBUG_MODE {
-		fmt.Println("[DEBUG MODE] keeping __build__ directory")
-	} else {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return err
+func (c *llvmCodegen) generateBodies(file *ast.File) {
+	for _, node := range file.Body {
+		switch node.Kind {
+		case ast.KIND_FN_DECL:
+			c.generateFnBody(node.Node.(*ast.FnDecl))
+		default:
+			continue
 		}
 	}
-
-	return nil
 }
 
-func (c *llvmCodegen) generateFnDecl(fnDecl *ast.FnDecl) {
-	fmt.Println(fnDecl.Name)
+func (c *llvmCodegen) generateFnSignature(fnDecl *ast.FnDecl) {
 	returnType := c.getType(fnDecl.RetType)
 	paramsTypes := c.getFieldListTypes(fnDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, fnDecl.Params.IsVariadic)
 	functionValue := llvm.AddFunction(c.module, fnDecl.Name.Name(), functionType)
-	functionBlock := c.context.AddBasicBlock(functionValue, "entry")
+	fnValue := NewFunctionValue(functionValue, functionType)
+	fnDecl.BackendType = fnValue
+}
+
+func (c *llvmCodegen) generateFnBody(fnDecl *ast.FnDecl) {
+	fnValue := fnDecl.BackendType.(*Function)
+	functionBlock := c.context.AddBasicBlock(fnValue.Fn, "entry")
 	c.builder.SetInsertPointAtEnd(functionBlock)
 
-	fnValue := NewFunctionValue(functionValue, functionType, &functionBlock)
-	fnDecl.BackendType = fnValue
+	c.generateFnParams(fnValue, fnDecl)
+	stoppedOnReturn := c.generateBlock(fnDecl.Block, fnValue, fnDecl.Scope)
+	if !stoppedOnReturn && fnDecl.RetType.IsVoid() {
+		c.builder.CreateRetVoid()
+	}
+}
 
-	c.generateParameters(fnValue, fnDecl, paramsTypes)
-	_ = c.generateBlock(fnDecl.Block, fnValue, fnDecl.Scope)
+func (c *llvmCodegen) generateFnParams(fnValue *Function, functionNode *ast.FnDecl) {
+	paramsTypes := fnValue.Ty.ParamTypes()
+	for i, paramPtrValue := range fnValue.Fn.Params() {
+		paramType := paramsTypes[i]
+		paramPtr := c.builder.CreateAlloca(paramType, ".param")
+		c.builder.CreateStore(paramPtrValue, paramPtr)
+		variable := &Variable{
+			Ty:  paramType,
+			Ptr: paramPtr,
+		}
+		functionNode.Params.Fields[i].BackendType = variable
+	}
 }
 
 func (c *llvmCodegen) generateBlock(
@@ -248,11 +222,8 @@ func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
 				}
 			case ast.KIND_FN_CALL:
 				fnCall := expr.Node.(*ast.FnCall)
-				symbol, _ := scope.LookupAcrossScopes(fnCall.Name.Name())
-				fnDecl := symbol.Node.(*ast.FnDecl)
-
-				if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-					tupleType := fnDecl.RetType.T.(*ast.TupleType)
+				if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+					tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
 					affectedVariables := variable.Names[t : t+len(tupleType.Types)]
 					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl, scope)
 					t += len(affectedVariables)
@@ -277,11 +248,11 @@ func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast
 	genFnCall := c.generateFnCall(fnCall, scope)
 
 	if len(variables) == 1 {
-		c.generateVariableWithValue(variables[0], genFnCall, isDecl, scope)
+		c.generateVariableWithValue(variables[0], genFnCall, isDecl)
 	} else {
 		for i, currentVar := range variables {
 			value := c.builder.CreateExtractValue(genFnCall, i, ".arg")
-			c.generateVariableWithValue(currentVar, value, isDecl, scope)
+			c.generateVariableWithValue(currentVar, value, isDecl)
 		}
 	}
 }
@@ -294,11 +265,11 @@ func (c *llvmCodegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl b
 	}
 }
 
-func (c *llvmCodegen) generateVariableWithValue(name *ast.VarId, value llvm.Value, isDecl bool, scope *ast.Scope) {
+func (c *llvmCodegen) generateVariableWithValue(name *ast.VarId, value llvm.Value, isDecl bool) {
 	if isDecl {
 		c.generateVarDeclWithValue(name, value)
 	} else {
-		c.generateVarReassignWithValue(name, value, scope)
+		c.generateVarReassignWithValue(name, value)
 	}
 }
 
@@ -325,16 +296,15 @@ func (c *llvmCodegen) generateVarReassign(
 	scope *ast.Scope,
 ) {
 	generatedExpr := c.getExpr(expr, scope)
-	symbol, _ := scope.LookupAcrossScopes(name.Name.Name())
 
 	var variable *Variable
 
-	switch symbol.Kind {
+	switch name.N.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		node := symbol.Node.(*ast.VarId)
+		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := symbol.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Field)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -361,18 +331,15 @@ func (c *llvmCodegen) generateVarDeclWithValue(
 func (c *llvmCodegen) generateVarReassignWithValue(
 	name *ast.VarId,
 	value llvm.Value,
-	scope *ast.Scope,
 ) {
-	symbol, _ := scope.LookupAcrossScopes(name.Name.Name())
-
 	var variable *Variable
 
-	switch symbol.Kind {
+	switch name.N.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		node := symbol.Node.(*ast.VarId)
+		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := symbol.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Field)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -381,32 +348,12 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 	c.builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *llvmCodegen) generateParameters(
-	fnValue *Function,
-	functionNode *ast.FnDecl,
-	paramsTypes []llvm.Type,
-) {
-	// TODO: learn more about noundef parameter attribute
-	for i, paramPtrValue := range fnValue.Fn.Params() {
-		paramType := paramsTypes[i]
-		paramPtr := c.builder.CreateAlloca(paramType, ".param")
-		c.builder.CreateStore(paramPtrValue, paramPtr)
-		variable := Variable{
-			Ty:  paramType,
-			Ptr: paramPtr,
-		}
-		functionNode.Params.Fields[i].BackendType = &variable
-	}
-}
-
 func (c *llvmCodegen) generateFnCall(
-	functionCall *ast.FnCall,
-	functionScope *ast.Scope,
+	fnCall *ast.FnCall,
+	fnScope *ast.Scope,
 ) llvm.Value {
-	symbol, _ := functionScope.LookupAcrossScopes(functionCall.Name.Name())
-	calledFunction := symbol.Node.(*ast.FnDecl)
-	calledFunctionLlvm := calledFunction.BackendType.(*Function)
-	args := c.getExprList(functionScope, functionCall.Args)
+	calledFunctionLlvm := fnCall.Decl.BackendType.(*Function)
+	args := c.getExprList(fnScope, fnCall.Args)
 	return c.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
 }
 
@@ -443,7 +390,7 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.Attributes, prototype *a
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 
-	proto := NewFunctionValue(protoValue, ty, nil)
+	proto := NewFunctionValue(protoValue, ty)
 	prototype.BackendType = proto
 }
 
@@ -585,7 +532,7 @@ func (c *llvmCodegen) getExpr(
 
 				return ptr
 			default:
-				log.Fatalf("unimplemented basic type: %s\n", lit)
+				log.Fatalf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value))
 				return llvm.Value{}
 			}
 		case ast.EXPR_TYPE_POINTER:
@@ -596,17 +543,14 @@ func (c *llvmCodegen) getExpr(
 	case ast.KIND_ID_EXPR:
 		id := expr.Node.(*ast.IdExpr)
 
-		varName := id.Name.Name()
-		symbol, _ := scope.LookupAcrossScopes(varName)
-
 		var localVar *Variable
 
-		switch symbol.Kind {
+		switch id.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
-			variable := symbol.Node.(*ast.VarId)
+			variable := id.N.Node.(*ast.VarId)
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
-			variable := symbol.Node.(*ast.Field)
+			variable := id.N.Node.(*ast.Field)
 			localVar = variable.BackendType.(*Variable)
 		}
 
@@ -741,28 +685,26 @@ func (c *llvmCodegen) generateNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
 	scope *ast.Scope,
 ) llvm.Value {
-	left, _ := scope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
-	switch left.Kind {
-	case ast.KIND_USE_DECL:
-		useDecl := left.Node.(*ast.UseDecl)
-		pkg := c.pkg.Imports[useDecl.Path]
-		return c.generateImportAccess(pkg, namespaceAccess.Right, scope)
+	if namespaceAccess.IsImport {
+		return c.generateImportAccess(namespaceAccess.Right, scope)
+	}
+
+	fmt.Printf("NAMESPACE: %s\n", namespaceAccess.Left.N)
+
+	switch namespaceAccess.Left.N.Kind {
 	case ast.KIND_EXTERN_DECL:
-		externDecl := left.Node.(*ast.ExternDecl)
 		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
-		return c.generatePrototypeCall(externDecl, fnCall, scope)
+		return c.generatePrototypeCall(fnCall, scope)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *llvmCodegen) generateImportAccess(pkg *ast.Package, right *ast.Node, currentScope *ast.Scope) llvm.Value {
+func (c *llvmCodegen) generateImportAccess(right *ast.Node, currentScope *ast.Scope) llvm.Value {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
-		sym, _ := pkg.Scope.LookupAcrossScopes(fnCall.Name.Name())
-		fnDecl := sym.Node.(*ast.FnDecl)
-		return c.generateFnCall(fnCall, fnDecl.Scope)
+		return c.generateFnCall(fnCall, fnCall.Decl.Scope)
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
 		return c.generateNamespaceAccess(namespaceAccess, currentScope)
@@ -772,13 +714,10 @@ func (c *llvmCodegen) generateImportAccess(pkg *ast.Package, right *ast.Node, cu
 }
 
 func (c *llvmCodegen) generatePrototypeCall(
-	extern *ast.ExternDecl,
 	call *ast.FnCall,
 	callScope *ast.Scope,
 ) llvm.Value {
-	prototype, _ := extern.Scope.LookupCurrentScope(call.Name.Name())
-	proto := prototype.Node.(*ast.Proto)
-	protoLlvm := proto.BackendType.(*Function)
+	protoLlvm := call.Proto.BackendType.(*Function)
 	args := c.getExprList(callScope, call.Args)
 
 	return c.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
@@ -835,4 +774,75 @@ func (c *llvmCodegen) generateWhileLoop(
 	c.builder.CreateBr(whileInitBlock)
 
 	c.builder.SetInsertPointAtEnd(endBlock)
+}
+
+func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
+	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
+
+	dir, err := os.MkdirTemp("", "build")
+	if err != nil {
+		return err
+	}
+
+	irFileName := filepath.Join(dir, c.program.Root.Loc.Name)
+	irFilepath := irFileName + ".ll"
+	optimizedIrFilepath := irFileName + "_optimized.ll"
+
+	irFile, err := os.Create(irFilepath)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+	defer irFile.Close()
+
+	module := c.module.String()
+	_, err = irFile.WriteString(module)
+	// TODO(errors)
+	if err != nil {
+		return err
+	}
+
+	optLevel := ""
+	compilerFlags := ""
+
+	switch buildType {
+	case config.RELEASE:
+		optLevel = "-O3"
+		compilerFlags = "-Wl,-s"
+	case config.DEBUG:
+		optLevel = "-O0"
+	default:
+		panic("invalid build type: " + buildType.String())
+	}
+
+	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	err = cmd.Run()
+	// TODO(errors)
+	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
+		}
+		return err
+	}
+
+	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	err = cmd.Run()
+	// TODO(errors)
+	if err != nil {
+		if config.DEBUG_MODE {
+			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
+		}
+		return err
+	}
+
+	if config.DEBUG_MODE {
+		fmt.Println("[DEBUG MODE] keeping __build__ directory")
+	} else {
+		err = os.RemoveAll(dir)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

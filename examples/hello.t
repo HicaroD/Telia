@@ -3,6 +3,6 @@ package main
 use "std::io"
 
 fn main() i32 {
-  io::println("Hello,\t world!\n")
+  io::println("Hello, world!")
   return 0
 }

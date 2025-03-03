@@ -14,7 +14,7 @@ type Function struct {
 	Ty llvm.Type
 }
 
-func NewFunctionValue(fn llvm.Value, ty llvm.Type, block *llvm.BasicBlock) *Function {
+func NewFunctionValue(fn llvm.Value, ty llvm.Type) *Function {
 	return &Function{Fn: fn, Ty: ty}
 }
 

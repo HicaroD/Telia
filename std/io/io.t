@@ -7,7 +7,7 @@ extern libc {
 }
 
 fn println(message cstring) {
-  libc::print(message)
-  libc::puts()
+  libc::printf(message)
+  libc::puts("")
   return
 }

@@ -19,6 +19,7 @@ type Parser struct {
 
 	root *ast.Package
 	pkg  *ast.Package
+	file *ast.File
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -26,6 +27,7 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.lex = nil
 	parser.root = nil
 	parser.pkg = nil
+	parser.file = nil
 	parser.collector = collector
 	return parser
 }
@@ -48,7 +50,6 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	scope := ast.NewScope(nil)
 
 	root := new(ast.Package)
-	root.Imports = make(map[string]*ast.Package)
 	root.Loc = loc
 	root.Scope = scope
 	root.IsRoot = isRoot
@@ -73,20 +74,23 @@ func (p *Parser) addStdPackage(path []string) (string, *ast.Package, error) {
 
 	currentLex := p.lex
 	currentPkg := p.pkg
+	currentFile := p.file
+	defer func() {
+		p.lex = currentLex
+		p.pkg = currentPkg
+		p.file = currentFile
+	}()
 
 	pkg, err := p.parsePackage(loc, false)
 	if err != nil {
 		return "", nil, err
 	}
 
-	p.lex = currentLex
-	p.pkg = currentPkg
-
 	return pkgPath, pkg, nil
 }
 
-func (p *Parser) addLocalPackage(path []string) (*ast.Package, error) {
-	return nil, nil
+func (p *Parser) addLocalPackage(path []string) (string, *ast.Package, error) {
+	return "", nil, nil
 }
 
 func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
@@ -103,10 +107,9 @@ func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collect
 	packageScope := ast.NewScope(universe)
 
 	pkg := &ast.Package{
-		Loc:     loc,
-		Imports: make(map[string]*ast.Package),
-		Scope:   packageScope,
-		IsRoot:  true,
+		Loc:    loc,
+		Scope:  packageScope,
+		IsRoot: true,
 	}
 
 	file, err := p.parseFile(l, pkg)
@@ -124,10 +127,14 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 	file := &ast.File{
 		Loc:            lex.Loc,
 		PkgNameDefined: false,
+		Imports:        make(map[string]*ast.Package),
 	}
 
 	p.lex = lex
 	p.pkg = pkg
+	p.file = file
+
+	fmt.Printf("hey, parsing new file: %s %s\n", p.pkg.Loc.Name, p.file.Loc.Name)
 
 	err := p.parseFileDecls(file)
 	if err != nil {
@@ -609,7 +616,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	if std {
 		path, pkg, err = p.addStdPackage(parts[1:])
 	} else {
-		pkg, err = p.addLocalPackage(parts[1:])
+		path, pkg, err = p.addLocalPackage(parts[1:])
 	}
 	if err != nil {
 		return nil, err
@@ -617,19 +624,15 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 
 	imp.Path = path
 
-	_, found := p.pkg.Imports[path]
+	_, found := p.file.Imports[path]
 	// TODO(errors)
 	if found {
-		return nil, fmt.Errorf("name conflict for import")
+		return nil, fmt.Errorf("name conflict for import: %s\n", path)
 	}
-	p.pkg.Imports[path] = pkg
 
-	node := new(ast.Node)
-	node.Kind = ast.KIND_USE_DECL
-	node.Node = imp
-
-	err = p.pkg.Scope.Insert(path, node)
-	return node, err
+	fmt.Printf("file: %s -> adding import: %s\n", p.file.Loc.Name, path)
+	p.file.Imports[path] = pkg
+	return nil, nil
 }
 
 func (p *Parser) parseTypeAlias() (*ast.Node, error) {
@@ -1795,13 +1798,8 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 		return nil, fmt.Errorf("error: expected ID")
 	}
 
-	_, err := parentScope.LookupAcrossScopes(id.Name())
-	if err != nil {
-		if err == ast.ErrSymbolNotFoundOnScope {
-			fmt.Println("'%s' not found on scope\n", id.Name())
-			return nil, err
-		}
-	}
+	_, lookupErr := parentScope.LookupAcrossScopes(id.Name())
+	_, isImport := p.file.Imports[id.Name()]
 
 	p.lex.Skip() // ::
 
@@ -1812,7 +1810,15 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_NAMESPACE_ACCESS
-	n.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: id}, Right: right}
+
+	access := new(ast.NamespaceAccess)
+	// NOTE: it is an import when I found it in the import list and there is no
+	// symbol with the same name in the parent scope
+	access.IsImport = isImport && lookupErr != nil
+	access.Left = &ast.IdExpr{Name: id}
+	access.Right = right
+
+	n.Node = access
 	return n, nil
 }
 

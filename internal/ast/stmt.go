@@ -22,7 +22,10 @@ type VarId struct {
 	Name           *token.Token
 	Type           *ExprType
 	NeedsInference bool
-	BackendType    any
+
+	// Codegen
+	BackendType any
+	N           *Node
 }
 
 type VarStmt struct {
@@ -49,7 +52,10 @@ type FnCall struct {
 	Args []*Node
 	AtOp *AtOperator
 
+	// Codegen
 	BackendType any
+	Decl        *FnDecl
+	Proto       *Proto
 }
 
 func (call FnCall) String() string {
