@@ -158,7 +158,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 
 func (p *Parser) parseFileDecls(file *ast.File) error {
 	var decls []*ast.Node
-	firstNode := true
+	isFirstNode := true
 
 	for {
 		node, eof, err := p.next()
@@ -174,7 +174,11 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
-		if node.Kind == ast.KIND_PKG_DECL {
+		if isFirstNode {
+			if node.Kind != ast.KIND_PKG_DECL {
+				return fmt.Errorf("expected package declaration as first node")
+			}
+
 			pkg := node.Node.(*ast.PkgDecl)
 			if file.PkgNameDefined {
 				// TODO(errors)
@@ -182,12 +186,9 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			}
 			file.PkgName = pkg.Name.Name()
 			file.PkgNameDefined = true
-		} else if firstNode {
-			// TODO(errors)
-			return fmt.Errorf("expected package declaration as first node")
 		}
 
-		firstNode = false
+		isFirstNode = false
 		decls = append(decls, node)
 	}
 
