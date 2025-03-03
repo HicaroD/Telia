@@ -78,9 +78,10 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 		prefixPath = p.argLoc
 	}
 
+	impName := path[len(path)-1]
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	if pkg, found := p.imports[fullPkgPath]; found {
-		return path[len(path)-1], fullPkgPath, pkg, nil
+		return impName, fullPkgPath, pkg, nil
 	}
 
 	loc, err := ast.LocFromPath(fullPkgPath)
@@ -103,7 +104,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	}
 
 	p.imports[fullPkgPath] = pkg
-	return path[len(path)-1], fullPkgPath, pkg, nil
+	return impName, fullPkgPath, pkg, nil
 }
 
 func (p *Parser) ParseFileAsProgram(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
