@@ -112,7 +112,7 @@ func (c *llvmCodegen) generateFnBody(fnDecl *ast.FnDecl) {
 	c.builder.SetInsertPointAtEnd(functionBlock)
 
 	c.generateFnParams(fnValue, fnDecl)
-	stoppedOnReturn := c.generateBlock(fnDecl.Block, fnValue, fnDecl.Scope)
+	stoppedOnReturn := c.generateBlock(fnDecl.Block, fnValue)
 	if !stoppedOnReturn && fnDecl.RetType.IsVoid() {
 		c.builder.CreateRetVoid()
 	}
@@ -135,12 +135,11 @@ func (c *llvmCodegen) generateFnParams(fnValue *Function, functionNode *ast.FnDe
 func (c *llvmCodegen) generateBlock(
 	block *ast.BlockStmt,
 	function *Function,
-	parentScope *ast.Scope,
 ) bool {
 	stoppedOnReturn := false
 
 	for _, stmt := range block.Statements {
-		c.generateStmt(stmt, function, block, parentScope)
+		c.generateStmt(stmt, function, block)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
 			break
@@ -154,25 +153,24 @@ func (c *llvmCodegen) generateStmt(
 	stmt *ast.Node,
 	function *Function,
 	block *ast.BlockStmt,
-	parentScope *ast.Scope,
 ) {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
-		c.generateFnCall(stmt.Node.(*ast.FnCall), parentScope)
+		c.generateFnCall(stmt.Node.(*ast.FnCall))
 	case ast.KIND_RETURN_STMT:
 		if len(block.DeferStack) > 0 {
 			for i := len(block.DeferStack) - 1; i >= 0; i-- {
 				if block.DeferStack[i].Skip {
 					continue
 				}
-				c.generateStmt(block.DeferStack[i].Stmt, function, block, parentScope)
+				c.generateStmt(block.DeferStack[i].Stmt, function, block)
 			}
 		}
-		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt), parentScope)
+		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt))
 	case ast.KIND_VAR_STMT:
-		c.generateVar(stmt.Node.(*ast.VarStmt), parentScope)
+		c.generateVar(stmt.Node.(*ast.VarStmt))
 	case ast.KIND_NAMESPACE_ACCESS:
-		c.generateNamespaceAccess(stmt.Node.(*ast.NamespaceAccess), parentScope)
+		c.generateNamespaceAccess(stmt.Node.(*ast.NamespaceAccess))
 	case ast.KIND_COND_STMT:
 		c.generateCondStmt(stmt.Node.(*ast.CondStmt), function)
 	case ast.KIND_FOR_LOOP_STMT:
@@ -191,18 +189,17 @@ Ignore:
 
 func (c *llvmCodegen) generateReturnStmt(
 	ret *ast.ReturnStmt,
-	scope *ast.Scope,
 ) {
 	if ret.Value.IsVoid() {
 		c.builder.CreateRetVoid()
 		return
 	}
-	returnValue := c.getExpr(ret.Value, scope)
+	returnValue := c.getExpr(ret.Value)
 	// TODO: learn more about noundef for return values
 	c.builder.CreateRet(returnValue)
 }
 
-func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
+func (c *llvmCodegen) generateVar(variable *ast.VarStmt) {
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
@@ -213,7 +210,7 @@ func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
 			case ast.KIND_TUPLE_EXPR:
 				innerTupleExpr := expr.Node.(*ast.TupleExpr)
 				for _, innerExpr := range innerTupleExpr.Exprs {
-					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl, scope)
+					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl)
 					t++
 				}
 			case ast.KIND_FN_CALL:
@@ -221,27 +218,27 @@ func (c *llvmCodegen) generateVar(variable *ast.VarStmt, scope *ast.Scope) {
 				if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
 					tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
 					affectedVariables := variable.Names[t : t+len(tupleType.Types)]
-					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl, scope)
+					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 					t += len(affectedVariables)
 				} else {
-					c.generateVariable(variable.Names[t], expr, variable.IsDecl, scope)
+					c.generateVariable(variable.Names[t], expr, variable.IsDecl)
 					t++
 				}
 			default:
-				c.generateVariable(variable.Names[t], expr, variable.IsDecl, scope)
+				c.generateVariable(variable.Names[t], expr, variable.IsDecl)
 				t++
 			}
 		}
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
-		c.generateFnCallForTuple(variable.Names, fnCall, variable.IsDecl, scope)
+		c.generateFnCallForTuple(variable.Names, fnCall, variable.IsDecl)
 	default:
-		c.generateVariable(variable.Names[0], variable.Expr, variable.IsDecl, scope)
+		c.generateVariable(variable.Names[0], variable.Expr, variable.IsDecl)
 	}
 }
 
-func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnCall, isDecl bool, scope *ast.Scope) {
-	genFnCall := c.generateFnCall(fnCall, scope)
+func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnCall, isDecl bool) {
+	genFnCall := c.generateFnCall(fnCall)
 
 	if len(variables) == 1 {
 		c.generateVariableWithValue(variables[0], genFnCall, isDecl)
@@ -253,11 +250,11 @@ func (c *llvmCodegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast
 	}
 }
 
-func (c *llvmCodegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool, scope *ast.Scope) {
+func (c *llvmCodegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool) {
 	if isDecl {
-		c.generateVarDecl(name, expr, scope)
+		c.generateVarDecl(name, expr)
 	} else {
-		c.generateVarReassign(name, expr, scope)
+		c.generateVarReassign(name, expr)
 	}
 }
 
@@ -272,11 +269,10 @@ func (c *llvmCodegen) generateVariableWithValue(name *ast.VarId, value llvm.Valu
 func (c *llvmCodegen) generateVarDecl(
 	name *ast.VarId,
 	expr *ast.Node,
-	scope *ast.Scope,
 ) {
 	ty := c.getType(name.Type)
 	ptr := c.builder.CreateAlloca(ty, ".ptr")
-	generatedExpr := c.getExpr(expr, scope)
+	generatedExpr := c.getExpr(expr)
 	c.builder.CreateStore(generatedExpr, ptr)
 
 	variableLlvm := &Variable{
@@ -289,9 +285,8 @@ func (c *llvmCodegen) generateVarDecl(
 func (c *llvmCodegen) generateVarReassign(
 	name *ast.VarId,
 	expr *ast.Node,
-	scope *ast.Scope,
 ) {
-	generatedExpr := c.getExpr(expr, scope)
+	generatedExpr := c.getExpr(expr)
 
 	var variable *Variable
 
@@ -346,20 +341,19 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 
 func (c *llvmCodegen) generateFnCall(
 	fnCall *ast.FnCall,
-	fnScope *ast.Scope,
 ) llvm.Value {
 	calledFunctionLlvm := fnCall.Decl.BackendType.(*Function)
-	args := c.getExprList(fnScope, fnCall.Args)
+	args := c.getExprList(fnCall.Args)
 	return c.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
 }
 
-func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr, scope *ast.Scope) llvm.Value {
+func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
 	types := c.getTypes(tuple.Type.Types)
 	tupleTy := c.context.StructType(types, false)
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		generatedExpr := c.getExpr(expr, scope)
+		generatedExpr := c.getExpr(expr)
 		tupleVal = c.builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
 	}
 
@@ -485,19 +479,17 @@ func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
 }
 
 func (c *llvmCodegen) getExprList(
-	parentScope *ast.Scope,
 	expressions []*ast.Node,
 ) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i, expr := range expressions {
-		values[i] = c.getExpr(expr, parentScope)
+		values[i] = c.getExpr(expr)
 	}
 	return values
 }
 
 func (c *llvmCodegen) getExpr(
 	expr *ast.Node,
-	scope *ast.Scope,
 ) llvm.Value {
 	switch expr.Kind {
 	case ast.KIND_LITERAl_EXPR:
@@ -547,7 +539,6 @@ func (c *llvmCodegen) getExpr(
 		id := expr.Node.(*ast.IdExpr)
 
 		var localVar *Variable
-
 		switch id.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := id.N.Node.(*ast.VarId)
@@ -562,16 +553,13 @@ func (c *llvmCodegen) getExpr(
 	case ast.KIND_BINARY_EXPR:
 		binary := expr.Node.(*ast.BinaryExpr)
 
-		lhs := c.getExpr(binary.Left, scope)
-		rhs := c.getExpr(binary.Right, scope)
+		lhs := c.getExpr(binary.Left)
+		rhs := c.getExpr(binary.Right)
 
 		switch binary.Op {
 		// TODO: deal with signed or unsigned operations
 		// I'm assuming all unsigned for now
 		case token.EQUAL_EQUAL:
-			// TODO: there a list of IntPredicate, I could map token kind to these
-			// for code reability
-			// See https://github.com/tinygo-org/go-llvm/blob/master/ir.go#L302
 			return c.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq")
 		case token.BANG_EQUAL:
 			return c.builder.CreateICmp(llvm.IntNE, lhs, rhs, ".cmpneq")
@@ -597,14 +585,14 @@ func (c *llvmCodegen) getExpr(
 		}
 	case ast.KIND_FN_CALL:
 		fnCall := expr.Node.(*ast.FnCall)
-		call := c.generateFnCall(fnCall, scope)
+		call := c.generateFnCall(fnCall)
 		return call
 	case ast.KIND_UNARY_EXPR:
 		unary := expr.Node.(*ast.UnaryExpr)
 
 		switch unary.Op {
 		case token.MINUS:
-			expr := c.getExpr(unary.Value, scope)
+			expr := c.getExpr(unary.Value)
 			return c.builder.CreateNeg(expr, ".neg")
 		default:
 			log.Fatalf("unimplemented unary operator: %s", unary.Op)
@@ -612,10 +600,10 @@ func (c *llvmCodegen) getExpr(
 		}
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := expr.Node.(*ast.NamespaceAccess)
-		value := c.generateNamespaceAccess(namespaceAccess, scope)
+		value := c.generateNamespaceAccess(namespaceAccess)
 		return value
 	case ast.KIND_TUPLE_EXPR:
-		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr), scope)
+		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr))
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 		return llvm.Value{}
@@ -657,10 +645,10 @@ func (c *llvmCodegen) generateCondStmt(
 	endBlock := llvm.AddBasicBlock(function.Fn, ".end")
 
 	// If
-	ifExpr := c.getExpr(condStmt.IfStmt.Expr, condStmt.IfStmt.Scope.Parent)
+	ifExpr := c.getExpr(condStmt.IfStmt.Expr)
 	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	c.builder.SetInsertPointAtEnd(ifBlock)
-	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, function, condStmt.IfStmt.Scope)
+	stoppedOnReturn := c.generateBlock(condStmt.IfStmt.Block, function)
 	if !stoppedOnReturn {
 		c.builder.CreateBr(endBlock)
 	}
@@ -673,7 +661,6 @@ func (c *llvmCodegen) generateCondStmt(
 		elseStoppedOnReturn := c.generateBlock(
 			condStmt.ElseStmt.Block,
 			function,
-			condStmt.ElseStmt.Scope,
 		)
 		if !elseStoppedOnReturn {
 			c.builder.CreateBr(endBlock)
@@ -686,40 +673,36 @@ func (c *llvmCodegen) generateCondStmt(
 
 func (c *llvmCodegen) generateNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
-	scope *ast.Scope,
 ) llvm.Value {
 	if namespaceAccess.IsImport {
-		return c.generateImportAccess(namespaceAccess.Right, scope)
+		return c.generateImportAccess(namespaceAccess.Right)
 	}
 
 	switch namespaceAccess.Left.N.Kind {
 	case ast.KIND_EXTERN_DECL:
 		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
-		return c.generatePrototypeCall(fnCall, scope)
+		return c.generatePrototypeCall(fnCall)
 	default:
 		panic("unreachable")
 	}
 }
 
-func (c *llvmCodegen) generateImportAccess(right *ast.Node, currentScope *ast.Scope) llvm.Value {
+func (c *llvmCodegen) generateImportAccess(right *ast.Node) llvm.Value {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
-		return c.generateFnCall(fnCall, fnCall.Decl.Scope)
+		return c.generateFnCall(fnCall)
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
-		return c.generateNamespaceAccess(namespaceAccess, currentScope)
+		return c.generateNamespaceAccess(namespaceAccess)
 	default:
 		panic("unimplemented import access")
 	}
 }
 
-func (c *llvmCodegen) generatePrototypeCall(
-	call *ast.FnCall,
-	callScope *ast.Scope,
-) llvm.Value {
+func (c *llvmCodegen) generatePrototypeCall(call *ast.FnCall) llvm.Value {
 	protoLlvm := call.Proto.BackendType.(*Function)
-	args := c.getExprList(callScope, call.Args)
+	args := c.getExprList(call.Args)
 
 	return c.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
 }
@@ -736,21 +719,21 @@ func (c *llvmCodegen) generateForLoop(
 
 	c.builder.CreateBr(forPrepBlock)
 	c.builder.SetInsertPointAtEnd(forPrepBlock)
-	c.generateStmt(forLoop.Init, function, forLoop.Block, forLoop.Scope)
+	c.generateStmt(forLoop.Init, function, forLoop.Block)
 
 	c.builder.CreateBr(forInitBlock)
 	c.builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr := c.getExpr(forLoop.Cond, forLoop.Scope)
+	expr := c.getExpr(forLoop.Cond)
 
 	c.builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
 	c.builder.SetInsertPointAtEnd(forBodyBlock)
-	c.generateBlock(forLoop.Block, function, forLoop.Scope)
+	c.generateBlock(forLoop.Block, function)
 
 	c.builder.CreateBr(forUpdateBlock)
 	c.builder.SetInsertPointAtEnd(forUpdateBlock)
-	c.generateStmt(forLoop.Update, function, forLoop.Block, forLoop.Scope)
+	c.generateStmt(forLoop.Update, function, forLoop.Block)
 
 	c.builder.CreateBr(forInitBlock)
 
@@ -767,11 +750,11 @@ func (c *llvmCodegen) generateWhileLoop(
 
 	c.builder.CreateBr(whileInitBlock)
 	c.builder.SetInsertPointAtEnd(whileInitBlock)
-	expr := c.getExpr(whileLoop.Cond, whileLoop.Scope)
+	expr := c.getExpr(whileLoop.Cond)
 	c.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	c.builder.SetInsertPointAtEnd(whileBodyBlock)
-	c.generateBlock(whileLoop.Block, function, whileLoop.Scope)
+	c.generateBlock(whileLoop.Block, function)
 	c.builder.CreateBr(whileInitBlock)
 
 	c.builder.SetInsertPointAtEnd(endBlock)
