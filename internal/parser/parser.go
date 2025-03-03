@@ -134,8 +134,6 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 	p.pkg = pkg
 	p.file = file
 
-	fmt.Printf("hey, parsing new file: %s %s\n", p.pkg.Loc.Name, p.file.Loc.Name)
-
 	err := p.parseFileDecls(file)
 	if err != nil {
 		return nil, err
@@ -630,7 +628,6 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("name conflict for import: %s\n", path)
 	}
 
-	fmt.Printf("file: %s -> adding import: %s\n", p.file.Loc.Name, path)
 	p.file.Imports[path] = pkg
 	return nil, nil
 }

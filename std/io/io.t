@@ -6,8 +6,12 @@ extern libc {
   fn puts(format cstring) i32
 }
 
-fn println(message cstring) {
-  libc::printf(message)
-  libc::puts("")
+fn printf(f cstring, ...) {
+  libc::printf(f)
+  return
+}
+
+fn println(f cstring) {
+  libc::puts(f)
   return
 }

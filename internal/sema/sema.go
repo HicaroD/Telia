@@ -121,7 +121,6 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 		case ast.KIND_FN_DECL:
 			fnDecl := node.Node.(*ast.FnDecl)
 			if !foundMain {
-				fmt.Println(foundMain)
 				foundMain = fnDecl.Name.Name() == "main"
 			}
 			err := s.checkFnDecl(fnDecl, s.pkg.Scope)
@@ -1158,7 +1157,6 @@ func (sema *sema) checkNamespaceAccess(
 ) (*ast.ExprType, error) {
 	if namespaceAccess.IsImport {
 		imp := namespaceAccess.Left.Name.Name()
-		fmt.Printf("trying to get this package: %s\n", imp)
 		pkg, ok := sema.file.Imports[imp]
 		if !ok {
 			panic("package not found")

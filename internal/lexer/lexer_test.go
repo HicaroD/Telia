@@ -151,7 +151,6 @@ func TestTokenPos(t *testing.T) {
 			}
 
 			if len(tokenResult) != len(test.positions) {
-				fmt.Println(tokenResult)
 				t.Errorf(
 					"expected len(tokenResult) == len(expectedPos.positions), expected %d, but got %d",
 					len(tokenResult),

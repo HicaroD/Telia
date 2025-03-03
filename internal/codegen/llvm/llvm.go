@@ -689,8 +689,6 @@ func (c *llvmCodegen) generateNamespaceAccess(
 		return c.generateImportAccess(namespaceAccess.Right, scope)
 	}
 
-	fmt.Printf("NAMESPACE: %s\n", namespaceAccess.Left.N)
-
 	switch namespaceAccess.Left.N.Kind {
 	case ast.KIND_EXTERN_DECL:
 		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
