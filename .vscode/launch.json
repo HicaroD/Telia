@@ -7,7 +7,7 @@
             "request": "launch",
             "mode": "exec",
             "program": "${workspaceFolder}/telia",
-            "args": ["build", "examples/circular_import"],
+            "args": ["build", "examples/static_checking.t"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
         }

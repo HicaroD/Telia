@@ -506,11 +506,18 @@ func (c *llvmCodegen) getExpr(
 		case ast.EXPR_TYPE_BASIC:
 			basic := lit.Type.T.(*ast.BasicType)
 
-			switch {
-			case basic.IsIntegerType():
+			if basic.Kind.IsNumeric() {
+				// TODO: generate numeric type properly
+				// Right now it only accepts integers
 				integerValue, bitSize := c.getIntegerValue(lit, basic)
 				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
-			case basic.Kind == token.CSTRING_TYPE:
+			}
+
+			switch basic.Kind {
+			// case basic.IsIntegerType():
+			// 	integerValue, bitSize := c.getIntegerValue(lit, basic)
+			// 	return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false)
+			case token.STRING_TYPE, token.CSTRING_TYPE:
 				strlen := len(lit.Value) + 1
 				arrTy := llvm.ArrayType(c.context.Int8Type(), strlen)
 				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value, strlen))

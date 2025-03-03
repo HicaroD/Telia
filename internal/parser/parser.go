@@ -1702,7 +1702,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		}
 		return expr, nil
 	default:
-		if tok.Kind.IsLiteral() {
+		if tok.Kind.IsUntyped() {
 			p.lex.Skip()
 
 			n.Kind = ast.KIND_LITERAl_EXPR

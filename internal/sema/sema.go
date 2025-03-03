@@ -120,7 +120,7 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			if !foundMain {
 				foundMain = fnDecl.Name.Name() == "main"
 			}
-			err := s.checkFnDecl(fnDecl, s.pkg.Scope)
+			err := s.checkFnDecl(fnDecl, s.pkg.Scope, false)
 			if err != nil {
 				return false, err
 			}
@@ -140,14 +140,14 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 	return foundMain, nil
 }
 
-func (sema *sema) checkFnDecl(function *ast.FnDecl, declScope *ast.Scope) error {
+func (sema *sema) checkFnDecl(function *ast.FnDecl, declScope *ast.Scope, fromImportPackage bool) error {
 	if function.Attributes != nil {
 		err := sema.checkFnAttributes(function.Attributes)
 		if err != nil {
 			return err
 		}
 	}
-	err := sema.checkBlock(function.Block, function.RetType, function.Scope, declScope)
+	err := sema.checkBlock(function.Block, function.RetType, function.Scope, declScope, fromImportPackage)
 	return err
 }
 
@@ -238,9 +238,10 @@ func (sema *sema) checkBlock(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) error {
 	for _, statement := range block.Statements {
-		err := sema.checkStmt(statement, referenceScope, declScope, returnTy)
+		err := sema.checkStmt(statement, referenceScope, declScope, returnTy, fromImportPackage)
 		if err != nil {
 			return err
 		}
@@ -253,40 +254,41 @@ func (sema *sema) checkStmt(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
+	fromImportPackage bool,
 ) error {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
 		_, err := sema.checkFnCall(stmt.Node.(*ast.FnCall), referenceScope, declScope)
 		return err
 	case ast.KIND_VAR_STMT:
-		err := sema.checkVar(stmt.Node.(*ast.VarStmt), referenceScope, declScope)
+		err := sema.checkVar(stmt.Node.(*ast.VarStmt), referenceScope, declScope, fromImportPackage)
 		return err
 	case ast.KIND_COND_STMT:
-		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, referenceScope, declScope)
+		err := sema.checkCondStmt(stmt.Node.(*ast.CondStmt), returnTy, referenceScope, declScope, fromImportPackage)
 		return err
 	case ast.KIND_RETURN_STMT:
 		returnStmt := stmt.Node.(*ast.ReturnStmt)
 		_, err := sema.inferExprTypeWithContext(returnStmt.Value, returnTy, referenceScope, declScope)
 		return err
 	case ast.KIND_NAMESPACE_ACCESS:
-		_, err := sema.checkNamespaceAccess(stmt.Node.(*ast.NamespaceAccess), referenceScope, declScope)
+		_, err := sema.checkNamespaceAccess(stmt.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
 		return err
 	case ast.KIND_FOR_LOOP_STMT:
-		err := sema.checkForLoop(stmt.Node.(*ast.ForLoop), returnTy, referenceScope, declScope)
+		err := sema.checkForLoop(stmt.Node.(*ast.ForLoop), returnTy, referenceScope, declScope, fromImportPackage)
 		return err
 	case ast.KIND_WHILE_LOOP_STMT:
-		err := sema.checkWhileLoop(stmt.Node.(*ast.WhileLoop), referenceScope, declScope, returnTy)
+		err := sema.checkWhileLoop(stmt.Node.(*ast.WhileLoop), referenceScope, declScope, returnTy, fromImportPackage)
 		return err
 	case ast.KIND_DEFER_STMT:
 		deferStmt := stmt.Node.(*ast.DeferStmt)
-		err := sema.checkStmt(deferStmt.Stmt, referenceScope, declScope, returnTy)
+		err := sema.checkStmt(deferStmt.Stmt, referenceScope, declScope, returnTy, fromImportPackage)
 		return err
 	default:
 		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt.Kind)
 	}
 }
 
-func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, declScope *ast.Scope) error {
+func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
 	for _, currentVar := range variable.Names {
 		if variable.IsDecl {
 			_, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
@@ -321,7 +323,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
-		err := sema.checkTupleExprAssignedToVariable(variable, tuple, referenceScope, declScope)
+		err := sema.checkTupleExprAssignedToVariable(variable, tuple, referenceScope, declScope, fromImportPackage)
 		return err
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
@@ -338,7 +340,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 			if len(variable.Names) != 1 {
 				return fmt.Errorf("more variables than expressions\n")
 			}
-			err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope)
+			err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return err
 			}
@@ -348,7 +350,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		if len(variable.Names) != 1 {
 			return fmt.Errorf("more variables than expressions\n")
 		}
-		err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope)
+		err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return err
 		}
@@ -357,7 +359,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 	return nil
 }
 
-func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple *ast.TupleExpr, referenceScope *ast.Scope, declScope *ast.Scope) error {
+func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple *ast.TupleExpr, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
 	numExprs, err := sema.countExprsOnTuple(tuple, referenceScope, declScope)
 	if err != nil {
 		return err
@@ -374,7 +376,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 		case ast.KIND_TUPLE_EXPR:
 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
 			for _, innerExpr := range innerTupleExpr.Exprs {
-				err := sema.checkVarExpr(variable.Names[t], innerExpr, referenceScope, declScope)
+				err := sema.checkVarExpr(variable.Names[t], innerExpr, referenceScope, declScope, fromImportPackage)
 				if err != nil {
 					return err
 				}
@@ -393,14 +395,14 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, referenceScope)
 				t += len(affectedVariables)
 			} else {
-				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope)
+				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage)
 				if err != nil {
 					return err
 				}
 				t++
 			}
 		default:
-			err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope)
+			err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return err
 			}
@@ -420,7 +422,7 @@ func (sema *sema) checkTupleTypeAssignedToVariable(variables []*ast.VarId, tuple
 	return nil
 }
 
-func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope) error {
+func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
 	if variable.NeedsInference {
 		// TODO(errors): need a test for it
 		if variable.Type != nil {
@@ -429,7 +431,7 @@ func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceSco
 				variable.Type,
 			)
 		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope)
+		exprType, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -445,7 +447,7 @@ func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceSco
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(variable.Type, exprTy) {
+		if !variable.Type.Equals(exprTy) {
 			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
 		}
 	}
@@ -503,7 +505,7 @@ func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 	parent := ast.NewScope(nil)
 	referenceScope := ast.NewScope(parent)
 	declScope := ast.NewScope(parent)
-	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), referenceScope, declScope)
+	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), referenceScope, declScope, false)
 	if err != nil {
 		return nil, err
 	}
@@ -516,26 +518,27 @@ func (sema *sema) checkCondStmt(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) error {
-	err := sema.checkIfExpr(condStmt.IfStmt.Expr, referenceScope, declScope)
+	err := sema.checkIfExpr(condStmt.IfStmt.Expr, referenceScope, declScope, fromImportPackage)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkBlock(condStmt.IfStmt.Block, returnTy, condStmt.IfStmt.Scope, condStmt.IfStmt.Scope)
+	err = sema.checkBlock(condStmt.IfStmt.Block, returnTy, condStmt.IfStmt.Scope, condStmt.IfStmt.Scope, fromImportPackage)
 	// TODO(errors)
 	if err != nil {
 		return err
 	}
 
 	for i := range condStmt.ElifStmts {
-		err := sema.checkIfExpr(condStmt.ElifStmts[i].Expr, condStmt.ElifStmts[i].Scope, declScope)
+		err := sema.checkIfExpr(condStmt.ElifStmts[i].Expr, condStmt.ElifStmts[i].Scope, declScope, fromImportPackage)
 		// TODO(errors)
 		if err != nil {
 			return err
 		}
-		err = sema.checkBlock(condStmt.ElifStmts[i].Block, returnTy, condStmt.ElifStmts[i].Scope, declScope)
+		err = sema.checkBlock(condStmt.ElifStmts[i].Block, returnTy, condStmt.ElifStmts[i].Scope, declScope, fromImportPackage)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -543,7 +546,7 @@ func (sema *sema) checkCondStmt(
 	}
 
 	if condStmt.ElseStmt != nil {
-		err = sema.checkBlock(condStmt.ElseStmt.Block, returnTy, condStmt.ElseStmt.Scope, declScope)
+		err = sema.checkBlock(condStmt.ElseStmt.Block, returnTy, condStmt.ElseStmt.Scope, declScope, fromImportPackage)
 		// TODO(errors)
 		if err != nil {
 			return err
@@ -618,7 +621,8 @@ func (sema *sema) checkFnCall(
 		if err != nil {
 			return nil, err
 		}
-		if !reflect.DeepEqual(argType, paramType) {
+
+		if !argType.Equals(paramType) {
 			mismatchedArgType := diagnostics.Diag{
 				// TODO(errors): add position of the error
 				Message: fmt.Sprintf("can't use %s on argument of type %s", argType, paramType),
@@ -632,8 +636,8 @@ func (sema *sema) checkFnCall(
 	return fnDecl, nil
 }
 
-func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope) error {
-	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope)
+func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
+	inferedExprType, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 	// TODO(errors)
 	if err != nil {
 		return err
@@ -754,11 +758,32 @@ func (sema *sema) inferBinaryExprTypeWithContext(
 		return nil, err
 	}
 
-	// NOTE: figure out a way to not use reflect.DeepEqual
-	if !reflect.DeepEqual(lhsType, rhsType) {
+	if !lhsType.Equals(rhsType) {
 		return nil, fmt.Errorf("mismatched types: %s %s %s", lhsType, binary.Op, rhsType)
 	}
-	return lhsType, nil
+
+	validation, exists := ast.BinaryOperators[binary.Op]
+	if !exists {
+		return nil, fmt.Errorf("invalid binary operator: %s\n", binary.Op)
+	}
+
+	valid := false
+	for _, validType := range validation.ValidTypes {
+		if lhsType.Equals(validType) {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		return nil, fmt.Errorf("invalid operand types for %s: %s and %s\n", binary.Op, lhsType, rhsType)
+	}
+
+	resultType := validation.ResultType
+	if resultType == nil {
+		resultType = lhsType
+	}
+	return resultType, nil
 }
 
 func (sema *sema) inferUnaryExprTypeWithContext(
@@ -784,6 +809,46 @@ func (sema *sema) inferUnaryExprTypeWithContext(
 		log.Fatalf("unimplemented unary expr operator: %s", unary.Op)
 		return nil, nil
 	}
+}
+
+func (s *sema) inferUnaryExprTypeWithoutContext(
+	unary *ast.UnaryExpr,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) (*ast.ExprType, bool, error) {
+	operandType, _, err := s.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope, fromImportPackage)
+	if err != nil {
+		return nil, false, err
+	}
+
+	validation, exists := ast.UnaryOperators[unary.Op]
+	if !exists {
+		return nil, false, fmt.Errorf("invalid unary operator: %s\n", unary.Op)
+	}
+
+	valid := false
+	for _, validType := range validation.ValidTypes {
+		if operandType.Equals(validType) {
+			valid = true
+			break
+		}
+	}
+
+	if !valid {
+		return nil, false, fmt.Errorf(
+			"invalid operand type %s for operator %s\n",
+			operandType,
+			unary.Op,
+		)
+	}
+
+	resultType := validation.ResultType
+	if resultType == nil {
+		resultType = operandType
+	}
+
+	return resultType, !resultType.IsUntyped(), nil
 }
 
 func (sema *sema) inferFnCallExprTypeWithContext(
@@ -842,33 +907,24 @@ func (sema *sema) inferTupleExprTypeWithContext(
 	return tupleTy, nil
 }
 
-func (sema *sema) inferBasicExprTypeWithContext(
+func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
-	var untyped token.Kind
-
-	switch {
-	case expected.Kind == token.BOOL_TYPE:
-		untyped = token.UNTYPED_BOOL
-	case expected.IsAnyStringType():
-		untyped = token.UNTYPED_STRING
-	case expected.IsIntegerType():
-		untyped = token.UNTYPED_INT
-	default:
-		return nil, fmt.Errorf("unimplemented type: %s %s", actual.String(), expected.String())
-	}
-
-	if actual.Kind == untyped {
+	if actual.IsUntyped() {
+		if !actual.IsCompatibleWith(expected) {
+			return nil, fmt.Errorf("cannot use %s as %s\n", actual, expected)
+		}
 		actual.Kind = expected.Kind
+		return actual, nil
 	}
 
-	// TODO: in the case of integer, i need to make sure that the value really fits the expected size in bits
-	if actual.Kind != expected.Kind {
-		return nil, fmt.Errorf("type mismatch - expected %s, got %s", expected.String(), actual.String())
-	}
+	// TODO: untyped vs concrete type -> check if untyped can be promoted
 
-	return expected, nil
+	if !actual.Equal(expected) {
+		return nil, fmt.Errorf("type mismatch: expected %s, got %s\n", expected, actual)
+	}
+	return actual, nil
 }
 
 // Useful for testing
@@ -876,6 +932,7 @@ func inferExprTypeWithoutContext(
 	input, filename string,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.Node, *ast.ExprType, error) {
 	collector := diagnostics.New()
 
@@ -885,7 +942,7 @@ func inferExprTypeWithoutContext(
 	}
 
 	analyzer := New(collector)
-	exprType, _, err := analyzer.inferExprTypeWithoutContext(expr, referenceScope, declScope)
+	exprType, _, err := analyzer.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -918,6 +975,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 	expr *ast.Node,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
 	switch expr.Kind {
 	case ast.KIND_LITERAl_EXPR:
@@ -925,15 +983,15 @@ func (sema *sema) inferExprTypeWithoutContext(
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)
 	case ast.KIND_UNARY_EXPR:
-		return sema.inferUnaryExprTypeWithoutContext(expr.Node.(*ast.UnaryExpr), referenceScope, declScope)
+		return sema.inferUnaryExprTypeWithoutContext(expr.Node.(*ast.UnaryExpr), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_BINARY_EXPR:
-		return sema.inferBinaryExprTypeWithoutContext(expr.Node.(*ast.BinaryExpr), referenceScope, declScope)
+		return sema.inferBinaryExprTypeWithoutContext(expr.Node.(*ast.BinaryExpr), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_FN_CALL:
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), referenceScope, declScope)
 	case ast.KIND_NAMESPACE_ACCESS:
-		return sema.inferNamespaceAccessExprTypeWithoutContext(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope)
+		return sema.inferNamespaceAccessExprTypeWithoutContext(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_TUPLE_EXPR:
-		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), referenceScope, declScope)
+		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), referenceScope, declScope, fromImportPackage)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -996,101 +1054,85 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	}
 }
 
-func (sema *sema) inferUnaryExprTypeWithoutContext(
-	unary *ast.UnaryExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-) (*ast.ExprType, bool, error) {
-	switch unary.Op {
-	case token.MINUS:
-		switch unary.Value.Kind {
-		case ast.KIND_LITERAl_EXPR:
-			lit := unary.Value.Node.(*ast.LiteralExpr)
-			if !lit.Type.IsNumeric() {
-				// TODO(errors)
-				return nil, false, fmt.Errorf("error: expected numeric type")
-			}
-			// TODO: this method should infer any numeric type
-			numericTy, err := sema.inferIntegerType(lit.Value)
-			if err != nil {
-				return nil, false, fmt.Errorf("error: unable to infer number type")
-			}
+// func (sema *sema) inferUnaryExprTypeWithoutContext(
+// 	unary *ast.UnaryExpr,
+// 	referenceScope *ast.Scope,
+// 	declScope *ast.Scope,
+// ) (*ast.ExprType, bool, error) {
+// 	switch unary.Op {
+// 	case token.MINUS:
+// 		switch unary.Value.Kind {
+// 		case ast.KIND_LITERAl_EXPR:
+// 			lit := unary.Value.Node.(*ast.LiteralExpr)
+// 			if !lit.Type.IsNumeric() {
+// 				// TODO(errors)
+// 				return nil, false, fmt.Errorf("error: expected numeric type")
+// 			}
+// 			// TODO: this method should infer any numeric type
+// 			numericTy, err := sema.inferIntegerType(lit.Value)
+// 			if err != nil {
+// 				return nil, false, fmt.Errorf("error: unable to infer number type")
+// 			}
+//
+// 			lit.Type = numericTy
+// 			return lit.Type, false, nil
+// 		default:
+// 			return nil, false, fmt.Errorf("invalid unary expression: %s\n", reflect.TypeOf(unary.Value))
+// 		}
+// 	case token.NOT:
+// 		unaryExpr, foundContext, err := sema.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope)
+// 		if err != nil {
+// 			return nil, false, err
+// 		}
+// 		if !unaryExpr.IsBoolean() {
+// 			return nil, false, fmt.Errorf("expected boolean expression on not unary expression")
+// 		}
+// 		return unaryExpr, foundContext, nil
+// 	default:
+// 		log.Fatalf("unimplemented unary operator: %s\n", unary.Op)
+// 		return nil, false, nil
+// 	}
+// }
 
-			lit.Type = numericTy
-			return lit.Type, false, nil
-		default:
-			return nil, false, fmt.Errorf("invalid unary expression: %s\n", reflect.TypeOf(unary.Value))
-		}
-	case token.NOT:
-		unaryExpr, foundContext, err := sema.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope)
-		if err != nil {
-			return nil, false, err
-		}
-		if !unaryExpr.IsBoolean() {
-			return nil, false, fmt.Errorf("expected boolean expression on not unary expression")
-		}
-		return unaryExpr, foundContext, nil
-	default:
-		log.Fatalf("unimplemented unary operator: %s\n", unary.Op)
-		return nil, false, nil
-	}
-}
-
-func (sema *sema) inferBinaryExprTypeWithoutContext(
+func (s *sema) inferBinaryExprTypeWithoutContext(
 	binary *ast.BinaryExpr,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	lhsType, lhsFoundContext, err := sema.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope)
-	// TODO(errors)
+	lhsTy, lhsHasContext, err := s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return nil, false, err
 	}
 
-	rhsType, rhsFoundContext, err := sema.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope)
-	// TODO(errors)
+	rhsTy, rhsHasContext, err := s.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return nil, false, err
 	}
 
-	if lhsFoundContext && !rhsFoundContext {
-		rhsTypeWithContext, err := sema.inferExprTypeWithContext(binary.Right, lhsType, referenceScope, declScope)
+	if lhsHasContext && !rhsHasContext {
+		rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhsTy, referenceScope, declScope)
 		// TODO(errors)
 		if err != nil {
 			return nil, false, err
 		}
-		rhsType = rhsTypeWithContext
+		rhsTy = rhsTypeWithContext
 	}
-	if !lhsFoundContext && rhsFoundContext {
-		lhsTypeWithContext, err := sema.inferExprTypeWithContext(binary.Left, rhsType, referenceScope, declScope)
+
+	if !lhsHasContext && rhsHasContext {
+		lhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Left, rhsTy, referenceScope, declScope)
 		// TODO(errors)
 		if err != nil {
 			return nil, false, err
 		}
-		lhsType = lhsTypeWithContext
+		lhsTy = lhsTypeWithContext
 	}
 
-	// TODO: get rid of reflect.DeepEqual for comparing types somehow
-	// TODO(errors)
-	if !reflect.DeepEqual(lhsType, rhsType) {
-		return nil, false, fmt.Errorf("mismatched types: %s %s %s", lhsType, binary.Op, rhsType)
+	if !lhsTy.Equals(rhsTy) {
+		return nil, false, fmt.Errorf("incompatible types: %s %s %s", lhsTy.T, binary.Op, rhsTy.T)
 	}
 
-	// TODO: it needs to be more flexible - easily evaluate correct operators
-	switch binary.Op {
-	case token.PLUS, token.MINUS, token.SLASH, token.STAR:
-		if lhsType.IsNumeric() && rhsType.IsNumeric() {
-			return lhsType, lhsFoundContext || rhsFoundContext, nil
-		}
-	default:
-		if binary.Op.IsLogicalOp() {
-			t := ast.NewBasicType(token.BOOL_TYPE)
-			return t, lhsFoundContext || rhsFoundContext, nil
-		}
-	}
-	// TODO(errors)
-	log.Fatalf("UNREACHABLE - inferBinaryExprType")
-	return nil, false, nil
+	return lhsTy, true, nil
 }
 
 func (sema *sema) inferFnCallExprTypeWithoutContext(
@@ -1106,8 +1148,9 @@ func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
 	namespaceAccess *ast.NamespaceAccess,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope)
+	ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope, fromImportPackage)
 	return ty, true, err
 }
 
@@ -1115,13 +1158,14 @@ func (sema *sema) inferTupleExprTypeWithoutContext(
 	tuple *ast.TupleExpr,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
 	tupleTy := new(ast.ExprType)
 	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
 
 	types := make([]*ast.ExprType, 0)
 	for _, expr := range tuple.Exprs {
-		innerTy, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope)
+		innerTy, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return nil, false, err
 		}
@@ -1151,6 +1195,7 @@ func (sema *sema) checkNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	if namespaceAccess.IsImport {
 		imp := namespaceAccess.Left.Name.Name()
@@ -1161,10 +1206,21 @@ func (sema *sema) checkNamespaceAccess(
 		return sema.checkImportAccess(namespaceAccess.Right, referenceScope, useDecl.Package.Scope)
 	}
 
-	left, err := referenceScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
-	if err != nil {
-		return nil, err
+	var left *ast.Node
+	var err error
+
+	if fromImportPackage {
+		left, err = declScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		left, err = referenceScope.LookupAcrossScopes(namespaceAccess.Left.Name.Name())
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	namespaceAccess.Left.N = left
 
 	// TODO(errors)
@@ -1191,7 +1247,7 @@ func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, d
 		return fnDecl.RetType, err
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := node.Node.(*ast.NamespaceAccess)
-		ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope)
+		ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope, true)
 		return ty, err
 	case ast.KIND_EXTERN_DECL:
 		return nil, fmt.Errorf("nothing do with a extern declaration, try accessing a prototype")
@@ -1256,23 +1312,24 @@ func (sema *sema) checkForLoop(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	fromImportPackage bool,
 ) error {
-	err := sema.checkStmt(forLoop.Init, referenceScope, declScope, returnTy)
+	err := sema.checkStmt(forLoop.Init, referenceScope, declScope, returnTy, fromImportPackage)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkIfExpr(forLoop.Cond, referenceScope, declScope)
+	err = sema.checkIfExpr(forLoop.Cond, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkStmt(forLoop.Update, referenceScope, declScope, returnTy)
+	err = sema.checkStmt(forLoop.Update, referenceScope, declScope, returnTy, fromImportPackage)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkBlock(forLoop.Block, returnTy, referenceScope, declScope)
+	err = sema.checkBlock(forLoop.Block, returnTy, referenceScope, declScope, fromImportPackage)
 	return err
 }
 
@@ -1281,11 +1338,12 @@ func (sema *sema) checkWhileLoop(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
+	fromImportPackage bool,
 ) error {
-	err := sema.checkIfExpr(whileLoop.Cond, referenceScope, declScope)
+	err := sema.checkIfExpr(whileLoop.Cond, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
 	}
-	err = sema.checkBlock(whileLoop.Block, returnTy, referenceScope, declScope)
+	err = sema.checkBlock(whileLoop.Block, returnTy, referenceScope, declScope, fromImportPackage)
 	return err
 }
