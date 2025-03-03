@@ -106,6 +106,8 @@ func (n *Node) String() string {
 		return "KIND_TYPE_ALIAS_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
+	case KIND_VAR_ID_STMT:
+		return "KIND_VAR_ID_STMT"
 	case KIND_VAR_STMT:
 		return "KIND_VAR_STMT"
 	case KIND_RETURN_STMT:
