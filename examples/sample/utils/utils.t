@@ -1,5 +1,5 @@
 package utils
 
-fn function() {
+fn foo() {
   return
 }

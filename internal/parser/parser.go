@@ -17,9 +17,10 @@ type Parser struct {
 	lex       *lexer.Lexer
 	collector *diagnostics.Collector
 
-	root *ast.Package
-	pkg  *ast.Package
-	file *ast.File
+	rootLoc *ast.Loc
+	root    *ast.Package
+	pkg     *ast.Package
+	file    *ast.File
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -38,6 +39,7 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 }
 
 func (p *Parser) ParsePackageAsProgram(loc *ast.Loc) (*ast.Program, error) {
+	p.rootLoc = loc
 	root, err := p.parsePackage(loc, true)
 	if err != nil {
 		return nil, err
@@ -62,15 +64,23 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	return root, nil
 }
 
-func (p *Parser) addStdPackage(path []string) (string, *ast.Package, error) {
+func (p *Parser) addPackage(std bool, path []string) (string, *ast.Package, error) {
 	pkgPath := strings.Join(path, "/")
-	// TODO: get path to std directory
-	fullPkgPath := filepath.Join("./std", pkgPath)
 
+	var prefixPath string
+	if std {
+		// TODO: get path to std directory from env
+		prefixPath = "./std"
+	} else {
+		prefixPath = p.rootLoc.Path
+	}
+
+	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	loc, err := ast.LocFromPath(fullPkgPath)
 	if err != nil {
 		return "", nil, err
 	}
+	fmt.Println(loc.Path)
 
 	currentLex := p.lex
 	currentPkg := p.pkg
@@ -89,11 +99,9 @@ func (p *Parser) addStdPackage(path []string) (string, *ast.Package, error) {
 	return pkgPath, pkg, nil
 }
 
-func (p *Parser) addLocalPackage(path []string) (string, *ast.Package, error) {
-	return "", nil, nil
-}
-
 func (p *Parser) ParseFileAsProgram(loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+	p.rootLoc = loc
+
 	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
 		return nil, err
@@ -594,7 +602,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	switch parts[0] {
 	case "std":
 		std = true
-	case "package":
+	case "pkg":
 		std = false
 	default:
 		// TODO(errors)
@@ -607,15 +615,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
-	var path string
-	var pkg *ast.Package
-	var err error
-
-	if std {
-		path, pkg, err = p.addStdPackage(parts[1:])
-	} else {
-		path, pkg, err = p.addLocalPackage(parts[1:])
-	}
+	path, pkg, err := p.addPackage(std, parts[1:])
 	if err != nil {
 		return nil, err
 	}

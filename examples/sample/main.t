@@ -1,17 +1,10 @@
 package main
 
-#[default_cc="c"]
-extern libc {
-  fn printf(format cstring, ...) i32
-  fn puts(format cstring) i32
-}
-
-fn print(message cstring) {
-  libc.puts(message)
-  return
-}
+use "std::io"
+use "pkg::utils"
 
 fn main() i32 {
-  print("Hello, world 😃")
+  io::println("Hello, world 😃")
+  utils::foo()
   return 0
 }
