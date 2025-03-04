@@ -603,7 +603,7 @@ func (sema *sema) checkFnCall(
 	return fnDecl, err
 }
 
-func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.FieldList, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
+func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
 	if params.IsVariadic && len(fnCall.Args) < params.Len {
 		pos := fnCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
@@ -622,23 +622,29 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.FieldList, ref
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	argIndex := 0
-	for i := range params.Len {
-		if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
+	requiredArgs := fnCall.Args[:params.Len]
+	variadicArgs := fnCall.Args[params.Len:]
+
+	for i, requiredArg := range requiredArgs {
+		if _, err := sema.inferExprTypeWithContext(requiredArg, params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
 			return err
 		}
-		argIndex++
 	}
 
 	if params.IsVariadic {
 		variadicParam := params.Fields[params.Len]
-		for i := argIndex; i < len(fnCall.Args); i++ {
-			if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], variadicParam.Type, referenceScope, declScope, fromImportPackage); err != nil {
+		for _, variadicArg := range variadicArgs {
+			if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage); err != nil {
 				return err
 			}
 		}
 	}
 
+	fnCall.Args = requiredArgs
+	varArgs := new(ast.Node)
+	varArgs.Kind = ast.KIND_VARG_EXPR
+	varArgs.Node = &ast.VarArgs{Args: variadicArgs}
+	fnCall.Args = append(fnCall.Args, varArgs)
 	return nil
 }
 
@@ -718,7 +724,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	case ast.KIND_VAR_ID_STMT:
 		ty = symbol.Node.(*ast.VarId).Type
 	case ast.KIND_FIELD:
-		ty = symbol.Node.(*ast.Field).Type
+		ty = symbol.Node.(*ast.Param).Type
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
@@ -1121,7 +1127,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 		ty := variable.Node.(*ast.VarId).Type
 		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
-		return variable.Node.(*ast.Field).Type, true, nil
+		return variable.Node.(*ast.Param).Type, true, nil
 	default:
 		// TODO(errors)
 		return nil, false, fmt.Errorf("'%s' is not a variable or parameter", variableName)

@@ -24,7 +24,7 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open:   token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: nil,
 					Close: token.New(
@@ -48,9 +48,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -77,9 +77,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -110,9 +110,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -143,9 +143,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -176,9 +176,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -209,9 +209,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -242,9 +242,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -275,9 +275,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -308,9 +308,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -341,9 +341,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -374,9 +374,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
@@ -407,9 +407,9 @@ func TestFunctionDecl(t *testing.T) {
 			node: &ast.FnDecl{
 				Scope: nil,
 				Name:  token.New([]byte("do_nothing"), token.ID, token.NewPosition(filename, 4, 1)),
-				Params: &ast.FieldList{
+				Params: &ast.Params{
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
-					Fields: []*ast.Field{
+					Fields: []*ast.Param{
 						{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},

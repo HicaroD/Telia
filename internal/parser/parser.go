@@ -718,7 +718,7 @@ func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) 
 	}
 	prototype.Name = name
 
-	params, err := p.parseFunctionParams(name, nil, true)
+	params, err := p.parseFnParams(name, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -783,7 +783,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	fnScope := ast.NewScope(p.pkg.Scope)
 	fnDecl.Scope = fnScope
 
-	params, err := p.parseFunctionParams(name, fnScope, false)
+	params, err := p.parseFnParams(name, fnScope, false)
 	if err != nil {
 		return nil, err
 	}
@@ -844,8 +844,8 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	return fnDecl.Node.(*ast.FnDecl), nil
 }
 
-func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.FieldList, error) {
-	var params []*ast.Field
+func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.Params, error) {
+	var params []*ast.Param
 	var length int
 	isVariadic := false
 
@@ -870,7 +870,40 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			break
 		}
 
-		param := new(ast.Field)
+		param := new(ast.Param)
+
+		attributes := new(ast.ParamAttributes)
+
+		if p.lex.NextIs(token.AT) {
+			for p.lex.NextIs(token.AT) {
+				p.lex.Skip() // @
+
+				attributeName, ok := p.expect(token.ID)
+				if !ok {
+					return nil, fmt.Errorf("expected parameter attribute name, not %s\n")
+				}
+
+				switch attributeName.Name() {
+				case "for_c":
+					// TODO(errors)
+					if !isPrototype {
+						return nil, fmt.Errorf("@for_c only allowed on prototypes\n")
+					}
+					// TODO(errors)
+					if attributes.ForC {
+						return nil, fmt.Errorf("cannot redeclare @for_c attribute\n")
+					}
+					attributes.ForC = true
+				case "const":
+					// TODO(errors)
+					if attributes.Const {
+						return nil, fmt.Errorf("cannot redeclare @const attribute\n")
+					}
+					attributes.Const = true
+				}
+			}
+		}
+		param.Attributes = attributes
 
 		name, ok := p.expect(token.ID)
 		if !ok {
@@ -893,6 +926,10 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			isVariadic = true
 			param.Variadic = true
 			p.lex.Skip() // ...
+		}
+
+		if !param.Variadic && param.Attributes.ForC {
+			return nil, fmt.Errorf("@for_c attribute only allowed on variadic arguments")
 		}
 
 		ty, err := p.parseExprType()
@@ -996,7 +1033,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		length--
 	}
 
-	return &ast.FieldList{
+	return &ast.Params{
 		Open:       openParen,
 		Fields:     params,
 		Len:        length,

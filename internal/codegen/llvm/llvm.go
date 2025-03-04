@@ -131,7 +131,7 @@ func (c *llvmCodegen) generateFnParams(fnValue *Function, fnDecl *ast.FnDecl) {
 	}
 }
 
-func (c *llvmCodegen) generateParam(field *ast.Field, ty llvm.Type, val llvm.Value) {
+func (c *llvmCodegen) generateParam(field *ast.Param, ty llvm.Type, val llvm.Value) {
 	paramVal := c.builder.CreateAlloca(ty, ".param")
 	c.builder.CreateStore(val, paramVal)
 	variable := &Variable{
@@ -304,7 +304,7 @@ func (c *llvmCodegen) generateVarReassign(
 		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Param)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -339,7 +339,7 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Param)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -482,7 +482,7 @@ func (c *llvmCodegen) getTypes(types []*ast.ExprType) []llvm.Type {
 	return tys
 }
 
-func (c *llvmCodegen) getFieldListTypes(params *ast.FieldList) []llvm.Type {
+func (c *llvmCodegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	types := make([]llvm.Type, params.Len)
 	for i := range params.Len {
 		types[i] = c.getType(params.Fields[i].Type)
@@ -571,7 +571,7 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 			variable := id.N.Node.(*ast.VarId)
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
-			variable := id.N.Node.(*ast.Field)
+			variable := id.N.Node.(*ast.Param)
 			if variable.Variadic {
 				ty := c.getType(variable.Type)
 				val := c.builder.CreateAlloca(ty, ".ptr")
@@ -694,6 +694,8 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		return value, bitSize, hasFloat
 	case ast.KIND_TUPLE_EXPR:
 		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr)), bitSize, hasFloat
+	case ast.KIND_VARG_EXPR:
+		panic("unimplemented var args")
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 		return llvm.Value{}, bitSize, hasFloat
