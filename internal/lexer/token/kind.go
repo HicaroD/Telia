@@ -231,7 +231,7 @@ func (k Kind) String() string {
 	case INT_TYPE:
 		return "int"
 	case UINT_TYPE:
-		return "untyped uint"
+		return "uint"
 	case UNTYPED_INT:
 		return "untyped int"
 	case UNTYPED_BOOL:

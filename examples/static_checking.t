@@ -1,7 +1,5 @@
 package main
 
-use "std::io"
-
 fn get_i32(a i32) {
   return
 }

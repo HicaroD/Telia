@@ -422,7 +422,7 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
 		switch b.Kind {
-		case token.BOOL_TYPE:
+		case token.BOOL_TYPE, token.UNTYPED_END:
 			return c.context.Int1Type()
 		case token.UINT_TYPE, token.INT_TYPE, token.UNTYPED_INT:
 			// 32 bits or 64 bits depends on the architecture
@@ -488,9 +488,7 @@ func (c *llvmCodegen) getExprList(
 	return values
 }
 
-func (c *llvmCodegen) getExpr(
-	expr *ast.Node,
-) llvm.Value {
+func (c *llvmCodegen) getExpr(expr *ast.Node) llvm.Value {
 	switch expr.Kind {
 	case ast.KIND_LITERAl_EXPR:
 		lit := expr.Node.(*ast.LiteralExpr)
@@ -526,6 +524,18 @@ func (c *llvmCodegen) getExpr(
 				ptr := llvm.ConstInBoundsGEP(arrTy, globalVal, indices)
 
 				return ptr
+			case token.BOOL_TYPE, token.UNTYPED_BOOL:
+				ty := c.getType(lit.Type)
+				boolVal := string(lit.Value)
+
+				var val uint64
+				if boolVal == "true" {
+					val = 1
+				} else {
+					val = 0
+				}
+
+				return llvm.ConstInt(ty, val, false)
 			default:
 				log.Fatalf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value))
 				return llvm.Value{}
@@ -589,11 +599,14 @@ func (c *llvmCodegen) getExpr(
 		return call
 	case ast.KIND_UNARY_EXPR:
 		unary := expr.Node.(*ast.UnaryExpr)
+		expr := c.getExpr(unary.Value)
 
 		switch unary.Op {
 		case token.MINUS:
-			expr := c.getExpr(unary.Value)
 			return c.builder.CreateNeg(expr, ".neg")
+		case token.NOT:
+			falseVal := llvm.ConstInt(c.context.Int1Type(), 0, false)
+			return c.builder.CreateICmp(llvm.IntEQ, falseVal, expr, ".not")
 		default:
 			log.Fatalf("unimplemented unary operator: %s", unary.Op)
 			return llvm.Value{}

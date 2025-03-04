@@ -98,6 +98,12 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 		return true
 	}
 
+	fmt.Printf("%s %s\n", left.Kind, right.Kind)
+
+	if left.Kind == token.UNTYPED_BOOL && right.Kind == token.BOOL_TYPE {
+		return true
+	}
+
 	return false
 }
 
@@ -172,6 +178,7 @@ type OperatorTable map[token.Kind]OperatorValidation
 var UnaryOperators = OperatorTable{
 	token.MINUS: {
 		ValidTypes: []*ExprType{
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
@@ -181,7 +188,10 @@ var UnaryOperators = OperatorTable{
 		Handler:    handleNumericUnary,
 	},
 	token.NOT: {
-		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
+		ValidTypes: []*ExprType{
+			NewBasicType(token.BOOL_TYPE),
+			NewBasicType(token.UNTYPED_BOOL),
+		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 }

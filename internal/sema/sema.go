@@ -906,78 +906,12 @@ func (sema *sema) inferUnaryExprType(
 		resultType = operandType
 	}
 
-	if expectedType != nil && resultType != expectedType {
+	if expectedType != nil && resultType.Kind != expectedType.Kind {
 		return nil, false, fmt.Errorf("type mismatch: expected %s, got %s\n", expectedType, resultType)
 	}
 
 	return resultType, hasContext, nil
 }
-
-// func (sema *sema) inferUnaryExprTypeWithContext(
-// 	unary *ast.UnaryExpr,
-// 	expectedType *ast.ExprType,
-// 	referenceScope *ast.Scope,
-// 	declScope *ast.Scope,
-// 	fromImportPackage bool,
-// ) (*ast.ExprType, error) {
-// 	switch unary.Op {
-// 	case token.MINUS:
-// 		unaryExprType, err := sema.inferExprTypeWithContext(unary.Value, expectedType, referenceScope, declScope, fromImportPackage)
-// 		// TODO(errors)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-//
-// 		if !unaryExprType.IsNumeric() {
-// 			return nil, fmt.Errorf("can't use - operator on a non-numeric value")
-// 		}
-// 		return unaryExprType, nil
-// 	default:
-// 		// TODO(errors)
-// 		log.Fatalf("unimplemented unary expr operator: %s", unary.Op)
-// 		return nil, nil
-// 	}
-// }
-//
-// func (s *sema) inferUnaryExprTypeWithoutContext(
-// 	unary *ast.UnaryExpr,
-// 	referenceScope *ast.Scope,
-// 	declScope *ast.Scope,
-// 	fromImportPackage bool,
-// ) (*ast.ExprType, bool, error) {
-// 	operandType, _, err := s.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope, fromImportPackage)
-// 	if err != nil {
-// 		return nil, false, err
-// 	}
-//
-// 	validation, exists := ast.UnaryOperators[unary.Op]
-// 	if !exists {
-// 		return nil, false, fmt.Errorf("invalid unary operator: %s\n", unary.Op)
-// 	}
-//
-// 	valid := false
-// 	for _, validType := range validation.ValidTypes {
-// 		if operandType.Equals(validType) {
-// 			valid = true
-// 			break
-// 		}
-// 	}
-//
-// 	if !valid {
-// 		return nil, false, fmt.Errorf(
-// 			"invalid operand type %s for operator %s\n",
-// 			operandType,
-// 			unary.Op,
-// 		)
-// 	}
-//
-// 	resultType := validation.ResultType
-// 	if resultType == nil {
-// 		resultType = operandType
-// 	}
-//
-// 	return resultType, !resultType.IsUntyped(), nil
-// }
 
 func (sema *sema) inferFnCallExprTypeWithContext(
 	fnCall *ast.FnCall,
