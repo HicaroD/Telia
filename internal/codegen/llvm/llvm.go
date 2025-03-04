@@ -125,7 +125,6 @@ func (c *llvmCodegen) generateFnBody(fnDecl *ast.FnDecl) {
 
 func (c *llvmCodegen) generateFnParams(fnValue *Function, fnDecl *ast.FnDecl) {
 	paramsTypes := fnValue.Ty.ParamTypes()
-	fmt.Println(fnValue.Fn.Params())
 	for i, paramPtrValue := range fnValue.Fn.Params() {
 		field := fnDecl.Params.Fields[i]
 		c.generateParam(field, paramsTypes[i], paramPtrValue)
