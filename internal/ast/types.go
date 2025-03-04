@@ -98,8 +98,6 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 		return true
 	}
 
-	fmt.Printf("%s %s\n", left.Kind, right.Kind)
-
 	if left.Kind == token.UNTYPED_BOOL && right.Kind == token.BOOL_TYPE {
 		return true
 	}

@@ -599,43 +599,47 @@ func (sema *sema) checkFnCall(
 	fnDecl := symbol.Node.(*ast.FnDecl)
 	fnCall.Decl = fnDecl
 
-	if len(fnCall.Args) != len(fnDecl.Params.Fields) {
+	err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+	return fnDecl, err
+}
+
+func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.FieldList, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
+	if params.IsVariadic && len(fnCall.Args) < params.Len {
 		pos := fnCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
 		notEnoughArguments := diagnostics.Diag{
 			Message: fmt.Sprintf(
-				"%s:%d:%d: not enough arguments in call to '%s'",
+				"%s:%d:%d: not enough arguments in call to '%s', expected at least %d arguments",
 				pos.Filename,
 				pos.Line,
 				pos.Column,
 				fnCall.Name.Name(),
+				params.Len,
 			),
 		}
 		sema.collector.ReportAndSave(notEnoughArguments)
-		return nil, diagnostics.COMPILER_ERROR_FOUND
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	for i, arg := range fnCall.Args {
-		paramType := fnDecl.Params.Fields[i].Type
-		argType, err := sema.inferExprTypeWithContext(arg, paramType, referenceScope, declScope, fromImportPackage)
-		if err != nil {
-			return nil, err
+	argIndex := 0
+	for i := range params.Len {
+		if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
+			return err
 		}
+		argIndex++
+	}
 
-		if !argType.Equals(paramType) {
-			mismatchedArgType := diagnostics.Diag{
-				// TODO(errors): add position of the error
-				Message: fmt.Sprintf("can't use %s on argument of type %s", argType, paramType),
+	if params.IsVariadic {
+		variadicParam := params.Fields[params.Len]
+		for i := argIndex; i < len(fnCall.Args); i++ {
+			if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], variadicParam.Type, referenceScope, declScope, fromImportPackage); err != nil {
+				return err
 			}
-			sema.collector.ReportAndSave(mismatchedArgType)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 	}
 
-	// TODO: deal with variadic arguments
-
-	return fnDecl, nil
+	return nil
 }
 
 func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
@@ -1269,28 +1273,9 @@ func (sema *sema) checkPrototypeCall(
 	}
 
 	prototype := symbol.Node.(*ast.Proto)
-	if prototype.Params.IsVariadic && len(prototypeCall.Args) < len(prototype.Params.Fields) {
-		return nil, fmt.Errorf("expected at least %d arguments, got %s\n", len(prototype.Params.Fields), len(prototypeCall.Args))
-	}
 	prototypeCall.Proto = prototype
-
-	argIndex := 0
-	for i, param := range prototype.Params.Fields {
-		arg := prototypeCall.Args[i]
-		if _, err := sema.inferExprTypeWithContext(arg, param.Type, referenceScope, declScope, fromImportPackage); err != nil {
-			return nil, err
-		}
-		argIndex++
-	}
-
-	if prototype.Params.IsVariadic {
-		for i := argIndex; i < len(prototypeCall.Args); i++ {
-			// TODO: deal with variadic argument
-			fmt.Printf("variadic arg: %s\n", prototypeCall.Args[i])
-		}
-	}
-
-	return prototype, nil
+	err = sema.checkFnCallArgs(prototypeCall, prototype.Params, referenceScope, declScope, fromImportPackage)
+	return prototype, err
 }
 
 func (sema *sema) checkForLoop(

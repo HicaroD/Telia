@@ -102,6 +102,11 @@ func (c *llvmCodegen) generateFnSignature(fnDecl *ast.FnDecl) {
 	paramsTypes := c.getFieldListTypes(fnDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, fnDecl.Params.IsVariadic)
 	functionValue := llvm.AddFunction(c.module, fnDecl.Name.Name(), functionType)
+
+	if fnDecl.Attributes != nil {
+		functionValue.SetFunctionCallConv(c.getCallingConvention(fnDecl.Attributes.DefaultCallingConvention))
+	}
+
 	fnValue := NewFunctionValue(functionValue, functionType)
 	fnDecl.BackendType = fnValue
 }
@@ -118,18 +123,23 @@ func (c *llvmCodegen) generateFnBody(fnDecl *ast.FnDecl) {
 	}
 }
 
-func (c *llvmCodegen) generateFnParams(fnValue *Function, functionNode *ast.FnDecl) {
+func (c *llvmCodegen) generateFnParams(fnValue *Function, fnDecl *ast.FnDecl) {
 	paramsTypes := fnValue.Ty.ParamTypes()
+	fmt.Println(fnValue.Fn.Params())
 	for i, paramPtrValue := range fnValue.Fn.Params() {
-		paramType := paramsTypes[i]
-		paramPtr := c.builder.CreateAlloca(paramType, ".param")
-		c.builder.CreateStore(paramPtrValue, paramPtr)
-		variable := &Variable{
-			Ty:  paramType,
-			Ptr: paramPtr,
-		}
-		functionNode.Params.Fields[i].BackendType = variable
+		field := fnDecl.Params.Fields[i]
+		c.generateParam(field, paramsTypes[i], paramPtrValue)
 	}
+}
+
+func (c *llvmCodegen) generateParam(field *ast.Field, ty llvm.Type, val llvm.Value) {
+	paramVal := c.builder.CreateAlloca(ty, ".param")
+	c.builder.CreateStore(val, paramVal)
+	variable := &Variable{
+		Ty:  ty,
+		Ptr: paramVal,
+	}
+	field.BackendType = variable
 }
 
 func (c *llvmCodegen) generateBlock(
@@ -342,9 +352,9 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 func (c *llvmCodegen) generateFnCall(
 	fnCall *ast.FnCall,
 ) llvm.Value {
-	calledFunctionLlvm := fnCall.Decl.BackendType.(*Function)
+	callLlvm := fnCall.Decl.BackendType.(*Function)
 	args := c.getExprList(fnCall.Args)
-	return c.builder.CreateCall(calledFunctionLlvm.Ty, calledFunctionLlvm.Fn, args, "")
+	return c.builder.CreateCall(callLlvm.Ty, callLlvm.Fn, args, "")
 }
 
 func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
@@ -375,7 +385,6 @@ func (c *llvmCodegen) generatePrototype(attributes *ast.Attributes, prototype *a
 	if attributes != nil {
 		protoValue.SetFunctionCallConv(c.getCallingConvention(attributes.DefaultCallingConvention))
 	}
-
 	if prototype.Attributes != nil {
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
@@ -470,17 +479,15 @@ func (c *llvmCodegen) getTypes(types []*ast.ExprType) []llvm.Type {
 	return tys
 }
 
-func (c *llvmCodegen) getFieldListTypes(fields *ast.FieldList) []llvm.Type {
-	types := make([]llvm.Type, len(fields.Fields))
-	for i := range fields.Fields {
-		types[i] = c.getType(fields.Fields[i].Type)
+func (c *llvmCodegen) getFieldListTypes(params *ast.FieldList) []llvm.Type {
+	types := make([]llvm.Type, params.Len)
+	for i := range params.Len {
+		types[i] = c.getType(params.Fields[i].Type)
 	}
 	return types
 }
 
-func (c *llvmCodegen) getExprList(
-	expressions []*ast.Node,
-) []llvm.Value {
+func (c *llvmCodegen) getExprList(expressions []*ast.Node) []llvm.Value {
 	values := make([]llvm.Value, len(expressions))
 	for i, expr := range expressions {
 		values[i] = c.getExpr(expr)
@@ -555,6 +562,11 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) llvm.Value {
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
 			variable := id.N.Node.(*ast.Field)
+			if variable.Variadic {
+				ty := c.getType(variable.Type)
+				val := c.builder.CreateAlloca(ty, ".ptr")
+				c.generateParam(variable, ty, val)
+			}
 			localVar = variable.BackendType.(*Variable)
 		}
 
@@ -716,7 +728,6 @@ func (c *llvmCodegen) generateImportAccess(right *ast.Node) llvm.Value {
 func (c *llvmCodegen) generatePrototypeCall(call *ast.FnCall) llvm.Value {
 	protoLlvm := call.Proto.BackendType.(*Function)
 	args := c.getExprList(call.Args)
-
 	return c.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
 }
 
