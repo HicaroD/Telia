@@ -1754,7 +1754,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		if tok.Kind.IsUntyped() {
 			p.lex.Skip()
 
-			n.Kind = ast.KIND_LITERAl_EXPR
+			n.Kind = ast.KIND_LITERAL_EXPR
 			n.Node = &ast.LiteralExpr{
 				Type:  ast.NewBasicType(tok.Kind),
 				Value: tok.Lexeme,

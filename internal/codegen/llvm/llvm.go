@@ -452,10 +452,10 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 			u8 := ast.NewBasicType(token.U8_TYPE)
 			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
-		case token.F64_TYPE:
-			return c.context.DoubleType()
 		case token.F32_TYPE, token.FLOAT_TYPE, token.UNTYPED_FLOAT:
 			return c.context.FloatType()
+		case token.F64_TYPE:
+			return c.context.DoubleType()
 		default:
 			log.Fatalf("invalid basic type token: '%s'", b.Kind)
 		}
@@ -504,7 +504,7 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 	bitSize := 32
 
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		lit := expr.Node.(*ast.LiteralExpr)
 		switch lit.Type.Kind {
 		case ast.EXPR_TYPE_BASIC:
@@ -566,18 +566,23 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		id := expr.Node.(*ast.IdExpr)
 
 		var localVar *Variable
+		var varTy *ast.ExprType
+
 		switch id.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := id.N.Node.(*ast.VarId)
+			varTy = variable.Type
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
 			variable := id.N.Node.(*ast.Param)
-			if variable.Variadic {
-				ty := c.getType(variable.Type)
-				val := c.builder.CreateAlloca(ty, ".ptr")
-				c.generateParam(variable, ty, val)
-			}
+			varTy = variable.Type
 			localVar = variable.BackendType.(*Variable)
+		}
+
+		if varTy.IsFloat() {
+			bt := varTy.T.(*ast.BasicType)
+			bitSize = bt.Kind.BitSize()
+			hasFloat = true
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
@@ -587,14 +592,15 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 
 		lhs, lhsBitSize, lhsHasFloat := c.getExpr(binary.Left)
 		rhs, rhsBitSize, rhsHasFloat := c.getExpr(binary.Right)
-
 		hasFloat = lhsHasFloat || rhsHasFloat
-		if lhsBitSize != rhsBitSize {
-			panic("expectedb bit size to be the same")
-		}
-		bitSize = lhsBitSize // since they are the same
 
 		if hasFloat {
+			if lhsBitSize != rhsBitSize {
+				fmt.Println(binary.Op, binary.Left, lhsBitSize, binary.Right, rhsBitSize)
+				panic("expected bit size to be the same")
+			}
+			bitSize = lhsBitSize // since they are the same
+
 			switch binary.Op {
 			// TODO: deal with signed or unsigned operations
 			// I'm assuming all unsigned for now
@@ -888,18 +894,23 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 
 	optLevel := ""
 	compilerFlags := ""
-
 	switch buildType {
 	case config.RELEASE:
 		optLevel = "-O3"
-		compilerFlags = "-Wl,-s"
+		compilerFlags += "-Wl,-s"
 	case config.DEBUG:
 		optLevel = "-O0"
 	default:
 		panic("invalid build type: " + buildType.String())
 	}
 
-	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	optCommand := []string{
+		optLevel,
+		"-o",
+		optimizedIrFilepath,
+		irFilepath,
+	}
+	cmd := exec.Command("opt", optCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -909,7 +920,15 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 		return err
 	}
 
-	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	clangCommand := []string{
+		compilerFlags,
+		optLevel,
+		"-o",
+		filenameNoExt,
+		optimizedIrFilepath,
+		"-lm", // math library
+	}
+	cmd = exec.Command("clang-18", clangCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {

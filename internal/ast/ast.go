@@ -37,7 +37,7 @@ const (
 
 	KIND_VOID_EXPR
 	KIND_VARG_EXPR
-	KIND_LITERAl_EXPR
+	KIND_LITERAL_EXPR
 	KIND_ID_EXPR
 	KIND_UNARY_EXPR
 	KIND_BINARY_EXPR
@@ -62,20 +62,6 @@ func (n *Node) IsStmt() bool {
 func (n *Node) IsExpr() bool {
 	return n.Kind > EXPR_START && n.Kind < EXPR_END
 }
-
-// func (left *Node) Equals(right *Node) bool {
-// 	// Handle type promotion for untyped literals
-// 	if left.IsUntyped() || right.IsUntyped() {
-// 		return left.IsCompatibleWith(right)
-// 	}
-// 	return left.Kind == right.Kind
-// }
-//
-// func (n *Node) IsUntyped() bool {
-// 	if !n.IsExpr() {
-// 		return false
-// 	}
-// }
 
 func (n *Node) IsDecl() bool {
 	return n.Kind > DECL_START && n.Kind < DECL_END
@@ -133,7 +119,7 @@ func (n *Node) String() string {
 		return "KIND_VOID_EXPR"
 	case KIND_VARG_EXPR:
 		return "KIND_VARG_EXPR"
-	case KIND_LITERAl_EXPR:
+	case KIND_LITERAL_EXPR:
 		return "KIND_LITERAl_EXPR"
 	case KIND_ID_EXPR:
 		return "KIND_ID_EXPR"

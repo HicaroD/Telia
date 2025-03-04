@@ -641,18 +641,23 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, refere
 	}
 
 	fnCall.Args = requiredArgs
-	varArgs := new(ast.Node)
-	varArgs.Kind = ast.KIND_VARG_EXPR
-	varArgs.Node = &ast.VarArgs{Args: variadicArgs}
-	fnCall.Args = append(fnCall.Args, varArgs)
+	if len(variadicArgs) > 0 {
+		varArgs := new(ast.Node)
+		varArgs.Kind = ast.KIND_VARG_EXPR
+		varArgs.Node = &ast.VarArgs{Args: variadicArgs}
+		fnCall.Args = append(fnCall.Args, varArgs)
+	}
 	return nil
 }
 
 func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
-	boolType := ast.NewBasicType(token.BOOL_TYPE)
-	_, err := sema.inferExprTypeWithContext(expr, boolType, referenceScope, declScope, fromImportPackage)
+	ifExprTy, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
+	}
+	boolType := ast.NewBasicType(token.BOOL_TYPE)
+	if !ifExprTy.Equals(boolType) {
+		return fmt.Errorf("error: expected bool type on if expr, but got %s\n", ifExprTy.T)
 	}
 	return nil
 }
@@ -665,7 +670,7 @@ func (s *sema) inferExprTypeWithContext(
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
@@ -738,12 +743,10 @@ func (sema *sema) inferIdExprTypeWithContext(
 			return nil, fmt.Errorf("error: type mismatch for id expression")
 		}
 		expectedBasicType := expectedType.T.(*ast.BasicType)
-
 		_, err := sema.inferBasicExprTypeWithContext(actualBasicType, expectedBasicType)
 		if err != nil {
 			return nil, err
 		}
-
 		return expectedType, nil
 	default:
 		// TODO(errors)
@@ -917,6 +920,7 @@ func (sema *sema) inferUnaryExprType(
 	}
 
 	if expectedType != nil && resultType.Kind != expectedType.Kind {
+		fmt.Print("it runs here!")
 		return nil, false, fmt.Errorf("type mismatch: expected %s, got %s\n", expectedType, resultType)
 	}
 
@@ -993,8 +997,6 @@ func (s *sema) inferBasicExprTypeWithContext(
 		return actual, nil
 	}
 
-	// TODO: untyped vs concrete type -> check if untyped can be promoted
-
 	if !actual.Equal(expected) {
 		return nil, fmt.Errorf("type mismatch: expected %s, got %s\n", expected, actual)
 	}
@@ -1053,7 +1055,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr), referenceScope)
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)

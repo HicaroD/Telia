@@ -5,6 +5,6 @@ extern libc {
 }
 
 fn main() {
-  libc::printf("hello", 1, 2)
+  libc::printf("Hello, world!\n")
   return
 }
