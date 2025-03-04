@@ -90,7 +90,11 @@ func (left *BasicType) Equal(right *BasicType) bool {
 }
 
 func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
-	if left.Kind.IsNumeric() && right.Kind.IsNumeric() {
+	if left.Kind.IsInteger() && right.Kind.IsInteger() {
+		return true
+	}
+
+	if left.Kind.IsFloat() && right.Kind.IsFloat() {
 		return true
 	}
 
@@ -176,11 +180,17 @@ type OperatorTable map[token.Kind]OperatorValidation
 var UnaryOperators = OperatorTable{
 	token.MINUS: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
 			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: nil,
 		Handler:    handleNumericUnary,
@@ -197,37 +207,65 @@ var UnaryOperators = OperatorTable{
 var BinaryOperators = OperatorTable{
 	token.PLUS: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		Handler: handleNumericType,
 	},
 	token.MINUS: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		Handler: handleNumericType,
 	},
 	token.STAR: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		Handler: handleNumericType,
 	},
 	token.SLASH: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		Handler: handleNumericType,
 	},
@@ -245,46 +283,81 @@ var BinaryOperators = OperatorTable{
 	},
 	token.LESS: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.LESS_EQ: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.GREATER: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.EQUAL_EQUAL: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},

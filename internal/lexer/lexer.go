@@ -157,7 +157,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	case '"':
 		// TODO: implement raw strings
 		isRaw := false
-		lex.getStringLiteral(tok, isRaw)
+		lex.getStringLit(tok, isRaw)
 	case ',':
 		lex.consumeTokenNoLex(tok, token.COMMA)
 		lex.nextChar()
@@ -297,15 +297,10 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 
 		lex.Collector.ReportAndSave(invalidCharacter)
 	default:
-		position := lex.pos
-
 		if unicode.IsLetter(rune(ch)) || ch == '_' {
-			identifier := lex.readWhile(
-				func(chr byte) bool { return unicode.IsNumber(rune(chr)) || unicode.IsLetter(rune(chr)) || chr == '_' },
-			)
-			tok = lex.classifyIdentifier(identifier, position)
+			lex.getIdOrKeyword(tok)
 		} else if ch >= '0' && ch <= '9' {
-			tok = lex.getNumberLiteral(position)
+			lex.getNumberLit(tok)
 		} else {
 			tokenPosition := lex.pos
 			invalidCharacter := diagnostics.Diag{
@@ -317,7 +312,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	return tok
 }
 
-func (lex *Lexer) getStringLiteral(tok *token.Token, isRaw bool) *token.Token {
+func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 	tok.Pos = lex.pos
 	lex.nextChar() // "
 
@@ -378,24 +373,46 @@ func (lex *Lexer) getStringLiteral(tok *token.Token, isRaw bool) *token.Token {
 	return tok
 }
 
-func (lex *Lexer) getNumberLiteral(position token.Pos) *token.Token {
+func (lex *Lexer) getNumberLit(tok *token.Token) {
+	var dotFound, dotRepeated bool
+	numberType := token.UNTYPED_INT
+
 	number := lex.readWhile(
-		func(chr byte) bool { return (chr >= '0' && chr <= '9') || chr == '_' },
+		func(chr byte) bool {
+			if chr == '.' {
+				if dotFound {
+					dotRepeated = true
+					return false
+				}
+				numberType = token.UNTYPED_FLOAT
+				dotFound = true
+				return true
+			}
+			return (chr >= '0' && chr <= '9') || chr == '_'
+		},
 	)
 
-	// TODO: deal with floating pointer numbers
-	// if strings.Contains(number, ".") {}
+	// TODO(errors)
+	if dotRepeated {
+		tok.Kind = token.INVALID
+		log.Fatal("error: invalid float format")
+		return
+	}
 
-	token := token.New(number, token.UNTYPED_INT, position)
-	return token
+	tok.Kind = numberType
+	tok.Lexeme = number
 }
 
-func (lex *Lexer) classifyIdentifier(identifier []byte, position token.Pos) *token.Token {
-	idKind, ok := token.KEYWORDS[string(identifier)]
+func (lex *Lexer) getIdOrKeyword(tok *token.Token) {
+	identifier := lex.readWhile(
+		func(chr byte) bool { return unicode.IsNumber(rune(chr)) || unicode.IsLetter(rune(chr)) || chr == '_' },
+	)
+	tok.Kind = token.ID
+	tok.Lexeme = identifier
+	keyword, ok := token.KEYWORDS[string(identifier)]
 	if ok {
-		return token.New(identifier, idKind, position)
+		tok.Kind = keyword
 	}
-	return token.New(identifier, token.ID, position)
 }
 
 func (lex *Lexer) consumeTokenNoLex(tok *token.Token, kind token.Kind) {

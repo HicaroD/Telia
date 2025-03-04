@@ -1082,11 +1082,16 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 		actualBasicType.Kind = token.UNTYPED_STRING
 		return literal.Type, false, nil
 	case token.UNTYPED_INT:
-		ty, err := sema.inferIntegerType(literal.Value)
+		err := sema.validateInteger(literal.Value)
 		if err != nil {
 			return nil, false, err
 		}
-		literal.Type = ty
+		return literal.Type, false, nil
+	case token.UNTYPED_FLOAT:
+		err := sema.validateFloat(literal.Value)
+		if err != nil {
+			return nil, false, err
+		}
 		return literal.Type, false, nil
 	case token.UNTYPED_BOOL:
 		actualBasicType.Kind = token.BOOL_TYPE
@@ -1165,19 +1170,26 @@ func (sema *sema) inferTupleExprTypeWithoutContext(
 	return tupleTy, false, nil
 }
 
-// TODO: properly infer the type if possible
-func (sema *sema) inferIntegerType(value []byte) (*ast.ExprType, error) {
-	integerType := token.UNTYPED_INT
+func (sema *sema) validateInteger(value []byte) error {
 	base := 10
 	intSize := strconv.IntSize
 
 	_, err := strconv.ParseUint(string(value), base, intSize)
 	if err != nil {
-		return nil, fmt.Errorf("can't parse integer literal: %s", value)
+		return fmt.Errorf("can't parse integer literal: %s", value)
 	}
 
-	t := ast.NewBasicType(integerType)
-	return t, nil
+	return nil
+}
+
+func (sema *sema) validateFloat(value []byte) error {
+	// TODO: properly set the bit size here
+	bitSize := 64
+	_, err := strconv.ParseFloat(string(value), bitSize)
+	if err != nil {
+		return fmt.Errorf("can't parse integer literal: %s", value)
+	}
+	return nil
 }
 
 func (sema *sema) checkNamespaceAccess(
