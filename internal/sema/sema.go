@@ -640,12 +640,10 @@ func (sema *sema) checkFnCall(
 
 func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
 	boolType := ast.NewBasicType(token.BOOL_TYPE)
-	fmt.Println(expr.Kind)
-	inferedExprType, err := sema.inferExprTypeWithContext(expr, boolType, referenceScope, declScope, fromImportPackage)
+	_, err := sema.inferExprTypeWithContext(expr, boolType, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
 	}
-	fmt.Println(inferedExprType)
 	return nil
 }
 
@@ -662,9 +660,11 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
 	case ast.KIND_BINARY_EXPR:
-		return s.inferBinaryExprTypeWithContext(expr.Node.(*ast.BinaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
+		ty, _, err := s.inferBinaryExprType(expr.Node.(*ast.BinaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
+		return ty, err
 	case ast.KIND_UNARY_EXPR:
-		return s.inferUnaryExprTypeWithContext(expr.Node.(*ast.UnaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
+		ty, _, err := s.inferUnaryExprType(expr.Node.(*ast.UnaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
+		return ty, err
 	case ast.KIND_FN_CALL:
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_VOID_EXPR:
@@ -741,95 +741,143 @@ func (sema *sema) inferIdExprTypeWithContext(
 	}
 }
 
-func (sema *sema) inferBinaryExprTypeWithContext(
+func (s *sema) inferBinaryExprType(
 	binary *ast.BinaryExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
-) (*ast.ExprType, error) {
-	// lhsType, err := sema.inferExprTypeWithContext(binary.Left, expectedType, referenceScope, declScope)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	// rhsType, err := sema.inferExprTypeWithContext(binary.Right, expectedType, referenceScope, declScope)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	lhsType, _, err := sema.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage)
+) (*ast.ExprType, bool, error) {
+	lhs, rhs, ctx, err := s.ensureBinaryOperatorsAreTheSame(binary, expectedType, referenceScope, declScope, fromImportPackage)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	rhsType, _, err := sema.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, err
-	}
+	commonType := lhs // since they are the same
 
-	if !lhsType.Equals(rhsType) {
-		return nil, fmt.Errorf("mismatched types: %s %s %s", lhsType, binary.Op, rhsType)
-	}
-
+	// TODO(errors)
 	validation, exists := ast.BinaryOperators[binary.Op]
 	if !exists {
-		return nil, fmt.Errorf("invalid binary operator: %s\n", binary.Op)
+		return nil, false, fmt.Errorf("invalid operator: %s", binary.Op)
 	}
 
 	valid := false
 	for _, validType := range validation.ValidTypes {
-		if lhsType.Equals(validType) {
+		if commonType.Equals(validType) {
 			valid = true
 			break
 		}
 	}
-
 	if !valid {
-		return nil, fmt.Errorf("invalid operand types for %s: %s and %s\n", binary.Op, lhsType, rhsType)
+		return nil, false, fmt.Errorf("invalid operand types for %s: %s and %s\n", binary.Op, lhs, rhs)
 	}
 
-	resultType := validation.ResultType
-	if resultType == nil {
-		resultType = lhsType
+	var resultType *ast.ExprType
+	if validation.Handler != nil {
+		operands := []*ast.ExprType{lhs, rhs}
+		resultType, err = validation.Handler(operands)
+		if err != nil {
+			return nil, false, err
+		}
+	} else {
+		resultType = validation.ResultType
+		if resultType == nil {
+			resultType = commonType
+		}
 	}
-	return resultType, nil
+
+	if expectedType != nil && !resultType.Equals(expectedType) {
+		return nil, false, fmt.Errorf("type mismatch: expected %s, got %s\n", expectedType.T, resultType.T)
+	}
+
+	return resultType, ctx, nil
 }
 
-func (sema *sema) inferUnaryExprTypeWithContext(
+func (s *sema) ensureBinaryOperatorsAreTheSame(
+	binary *ast.BinaryExpr,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) (*ast.ExprType, *ast.ExprType, bool, error) {
+	var lhs, rhs *ast.ExprType
+	var ctx bool
+	var err error
+
+	if expectedType != nil {
+		lhs, err = s.inferExprTypeWithContext(binary.Left, expectedType, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, nil, ctx, err
+		}
+
+		rhs, err = s.inferExprTypeWithContext(binary.Right, expectedType, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, nil, ctx, err
+		}
+	} else {
+		var lhsHasContext, rhsHasContext bool
+
+		lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, nil, ctx, err
+		}
+
+		rhs, rhsHasContext, err = s.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, nil, ctx, err
+		}
+
+		if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
+			return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+		}
+
+		if lhsHasContext && !rhsHasContext {
+			rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhs, referenceScope, declScope, fromImportPackage)
+			// TODO(errors)
+			if err != nil {
+				return nil, nil, ctx, err
+			}
+			rhs = rhsTypeWithContext
+			ctx = true
+		}
+
+		if !lhsHasContext && rhsHasContext {
+			lhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Left, rhs, referenceScope, declScope, fromImportPackage)
+			// TODO(errors)
+			if err != nil {
+				return nil, nil, false, err
+			}
+			lhs = lhsTypeWithContext
+			ctx = true
+		}
+	}
+
+	if !lhs.Equals(rhs) {
+		return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+	}
+	return lhs, rhs, ctx, nil
+}
+
+func (sema *sema) inferUnaryExprType(
 	unary *ast.UnaryExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
-) (*ast.ExprType, error) {
-	switch unary.Op {
-	case token.MINUS:
-		unaryExprType, err := sema.inferExprTypeWithContext(unary.Value, expectedType, referenceScope, declScope, fromImportPackage)
-		// TODO(errors)
-		if err != nil {
-			return nil, err
-		}
-
-		if !unaryExprType.IsNumeric() {
-			return nil, fmt.Errorf("can't use - operator on a non-numeric value")
-		}
-		return unaryExprType, nil
-	default:
-		// TODO(errors)
-		log.Fatalf("unimplemented unary expr operator: %s", unary.Op)
-		return nil, nil
-	}
-}
-
-func (s *sema) inferUnaryExprTypeWithoutContext(
-	unary *ast.UnaryExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	operandType, _, err := s.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, false, err
+	var operandType *ast.ExprType
+	var err error
+	hasContext := expectedType != nil
+
+	if expectedType != nil {
+		operandType, err = sema.inferExprTypeWithContext(unary.Value, expectedType, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, false, err
+		}
+	} else {
+		operandType, hasContext, err = sema.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, false, err
+		}
 	}
 
 	validation, exists := ast.UnaryOperators[unary.Op]
@@ -858,8 +906,78 @@ func (s *sema) inferUnaryExprTypeWithoutContext(
 		resultType = operandType
 	}
 
-	return resultType, !resultType.IsUntyped(), nil
+	if expectedType != nil && resultType != expectedType {
+		return nil, false, fmt.Errorf("type mismatch: expected %s, got %s\n", expectedType, resultType)
+	}
+
+	return resultType, hasContext, nil
 }
+
+// func (sema *sema) inferUnaryExprTypeWithContext(
+// 	unary *ast.UnaryExpr,
+// 	expectedType *ast.ExprType,
+// 	referenceScope *ast.Scope,
+// 	declScope *ast.Scope,
+// 	fromImportPackage bool,
+// ) (*ast.ExprType, error) {
+// 	switch unary.Op {
+// 	case token.MINUS:
+// 		unaryExprType, err := sema.inferExprTypeWithContext(unary.Value, expectedType, referenceScope, declScope, fromImportPackage)
+// 		// TODO(errors)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+//
+// 		if !unaryExprType.IsNumeric() {
+// 			return nil, fmt.Errorf("can't use - operator on a non-numeric value")
+// 		}
+// 		return unaryExprType, nil
+// 	default:
+// 		// TODO(errors)
+// 		log.Fatalf("unimplemented unary expr operator: %s", unary.Op)
+// 		return nil, nil
+// 	}
+// }
+//
+// func (s *sema) inferUnaryExprTypeWithoutContext(
+// 	unary *ast.UnaryExpr,
+// 	referenceScope *ast.Scope,
+// 	declScope *ast.Scope,
+// 	fromImportPackage bool,
+// ) (*ast.ExprType, bool, error) {
+// 	operandType, _, err := s.inferExprTypeWithoutContext(unary.Value, referenceScope, declScope, fromImportPackage)
+// 	if err != nil {
+// 		return nil, false, err
+// 	}
+//
+// 	validation, exists := ast.UnaryOperators[unary.Op]
+// 	if !exists {
+// 		return nil, false, fmt.Errorf("invalid unary operator: %s\n", unary.Op)
+// 	}
+//
+// 	valid := false
+// 	for _, validType := range validation.ValidTypes {
+// 		if operandType.Equals(validType) {
+// 			valid = true
+// 			break
+// 		}
+// 	}
+//
+// 	if !valid {
+// 		return nil, false, fmt.Errorf(
+// 			"invalid operand type %s for operator %s\n",
+// 			operandType,
+// 			unary.Op,
+// 		)
+// 	}
+//
+// 	resultType := validation.ResultType
+// 	if resultType == nil {
+// 		resultType = operandType
+// 	}
+//
+// 	return resultType, !resultType.IsUntyped(), nil
+// }
 
 func (sema *sema) inferFnCallExprTypeWithContext(
 	fnCall *ast.FnCall,
@@ -996,9 +1114,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)
 	case ast.KIND_UNARY_EXPR:
-		return sema.inferUnaryExprTypeWithoutContext(expr.Node.(*ast.UnaryExpr), referenceScope, declScope, fromImportPackage)
+		return sema.inferUnaryExprType(expr.Node.(*ast.UnaryExpr), nil, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_BINARY_EXPR:
-		return sema.inferBinaryExprTypeWithoutContext(expr.Node.(*ast.BinaryExpr), referenceScope, declScope, fromImportPackage)
+		return sema.inferBinaryExprType(expr.Node.(*ast.BinaryExpr), nil, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_FN_CALL:
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_NAMESPACE_ACCESS:
@@ -1065,47 +1183,6 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 		// TODO(errors)
 		return nil, false, fmt.Errorf("'%s' is not a variable or parameter", variableName)
 	}
-}
-
-func (s *sema) inferBinaryExprTypeWithoutContext(
-	binary *ast.BinaryExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-) (*ast.ExprType, bool, error) {
-	lhsTy, lhsHasContext, err := s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, false, err
-	}
-
-	rhsTy, rhsHasContext, err := s.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if lhsHasContext && !rhsHasContext {
-		rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhsTy, referenceScope, declScope, fromImportPackage)
-		// TODO(errors)
-		if err != nil {
-			return nil, false, err
-		}
-		rhsTy = rhsTypeWithContext
-	}
-
-	if !lhsHasContext && rhsHasContext {
-		lhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Left, rhsTy, referenceScope, declScope, fromImportPackage)
-		// TODO(errors)
-		if err != nil {
-			return nil, false, err
-		}
-		lhsTy = lhsTypeWithContext
-	}
-
-	if !lhsTy.Equals(rhsTy) {
-		return nil, false, fmt.Errorf("incompatible types: %s %s %s", lhsTy.T, binary.Op, rhsTy.T)
-	}
-
-	return lhsTy, true, nil
 }
 
 func (sema *sema) inferFnCallExprTypeWithoutContext(

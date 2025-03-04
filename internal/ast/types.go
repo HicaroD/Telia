@@ -196,6 +196,33 @@ var BinaryOperators = OperatorTable{
 		},
 		Handler: handleNumericType,
 	},
+	token.MINUS: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.STAR: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.SLASH: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
 	token.OR: {
 		ValidTypes: []*ExprType{
 			NewBasicType(token.BOOL_TYPE),
