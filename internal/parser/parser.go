@@ -553,7 +553,7 @@ func (p *Parser) parsePkgDecl() (string, *ast.Node, error) {
 	pkg, ok := p.expect(token.PACKAGE)
 	// TODO(errors)
 	if !ok {
-		return "", nil, fmt.Errorf("expected 'pkg' keyword, not %s\n", pkg.Kind.String())
+		return "", nil, fmt.Errorf("expected 'package' keyword, not %s\n", pkg.Kind.String())
 	}
 
 	name, ok := p.expect(token.ID)

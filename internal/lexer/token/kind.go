@@ -49,6 +49,12 @@ const (
 	U64_TYPE           // u64
 	INTEGER_TYPE_END   // integer type end delimiter
 
+	FLOAT_TYPE_START // float type start delimiter
+	FLOAT_TYPE       // float
+	F32_TYPE         // f32
+	F64_TYPE         // f64
+	FLOAT_TYPE_END   // float type end delimiter
+
 	NUMERIC_TYPE_END // numeric type end delimiter
 
 	STRING_TYPE  // string
@@ -57,6 +63,7 @@ const (
 	UNTYPED_START // literal start delimiter
 
 	UNTYPED_STRING
+	UNTYPED_FLOAT
 	UNTYPED_INT
 	UNTYPED_BOOL
 
@@ -137,18 +144,23 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"i32": I32_TYPE,
 	"i64": I64_TYPE,
 
-	"uint":    UINT_TYPE,
-	"u8":      U8_TYPE,
-	"u16":     U16_TYPE,
-	"u32":     U32_TYPE,
-	"u64":     U64_TYPE,
+	"uint": UINT_TYPE,
+	"u8":   U8_TYPE,
+	"u16":  U16_TYPE,
+	"u32":  U32_TYPE,
+	"u64":  U64_TYPE,
+
+	"float": FLOAT_TYPE,
+	"f32":   F32_TYPE,
+	"f64":   F64_TYPE,
+
 	"string":  STRING_TYPE,
 	"cstring": CSTRING_TYPE,
 }
 
 func (k Kind) BitSize() int {
 	switch k {
-	case INT_TYPE, UINT_TYPE, UNTYPED_INT:
+	case UINT_TYPE, UNTYPED_INT:
 		return strconv.IntSize
 	case BOOL_TYPE:
 		return 1
@@ -156,9 +168,9 @@ func (k Kind) BitSize() int {
 		return 8
 	case I16_TYPE, U16_TYPE:
 		return 16
-	case I32_TYPE, U32_TYPE:
+	case I32_TYPE, U32_TYPE, INT_TYPE, F32_TYPE, FLOAT_TYPE, UNTYPED_FLOAT:
 		return 32
-	case I64_TYPE, U64_TYPE:
+	case I64_TYPE, U64_TYPE, F64_TYPE:
 		return 64
 	default:
 		return -1
@@ -174,7 +186,15 @@ func (k Kind) IsUntyped() bool {
 }
 
 func (k Kind) IsNumeric() bool {
-	return k > NUMERIC_TYPE_START && k < NUMERIC_TYPE_END || k == UNTYPED_INT
+	return k > NUMERIC_TYPE_START && k < NUMERIC_TYPE_END || k == UNTYPED_INT || k == UNTYPED_FLOAT
+}
+
+func (k Kind) IsInteger() bool {
+	return k > INTEGER_TYPE_START && k < INTEGER_TYPE_END || k == UNTYPED_INT
+}
+
+func (k Kind) IsFloat() bool {
+	return k > FLOAT_TYPE_START && k < FLOAT_TYPE_END || k == UNTYPED_FLOAT
 }
 
 func (k Kind) IsStringLiteral() bool { return k == UNTYPED_STRING }
@@ -228,14 +248,22 @@ func (k Kind) String() string {
 		return "defer"
 	case BOOL_TYPE:
 		return "bool"
-	case INT_TYPE:
-		return "int"
-	case UINT_TYPE:
-		return "uint"
+	case UNTYPED_FLOAT:
+		return "untyped float"
 	case UNTYPED_INT:
 		return "untyped int"
 	case UNTYPED_BOOL:
 		return "untyped bool"
+	case FLOAT_TYPE:
+		return "f32"
+	case F32_TYPE:
+		return "f32"
+	case F64_TYPE:
+		return "f64"
+	case INT_TYPE:
+		return "int"
+	case UINT_TYPE:
+		return "uint"
 	case I8_TYPE:
 		return "i8"
 	case I16_TYPE:
