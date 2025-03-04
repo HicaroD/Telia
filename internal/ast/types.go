@@ -21,6 +21,24 @@ type ExprType struct {
 	T    any
 }
 
+func (t *ExprType) Equals(other *ExprType) bool {
+	if t.Kind != other.Kind {
+		return false
+	}
+
+	switch t.Kind {
+	case EXPR_TYPE_BASIC:
+		return t.T.(*BasicType).Equal(other.T.(*BasicType))
+	case EXPR_TYPE_POINTER:
+		return t.T.(*PointerType).Equal(other.T.(*PointerType))
+	case EXPR_TYPE_TUPLE:
+		return t.T.(*TupleType).Equal(other.T.(*TupleType))
+	// Add other type cases
+	default:
+		return false
+	}
+}
+
 func (ty *ExprType) IsBoolean() bool {
 	if ty.Kind != EXPR_TYPE_BASIC {
 		return false
@@ -50,7 +68,7 @@ func (ty *ExprType) IsUntyped() bool {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind.IsLiteral()
+	return basic.IsUntyped()
 }
 
 type BasicType struct {
@@ -64,16 +82,35 @@ func NewBasicType(kind token.Kind) *ExprType {
 	return ty
 }
 
+func (left *BasicType) Equal(right *BasicType) bool {
+	if left.Kind.IsUntyped() || right.Kind.IsUntyped() {
+		return left.IsCompatibleWith(right)
+	}
+	return left.Kind == right.Kind
+}
+
+func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
+	if left.Kind.IsNumeric() && right.Kind.IsNumeric() {
+		return true
+	}
+
+	if left.Kind.IsStringLiteral() && right.Kind.IsStringType() {
+		return true
+	}
+
+	if left.Kind == token.UNTYPED_BOOL && right.Kind == token.BOOL_TYPE {
+		return true
+	}
+
+	return false
+}
+
+func (b *BasicType) IsUntyped() bool {
+	return b.Kind.IsUntyped()
+}
+
 func (basicType BasicType) String() string {
 	return basicType.Kind.String()
-}
-
-func (bt *BasicType) IsAnyStringType() bool {
-	return bt.Kind == token.STRING_TYPE || bt.Kind == token.CSTRING_TYPE
-}
-
-func (bt *BasicType) IsIntegerType() bool {
-	return bt.Kind > token.INTEGER_TYPE_START && bt.Kind < token.INTEGER_TYPE_END || bt.Kind == token.UNTYPED_INT || bt.Kind == token.BOOL_TYPE
 }
 
 type IdType struct {
@@ -86,6 +123,10 @@ func (idType IdType) String() string {
 
 type PointerType struct {
 	Type *ExprType
+}
+
+func (p *PointerType) Equal(other *PointerType) bool {
+	return p.Type.Equals(other.Type)
 }
 
 func (pointer PointerType) String() string {
@@ -105,6 +146,160 @@ type TupleType struct {
 	Types []*ExprType
 }
 
+func (t *TupleType) Equal(other *TupleType) bool {
+	if len(t.Types) != len(other.Types) {
+		return false
+	}
+
+	for i := range t.Types {
+		if !t.Types[i].Equals(other.Types[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func (tt TupleType) String() string {
 	return fmt.Sprintf("TUPLE: %v\n", tt.Types)
+}
+
+// Operator validation
+
+type OperatorValidation struct {
+	ValidTypes []*ExprType
+	ResultType *ExprType
+	Handler    func(operands []*ExprType) (*ExprType, error)
+}
+
+type OperatorTable map[token.Kind]OperatorValidation
+
+var UnaryOperators = OperatorTable{
+	token.MINUS: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.INT_TYPE),
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: nil,
+		Handler:    handleNumericUnary,
+	},
+	token.NOT: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.BOOL_TYPE),
+			NewBasicType(token.UNTYPED_BOOL),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+}
+
+var BinaryOperators = OperatorTable{
+	token.PLUS: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.MINUS: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.STAR: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.SLASH: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		Handler: handleNumericType,
+	},
+	token.OR: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.BOOL_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.AND: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.BOOL_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.LESS: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.LESS_EQ: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.GREATER: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.EQUAL_EQUAL: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.BANG_EQUAL: {
+		ValidTypes: []*ExprType{
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+}
+
+func handleNumericUnary(operands []*ExprType) (*ExprType, error) {
+	return operands[0], nil
+}
+
+func handleNumericType(operands []*ExprType) (*ExprType, error) {
+	leftType := operands[0]
+	rightType := operands[1]
+
+	if !leftType.Equals(rightType) {
+		return nil, fmt.Errorf("type mismatch")
+	}
+	return leftType, nil
 }

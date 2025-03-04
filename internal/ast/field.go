@@ -9,6 +9,7 @@ import (
 type Field struct {
 	Name        *token.Token
 	Type        *ExprType
+	Variadic    bool
 	BackendType any // LLVM: *values.Variable
 }
 
@@ -20,6 +21,7 @@ func (field Field) String() string {
 type FieldList struct {
 	Open       *token.Token
 	Fields     []*Field
+	Len        int
 	IsVariadic bool
 	Close      *token.Token
 }

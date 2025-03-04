@@ -846,6 +846,7 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 
 func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.FieldList, error) {
 	var params []*ast.Field
+	var length int
 	isVariadic := false
 
 	openParen, ok := p.expect(token.OPEN_PAREN)
@@ -868,28 +869,6 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		if p.lex.NextIs(token.CLOSE_PAREN) {
 			break
 		}
-		if p.lex.NextIs(token.DOT_DOT_DOT) {
-			isVariadic = true
-			tok := p.lex.Peek()
-			pos := tok.Pos
-			p.lex.Skip()
-
-			if !p.lex.NextIs(token.CLOSE_PAREN) {
-				// TODO(errors):
-				// "fn name(a int, ...,) {}" because of the comma
-				unexpectedDotDotDot := diagnostics.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: ... is only allowed at the end of parameter list",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-					),
-				}
-				p.collector.ReportAndSave(unexpectedDotDotDot)
-				return nil, diagnostics.COMPILER_ERROR_FOUND
-			}
-			break
-		}
 
 		param := new(ast.Field)
 
@@ -910,6 +889,12 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		}
 		param.Name = name
 
+		if p.lex.NextIs(token.DOT_DOT_DOT) {
+			isVariadic = true
+			param.Variadic = true
+			p.lex.Skip() // ...
+		}
+
 		ty, err := p.parseExprType()
 		if err != nil {
 			tok := p.lex.Peek()
@@ -928,6 +913,26 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		param.Type = ty
+
+		if isVariadic {
+			tok := p.lex.Peek()
+			pos := tok.Pos
+
+			if !p.lex.NextIs(token.CLOSE_PAREN) {
+				// TODO(errors):
+				// "fn name(a int, ...,) {}" because of the comma
+				unexpectedDotDotDot := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: ... is only allowed at the end of parameter list",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+					),
+				}
+				p.collector.ReportAndSave(unexpectedDotDotDot)
+				return nil, diagnostics.COMPILER_ERROR_FOUND
+			}
+		}
 
 		// NOTE: prototypes parameters are validated at the semantic analyzer
 		// stage
@@ -963,6 +968,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		}
 
 		params = append(params, param)
+		length++
 		if p.lex.NextIs(token.COMMA) {
 			p.lex.Skip() // ,
 			continue
@@ -985,9 +991,15 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	// disconsider the variadic argument
+	if isVariadic {
+		length--
+	}
+
 	return &ast.FieldList{
 		Open:       openParen,
 		Fields:     params,
+		Len:        length,
 		Close:      closeParen,
 		IsVariadic: isVariadic,
 	}, nil
@@ -1702,7 +1714,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		}
 		return expr, nil
 	default:
-		if tok.Kind.IsLiteral() {
+		if tok.Kind.IsUntyped() {
 			p.lex.Skip()
 
 			n.Kind = ast.KIND_LITERAl_EXPR

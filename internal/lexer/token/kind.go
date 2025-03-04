@@ -54,13 +54,13 @@ const (
 	STRING_TYPE  // string
 	CSTRING_TYPE // cstring
 
-	LITERAL_START // literal start delimiter
+	UNTYPED_START // literal start delimiter
 
 	UNTYPED_STRING
 	UNTYPED_INT
 	UNTYPED_BOOL
 
-	LITERAL_END // literal end delimiter
+	UNTYPED_END // literal end delimiter
 
 	// This type is not explicit. We don't have a keyword for this, the absence
 	// of an explicit type means a void type
@@ -169,8 +169,17 @@ func (k Kind) IsBasicType() bool {
 	return k > BASIC_TYPE_START && k < BASIC_TYPE_END
 }
 
-func (k Kind) IsLiteral() bool {
-	return k > LITERAL_START && k < LITERAL_END
+func (k Kind) IsUntyped() bool {
+	return k > UNTYPED_START && k < UNTYPED_END
+}
+
+func (k Kind) IsNumeric() bool {
+	return k > NUMERIC_TYPE_START && k < NUMERIC_TYPE_END || k == UNTYPED_INT
+}
+
+func (k Kind) IsStringLiteral() bool { return k == UNTYPED_STRING }
+func (k Kind) IsStringType() bool {
+	return k == STRING_TYPE || k == CSTRING_TYPE
 }
 
 func (k Kind) IsLogicalOp() bool {
@@ -222,7 +231,7 @@ func (k Kind) String() string {
 	case INT_TYPE:
 		return "int"
 	case UINT_TYPE:
-		return "untyped uint"
+		return "uint"
 	case UNTYPED_INT:
 		return "untyped int"
 	case UNTYPED_BOOL:
