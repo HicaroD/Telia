@@ -348,16 +348,14 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 	c.builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *llvmCodegen) generateFnCall(
-	fnCall *ast.FnCall,
-) llvm.Value {
+func (c *llvmCodegen) generateFnCall(fnCall *ast.FnCall) llvm.Value {
 	var call *Function
 	if fnCall.Decl != nil {
 		call = fnCall.Decl.BackendType.(*Function)
 	} else {
 		call = fnCall.Proto.BackendType.(*Function)
 	}
-	args := c.getExprList(fnCall.Args)
+	args := c.getCallArgs(fnCall)
 	return c.builder.CreateCall(call.Ty, call.Fn, args, "")
 }
 
@@ -484,11 +482,24 @@ func (c *llvmCodegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	return types
 }
 
-func (c *llvmCodegen) getExprList(expressions []*ast.Node) []llvm.Value {
-	values := make([]llvm.Value, len(expressions))
-	for i, expr := range expressions {
-		value, _, _ := c.getExpr(expr)
+func (c *llvmCodegen) getCallArgs(call *ast.FnCall) []llvm.Value {
+	nExprs := len(call.Args)
+	if call.Variadic {
+		nExprs-- // desconsider the variadic argument place for now
+	}
+
+	values := make([]llvm.Value, nExprs)
+	for i := range nExprs {
+		value, _, _ := c.getExpr(call.Args[i])
 		values[i] = value
+	}
+
+	if call.Variadic {
+		variadic := call.Args[nExprs].Node.(*ast.VarArgs)
+		for _, arg := range variadic.Args {
+			varArg, _, _ := c.getExpr(arg)
+			values = append(values, varArg)
+		}
 	}
 	return values
 }
@@ -570,6 +581,7 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		case ast.KIND_FIELD:
 			variable := id.N.Node.(*ast.Param)
 			varTy = variable.Type
+			fmt.Println(variable, varTy)
 			localVar = variable.BackendType.(*Variable)
 		}
 
@@ -707,7 +719,7 @@ func (c *llvmCodegen) llvmConstInt8s(data []byte, length int) []llvm.Value {
 	for i, b := range data {
 		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
 	}
-	// c-string null terminated string
+	// c-strings are null terminated
 	out[length-1] = llvm.ConstInt(c.context.Int8Type(), uint64(0), false)
 	return out
 }
@@ -804,7 +816,7 @@ func (c *llvmCodegen) generateImportAccess(right *ast.Node) llvm.Value {
 
 func (c *llvmCodegen) generatePrototypeCall(call *ast.FnCall) llvm.Value {
 	protoLlvm := call.Proto.BackendType.(*Function)
-	args := c.getExprList(call.Args)
+	args := c.getCallArgs(call)
 	return c.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
 }
 

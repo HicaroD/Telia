@@ -48,9 +48,10 @@ func (ret ReturnStmt) String() string {
 }
 
 type FnCall struct {
-	Name *token.Token
-	Args []*Node
-	AtOp *AtOperator
+	Name     *token.Token
+	Args     []*Node
+	Variadic bool
+	AtOp     *AtOperator
 
 	// Codegen
 	BackendType any

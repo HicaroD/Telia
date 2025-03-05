@@ -24,7 +24,7 @@ type Param struct {
 }
 
 func (param Param) String() string {
-	return fmt.Sprintf("Name: %v\nType: %v", param.Name, param.Type)
+	return fmt.Sprintf("Name: %v\nType: %v", param.Name, param.Type.T)
 }
 
 // Field list for function parameters

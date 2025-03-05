@@ -4,9 +4,6 @@ use "std::io"
 use "std::math"
 
 fn main() {
-  x := math::cos(0.0)
-  if x == 1.0 {
-    io::println("cos(0.0) = 1.0")
-  }
+  io::libc::printf("%lf %lf %lf\n", 10.0, 20.0, 30.0)
   return
 }

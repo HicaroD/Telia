@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -629,8 +630,8 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, refere
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	requiredArgs := fnCall.Args[:params.Len]
-	variadicArgs := fnCall.Args[params.Len:]
+	requiredArgs := slices.Clone(fnCall.Args[:params.Len])
+	variadicArgs := slices.Clone(fnCall.Args[params.Len:])
 
 	for i, requiredArg := range requiredArgs {
 		if _, err := sema.inferExprTypeWithContext(requiredArg, params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
@@ -653,7 +654,9 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, refere
 		varArgs.Kind = ast.KIND_VARG_EXPR
 		varArgs.Node = &ast.VarArgs{Args: variadicArgs}
 		fnCall.Args = append(fnCall.Args, varArgs)
+		fnCall.Variadic = true
 	}
+
 	return nil
 }
 
