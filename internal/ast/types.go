@@ -103,7 +103,6 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 	}
 
 	if left.Kind.IsFloat() && right.Kind.IsFloat() {
-		fmt.Println(left.Kind, right.Kind)
 		return true
 	}
 

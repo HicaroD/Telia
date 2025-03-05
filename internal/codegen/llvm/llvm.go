@@ -430,34 +430,23 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
 		switch b.Kind {
-		case token.BOOL_TYPE, token.UNTYPED_BOOL:
-			return c.context.Int1Type()
-		case token.UINT_TYPE, token.UNTYPED_INT:
-			// 32 bits or 64 bits depends on the architecture
+		case token.BOOL_TYPE, token.UNTYPED_BOOL, token.INT_TYPE,
+			token.UINT_TYPE, token.UNTYPED_INT, token.I8_TYPE, token.U8_TYPE,
+			token.I16_TYPE, token.U16_TYPE, token.I32_TYPE, token.U32_TYPE,
+			token.I64_TYPE, token.U64_TYPE:
+
 			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)
-		case token.I8_TYPE, token.U8_TYPE:
-			return c.context.Int8Type()
-		case token.I16_TYPE, token.U16_TYPE:
-			return c.context.Int16Type()
-		case token.I32_TYPE, token.U32_TYPE, token.INT_TYPE:
-			return c.context.Int32Type()
-		case token.I64_TYPE, token.U64_TYPE:
-			return c.context.Int64Type()
-		case token.VOID_TYPE:
-			return c.context.VoidType()
-		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
-		// NOTE: string type is actually more complex than that
-		case token.STRING_TYPE, token.CSTRING_TYPE:
-			u8 := ast.NewBasicType(token.U8_TYPE)
-			u8Type := c.getType(u8)
-			return c.getPtrType(u8Type)
 		case token.F32_TYPE, token.FLOAT_TYPE, token.UNTYPED_FLOAT:
 			return c.context.FloatType()
 		case token.F64_TYPE:
 			return c.context.DoubleType()
-		default:
-			log.Fatalf("invalid basic type token: '%s'", b.Kind)
+		case token.VOID_TYPE:
+			return c.context.VoidType()
+		case token.STRING_TYPE, token.CSTRING_TYPE:
+			u8 := ast.NewBasicType(token.U8_TYPE)
+			u8Type := c.getType(u8)
+			return c.getPtrType(u8Type)
 		}
 	case ast.EXPR_TYPE_TUPLE:
 		tuple := ty.T.(*ast.TupleType)
