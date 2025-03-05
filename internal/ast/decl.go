@@ -72,6 +72,7 @@ type Attributes struct {
 	// Specific for extern declaration
 	DefaultCallingConvention string
 	LinkPrefix               string
+	Global                   bool
 }
 
 func (a *Attributes) String() string {

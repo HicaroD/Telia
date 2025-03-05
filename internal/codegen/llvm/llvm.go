@@ -351,9 +351,14 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 func (c *llvmCodegen) generateFnCall(
 	fnCall *ast.FnCall,
 ) llvm.Value {
-	callLlvm := fnCall.Decl.BackendType.(*Function)
+	var call *Function
+	if fnCall.Decl != nil {
+		call = fnCall.Decl.BackendType.(*Function)
+	} else {
+		call = fnCall.Proto.BackendType.(*Function)
+	}
 	args := c.getExprList(fnCall.Args)
-	return c.builder.CreateCall(callLlvm.Ty, callLlvm.Fn, args, "")
+	return c.builder.CreateCall(call.Ty, call.Fn, args, "")
 }
 
 func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {

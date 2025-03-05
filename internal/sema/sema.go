@@ -327,13 +327,13 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		return err
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
-		fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+		fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return err
 		}
 
-		if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnDecl.RetType.T.(*ast.TupleType), referenceScope)
+		if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnRetType.T.(*ast.TupleType), referenceScope)
 			return err
 		} else {
 			// TODO(errors)
@@ -384,13 +384,13 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 			}
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
-			fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+			fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return err
 			}
 
-			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-				tupleType := fnDecl.RetType.T.(*ast.TupleType)
+			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnRetType.T.(*ast.TupleType)
 				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
 				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, referenceScope)
 				t += len(affectedVariables)
@@ -467,12 +467,12 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, referenceScope *ast.Sc
 			counter += innerTupleExprs
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
-			fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+			fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return -1, err
 			}
-			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-				fnTuple := fnDecl.RetType.T.(*ast.TupleType)
+			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				fnTuple := fnRetType.T.(*ast.TupleType)
 				counter += len(fnTuple.Types)
 			} else {
 				counter++
@@ -561,7 +561,7 @@ func (sema *sema) checkFnCall(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
-) (*ast.FnDecl, error) {
+) (*ast.ExprType, error) {
 	symbol, err := declScope.LookupAcrossScopes(fnCall.Name.Name())
 	if err != nil {
 		if err == ast.ErrSymbolNotFoundOnScope {
@@ -581,7 +581,7 @@ func (sema *sema) checkFnCall(
 		return nil, err
 	}
 
-	if symbol.Kind != ast.KIND_FN_DECL {
+	if symbol.Kind != ast.KIND_FN_DECL && symbol.Kind != ast.KIND_PROTO {
 		pos := fnCall.Name.Pos
 		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
@@ -596,11 +596,18 @@ func (sema *sema) checkFnCall(
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	fnDecl := symbol.Node.(*ast.FnDecl)
-	fnCall.Decl = fnDecl
-
-	err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
-	return fnDecl, err
+	// NOTE: It happens when extern is declared without a name, it means prototypes
+	// can be accessed globally in the package scope
+	if symbol.Kind == ast.KIND_PROTO {
+		proto := symbol.Node.(*ast.Proto)
+		fnCall.Proto = proto
+		return proto.RetType, nil
+	} else {
+		fnDecl := symbol.Node.(*ast.FnDecl)
+		fnCall.Decl = fnDecl
+		err := sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		return fnDecl.RetType, err
+	}
 }
 
 func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
@@ -934,11 +941,8 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, err
-	}
-	return fnDecl.RetType, nil
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+	return fnRetType, err
 }
 
 func (sema *sema) inferVoidExprTypeWithContext(expectedType *ast.ExprType) (*ast.ExprType, error) {
@@ -1142,8 +1146,8 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-	return fnDecl.RetType, true, err
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+	return fnRetType, true, err
 }
 
 func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
@@ -1252,8 +1256,8 @@ func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, d
 	switch node.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := node.Node.(*ast.FnCall)
-		fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-		return fnDecl.RetType, err
+		fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+		return fnRetType, err
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := node.Node.(*ast.NamespaceAccess)
 		ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope, true)

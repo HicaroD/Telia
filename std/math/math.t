@@ -1,7 +1,7 @@
 package math
 
 #[default_cc="c"]
-extern common {
+extern {
   fn cos(x f64) f64
   fn sin(x f64) f64
   fn tan(x f64) f64

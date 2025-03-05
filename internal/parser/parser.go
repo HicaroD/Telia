@@ -383,7 +383,6 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 
 func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	externDecl := new(ast.ExternDecl)
-
 	if attributes != nil {
 		externDecl.Attributes = attributes
 		attributes = nil
@@ -394,22 +393,29 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, fmt.Errorf("expected 'extern', not %s\n", ext.Kind.String())
 	}
 
-	name, ok := p.expect(token.ID)
-	if !ok {
-		pos := name.Pos
-		expectedName := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: expected name, not %s",
-				pos.Filename,
-				pos.Line,
-				pos.Column,
-				name.Kind,
-			),
+	if !p.lex.NextIs(token.ID) {
+		if externDecl.Attributes == nil {
+			externDecl.Attributes = new(ast.Attributes)
 		}
-		p.collector.ReportAndSave(expectedName)
-		return nil, diagnostics.COMPILER_ERROR_FOUND
+		externDecl.Attributes.Global = true
+	} else {
+		name, ok := p.expect(token.ID)
+		if !ok {
+			pos := name.Pos
+			expectedName := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected name, not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Kind,
+				),
+			}
+			p.collector.ReportAndSave(expectedName)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		externDecl.Name = name
 	}
-	externDecl.Name = name
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
@@ -485,30 +491,50 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	externScope := ast.NewScope(p.pkg.Scope)
-	externDecl.Scope = externScope
+	if externDecl.Attributes.Global {
+		externDecl.Scope = p.pkg.Scope
+	} else {
+		externScope := ast.NewScope(p.pkg.Scope)
+		externDecl.Scope = externScope
+	}
 
 	for i, prototype := range prototypes {
 		n := new(ast.Node)
 		n.Kind = ast.KIND_PROTO
 		n.Node = prototype
 
-		err := externScope.Insert(prototype.Name.Name(), n)
+		err := externDecl.Scope.Insert(prototype.Name.Name(), n)
 		if err != nil {
 			if err == ast.ErrSymbolAlreadyDefinedOnScope {
-				pos := prototypes[i].Name.Pos
-				prototypeRedeclaration := diagnostics.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-						prototype.Name.Name(),
-						name.Name(),
-					),
+				if externDecl.Attributes.Global {
+					pos := prototypes[i].Name.Pos
+					prototypeRedeclaration := diagnostics.Diag{
+						Message: fmt.Sprintf(
+							"%s:%d:%d: prototype '%s' already declared in the package scope",
+							pos.Filename,
+							pos.Line,
+							pos.Column,
+							prototype.Name.Name(),
+						),
+					}
+					p.collector.ReportAndSave(prototypeRedeclaration)
+					return nil, diagnostics.COMPILER_ERROR_FOUND
+				} else {
+					name := externDecl.Name
+					pos := prototypes[i].Name.Pos
+					prototypeRedeclaration := diagnostics.Diag{
+						Message: fmt.Sprintf(
+							"%s:%d:%d: prototype '%s' already declared on extern '%s'",
+							pos.Filename,
+							pos.Line,
+							pos.Column,
+							prototype.Name.Name(),
+							name.Name(),
+						),
+					}
+					p.collector.ReportAndSave(prototypeRedeclaration)
+					return nil, diagnostics.COMPILER_ERROR_FOUND
 				}
-				p.collector.ReportAndSave(prototypeRedeclaration)
-				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
 			return nil, err
 		}
@@ -518,23 +544,26 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
-	err = p.pkg.Scope.Insert(name.Name(), n)
-	if err != nil {
-		if err == ast.ErrSymbolAlreadyDefinedOnScope {
-			pos := name.Pos
-			prototypeRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: extern '%s' already declared on scope",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					name.Name(),
-				),
+	if !externDecl.Attributes.Global {
+		name := externDecl.Name
+		err = p.pkg.Scope.Insert(name.Name(), n)
+		if err != nil {
+			if err == ast.ErrSymbolAlreadyDefinedOnScope {
+				pos := name.Pos
+				prototypeRedeclaration := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: extern '%s' already declared on scope",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						name.Name(),
+					),
+				}
+				p.collector.ReportAndSave(prototypeRedeclaration)
+				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
-			p.collector.ReportAndSave(prototypeRedeclaration)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
+			return nil, err
 		}
-		return nil, err
 	}
 
 	return n, nil
