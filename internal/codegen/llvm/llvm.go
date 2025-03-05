@@ -587,11 +587,11 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 
 		lhs, lhsBitSize, lhsHasFloat := c.getExpr(binary.Left)
 		rhs, rhsBitSize, rhsHasFloat := c.getExpr(binary.Right)
+		if lhsBitSize != rhsBitSize {
+			panic("expected bit size to be the same")
+		}
 
 		hasFloat = lhsHasFloat || rhsHasFloat
-		if lhsBitSize != rhsBitSize {
-			panic("expectedb bit size to be the same")
-		}
 		bitSize = lhsBitSize // since they are the same
 
 		if hasFloat {

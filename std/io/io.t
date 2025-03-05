@@ -2,11 +2,11 @@ package io
 
 #[default_cc="c"]
 extern libc {
-  fn printf(format cstring, args ...f32) i32
+  fn printf(format cstring, args ...f64) i32
   fn puts(format cstring) i32
 }
 
-fn printf(f cstring, args ...f32) {
+fn printf(f cstring, args ...f64) {
   libc::printf(f, args)
   return
 }
