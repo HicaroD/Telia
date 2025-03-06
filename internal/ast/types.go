@@ -55,12 +55,20 @@ func (ty *ExprType) IsVoid() bool {
 	return basic.Kind == token.VOID_TYPE
 }
 
-func (ty *ExprType) IsNumeric() bool {
+func (ty *ExprType) IsInteger() bool {
 	if ty.Kind != EXPR_TYPE_BASIC {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind > token.NUMERIC_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.UNTYPED_INT
+	return basic.Kind > token.INTEGER_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.INTEGER_TYPE_END
+}
+
+func (ty *ExprType) IsFloat() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind > token.FLOAT_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.FLOAT_TYPE_END
 }
 
 func (ty *ExprType) IsUntyped() bool {
@@ -314,6 +322,22 @@ var BinaryOperators = OperatorTable{
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.GREATER: {
+		ValidTypes: []*ExprType{
+			// integers
+			NewBasicType(token.UINT_TYPE),
+			NewBasicType(token.INT_TYPE),
+			NewBasicType(token.I8_TYPE),
+			NewBasicType(token.I16_TYPE),
+			NewBasicType(token.I32_TYPE),
+			NewBasicType(token.I64_TYPE),
+			// floats
+			NewBasicType(token.FLOAT_TYPE),
+			NewBasicType(token.F32_TYPE),
+			NewBasicType(token.F64_TYPE),
+		},
+		ResultType: NewBasicType(token.BOOL_TYPE),
+	},
+	token.GREATER_EQ: {
 		ValidTypes: []*ExprType{
 			// integers
 			NewBasicType(token.UINT_TYPE),

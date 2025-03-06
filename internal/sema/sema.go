@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -327,13 +328,13 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		return err
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
-		fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+		fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return err
 		}
 
-		if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnDecl.RetType.T.(*ast.TupleType), referenceScope)
+		if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnRetType.T.(*ast.TupleType), referenceScope)
 			return err
 		} else {
 			// TODO(errors)
@@ -384,13 +385,13 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 			}
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
-			fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+			fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return err
 			}
 
-			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-				tupleType := fnDecl.RetType.T.(*ast.TupleType)
+			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnRetType.T.(*ast.TupleType)
 				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
 				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, referenceScope)
 				t += len(affectedVariables)
@@ -467,12 +468,12 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, referenceScope *ast.Sc
 			counter += innerTupleExprs
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
-			fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+			fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
 			if err != nil {
 				return -1, err
 			}
-			if fnDecl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-				fnTuple := fnDecl.RetType.T.(*ast.TupleType)
+			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				fnTuple := fnRetType.T.(*ast.TupleType)
 				counter += len(fnTuple.Types)
 			} else {
 				counter++
@@ -561,7 +562,7 @@ func (sema *sema) checkFnCall(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
-) (*ast.FnDecl, error) {
+) (*ast.ExprType, error) {
 	symbol, err := declScope.LookupAcrossScopes(fnCall.Name.Name())
 	if err != nil {
 		if err == ast.ErrSymbolNotFoundOnScope {
@@ -581,7 +582,7 @@ func (sema *sema) checkFnCall(
 		return nil, err
 	}
 
-	if symbol.Kind != ast.KIND_FN_DECL {
+	if symbol.Kind != ast.KIND_FN_DECL && symbol.Kind != ast.KIND_PROTO {
 		pos := fnCall.Name.Pos
 		notCallable := diagnostics.Diag{
 			Message: fmt.Sprintf(
@@ -596,14 +597,21 @@ func (sema *sema) checkFnCall(
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	fnDecl := symbol.Node.(*ast.FnDecl)
-	fnCall.Decl = fnDecl
-
-	err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
-	return fnDecl, err
+	// NOTE: It happens when extern is declared without a name, it means prototypes
+	// can be accessed globally in the package scope
+	if symbol.Kind == ast.KIND_PROTO {
+		proto := symbol.Node.(*ast.Proto)
+		fnCall.Proto = proto
+		return proto.RetType, nil
+	} else {
+		fnDecl := symbol.Node.(*ast.FnDecl)
+		fnCall.Decl = fnDecl
+		err := sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		return fnDecl.RetType, err
+	}
 }
 
-func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.FieldList, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
+func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
 	if params.IsVariadic && len(fnCall.Args) < params.Len {
 		pos := fnCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
@@ -622,31 +630,44 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.FieldList, ref
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	argIndex := 0
-	for i := range params.Len {
-		if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
+	requiredArgs := slices.Clone(fnCall.Args[:params.Len])
+	variadicArgs := slices.Clone(fnCall.Args[params.Len:])
+
+	for i, requiredArg := range requiredArgs {
+		if _, err := sema.inferExprTypeWithContext(requiredArg, params.Fields[i].Type, referenceScope, declScope, fromImportPackage); err != nil {
 			return err
 		}
-		argIndex++
 	}
 
 	if params.IsVariadic {
 		variadicParam := params.Fields[params.Len]
-		for i := argIndex; i < len(fnCall.Args); i++ {
-			if _, err := sema.inferExprTypeWithContext(fnCall.Args[i], variadicParam.Type, referenceScope, declScope, fromImportPackage); err != nil {
+		for _, variadicArg := range variadicArgs {
+			if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage); err != nil {
 				return err
 			}
 		}
+	}
+
+	fnCall.Args = requiredArgs
+	if len(variadicArgs) > 0 {
+		varArgs := new(ast.Node)
+		varArgs.Kind = ast.KIND_VARG_EXPR
+		varArgs.Node = &ast.VarArgs{Args: variadicArgs}
+		fnCall.Args = append(fnCall.Args, varArgs)
+		fnCall.Variadic = true
 	}
 
 	return nil
 }
 
 func (sema *sema) checkIfExpr(expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
-	boolType := ast.NewBasicType(token.BOOL_TYPE)
-	_, err := sema.inferExprTypeWithContext(expr, boolType, referenceScope, declScope, fromImportPackage)
+	ifExprTy, _, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
+	}
+	boolType := ast.NewBasicType(token.BOOL_TYPE)
+	if !ifExprTy.Equals(boolType) {
+		return fmt.Errorf("error: expected bool type on if expr, but got %s\n", ifExprTy.T)
 	}
 	return nil
 }
@@ -659,7 +680,7 @@ func (s *sema) inferExprTypeWithContext(
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
@@ -718,7 +739,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	case ast.KIND_VAR_ID_STMT:
 		ty = symbol.Node.(*ast.VarId).Type
 	case ast.KIND_FIELD:
-		ty = symbol.Node.(*ast.Field).Type
+		ty = symbol.Node.(*ast.Param).Type
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
@@ -732,12 +753,10 @@ func (sema *sema) inferIdExprTypeWithContext(
 			return nil, fmt.Errorf("error: type mismatch for id expression")
 		}
 		expectedBasicType := expectedType.T.(*ast.BasicType)
-
 		_, err := sema.inferBasicExprTypeWithContext(actualBasicType, expectedBasicType)
 		if err != nil {
 			return nil, err
 		}
-
 		return expectedType, nil
 	default:
 		// TODO(errors)
@@ -911,6 +930,7 @@ func (sema *sema) inferUnaryExprType(
 	}
 
 	if expectedType != nil && resultType.Kind != expectedType.Kind {
+		fmt.Print("it runs here!")
 		return nil, false, fmt.Errorf("type mismatch: expected %s, got %s\n", expectedType, resultType)
 	}
 
@@ -924,11 +944,8 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return nil, err
-	}
-	return fnDecl.RetType, nil
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+	return fnRetType, err
 }
 
 func (sema *sema) inferVoidExprTypeWithContext(expectedType *ast.ExprType) (*ast.ExprType, error) {
@@ -986,8 +1003,6 @@ func (s *sema) inferBasicExprTypeWithContext(
 		actual.Kind = expected.Kind
 		return actual, nil
 	}
-
-	// TODO: untyped vs concrete type -> check if untyped can be promoted
 
 	if !actual.Equal(expected) {
 		return nil, fmt.Errorf("type mismatch: expected %s, got %s\n", expected, actual)
@@ -1047,7 +1062,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr), referenceScope)
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)
@@ -1121,7 +1136,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 		ty := variable.Node.(*ast.VarId).Type
 		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
-		return variable.Node.(*ast.Field).Type, true, nil
+		return variable.Node.(*ast.Param).Type, true, nil
 	default:
 		// TODO(errors)
 		return nil, false, fmt.Errorf("'%s' is not a variable or parameter", variableName)
@@ -1134,8 +1149,8 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-	return fnDecl.RetType, true, err
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+	return fnRetType, true, err
 }
 
 func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
@@ -1244,8 +1259,8 @@ func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, d
 	switch node.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := node.Node.(*ast.FnCall)
-		fnDecl, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
-		return fnDecl.RetType, err
+		fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage)
+		return fnRetType, err
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := node.Node.(*ast.NamespaceAccess)
 		ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope, true)

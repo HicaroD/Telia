@@ -325,17 +325,17 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 	attributes := new(ast.Attributes)
 
-	_, ok := p.expect(token.SHARP)
-	if !ok {
-		return nil, fmt.Errorf("expected '#'")
-	}
-
-	_, ok = p.expect(token.OPEN_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected '['")
-	}
-
 	for {
+		_, ok := p.expect(token.SHARP)
+		if !ok {
+			return nil, fmt.Errorf("expected '#'")
+		}
+
+		_, ok = p.expect(token.OPEN_BRACKET)
+		if !ok {
+			return nil, fmt.Errorf("expected '['")
+		}
+
 		attribute, ok := p.expect(token.ID)
 		if !ok {
 			return nil, fmt.Errorf("expected identifier")
@@ -353,29 +353,37 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 
 		switch attribute.Name() {
 		case "default_cc":
+			if attributes.DefaultCallingConvention != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.DefaultCallingConvention = attributeValue.Name()
 		case "link_prefix":
+			if attributes.LinkPrefix != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.LinkPrefix = attributeValue.Name()
 		case "link_name":
+			if attributes.LinkName != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.LinkName = attributeValue.Name()
 		case "linkage":
+			if attributes.Linkage != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.Linkage = attributeValue.Name()
 		default:
 			return nil, fmt.Errorf("invalid attribute for extern declaration: %s\n", attribute.Name())
 		}
 
-		if p.lex.NextIs(token.CLOSE_BRACKET) {
+		_, ok = p.expect(token.CLOSE_BRACKET)
+		if !ok {
+			return nil, fmt.Errorf("expected closing bracket")
+		}
+
+		if !p.lex.NextIs(token.SHARP) {
 			break
 		}
-
-		if !p.lex.NextIs(token.COMMA) {
-			return nil, fmt.Errorf("expected either comma or closing bracket")
-		}
-	}
-
-	_, ok = p.expect(token.CLOSE_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected ']'")
 	}
 
 	return attributes, nil
@@ -383,7 +391,6 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 
 func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	externDecl := new(ast.ExternDecl)
-
 	if attributes != nil {
 		externDecl.Attributes = attributes
 		attributes = nil
@@ -394,22 +401,29 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, fmt.Errorf("expected 'extern', not %s\n", ext.Kind.String())
 	}
 
-	name, ok := p.expect(token.ID)
-	if !ok {
-		pos := name.Pos
-		expectedName := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: expected name, not %s",
-				pos.Filename,
-				pos.Line,
-				pos.Column,
-				name.Kind,
-			),
+	if !p.lex.NextIs(token.ID) {
+		if externDecl.Attributes == nil {
+			externDecl.Attributes = new(ast.Attributes)
 		}
-		p.collector.ReportAndSave(expectedName)
-		return nil, diagnostics.COMPILER_ERROR_FOUND
+		externDecl.Attributes.Global = true
+	} else {
+		name, ok := p.expect(token.ID)
+		if !ok {
+			pos := name.Pos
+			expectedName := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected name, not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Kind,
+				),
+			}
+			p.collector.ReportAndSave(expectedName)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		externDecl.Name = name
 	}
-	externDecl.Name = name
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	if !ok {
@@ -485,30 +499,50 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	externScope := ast.NewScope(p.pkg.Scope)
-	externDecl.Scope = externScope
+	if externDecl.Attributes.Global {
+		externDecl.Scope = p.pkg.Scope
+	} else {
+		externScope := ast.NewScope(p.pkg.Scope)
+		externDecl.Scope = externScope
+	}
 
 	for i, prototype := range prototypes {
 		n := new(ast.Node)
 		n.Kind = ast.KIND_PROTO
 		n.Node = prototype
 
-		err := externScope.Insert(prototype.Name.Name(), n)
+		err := externDecl.Scope.Insert(prototype.Name.Name(), n)
 		if err != nil {
 			if err == ast.ErrSymbolAlreadyDefinedOnScope {
-				pos := prototypes[i].Name.Pos
-				prototypeRedeclaration := diagnostics.Diag{
-					Message: fmt.Sprintf(
-						"%s:%d:%d: prototype '%s' already declared on extern '%s'",
-						pos.Filename,
-						pos.Line,
-						pos.Column,
-						prototype.Name.Name(),
-						name.Name(),
-					),
+				if externDecl.Attributes.Global {
+					pos := prototypes[i].Name.Pos
+					prototypeRedeclaration := diagnostics.Diag{
+						Message: fmt.Sprintf(
+							"%s:%d:%d: prototype '%s' already declared in the package scope",
+							pos.Filename,
+							pos.Line,
+							pos.Column,
+							prototype.Name.Name(),
+						),
+					}
+					p.collector.ReportAndSave(prototypeRedeclaration)
+					return nil, diagnostics.COMPILER_ERROR_FOUND
+				} else {
+					name := externDecl.Name
+					pos := prototypes[i].Name.Pos
+					prototypeRedeclaration := diagnostics.Diag{
+						Message: fmt.Sprintf(
+							"%s:%d:%d: prototype '%s' already declared on extern '%s'",
+							pos.Filename,
+							pos.Line,
+							pos.Column,
+							prototype.Name.Name(),
+							name.Name(),
+						),
+					}
+					p.collector.ReportAndSave(prototypeRedeclaration)
+					return nil, diagnostics.COMPILER_ERROR_FOUND
 				}
-				p.collector.ReportAndSave(prototypeRedeclaration)
-				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
 			return nil, err
 		}
@@ -518,23 +552,26 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	n.Kind = ast.KIND_EXTERN_DECL
 	n.Node = externDecl
 
-	err = p.pkg.Scope.Insert(name.Name(), n)
-	if err != nil {
-		if err == ast.ErrSymbolAlreadyDefinedOnScope {
-			pos := name.Pos
-			prototypeRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: extern '%s' already declared on scope",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					name.Name(),
-				),
+	if !externDecl.Attributes.Global {
+		name := externDecl.Name
+		err = p.pkg.Scope.Insert(name.Name(), n)
+		if err != nil {
+			if err == ast.ErrSymbolAlreadyDefinedOnScope {
+				pos := name.Pos
+				prototypeRedeclaration := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: extern '%s' already declared on scope",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						name.Name(),
+					),
+				}
+				p.collector.ReportAndSave(prototypeRedeclaration)
+				return nil, diagnostics.COMPILER_ERROR_FOUND
 			}
-			p.collector.ReportAndSave(prototypeRedeclaration)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
+			return nil, err
 		}
-		return nil, err
 	}
 
 	return n, nil
@@ -718,7 +755,7 @@ func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) 
 	}
 	prototype.Name = name
 
-	params, err := p.parseFunctionParams(name, nil, true)
+	params, err := p.parseFnParams(name, nil, true)
 	if err != nil {
 		return nil, err
 	}
@@ -783,7 +820,7 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 	fnScope := ast.NewScope(p.pkg.Scope)
 	fnDecl.Scope = fnScope
 
-	params, err := p.parseFunctionParams(name, fnScope, false)
+	params, err := p.parseFnParams(name, fnScope, false)
 	if err != nil {
 		return nil, err
 	}
@@ -844,8 +881,8 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	return fnDecl.Node.(*ast.FnDecl), nil
 }
 
-func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.FieldList, error) {
-	var params []*ast.Field
+func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.Params, error) {
+	var params []*ast.Param
 	var length int
 	isVariadic := false
 
@@ -870,7 +907,40 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			break
 		}
 
-		param := new(ast.Field)
+		param := new(ast.Param)
+
+		attributes := new(ast.ParamAttributes)
+
+		if p.lex.NextIs(token.AT) {
+			for p.lex.NextIs(token.AT) {
+				p.lex.Skip() // @
+
+				attributeName, ok := p.expect(token.ID)
+				if !ok {
+					return nil, fmt.Errorf("expected parameter attribute name, not %s\n")
+				}
+
+				switch attributeName.Name() {
+				case "c":
+					// TODO(errors)
+					if !isPrototype {
+						return nil, fmt.Errorf("@c only allowed on prototypes\n")
+					}
+					// TODO(errors)
+					if attributes.ForC {
+						return nil, fmt.Errorf("cannot redeclare @c attribute\n")
+					}
+					attributes.ForC = true
+				case "const":
+					// TODO(errors)
+					if attributes.Const {
+						return nil, fmt.Errorf("cannot redeclare @const attribute\n")
+					}
+					attributes.Const = true
+				}
+			}
+		}
+		param.Attributes = attributes
 
 		name, ok := p.expect(token.ID)
 		if !ok {
@@ -893,6 +963,10 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 			isVariadic = true
 			param.Variadic = true
 			p.lex.Skip() // ...
+		}
+
+		if !param.Variadic && param.Attributes.ForC {
+			return nil, fmt.Errorf("@for_c attribute only allowed on variadic arguments")
 		}
 
 		ty, err := p.parseExprType()
@@ -996,7 +1070,7 @@ func (p *Parser) parseFunctionParams(functionName *token.Token, scope *ast.Scope
 		length--
 	}
 
-	return &ast.FieldList{
+	return &ast.Params{
 		Open:       openParen,
 		Fields:     params,
 		Len:        length,
@@ -1717,7 +1791,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		if tok.Kind.IsUntyped() {
 			p.lex.Skip()
 
-			n.Kind = ast.KIND_LITERAl_EXPR
+			n.Kind = ast.KIND_LITERAL_EXPR
 			n.Node = &ast.LiteralExpr{
 				Type:  ast.NewBasicType(tok.Kind),
 				Value: tok.Lexeme,

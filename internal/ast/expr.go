@@ -93,3 +93,11 @@ type TupleExpr struct {
 func (te TupleExpr) String() string {
 	return fmt.Sprintf("%v\n", te.Exprs)
 }
+
+type VarArgs struct {
+	Args []*Node
+}
+
+func (v VarArgs) String() string {
+	return fmt.Sprintf("VARGS: %v\n", v.Args)
+}

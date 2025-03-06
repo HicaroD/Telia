@@ -131,7 +131,7 @@ func (c *llvmCodegen) generateFnParams(fnValue *Function, fnDecl *ast.FnDecl) {
 	}
 }
 
-func (c *llvmCodegen) generateParam(field *ast.Field, ty llvm.Type, val llvm.Value) {
+func (c *llvmCodegen) generateParam(field *ast.Param, ty llvm.Type, val llvm.Value) {
 	paramVal := c.builder.CreateAlloca(ty, ".param")
 	c.builder.CreateStore(val, paramVal)
 	variable := &Variable{
@@ -304,7 +304,7 @@ func (c *llvmCodegen) generateVarReassign(
 		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Param)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -339,7 +339,7 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 		node := name.N.Node.(*ast.VarId)
 		variable = node.BackendType.(*Variable)
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Field)
+		node := name.N.Node.(*ast.Param)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -348,12 +348,15 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 	c.builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *llvmCodegen) generateFnCall(
-	fnCall *ast.FnCall,
-) llvm.Value {
-	callLlvm := fnCall.Decl.BackendType.(*Function)
-	args := c.getExprList(fnCall.Args)
-	return c.builder.CreateCall(callLlvm.Ty, callLlvm.Fn, args, "")
+func (c *llvmCodegen) generateFnCall(fnCall *ast.FnCall) llvm.Value {
+	var call *Function
+	if fnCall.Decl != nil {
+		call = fnCall.Decl.BackendType.(*Function)
+	} else {
+		call = fnCall.Proto.BackendType.(*Function)
+	}
+	args := c.getCallArgs(fnCall)
+	return c.builder.CreateCall(call.Ty, call.Fn, args, "")
 }
 
 func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
@@ -430,34 +433,23 @@ func (c *llvmCodegen) getType(ty *ast.ExprType) llvm.Type {
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
 		switch b.Kind {
-		case token.BOOL_TYPE, token.UNTYPED_BOOL:
-			return c.context.Int1Type()
-		case token.UINT_TYPE, token.UNTYPED_INT:
-			// 32 bits or 64 bits depends on the architecture
+		case token.BOOL_TYPE, token.UNTYPED_BOOL, token.INT_TYPE,
+			token.UINT_TYPE, token.UNTYPED_INT, token.I8_TYPE, token.U8_TYPE,
+			token.I16_TYPE, token.U16_TYPE, token.I32_TYPE, token.U32_TYPE,
+			token.I64_TYPE, token.U64_TYPE:
+
 			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)
-		case token.I8_TYPE, token.U8_TYPE:
-			return c.context.Int8Type()
-		case token.I16_TYPE, token.U16_TYPE:
-			return c.context.Int16Type()
-		case token.I32_TYPE, token.U32_TYPE, token.INT_TYPE:
-			return c.context.Int32Type()
-		case token.I64_TYPE, token.U64_TYPE:
-			return c.context.Int64Type()
+		case token.F32_TYPE, token.FLOAT_TYPE, token.UNTYPED_FLOAT:
+			return c.context.FloatType()
+		case token.F64_TYPE:
+			return c.context.DoubleType()
 		case token.VOID_TYPE:
 			return c.context.VoidType()
-		// NOTE: token.STRING_TYPE in the same place as token.CSTRING_TYPE is a placeholder
-		// NOTE: string type is actually more complex than that
 		case token.STRING_TYPE, token.CSTRING_TYPE:
 			u8 := ast.NewBasicType(token.U8_TYPE)
 			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
-		case token.F64_TYPE:
-			return c.context.DoubleType()
-		case token.F32_TYPE, token.FLOAT_TYPE, token.UNTYPED_FLOAT:
-			return c.context.FloatType()
-		default:
-			log.Fatalf("invalid basic type token: '%s'", b.Kind)
 		}
 	case ast.EXPR_TYPE_TUPLE:
 		tuple := ty.T.(*ast.TupleType)
@@ -482,7 +474,7 @@ func (c *llvmCodegen) getTypes(types []*ast.ExprType) []llvm.Type {
 	return tys
 }
 
-func (c *llvmCodegen) getFieldListTypes(params *ast.FieldList) []llvm.Type {
+func (c *llvmCodegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	types := make([]llvm.Type, params.Len)
 	for i := range params.Len {
 		types[i] = c.getType(params.Fields[i].Type)
@@ -490,11 +482,24 @@ func (c *llvmCodegen) getFieldListTypes(params *ast.FieldList) []llvm.Type {
 	return types
 }
 
-func (c *llvmCodegen) getExprList(expressions []*ast.Node) []llvm.Value {
-	values := make([]llvm.Value, len(expressions))
-	for i, expr := range expressions {
-		value, _, _ := c.getExpr(expr)
+func (c *llvmCodegen) getCallArgs(call *ast.FnCall) []llvm.Value {
+	nExprs := len(call.Args)
+	if call.Variadic {
+		nExprs-- // desconsider the variadic argument place for now
+	}
+
+	values := make([]llvm.Value, nExprs)
+	for i := range nExprs {
+		value, _, _ := c.getExpr(call.Args[i])
 		values[i] = value
+	}
+
+	if call.Variadic {
+		variadic := call.Args[nExprs].Node.(*ast.VarArgs)
+		for _, arg := range variadic.Args {
+			varArg, _, _ := c.getExpr(arg)
+			values = append(values, varArg)
+		}
 	}
 	return values
 }
@@ -504,7 +509,7 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 	bitSize := 32
 
 	switch expr.Kind {
-	case ast.KIND_LITERAl_EXPR:
+	case ast.KIND_LITERAL_EXPR:
 		lit := expr.Node.(*ast.LiteralExpr)
 		switch lit.Type.Kind {
 		case ast.EXPR_TYPE_BASIC:
@@ -566,18 +571,24 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		id := expr.Node.(*ast.IdExpr)
 
 		var localVar *Variable
+		var varTy *ast.ExprType
+
 		switch id.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := id.N.Node.(*ast.VarId)
+			varTy = variable.Type
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
-			variable := id.N.Node.(*ast.Field)
-			if variable.Variadic {
-				ty := c.getType(variable.Type)
-				val := c.builder.CreateAlloca(ty, ".ptr")
-				c.generateParam(variable, ty, val)
-			}
+			variable := id.N.Node.(*ast.Param)
+			varTy = variable.Type
+			fmt.Println(variable, varTy)
 			localVar = variable.BackendType.(*Variable)
+		}
+
+		if varTy.IsFloat() {
+			bt := varTy.T.(*ast.BasicType)
+			bitSize = bt.Kind.BitSize()
+			hasFloat = true
 		}
 
 		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
@@ -595,6 +606,12 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		bitSize = lhsBitSize // since they are the same
 
 		if hasFloat {
+			if lhsBitSize != rhsBitSize {
+				fmt.Println(binary.Op, binary.Left, lhsBitSize, binary.Right, rhsBitSize)
+				panic("expected bit size to be the same")
+			}
+			bitSize = lhsBitSize // since they are the same
+
 			switch binary.Op {
 			// TODO: deal with signed or unsigned operations
 			// I'm assuming all unsigned for now
@@ -694,6 +711,8 @@ func (c *llvmCodegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		return value, bitSize, hasFloat
 	case ast.KIND_TUPLE_EXPR:
 		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr)), bitSize, hasFloat
+	case ast.KIND_VARG_EXPR:
+		panic("unimplemented var args")
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 		return llvm.Value{}, bitSize, hasFloat
@@ -705,7 +724,7 @@ func (c *llvmCodegen) llvmConstInt8s(data []byte, length int) []llvm.Value {
 	for i, b := range data {
 		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
 	}
-	// c-string null terminated string
+	// c-strings are null terminated
 	out[length-1] = llvm.ConstInt(c.context.Int8Type(), uint64(0), false)
 	return out
 }
@@ -802,7 +821,7 @@ func (c *llvmCodegen) generateImportAccess(right *ast.Node) llvm.Value {
 
 func (c *llvmCodegen) generatePrototypeCall(call *ast.FnCall) llvm.Value {
 	protoLlvm := call.Proto.BackendType.(*Function)
-	args := c.getExprList(call.Args)
+	args := c.getCallArgs(call)
 	return c.builder.CreateCall(protoLlvm.Ty, protoLlvm.Fn, args, "")
 }
 
@@ -886,18 +905,23 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 
 	optLevel := ""
 	compilerFlags := ""
-
 	switch buildType {
 	case config.RELEASE:
 		optLevel = "-O3"
-		compilerFlags = "-Wl,-s"
+		compilerFlags += "-Wl,-s"
 	case config.DEBUG:
 		optLevel = "-O0"
 	default:
 		panic("invalid build type: " + buildType.String())
 	}
 
-	cmd := exec.Command("opt", optLevel, "-o", optimizedIrFilepath, irFilepath)
+	optCommand := []string{
+		optLevel,
+		"-o",
+		optimizedIrFilepath,
+		irFilepath,
+	}
+	cmd := exec.Command("opt", optCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -907,7 +931,15 @@ func (c *llvmCodegen) generateExe(buildType config.BuildType) error {
 		return err
 	}
 
-	cmd = exec.Command("clang-18", compilerFlags, optLevel, "-o", filenameNoExt, optimizedIrFilepath)
+	clangCommand := []string{
+		compilerFlags,
+		optLevel,
+		"-o",
+		filenameNoExt,
+		optimizedIrFilepath,
+		"-lm", // math library
+	}
+	cmd = exec.Command("clang-18", clangCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {

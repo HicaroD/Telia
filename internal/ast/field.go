@@ -6,27 +6,37 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
-type Field struct {
+type ParamAttributes struct {
+	Const bool // @const
+	ForC  bool // @for_c - only allowed on prototypes
+}
+
+func (p *ParamAttributes) String() string {
+	return fmt.Sprintf("ATTRIBUTES - @for_c=%v @const=%v\n", p.ForC, p.Const)
+}
+
+type Param struct {
+	Attributes  *ParamAttributes
 	Name        *token.Token
 	Type        *ExprType
 	Variadic    bool
 	BackendType any // LLVM: *values.Variable
 }
 
-func (field Field) String() string {
-	return fmt.Sprintf("Name: %v\nType: %v", field.Name, field.Type)
+func (param Param) String() string {
+	return fmt.Sprintf("Name: %v\nType: %v", param.Name, param.Type.T)
 }
 
 // Field list for function parameters
-type FieldList struct {
+type Params struct {
 	Open       *token.Token
-	Fields     []*Field
+	Fields     []*Param
 	Len        int
 	IsVariadic bool
 	Close      *token.Token
 }
 
-func (fieldList FieldList) String() string {
+func (fieldList Params) String() string {
 	return fmt.Sprintf(
 		"\n'%s' %s\n%s\nIsVariadic: %t\n'%s' %s\n",
 		fieldList.Open.Kind,

@@ -10,7 +10,7 @@ type FnDecl struct {
 	Scope       *Scope
 	Attributes  *Attributes
 	Name        *token.Token
-	Params      *FieldList
+	Params      *Params
 	RetType     *ExprType
 	Block       *BlockStmt
 	BackendType any // LLVM: *values.Function
@@ -42,7 +42,7 @@ func (extern ExternDecl) String() string {
 type Proto struct {
 	Attributes *Attributes
 	Name       *token.Token
-	Params     *FieldList
+	Params     *Params
 	RetType    *ExprType
 
 	BackendType any // LLVM: *values.Function
@@ -72,6 +72,7 @@ type Attributes struct {
 	// Specific for extern declaration
 	DefaultCallingConvention string
 	LinkPrefix               string
+	Global                   bool
 }
 
 func (a *Attributes) String() string {
