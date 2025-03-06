@@ -31,8 +31,8 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.pkg = nil
 	parser.file = nil
 	parser.imports = make(map[string]*ast.Package)
-	parser.collector = collector
 	parser.processing = make(map[string]bool)
+	parser.collector = collector
 	return parser
 }
 
