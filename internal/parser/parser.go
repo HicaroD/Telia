@@ -325,17 +325,17 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 	attributes := new(ast.Attributes)
 
-	_, ok := p.expect(token.SHARP)
-	if !ok {
-		return nil, fmt.Errorf("expected '#'")
-	}
-
-	_, ok = p.expect(token.OPEN_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected '['")
-	}
-
 	for {
+		_, ok := p.expect(token.SHARP)
+		if !ok {
+			return nil, fmt.Errorf("expected '#'")
+		}
+
+		_, ok = p.expect(token.OPEN_BRACKET)
+		if !ok {
+			return nil, fmt.Errorf("expected '['")
+		}
+
 		attribute, ok := p.expect(token.ID)
 		if !ok {
 			return nil, fmt.Errorf("expected identifier")
@@ -353,29 +353,37 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 
 		switch attribute.Name() {
 		case "default_cc":
+			if attributes.DefaultCallingConvention != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.DefaultCallingConvention = attributeValue.Name()
 		case "link_prefix":
+			if attributes.LinkPrefix != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.LinkPrefix = attributeValue.Name()
 		case "link_name":
+			if attributes.LinkName != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.LinkName = attributeValue.Name()
 		case "linkage":
+			if attributes.Linkage != "" {
+				return nil, fmt.Errorf("repeated attribute")
+			}
 			attributes.Linkage = attributeValue.Name()
 		default:
 			return nil, fmt.Errorf("invalid attribute for extern declaration: %s\n", attribute.Name())
 		}
 
-		if p.lex.NextIs(token.CLOSE_BRACKET) {
+		_, ok = p.expect(token.CLOSE_BRACKET)
+		if !ok {
+			return nil, fmt.Errorf("expected closing bracket")
+		}
+
+		if !p.lex.NextIs(token.SHARP) {
 			break
 		}
-
-		if !p.lex.NextIs(token.COMMA) {
-			return nil, fmt.Errorf("expected either comma or closing bracket")
-		}
-	}
-
-	_, ok = p.expect(token.CLOSE_BRACKET)
-	if !ok {
-		return nil, fmt.Errorf("expected ']'")
 	}
 
 	return attributes, nil
@@ -913,14 +921,14 @@ func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPr
 				}
 
 				switch attributeName.Name() {
-				case "for_c":
+				case "c":
 					// TODO(errors)
 					if !isPrototype {
-						return nil, fmt.Errorf("@for_c only allowed on prototypes\n")
+						return nil, fmt.Errorf("@c only allowed on prototypes\n")
 					}
 					// TODO(errors)
 					if attributes.ForC {
-						return nil, fmt.Errorf("cannot redeclare @for_c attribute\n")
+						return nil, fmt.Errorf("cannot redeclare @c attribute\n")
 					}
 					attributes.ForC = true
 				case "const":
