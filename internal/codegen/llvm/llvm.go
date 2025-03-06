@@ -80,6 +80,8 @@ func (c *llvmCodegen) generateDeclarations(file *ast.File) {
 			c.generateFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.generateExternDecl(node.Node.(*ast.ExternDecl))
+		case ast.KIND_STRUCT_DECL:
+			c.generateStructDecl(node.Node.(*ast.StructDecl))
 		default:
 			continue
 		}
@@ -378,6 +380,14 @@ func (c *llvmCodegen) generateExternDecl(external *ast.ExternDecl) {
 	}
 }
 
+func (c *llvmCodegen) generateStructDecl(st *ast.StructDecl) {
+	fields := c.getStructFieldList(st.Fields)
+	structTy := c.context.StructCreateNamed(st.Name.Name())
+	// TODO: set packed properly
+	packed := false
+	structTy.StructSetBody(fields, packed)
+}
+
 func (c *llvmCodegen) generatePrototype(attributes *ast.Attributes, prototype *ast.Proto) {
 	returnTy := c.getType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
@@ -472,6 +482,14 @@ func (c *llvmCodegen) getTypes(types []*ast.ExprType) []llvm.Type {
 		tys[i] = c.getType(ty)
 	}
 	return tys
+}
+
+func (c *llvmCodegen) getStructFieldList(fields []*ast.StructField) []llvm.Type {
+	types := make([]llvm.Type, len(fields))
+	for i, field := range fields {
+		types[i] = c.getType(field.Type)
+	}
+	return types
 }
 
 func (c *llvmCodegen) getFieldListTypes(params *ast.Params) []llvm.Type {

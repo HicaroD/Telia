@@ -694,8 +694,14 @@ func (p *Parser) parseStruct(attributes *ast.Attributes) (*ast.Node, error) {
 		return nil, err
 	}
 	st.Fields = fields
-
 	n.Node = st
+
+	err = p.pkg.Scope.Insert(name.Name(), n)
+	// TODO(errors): struct already defined on package
+	if err != nil {
+		return nil, err
+	}
+
 	return n, nil
 }
 
