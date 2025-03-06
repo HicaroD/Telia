@@ -288,6 +288,10 @@ peekAgain:
 		fnDecl, err := p.parseFnDecl(attributes)
 		file.AnyDeclNodeFound = true
 		return fnDecl, eof, err
+	case token.STRUCT:
+		st, err := p.parseStruct(attributes)
+		file.AnyDeclNodeFound = true
+		return st, eof, err
 	default:
 		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
@@ -664,11 +668,94 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	return nil, nil
 }
 
+func (p *Parser) parseStruct(attributes *ast.Attributes) (*ast.Node, error) {
+	n := new(ast.Node)
+	n.Kind = ast.KIND_STRUCT_DECL
+
+	st := new(ast.StructDecl)
+
+	if attributes != nil {
+		st.Attributes = attributes
+	}
+
+	structKw, ok := p.expect(token.STRUCT)
+	if !ok {
+		return nil, fmt.Errorf("expected struct keyword, not %s\n", structKw.Name())
+	}
+
+	name, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected struct name, not %s\n", structKw.Name())
+	}
+	st.Name = name
+
+	fields, err := p.parseStructFields()
+	if err != nil {
+		return nil, err
+	}
+	st.Fields = fields
+
+	n.Node = st
+	return n, nil
+}
+
+func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
+	fields := make([]*ast.StructField, 0)
+
+	tk, ok := p.expect(token.OPEN_CURLY)
+	if !ok {
+		return nil, fmt.Errorf("expected open curly, not %s\n", tk.Name())
+	}
+
+	_, ok = p.expect(token.NEWLINE)
+	if !ok {
+		return nil, fmt.Errorf("expected new line after open curly, not %s\n", tk.Name())
+	}
+
+	for {
+		field := new(ast.StructField)
+
+		name, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected struct field name, not %s\n", name.Name())
+		}
+		field.Name = name
+
+		ty, err := p.parseExprType()
+		if err != nil {
+			return nil, err
+		}
+		field.Type = ty
+
+		_, ok = p.expect(token.NEWLINE)
+		if !ok {
+			return nil, fmt.Errorf("expected new line, not %s\n", name.Name())
+		}
+		fields = append(fields, field)
+
+		if p.lex.NextIs(token.CLOSE_CURLY) {
+			break
+		}
+	}
+
+	tk, ok = p.expect(token.CLOSE_CURLY)
+	if !ok {
+		return nil, fmt.Errorf("expected close curly, not %s\n", tk.Name())
+	}
+
+	_, ok = p.expect(token.NEWLINE)
+	if !ok {
+		return nil, fmt.Errorf("expected new line after close curly, not %s\n", tk.Name())
+	}
+
+	return fields, nil
+}
+
 func (p *Parser) parseTypeAlias() (*ast.Node, error) {
-	pkg, ok := p.expect(token.TYPE)
+	tyKw, ok := p.expect(token.TYPE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected 'type' keyword, not %s\n", pkg.Kind.String())
+		return nil, fmt.Errorf("expected 'type' keyword, not %s\n", tyKw.Kind.String())
 	}
 
 	name, ok := p.expect(token.ID)
@@ -713,6 +800,10 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	}
 
 	return node, nil
+}
+
+func (p *Parser) parseCustomType() (*ast.Node, error) {
+	return nil, nil
 }
 
 func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) {

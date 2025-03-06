@@ -6,6 +6,21 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
+type StructDecl struct {
+	Attributes *Attributes
+	Name       *token.Token
+	Fields     []*StructField
+}
+
+func (st StructDecl) String() string {
+	return fmt.Sprintf("STRUCT: %v | Fields: %v\n", st.Name.Name(), st.Fields)
+}
+
+type StructField struct {
+	Name *token.Token
+	Type *ExprType
+}
+
 type FnDecl struct {
 	Scope       *Scope
 	Attributes  *Attributes

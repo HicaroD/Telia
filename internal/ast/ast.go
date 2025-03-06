@@ -13,6 +13,7 @@ const (
 	KIND_PKG_DECL
 	KIND_USE_DECL
 	KIND_TYPE_ALIAS_DECL
+	KIND_STRUCT_DECL
 
 	DECL_END // declaration node end delimiter
 
@@ -91,6 +92,8 @@ func (n *Node) String() string {
 		return "KIND_USE_DECL"
 	case KIND_TYPE_ALIAS_DECL:
 		return "KIND_TYPE_ALIAS_DECL"
+	case KIND_STRUCT_DECL:
+		return "KIND_STRUCT_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
 	case KIND_VAR_ID_STMT:

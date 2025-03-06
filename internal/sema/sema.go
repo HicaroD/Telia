@@ -131,6 +131,11 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			if err != nil {
 				return false, err
 			}
+		case ast.KIND_STRUCT_DECL:
+			st := node.Node.(*ast.StructDecl)
+			fmt.Println("TODO: struct type")
+			fmt.Println(st)
+			continue
 		case ast.KIND_PKG_DECL:
 			continue
 		default:
