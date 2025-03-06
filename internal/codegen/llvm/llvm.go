@@ -350,15 +350,13 @@ func (c *llvmCodegen) generateVarReassignWithValue(
 	c.builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *llvmCodegen) generateFnCall(fnCall *ast.FnCall) llvm.Value {
-	var call *Function
-	if fnCall.Decl != nil {
-		call = fnCall.Decl.BackendType.(*Function)
-	} else {
-		call = fnCall.Proto.BackendType.(*Function)
+func (c *llvmCodegen) generateFnCall(call *ast.FnCall) llvm.Value {
+	args := c.getCallArgs(call)
+	fn := c.module.NamedFunction(call.Name.Name())
+	if !fn.IsNil() {
+		panic("function is NULL")
 	}
-	args := c.getCallArgs(fnCall)
-	return c.builder.CreateCall(call.Ty, call.Fn, args, "")
+	return c.builder.CreateCall(fn.Type(), fn, args, "")
 }
 
 func (c *llvmCodegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
