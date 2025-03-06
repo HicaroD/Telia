@@ -1,7 +1,7 @@
 package main
 
 extern libc {
-  fn printf(f cstring, @for_c args ...int)
+  fn printf(f cstring, @c args ...int)
 }
 
 fn main() {

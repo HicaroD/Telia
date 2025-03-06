@@ -927,10 +927,10 @@ func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPr
 						return nil, fmt.Errorf("@c only allowed on prototypes\n")
 					}
 					// TODO(errors)
-					if attributes.ForC {
+					if attributes.C {
 						return nil, fmt.Errorf("cannot redeclare @c attribute\n")
 					}
-					attributes.ForC = true
+					attributes.C = true
 				case "const":
 					// TODO(errors)
 					if attributes.Const {
@@ -965,8 +965,8 @@ func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPr
 			p.lex.Skip() // ...
 		}
 
-		if !param.Variadic && param.Attributes.ForC {
-			return nil, fmt.Errorf("@for_c attribute only allowed on variadic arguments")
+		if !param.Variadic && param.Attributes.C {
+			return nil, fmt.Errorf("@c attribute only allowed on variadic arguments")
 		}
 
 		ty, err := p.parseExprType()

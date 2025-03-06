@@ -8,11 +8,11 @@ import (
 
 type ParamAttributes struct {
 	Const bool // @const
-	ForC  bool // @for_c - only allowed on prototypes
+	C     bool // @c - only allowed on variadic arguments of prototypes
 }
 
 func (p *ParamAttributes) String() string {
-	return fmt.Sprintf("ATTRIBUTES - @for_c=%v @const=%v\n", p.ForC, p.Const)
+	return fmt.Sprintf("ATTRIBUTES - @c=%v @const=%v\n", p.C, p.Const)
 }
 
 type Param struct {
