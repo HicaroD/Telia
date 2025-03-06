@@ -8,6 +8,7 @@
             "mode": "exec",
             "program": "${workspaceFolder}/telia",
             "args": ["build", "examples/math.t"],
+            "args": ["build", "examples/floats.t"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
         }
