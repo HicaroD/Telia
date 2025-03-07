@@ -657,7 +657,7 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, refere
 	if len(variadicArgs) > 0 {
 		varArgs := new(ast.Node)
 		varArgs.Kind = ast.KIND_VARG_EXPR
-		varArgs.Node = &ast.VarArgs{Args: variadicArgs}
+		varArgs.Node = &ast.VarArgsExpr{Args: variadicArgs}
 		fnCall.Args = append(fnCall.Args, varArgs)
 		fnCall.Variadic = true
 	}

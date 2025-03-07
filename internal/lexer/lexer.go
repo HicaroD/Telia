@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"unicode"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -15,8 +14,9 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	Loc       *ast.Loc
-	Collector *diagnostics.Collector
+	Loc           *ast.Loc
+	Collector     *diagnostics.Collector
+	StrictNewline bool
 
 	src    []byte
 	offset int
@@ -27,36 +27,13 @@ func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
 	lexer.Loc = loc
-	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.Collector = collector
+	lexer.StrictNewline = true
+	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.src = src
 	lexer.offset = 0
 
 	return lexer
-}
-
-func FilePosFromPath(path string) token.Pos {
-	fullPath, err := filepath.Abs(path)
-	// TODO(errors)
-	if err != nil {
-		log.Fatalf("Error getting absolute path: %v\n", err)
-	}
-
-	info, err := os.Stat(fullPath)
-	// TODO(errors)
-	if err != nil {
-		log.Fatalf("Error stating the path: %v\n", err)
-	}
-
-	// TODO(errors)
-	if !info.Mode().IsRegular() {
-		log.Fatalf("path is not a file: %s\n", path)
-	}
-
-	dirName := filepath.Dir(fullPath)
-	fileName := filepath.Base(fullPath)
-
-	return token.Pos{Dir: dirName, Filename: fileName, Line: 1, Column: 1}
 }
 
 func NewFromFilePath(loc *ast.Loc, collector *diagnostics.Collector) (*Lexer, error) {
@@ -422,7 +399,9 @@ func (lex *Lexer) consumeTokenNoLex(tok *token.Token, kind token.Kind) {
 }
 
 func (lex *Lexer) skipWhitespace() {
-	lex.readWhile(func(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\r' })
+	lex.readWhile(func(ch byte) bool {
+		return ch == ' ' || ch == '\t' || ch == '\r' || (ch == '\n' && !lex.StrictNewline)
+	})
 }
 
 func (lex *Lexer) readWhile(isValid func(byte) bool) []byte {

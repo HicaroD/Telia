@@ -22,8 +22,6 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
-
-	strictNewline bool
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -32,7 +30,6 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.argLoc = ""
 	parser.pkg = nil
 	parser.file = nil
-	parser.strictNewline = true
 	parser.imports = make(map[string]*ast.Package)
 	parser.processing = make(map[string]bool)
 	parser.collector = collector
@@ -1869,6 +1866,9 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		case token.DOT, token.COLON_COLON:
 			fieldAccess, err := p.parseNamespaceAccess(parentScope)
 			return fieldAccess, err
+		case token.OPEN_CURLY:
+			structLiteral, err := p.parseStructLiteralExpr(parentScope)
+			return structLiteral, err
 		}
 
 		p.lex.Skip()
@@ -1997,6 +1997,52 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 	access.Right = right
 
 	n.Node = access
+	return n, nil
+}
+
+func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	expr := new(ast.StructLiteralExpr)
+	values := make([]*ast.StructFieldValue, 0)
+
+	p.lex.StrictNewline = false
+	defer func() {
+		p.lex.StrictNewline = true
+	}()
+
+	id, ok := p.expect(token.ID)
+	// TODO(errors): add proper error
+	if !ok {
+		return nil, fmt.Errorf("error: expected ID")
+	}
+	expr.Name = id
+
+	openCurly, ok := p.expect(token.OPEN_CURLY)
+	// TODO(errors): add proper error
+	if !ok {
+		return nil, fmt.Errorf("error: expected open curly, got %s\n", openCurly.Kind.String())
+	}
+
+	for {
+		if p.lex.NextIs(token.CLOSE_CURLY) {
+			break
+		}
+
+		// TODO: parse struct field value
+		// field name
+		// colon
+		// value
+	}
+	expr.Values = values
+
+	closeCurly, ok := p.expect(token.OPEN_CURLY)
+	// TODO(errors): add proper error
+	if !ok {
+		return nil, fmt.Errorf("error: expected close curly, got %s\n", closeCurly.Kind.String())
+	}
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_STRUCT_EXPR
+	n.Node = expr
 	return n, nil
 }
 

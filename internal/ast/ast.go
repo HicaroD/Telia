@@ -43,6 +43,7 @@ const (
 	KIND_UNARY_EXPR
 	KIND_BINARY_EXPR
 	KIND_TUPLE_EXPR
+	KIND_STRUCT_EXPR
 
 	EXPR_END // expression node start delimiter
 

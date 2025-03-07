@@ -504,7 +504,7 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	}
 
 	if call.Variadic {
-		variadic := call.Args[nExprs].Node.(*ast.VarArgs)
+		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
 			varArg, _, _ := c.getExpr(arg)
 			values = append(values, varArg)
