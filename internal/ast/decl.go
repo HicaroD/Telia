@@ -22,13 +22,12 @@ type StructField struct {
 }
 
 type FnDecl struct {
-	Scope       *Scope
-	Attributes  *Attributes
-	Name        *token.Token
-	Params      *Params
-	RetType     *ExprType
-	Block       *BlockStmt
-	BackendType any // LLVM: *values.Function
+	Scope      *Scope
+	Attributes *Attributes
+	Name       *token.Token
+	Params     *Params
+	RetType    *ExprType
+	Block      *BlockStmt
 }
 
 func (fnDecl FnDecl) String() string {
@@ -59,8 +58,6 @@ type Proto struct {
 	Name       *token.Token
 	Params     *Params
 	RetType    *ExprType
-
-	BackendType any // LLVM: *values.Function
 }
 
 func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }

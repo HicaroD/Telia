@@ -22,6 +22,8 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
+
+	strictNewline bool
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -30,6 +32,7 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.argLoc = ""
 	parser.pkg = nil
 	parser.file = nil
+	parser.strictNewline = true
 	parser.imports = make(map[string]*ast.Package)
 	parser.processing = make(map[string]bool)
 	parser.collector = collector
