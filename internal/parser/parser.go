@@ -84,6 +84,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	impName := path[len(path)-1]
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	if pkg, found := p.imports[fullPkgPath]; found {
+
 		return impName, fullPkgPath, pkg, nil
 	}
 
@@ -2063,24 +2064,28 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 			return nil, fmt.Errorf("expected colon, not %s\n", colon)
 		}
 
-		value, err := p.parseAnyExpr([]token.Kind{token.COMMA, token.CLOSE_CURLY}, parentScope)
+		value, err := p.parseSingleExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
 
 		values = append(values, &ast.StructFieldValue{Name: name, Index: index, Value: value})
+
+		if p.lex.NextIs(token.COMMA) {
+			p.lex.Skip() // ,
+		}
 	}
 
 	expr.Values = values
 
-	closeCurly, ok := p.expect(token.OPEN_CURLY)
+	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("error: expected close curly, got %s\n", closeCurly.Kind.String())
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_STRUCT_LITERAl_EXPR
+	n.Kind = ast.KIND_STRUCT_LITERAL_EXPR
 	n.Node = expr
 	return n, nil
 }

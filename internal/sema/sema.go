@@ -701,8 +701,9 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferVoidExprTypeWithContext(expectedType)
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return s.inferTupleExprTypeWithContext(expr.Node.(*ast.TupleExpr), expectedType, referenceScope, declScope, fromImportPackage)
-	case ast.KIND_STRUCT_LITERAl_EXPR:
+	case ast.KIND_STRUCT_LITERAL_EXPR:
 		fmt.Println("TODO: struct literal expr")
+		return s.inferStructLiteralExprWithContext(expr.Node.(*ast.StructLiteralExpr), expectedType, referenceScope, declScope, fromImportPackage)
 		return nil, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
@@ -1000,6 +1001,17 @@ func (sema *sema) inferTupleExprTypeWithContext(
 	return tupleTy, nil
 }
 
+func (sema *sema) inferStructLiteralExprWithContext(
+	stLit *ast.StructLiteralExpr,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) (*ast.ExprType, error) {
+	// TODO
+	return nil, nil
+}
+
 func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
@@ -1084,6 +1096,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferNamespaceAccessExprTypeWithoutContext(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), referenceScope, declScope, fromImportPackage)
+	case ast.KIND_STRUCT_LITERAL_EXPR:
+		return sema.inferStructLiteralExprWithoutContext(expr.Node.(*ast.StructLiteralExpr), referenceScope, declScope, fromImportPackage)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -1191,6 +1205,16 @@ func (sema *sema) inferTupleExprTypeWithoutContext(
 
 	tupleTy.T = &ast.TupleType{Types: types}
 	return tupleTy, false, nil
+}
+
+func (sema *sema) inferStructLiteralExprWithoutContext(
+	stLit *ast.StructLiteralExpr,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) (*ast.ExprType, bool, error) {
+	// TODO
+	return nil, false, nil
 }
 
 func (sema *sema) validateInteger(value []byte) error {

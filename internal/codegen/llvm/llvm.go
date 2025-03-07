@@ -737,7 +737,7 @@ func (c *codegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr)), bitSize, hasFloat
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
-	case ast.KIND_STRUCT_LITERAl_EXPR:
+	case ast.KIND_STRUCT_LITERAL_EXPR:
 		return c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr)), bitSize, hasFloat
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
