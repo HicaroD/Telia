@@ -1008,8 +1008,20 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
+	st := expectedType.T.(*ast.StructType)
 	// TODO
-	return nil, nil
+	for _, fields := range st.Decl.Fields {
+		_, err := sema.inferExprTypeWithContext(
+			expectedType,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return expectedType, nil
 }
 
 func (s *sema) inferBasicExprTypeWithContext(

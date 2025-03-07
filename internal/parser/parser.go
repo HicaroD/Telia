@@ -1232,6 +1232,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
+
 		symbol, err := p.pkg.Scope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
@@ -1239,14 +1240,17 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
 			}
 		}
-		// TODO: add more id types, such as struct
 
-		if symbol.Kind == ast.KIND_TYPE_ALIAS_DECL {
+		switch symbol.Kind {
+		case ast.KIND_TYPE_ALIAS_DECL:
 			alias := symbol.Node.(*ast.TypeAlias)
 			return alias.Type, nil
+		case ast.KIND_STRUCT_DECL:
+			t.Kind = ast.EXPR_TYPE_STRUCT
+			t.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
+			return t, nil
 		}
 
-		// NOTE: I think ast.IdType won't be necessary anymore
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
 	case token.OPEN_PAREN:
