@@ -208,13 +208,13 @@ func (c *codegen) generateReturnStmt(
 
 func (c *codegen) generateVar(variable *ast.VarStmt) {
 	switch variable.Expr.Kind {
-	case ast.KIND_TUPLE_EXPR:
+	case ast.KIND_TUPLE_LITERAL_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
 
 		t := 0
 		for _, expr := range tuple.Exprs {
 			switch expr.Kind {
-			case ast.KIND_TUPLE_EXPR:
+			case ast.KIND_TUPLE_LITERAL_EXPR:
 				innerTupleExpr := expr.Node.(*ast.TupleExpr)
 				for _, innerExpr := range innerTupleExpr.Exprs {
 					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl)
@@ -366,6 +366,22 @@ func (c *codegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
 	}
 
 	return tupleVal
+}
+
+func (c *codegen) generateStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
+	st := c.module.GetTypeByName(lit.Name.Name())
+	if st.IsNil() {
+		panic("struct is nil")
+	}
+
+	obj := c.builder.CreateAlloca(st, ".obj")
+	for _, field := range lit.Values {
+		expr, _, _ := c.getExpr(field.Value)
+		allocatedField := c.builder.CreateStructGEP(st, obj, field.Index, ".field")
+		c.builder.CreateStore(allocatedField, expr)
+	}
+
+	return obj
 }
 
 func (c *codegen) generateExternDecl(external *ast.ExternDecl) {
@@ -717,10 +733,12 @@ func (c *codegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		namespaceAccess := expr.Node.(*ast.NamespaceAccess)
 		value := c.generateNamespaceAccess(namespaceAccess)
 		return value, bitSize, hasFloat
-	case ast.KIND_TUPLE_EXPR:
+	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr)), bitSize, hasFloat
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
+	case ast.KIND_STRUCT_LITERAl_EXPR:
+		return c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr)), bitSize, hasFloat
 	default:
 		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
 		return llvm.Value{}, bitSize, hasFloat

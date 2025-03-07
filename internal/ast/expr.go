@@ -109,5 +109,6 @@ type StructLiteralExpr struct {
 
 type StructFieldValue struct {
 	Name  *token.Token
+	Index int
 	Value *Node
 }

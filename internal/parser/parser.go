@@ -1662,7 +1662,7 @@ func (p *Parser) parseAnyExpr(possibleEnds []token.Kind, parentScope *ast.Scope)
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_TUPLE_EXPR
+	n.Kind = ast.KIND_TUPLE_LITERAL_EXPR
 	n.Node = &ast.TupleExpr{Exprs: exprs}
 	return n, nil
 }
@@ -2009,12 +2009,23 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		p.lex.StrictNewline = true
 	}()
 
-	id, ok := p.expect(token.ID)
+	name, ok := p.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("error: expected ID")
 	}
-	expr.Name = id
+	expr.Name = name
+
+	symbol, err := parentScope.LookupAcrossScopes(name.Name())
+	if err != nil {
+		return nil, err
+	}
+	if symbol.Kind != ast.KIND_STRUCT_DECL {
+		return nil, fmt.Errorf("expected struct, not %s\n", symbol.Node)
+	}
+	st := symbol.Node.(*ast.StructDecl)
+
+	// TODO: make sure struct exists
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	// TODO(errors): add proper error
@@ -2022,16 +2033,44 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		return nil, fmt.Errorf("error: expected open curly, got %s\n", openCurly.Kind.String())
 	}
 
+	// TODO: deal with default field values
 	for {
 		if p.lex.NextIs(token.CLOSE_CURLY) {
 			break
 		}
 
-		// TODO: parse struct field value
-		// field name
-		// colon
-		// value
+		name, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected struct field name, not %s\n", name)
+		}
+
+		// TODO: make sure field exists in the current struct
+		index := 0
+		fieldFound := false
+		for i, field := range st.Fields {
+			if field.Name.Name() == name.Name() {
+				index = i
+				fieldFound = true
+				break
+			}
+		}
+		if !fieldFound {
+			return nil, fmt.Errorf("field %s does not exist in the struct\n", name.Name())
+		}
+
+		colon, ok := p.expect(token.COLON)
+		if !ok {
+			return nil, fmt.Errorf("expected colon, not %s\n", colon)
+		}
+
+		value, err := p.parseAnyExpr([]token.Kind{token.COMMA, token.CLOSE_CURLY}, parentScope)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, &ast.StructFieldValue{Name: name, Index: index, Value: value})
 	}
+
 	expr.Values = values
 
 	closeCurly, ok := p.expect(token.OPEN_CURLY)
@@ -2041,7 +2080,7 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_STRUCT_EXPR
+	n.Kind = ast.KIND_STRUCT_LITERAl_EXPR
 	n.Node = expr
 	return n, nil
 }

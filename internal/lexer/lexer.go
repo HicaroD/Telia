@@ -245,23 +245,10 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		tok.Kind = token.DOT_DOT_DOT
 	case ':':
 		tok.Pos = lex.pos
+		tok.Kind = token.COLON
 		lex.nextChar() // :
 
-		invalidCharacter := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: invalid character :",
-				tok.Pos.Filename,
-				tok.Pos.Line,
-				tok.Pos.Column,
-			),
-		}
-
 		next := lex.peekChar()
-		if next == eof {
-			lex.Collector.ReportAndSave(invalidCharacter)
-			return tok
-		}
-
 		if next == '=' {
 			lex.nextChar() // =
 			tok.Kind = token.COLON_EQUAL
@@ -271,8 +258,6 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			tok.Kind = token.COLON_COLON
 			break
 		}
-
-		lex.Collector.ReportAndSave(invalidCharacter)
 	default:
 		if unicode.IsLetter(rune(ch)) || ch == '_' {
 			lex.getIdOrKeyword(tok)

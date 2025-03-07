@@ -91,6 +91,7 @@ const (
 	DOT_DOT
 	DOT_DOT_DOT
 	EQUAL
+	COLON
 	COLON_EQUAL
 	COLON_COLON
 
@@ -303,6 +304,8 @@ func (k Kind) String() string {
 		return "]"
 	case COMMA:
 		return ","
+	case COLON:
+		return ":"
 	case SEMICOLON:
 		return ";"
 	case DOT:

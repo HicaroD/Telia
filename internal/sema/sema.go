@@ -327,7 +327,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 	}
 
 	switch variable.Expr.Kind {
-	case ast.KIND_TUPLE_EXPR:
+	case ast.KIND_TUPLE_LITERAL_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
 		err := sema.checkTupleExprAssignedToVariable(variable, tuple, referenceScope, declScope, fromImportPackage)
 		return err
@@ -379,7 +379,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 	t := 0
 	for _, expr := range tuple.Exprs {
 		switch expr.Kind {
-		case ast.KIND_TUPLE_EXPR:
+		case ast.KIND_TUPLE_LITERAL_EXPR:
 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
 			for _, innerExpr := range innerTupleExpr.Exprs {
 				err := sema.checkVarExpr(variable.Names[t], innerExpr, referenceScope, declScope, fromImportPackage)
@@ -464,7 +464,7 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, referenceScope *ast.Sc
 	counter := 0
 	for _, expr := range tuple.Exprs {
 		switch expr.Kind {
-		case ast.KIND_TUPLE_EXPR:
+		case ast.KIND_TUPLE_LITERAL_EXPR:
 			varTuple := expr.Node.(*ast.TupleExpr)
 			innerTupleExprs, err := sema.countExprsOnTuple(varTuple, referenceScope, declScope, fromImportPackage)
 			if err != nil {
@@ -699,8 +699,11 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferFnCallExprTypeWithContext(expr.Node.(*ast.FnCall), expectedType, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_VOID_EXPR:
 		return s.inferVoidExprTypeWithContext(expectedType)
-	case ast.KIND_TUPLE_EXPR:
+	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return s.inferTupleExprTypeWithContext(expr.Node.(*ast.TupleExpr), expectedType, referenceScope, declScope, fromImportPackage)
+	case ast.KIND_STRUCT_LITERAl_EXPR:
+		fmt.Println("TODO: struct literal expr")
+		return nil, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -1079,7 +1082,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_NAMESPACE_ACCESS:
 		return sema.inferNamespaceAccessExprTypeWithoutContext(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
-	case ast.KIND_TUPLE_EXPR:
+	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), referenceScope, declScope, fromImportPackage)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
