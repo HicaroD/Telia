@@ -473,6 +473,9 @@ func (c *codegen) getType(ty *ast.ExprType) llvm.Type {
 		innerTypes := c.getTypes(tuple.Types)
 		tupleTy := c.context.StructType(innerTypes, false)
 		return tupleTy
+	case ast.EXPR_TYPE_STRUCT:
+		ty := ty.T.(*ast.StructType)
+		return c.module.GetTypeByName(ty.Decl.Name.Name())
 	default:
 		log.Fatalf("unimplemented type: %v\n", ty.Kind)
 	}

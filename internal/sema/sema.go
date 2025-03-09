@@ -704,7 +704,6 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_STRUCT_LITERAL_EXPR:
 		fmt.Println("TODO: struct literal expr")
 		return s.inferStructLiteralExprWithContext(expr.Node.(*ast.StructLiteralExpr), expectedType, referenceScope, declScope, fromImportPackage)
-		return nil, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, nil
@@ -1009,10 +1008,25 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	st := expectedType.T.(*ast.StructType)
-	// TODO
-	for _, fields := range st.Decl.Fields {
+
+	if stLit.Name.Name() != st.Decl.Name.Name() {
+		return nil, fmt.Errorf("struct type mismatch, expected %s, got %s\n", st.Decl.Name.Name(), stLit.Name.Name())
+	}
+	for i, field := range st.Decl.Fields {
+		var currentField *ast.StructFieldValue
+		for _, val := range stLit.Values {
+			if val.Index == i {
+				currentField = val
+			}
+		}
+		// TODO(errors)
+		if currentField == nil {
+			panic("currentField is nil, deal with this")
+		}
+
 		_, err := sema.inferExprTypeWithContext(
-			expectedType,
+			currentField.Value,
+			field.Type,
 			referenceScope,
 			declScope,
 			fromImportPackage,
@@ -1225,8 +1239,19 @@ func (sema *sema) inferStructLiteralExprWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	// TODO
-	return nil, false, nil
+	sym, err := declScope.LookupAcrossScopes(stLit.Name.Name())
+	if err != nil {
+		return nil, false, err
+	}
+	st := sym.Node.(*ast.StructDecl)
+
+	stTy := &ast.StructType{Decl: st}
+	ty := new(ast.ExprType)
+	ty.Kind = ast.EXPR_TYPE_STRUCT
+	ty.T = stTy
+
+	inferredTy, err := sema.inferStructLiteralExprWithContext(stLit, ty, referenceScope, declScope, fromImportPackage)
+	return inferredTy, true, err
 }
 
 func (sema *sema) validateInteger(value []byte) error {
