@@ -18,7 +18,7 @@ func (block BlockStmt) String() string {
 	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
 
-type VarId struct {
+type VarIdStmt struct {
 	Name           *token.Token
 	Type           *ExprType
 	NeedsInference bool
@@ -29,9 +29,10 @@ type VarId struct {
 }
 
 type VarStmt struct {
-	IsDecl bool
-	Names  []*VarId
-	Expr   *Node
+	IsDecl         bool
+	HasFieldAccess bool
+	Names          []*Node
+	Expr           *Node
 }
 
 func (v VarStmt) String() string {

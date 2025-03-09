@@ -719,6 +719,7 @@ func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 		return nil, fmt.Errorf("expected new line after open curly, not %s\n", tk.Name())
 	}
 
+	index := 0
 	for {
 		field := new(ast.StructField)
 
@@ -738,6 +739,9 @@ func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 		if !ok {
 			return nil, fmt.Errorf("expected new line, not %s\n", name.Name())
 		}
+
+		field.Index = index
+		index++
 		fields = append(fields, field)
 
 		if p.lex.NextIs(token.CLOSE_CURLY) {
@@ -1467,32 +1471,47 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.COLON_COLON:
 		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccessing, err
-	case token.DOT:
-		return nil, fmt.Errorf("unimplemented field access with dot")
 	default:
 		return p.parseVar(parentScope)
 	}
 }
 
 func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
-	variables := make([]*ast.VarId, 0)
+	variables := make([]*ast.Node, 0)
 	isDecl := false
+	hasFieldAccess := false
 
 VarDecl:
 	for {
-		name, ok := p.expect(token.ID)
-		// TODO(errors): add proper error
-		if !ok {
-			return nil, fmt.Errorf("expected ID")
-		}
+		isFieldAccess := p.lex.Peek1().Kind == token.DOT
+		var currentVar *ast.Node
 
-		variable := &ast.VarId{
-			Name:           name,
-			NeedsInference: true,
-			Type:           nil,
-			BackendType:    nil,
+		if isFieldAccess {
+			hasFieldAccess = true
+			fieldAccess, err := p.parseFieldAccess()
+			if err != nil {
+				return nil, err
+			}
+			currentVar = fieldAccess
+		} else {
+			name, ok := p.expect(token.ID)
+			// TODO(errors): add proper error
+			if !ok {
+				return nil, fmt.Errorf("expected ID")
+			}
+			variable := &ast.VarIdStmt{
+				Name:           name,
+				NeedsInference: true,
+				Type:           nil,
+				BackendType:    nil,
+			}
+
+			n := new(ast.Node)
+			n.Kind = ast.KIND_VAR_ID_STMT
+			n.Node = variable
+			currentVar = n
 		}
-		variables = append(variables, variable)
+		variables = append(variables, currentVar)
 
 		next := p.lex.Peek()
 		switch next.Kind {
@@ -1501,7 +1520,7 @@ VarDecl:
 			isDecl = next.Kind == token.COLON_EQUAL
 			break VarDecl
 		case token.COMMA:
-			p.lex.Skip()
+			p.lex.Skip() // ,
 			continue
 		}
 
@@ -1509,8 +1528,16 @@ VarDecl:
 		if err != nil {
 			return nil, err
 		}
-		variable.Type = ty
-		variable.NeedsInference = false
+
+		if !isFieldAccess {
+			fmt.Println("since it is not a field access, use the current expression type")
+			variable := currentVar.Node.(*ast.VarIdStmt)
+			variable.Type = ty
+			variable.NeedsInference = false
+		} else {
+			fmt.Println("it is a field access and you tried to add a type to it, you actually can't do that")
+			return nil, fmt.Errorf("type is not allowed on field access")
+		}
 
 		next = p.lex.Peek()
 		switch next.Kind {
@@ -1531,12 +1558,12 @@ VarDecl:
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_VAR_STMT
-	n.Node = &ast.VarStmt{IsDecl: isDecl, Names: variables, Expr: expr}
+	n.Node = &ast.VarStmt{IsDecl: isDecl, HasFieldAccess: hasFieldAccess, Names: variables, Expr: expr}
 	return n, nil
 }
 
 // Useful for testing
-func parseVarFrom(filename, input string) (*ast.VarId, error) {
+func parseVarFrom(filename, input string) (*ast.VarIdStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -1550,7 +1577,7 @@ func parseVarFrom(filename, input string) (*ast.VarId, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stmt.Node.(*ast.VarId), nil
+	return stmt.Node.(*ast.VarIdStmt), nil
 }
 
 func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
@@ -1868,12 +1895,14 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		switch next.Kind {
 		case token.OPEN_PAREN:
 			return p.parseFnCall(parentScope)
-		case token.DOT, token.COLON_COLON:
+		case token.COLON_COLON:
 			fieldAccess, err := p.parseNamespaceAccess(parentScope)
 			return fieldAccess, err
 		case token.OPEN_CURLY:
 			structLiteral, err := p.parseStructLiteralExpr(parentScope)
 			return structLiteral, err
+		case token.DOT:
+			fmt.Println("TODO: parse struct access expression")
 		}
 
 		p.lex.Skip()
@@ -2002,6 +2031,35 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 	access.Right = right
 
 	n.Node = access
+	return n, nil
+}
+
+func (p *Parser) parseFieldAccess() (*ast.Node, error) {
+	n := new(ast.Node)
+	n.Kind = ast.KIND_ID_EXPR
+
+	tk, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected identifier for field accessing")
+	}
+	id := &ast.IdExpr{Name: tk}
+	n.Node = id
+
+	if _, ok := p.expect(token.DOT); ok {
+		access := new(ast.FieldAccess)
+		access.Left = id
+		access.Right = nil
+
+		right, err := p.parseFieldAccess()
+		if err != nil {
+			return nil, err
+		}
+		access.Right = right
+
+		n.Kind = ast.KIND_FIELD_ACCESS_STMT
+		n.Node = access
+	}
+
 	return n, nil
 }
 

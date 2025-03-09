@@ -28,6 +28,7 @@ const (
 	KIND_FOR_LOOP_STMT
 	KIND_WHILE_LOOP_STMT
 	KIND_DEFER_STMT
+	KIND_FIELD_ACCESS_STMT
 
 	EXPR_START // expression node start delimiter
 
@@ -49,6 +50,7 @@ const (
 
 	KIND_PACKAGE
 	KIND_FIELD
+	KIND_STRUCT_FIELD
 	KIND_PROTO
 )
 
@@ -115,6 +117,8 @@ func (n *Node) String() string {
 		return "KIND_WHILE_LOOP_STMT"
 	case KIND_DEFER_STMT:
 		return "KIND_DEFER_STMT"
+	case KIND_FIELD_ACCESS_STMT:
+		return "KIND_FIELD_ACCESS_STMT"
 	case KIND_FN_CALL:
 		return "KIND_FN_CALL"
 	case KIND_NAMESPACE_ACCESS:
@@ -132,9 +136,11 @@ func (n *Node) String() string {
 	case KIND_BINARY_EXPR:
 		return "KIND_BINARY_EXPR"
 	case KIND_TUPLE_LITERAL_EXPR:
-		return "KIND_TUPLE_EXPR"
+		return "KIND_TUPLE_LITERAL_EXPR"
 	case KIND_FIELD:
 		return "KIND_FIELD"
+	case KIND_STRUCT_FIELD:
+		return "KIND_STRUCT_FIELD"
 	case KIND_PROTO:
 		return "KIND_PROTO"
 	default:

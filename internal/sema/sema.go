@@ -132,9 +132,6 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 				return false, err
 			}
 		case ast.KIND_STRUCT_DECL:
-			st := node.Node.(*ast.StructDecl)
-			fmt.Println("TODO: struct type")
-			fmt.Println(st)
 			continue
 		case ast.KIND_PKG_DECL:
 			continue
@@ -295,35 +292,24 @@ func (sema *sema) checkStmt(
 }
 
 func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
+	// TODO(errors)
+	if variable.IsDecl && variable.HasFieldAccess {
+		return fmt.Errorf("error: you're not allowed to use := when variables contains a field access because field access are not declarations")
+	}
+
 	for _, currentVar := range variable.Names {
-		if variable.IsDecl {
-			_, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
-			if err == nil {
-				return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
-			}
+		var err error
 
-			n := new(ast.Node)
-			n.Kind = ast.KIND_VAR_ID_STMT
-			n.Node = currentVar
-			currentVar.N = n
-
-			err = referenceScope.Insert(currentVar.Name.Name(), n)
-			if err != nil {
-				return err
-			}
+		if currentVar.Kind == ast.KIND_VAR_ID_STMT {
+			err = sema.checkNormalVariable(currentVar.Node.(*ast.VarIdStmt), variable.IsDecl, referenceScope)
 		} else {
-			symbol, err := referenceScope.LookupAcrossScopes(currentVar.Name.Name())
-			// TODO(errors)
-			if err != nil {
-				if err == ast.ErrSymbolNotFoundOnScope {
-					name := currentVar.Name.Name()
-					pos := currentVar.Name.Pos
-					return fmt.Errorf("%s '%s' not declared in the current block", pos, name)
-				}
-				return err
-			}
-			currentVar.N = symbol
+			err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope, declScope, fromImportPackage)
 		}
+
+		if err != nil {
+			return err
+		}
+
 	}
 
 	switch variable.Expr.Kind {
@@ -339,7 +325,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		}
 
 		if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
-			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnRetType.T.(*ast.TupleType), referenceScope)
+			err := sema.checkTupleTypeAssignedToVariable(variable.Names, fnRetType.T.(*ast.TupleType), referenceScope, fromImportPackage)
 			return err
 		} else {
 			// TODO(errors)
@@ -362,6 +348,38 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		}
 	}
 
+	return nil
+}
+
+func (sema *sema) checkNormalVariable(currentVar *ast.VarIdStmt, isDecl bool, referenceScope *ast.Scope) error {
+	if isDecl {
+		_, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
+		if err == nil {
+			return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
+		}
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_VAR_ID_STMT
+		n.Node = currentVar
+		currentVar.N = n
+
+		err = referenceScope.Insert(currentVar.Name.Name(), n)
+		if err != nil {
+			return err
+		}
+	} else {
+		symbol, err := referenceScope.LookupAcrossScopes(currentVar.Name.Name())
+		// TODO(errors)
+		if err != nil {
+			if err == ast.ErrSymbolNotFoundOnScope {
+				name := currentVar.Name.Name()
+				pos := currentVar.Name.Pos
+				return fmt.Errorf("%s '%s' not declared in the current block", pos, name)
+			}
+			return err
+		}
+		currentVar.N = symbol
+	}
 	return nil
 }
 
@@ -398,7 +416,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
 				tupleType := fnRetType.T.(*ast.TupleType)
 				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
-				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, referenceScope)
+				sema.checkTupleTypeAssignedToVariable(affectedVariables, tupleType, referenceScope, fromImportPackage)
 				t += len(affectedVariables)
 			} else {
 				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage)
@@ -418,17 +436,47 @@ func (sema *sema) checkTupleExprAssignedToVariable(variable *ast.VarStmt, tuple 
 	return nil
 }
 
-func (sema *sema) checkTupleTypeAssignedToVariable(variables []*ast.VarId, tupleTy *ast.TupleType, referenceScope *ast.Scope) error {
+func (sema *sema) checkTupleTypeAssignedToVariable(variables []*ast.Node, tupleTy *ast.TupleType, referenceScope *ast.Scope, fromImportPackage bool) error {
 	if len(variables) != len(tupleTy.Types) {
 		return fmt.Errorf("expected %d variables, but got %d", len(tupleTy.Types), len(variables))
 	}
+
 	for i, ty := range tupleTy.Types {
-		variables[i].Type = ty
+		n := variables[i]
+
+		if n.Kind == ast.KIND_VAR_ID_STMT {
+			currentVar := n.Node.(*ast.VarIdStmt)
+			if currentVar.Type == nil {
+				currentVar.Type = ty
+			} else if !currentVar.Type.Equals(ty) {
+				// TODO(errors)
+				return fmt.Errorf("type mismatch: expected %s, got %s\n", ty, currentVar.Type)
+			}
+		} else {
+			currentVar := n.Node.(*ast.FieldAccess)
+			_, field, err := sema.getAccessedField(currentVar, referenceScope, fromImportPackage)
+			if err != nil {
+				return err
+			}
+			// TODO(errors)
+			if !field.Type.Equals(ty) {
+				return fmt.Errorf("type mismatch: expected %s, got %s\n", ty, field.Type)
+			}
+		}
 	}
+
 	return nil
 }
 
-func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) error {
+func (sema *sema) checkVarExpr(variable *ast.Node, expr *ast.Node, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
+	if variable.Kind == ast.KIND_VAR_ID_STMT {
+		return sema.checkNormalVarExpr(variable.Node.(*ast.VarIdStmt), expr, referenceScope, declScope, fromImportPackage)
+	} else {
+		return sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
+	}
+}
+
+func (sema *sema) checkNormalVarExpr(variable *ast.VarIdStmt, expr *ast.Node, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
 	if variable.NeedsInference {
 		// TODO(errors): need a test for it
 		if variable.Type != nil {
@@ -449,15 +497,65 @@ func (sema *sema) checkVarExpr(variable *ast.VarId, expr *ast.Node, referenceSco
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage)
-		// TODO(errors): Deal with type mismatch
 		if err != nil {
 			return err
 		}
+		// NOTE: I don't this check is necessary
 		if !variable.Type.Equals(exprTy) {
 			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
 		}
 	}
 	return nil
+}
+
+func (sema *sema) checkFieldAccessExpr(variable *ast.FieldAccess, expr *ast.Node, referenceScope, declScope *ast.Scope, fromImportPackage bool) error {
+	_, field, err := sema.getAccessedField(variable, referenceScope, fromImportPackage)
+	if err != nil {
+		return err
+	}
+
+	exprTy, err := sema.inferExprTypeWithContext(expr, field.Type, referenceScope, declScope, fromImportPackage)
+	if err != nil {
+		return err
+	}
+	// NOTE: I don't this check is necessary
+	if !field.Type.Equals(exprTy) {
+		return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", field.Type, exprTy)
+	}
+	return nil
+}
+
+func (sema *sema) getAccessedField(fieldAccess *ast.FieldAccess, referenceScope *ast.Scope, fromImportPackage bool) (*ast.IdExpr, *ast.StructField, error) {
+	id := fieldAccess.Left.Name.Name()
+	sym, err := referenceScope.LookupCurrentScope(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch sym.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		variable := sym.Node.(*ast.VarIdStmt)
+		if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
+			return nil, nil, fmt.Errorf("expected variable type to be a struct")
+		}
+		st := variable.Type.T.(*ast.StructType).Decl
+		fieldAccess.Decl = st
+
+		switch fieldAccess.Right.Kind {
+		case ast.KIND_ID_EXPR:
+			attr := fieldAccess.Right.Node.(*ast.IdExpr)
+			stAtt, found := st.FindAttribute(attr.Name.Name())
+			// TODO(errors)
+			if !found {
+				return nil, nil, fmt.Errorf("attribute '%s' not found on '%s' struct\n", attr.Name.Name(), st.Name.Name())
+			}
+			return attr, stAtt, nil
+		default:
+			return nil, nil, fmt.Errorf("other field access type was found during sema")
+		}
+	default:
+		return nil, nil, fmt.Errorf("expected identifier to be a variable for field accessing")
+	}
 }
 
 func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) (int, error) {
@@ -492,7 +590,7 @@ func (sema *sema) countExprsOnTuple(tuple *ast.TupleExpr, referenceScope *ast.Sc
 }
 
 // Useful for testing
-func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
+func checkVarDeclFrom(input, filename string) (*ast.VarIdStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -516,7 +614,7 @@ func checkVarDeclFrom(input, filename string) (*ast.VarId, error) {
 		return nil, err
 	}
 
-	return varStmt.Node.(*ast.VarId), nil
+	return varStmt.Node.(*ast.VarIdStmt), nil
 }
 
 func (sema *sema) checkCondStmt(
@@ -745,7 +843,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	var ty *ast.ExprType
 	switch symbol.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		ty = symbol.Node.(*ast.VarId).Type
+		ty = symbol.Node.(*ast.VarIdStmt).Type
 	case ast.KIND_FIELD:
 		ty = symbol.Node.(*ast.Param).Type
 	default:
@@ -1181,7 +1279,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 
 	switch variable.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		ty := variable.Node.(*ast.VarId).Type
+		ty := variable.Node.(*ast.VarIdStmt).Type
 		return ty, !ty.IsUntyped(), nil
 	case ast.KIND_FIELD:
 		return variable.Node.(*ast.Param).Type, true, nil
@@ -1322,6 +1420,25 @@ func (sema *sema) checkNamespaceAccess(
 		return nil, err
 	}
 	return protoCall.RetType, nil
+}
+
+func (sema *sema) checkFieldAccessVariable(
+	fieldAccess *ast.FieldAccess,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) error {
+	id, field, err := sema.getAccessedField(fieldAccess, referenceScope, fromImportPackage)
+	if err != nil {
+		return err
+	}
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_STRUCT_FIELD
+	n.Node = field
+	id.N = n
+
+	return nil
 }
 
 func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) (*ast.ExprType, error) {

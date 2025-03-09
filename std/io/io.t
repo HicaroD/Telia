@@ -2,7 +2,7 @@ package io
 
 #[default_cc="c"]
 extern libc {
-  fn printf(format cstring, args ...f64) i32
+  fn printf(format cstring, args ...i32) i32
   fn puts(format cstring) i32
 }
 

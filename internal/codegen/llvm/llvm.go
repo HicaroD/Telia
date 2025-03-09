@@ -244,7 +244,7 @@ func (c *codegen) generateVar(variable *ast.VarStmt) {
 	}
 }
 
-func (c *codegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnCall, isDecl bool) {
+func (c *codegen) generateFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
 	genFnCall := c.generateFnCall(fnCall)
 
 	if len(variables) == 1 {
@@ -257,7 +257,7 @@ func (c *codegen) generateFnCallForTuple(variables []*ast.VarId, fnCall *ast.FnC
 	}
 }
 
-func (c *codegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool) {
+func (c *codegen) generateVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
 	if isDecl {
 		c.generateVarDecl(name, expr)
 	} else {
@@ -265,7 +265,7 @@ func (c *codegen) generateVariable(name *ast.VarId, expr *ast.Node, isDecl bool)
 	}
 }
 
-func (c *codegen) generateVariableWithValue(name *ast.VarId, value llvm.Value, isDecl bool) {
+func (c *codegen) generateVariableWithValue(name *ast.Node, value llvm.Value, isDecl bool) {
 	if isDecl {
 		c.generateVarDeclWithValue(name, value)
 	} else {
@@ -274,48 +274,79 @@ func (c *codegen) generateVariableWithValue(name *ast.VarId, value llvm.Value, i
 }
 
 func (c *codegen) generateVarDecl(
-	name *ast.VarId,
+	name *ast.Node,
 	expr *ast.Node,
 ) {
-	ty := c.getType(name.Type)
-	ptr := c.builder.CreateAlloca(ty, ".ptr")
-	generatedExpr, _, _ := c.getExpr(expr)
-	c.builder.CreateStore(generatedExpr, ptr)
+	var ty llvm.Type
+	var ptr llvm.Value
+
+	variable := name.Node.(*ast.VarIdStmt)
+	ty = c.getType(variable.Type)
+
+	if expr.Kind == ast.KIND_STRUCT_LITERAL_EXPR {
+		ptr = c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr))
+	} else {
+		ptr = c.builder.CreateAlloca(ty, ".ptr")
+		generatedExpr, _, _ := c.getExpr(expr)
+		c.builder.CreateStore(generatedExpr, ptr)
+	}
 
 	variableLlvm := &Variable{
 		Ty:  ty,
 		Ptr: ptr,
 	}
-	name.BackendType = variableLlvm
+	variable.BackendType = variableLlvm
 }
 
 func (c *codegen) generateVarReassign(
-	name *ast.VarId,
+	name *ast.Node,
 	expr *ast.Node,
 ) {
 	generatedExpr, _, _ := c.getExpr(expr)
+	var varPtr llvm.Value
 
-	var variable *Variable
-
-	switch name.N.Kind {
+	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		node := name.N.Node.(*ast.VarId)
-		variable = node.BackendType.(*Variable)
+		node := name.Node.(*ast.VarIdStmt)
+		varPtr = node.BackendType.(*Variable).Ptr
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Param)
-		variable = node.BackendType.(*Variable)
+		node := name.Node.(*ast.Param)
+		varPtr = node.BackendType.(*Variable).Ptr
+	case ast.KIND_FIELD_ACCESS_STMT:
+		node := name.Node.(*ast.FieldAccess)
+		varPtr = c.getStructFieldPtr(node)
 	default:
-		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
+		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
 
-	c.builder.CreateStore(generatedExpr, variable.Ptr)
+	c.builder.CreateStore(generatedExpr, varPtr)
+}
+
+func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
+	st := c.module.GetTypeByName(fieldAccess.Decl.Name.Name())
+	if st.IsNil() {
+		panic("struct is nil")
+	}
+
+	switch fieldAccess.Right.Kind {
+	case ast.KIND_ID_EXPR:
+		attr := fieldAccess.Right.Node.(*ast.IdExpr)
+		field := attr.N.Node.(*ast.StructField)
+		obj := c.builder.CreateAlloca(st, ".access")
+		allocatedField := c.builder.CreateStructGEP(st, obj, field.Index, ".field")
+		return allocatedField
+	default:
+		panic("unimplemented other type of field access")
+	}
 }
 
 func (c *codegen) generateVarDeclWithValue(
-	name *ast.VarId,
+	name *ast.Node,
 	value llvm.Value,
 ) {
-	ty := c.getType(name.Type)
+	variable := name.Node.(*ast.VarIdStmt)
+
+	ty := c.getType(variable.Type)
 	ptr := c.builder.CreateAlloca(ty, ".ptr")
 	c.builder.CreateStore(value, ptr)
 
@@ -323,21 +354,30 @@ func (c *codegen) generateVarDeclWithValue(
 		Ty:  ty,
 		Ptr: ptr,
 	}
-	name.BackendType = variableLlvm
+	variable.BackendType = variableLlvm
 }
 
 func (c *codegen) generateVarReassignWithValue(
-	name *ast.VarId,
+	name *ast.Node,
 	value llvm.Value,
 ) {
+	fmt.Printf("generate var reassign with value: %v\n", name.Kind)
 	var variable *Variable
 
-	switch name.N.Kind {
+	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		node := name.N.Node.(*ast.VarId)
-		variable = node.BackendType.(*Variable)
+		node := name.Node.(*ast.VarIdStmt)
+		switch node.N.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			varId := node.N.Node.(*ast.VarIdStmt)
+			variable = varId.BackendType.(*Variable)
+		case ast.KIND_FIELD:
+			param := node.N.Node.(*ast.Param)
+			variable = param.BackendType.(*Variable)
+		}
+	// TODO: check if the case below is reachable
 	case ast.KIND_FIELD:
-		node := name.N.Node.(*ast.Param)
+		node := name.Node.(*ast.Param)
 		variable = node.BackendType.(*Variable)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
@@ -378,7 +418,7 @@ func (c *codegen) generateStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 	for _, field := range lit.Values {
 		expr, _, _ := c.getExpr(field.Value)
 		allocatedField := c.builder.CreateStructGEP(st, obj, field.Index, ".field")
-		c.builder.CreateStore(allocatedField, expr)
+		c.builder.CreateStore(expr, allocatedField)
 	}
 
 	return obj
@@ -603,7 +643,7 @@ func (c *codegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 
 		switch id.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
-			variable := id.N.Node.(*ast.VarId)
+			variable := id.N.Node.(*ast.VarIdStmt)
 			varTy = variable.Type
 			localVar = variable.BackendType.(*Variable)
 		case ast.KIND_FIELD:
