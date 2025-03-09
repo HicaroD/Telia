@@ -361,7 +361,6 @@ func (c *codegen) generateVarReassignWithValue(
 	name *ast.Node,
 	value llvm.Value,
 ) {
-	fmt.Printf("generate var reassign with value: %v\n", name.Kind)
 	var variable *Variable
 
 	switch name.Kind {
