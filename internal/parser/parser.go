@@ -84,7 +84,6 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	impName := path[len(path)-1]
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	if pkg, found := p.imports[fullPkgPath]; found {
-
 		return impName, fullPkgPath, pkg, nil
 	}
 
@@ -811,10 +810,6 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	}
 
 	return node, nil
-}
-
-func (p *Parser) parseCustomType() (*ast.Node, error) {
-	return nil, nil
 }
 
 func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) {
