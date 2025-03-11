@@ -1884,27 +1884,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.ID:
-		idExpr := &ast.IdExpr{Name: tok}
-
-		next := p.lex.Peek1()
-		switch next.Kind {
-		case token.OPEN_PAREN:
-			return p.parseFnCall(parentScope)
-		case token.COLON_COLON:
-			fieldAccess, err := p.parseNamespaceAccess(parentScope)
-			return fieldAccess, err
-		case token.OPEN_CURLY:
-			structLiteral, err := p.parseStructLiteralExpr(parentScope)
-			return structLiteral, err
-		case token.DOT:
-			return p.parseFieldAccess()
-		}
-
-		p.lex.Skip()
-
-		n.Kind = ast.KIND_ID_EXPR
-		n.Node = idExpr
-		return n, nil
+		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
 		expr, err := p.parseSingleExpr(parentScope)
@@ -1935,6 +1915,35 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			tok.Pos,
 		)
 	}
+}
+
+func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	n := new(ast.Node)
+	tok := p.lex.Peek()
+	if tok.Kind != token.ID {
+		return nil, fmt.Errorf("expected identifier, not %s\n", tok.Kind)
+	}
+	idExpr := &ast.IdExpr{Name: tok}
+
+	next := p.lex.Peek1()
+	switch next.Kind {
+	case token.OPEN_PAREN:
+		return p.parseFnCall(parentScope)
+	case token.COLON_COLON:
+		fieldAccess, err := p.parseNamespaceAccess(parentScope)
+		return fieldAccess, err
+	case token.OPEN_CURLY:
+		structLiteral, err := p.parseStructLiteralExpr(parentScope)
+		return structLiteral, err
+	case token.DOT:
+		return p.parseFieldAccess()
+	}
+
+	p.lex.Skip()
+
+	n.Kind = ast.KIND_ID_EXPR
+	n.Node = idExpr
+	return n, nil
 }
 
 func (p *Parser) parseExprList(possibleEnds []token.Kind, parentScope *ast.Scope) ([]*ast.Node, error) {
@@ -1978,10 +1987,10 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, err
 	}
 
-	_, ok = parser.expect(token.CLOSE_PAREN)
+	cp, ok := parser.expect(token.CLOSE_PAREN)
 	// TODO(errors): add proper error
 	if !ok {
-		return nil, fmt.Errorf("expected ')'")
+		return nil, fmt.Errorf("%s error: expected closing parenthesis, not %s\n", cp.Pos, cp.Kind)
 	}
 
 	var atOp *ast.AtOperator
@@ -1999,33 +2008,43 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 }
 
 func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error) {
-	id, ok := p.expect(token.ID)
-	// TODO(errors): add proper error
+	ahead := p.lex.Peek1()
+	switch ahead.Kind {
+	case token.OPEN_PAREN:
+		return p.parseFnCall(parentScope)
+	case token.OPEN_CURLY:
+		return p.parseStructLiteralExpr(parentScope)
+	}
+
+	tk, ok := p.expect(token.ID)
 	if !ok {
-		return nil, fmt.Errorf("error: expected ID")
+		return nil, fmt.Errorf("expected identifier for namespace access")
 	}
 
-	_, lookupErr := parentScope.LookupAcrossScopes(id.Name())
-	_, isImport := p.file.Imports[id.Name()]
-
-	p.lex.Skip() // ::
-
-	right, err := p.parsePrimary(parentScope)
-	if err != nil {
-		log.Fatal(err)
-	}
+	_, lookupErr := parentScope.LookupAcrossScopes(tk.Name())
+	_, isImport := p.file.Imports[tk.Name()]
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_NAMESPACE_ACCESS
+	n.Kind = ast.KIND_ID_EXPR
+	id := &ast.IdExpr{Name: tk}
+	n.Node = id
 
-	access := new(ast.NamespaceAccess)
-	// NOTE: it is an import when I found it in the import list and there is no
-	// symbol with the same name in the parent scope
-	access.IsImport = isImport && lookupErr != nil
-	access.Left = &ast.IdExpr{Name: id}
-	access.Right = right
+	if _, ok = p.expect(token.COLON_COLON); ok {
+		access := new(ast.NamespaceAccess)
+		access.Left = id
+		access.Right = nil
+		access.IsImport = isImport && lookupErr != nil
 
-	n.Node = access
+		right, err := p.parseNamespaceAccess(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		access.Right = right
+
+		n.Kind = ast.KIND_NAMESPACE_ACCESS
+		n.Node = access
+	}
+
 	return n, nil
 }
 
