@@ -13,5 +13,6 @@ fn main() {
     age: 21,
   }
   user.name = "Hicro"
+  io::libc::puts(user.name)
   return
 }

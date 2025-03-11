@@ -312,7 +312,7 @@ func (c *codegen) generateVarReassign(
 	case ast.KIND_FIELD:
 		node := name.Node.(*ast.Param)
 		varPtr = node.BackendType.(*Variable).Ptr
-	case ast.KIND_FIELD_ACCESS_STMT:
+	case ast.KIND_FIELD_ACCESS:
 		node := name.Node.(*ast.FieldAccess)
 		varPtr = c.getStructFieldPtr(node)
 	default:
@@ -330,10 +330,8 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
-		attr := fieldAccess.Right.Node.(*ast.IdExpr)
-		field := attr.N.Node.(*ast.StructField)
 		obj := fieldAccess.StructVar.BackendType.(*Variable)
-		return c.builder.CreateStructGEP(st, obj.Ptr, field.Index, ".field")
+		return c.builder.CreateStructGEP(st, obj.Ptr, fieldAccess.AccessedField.Index, ".field")
 	default:
 		panic("unimplemented other type of field access")
 	}
@@ -420,6 +418,13 @@ func (c *codegen) generateStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 	}
 
 	return obj
+}
+
+func (c *codegen) generateFieldAccessExpr(fieldAccess *ast.FieldAccess) llvm.Value {
+	ptr := c.getStructFieldPtr(fieldAccess)
+	ty := c.getType(fieldAccess.AccessedField.Type)
+	loadedPtr := c.builder.CreateLoad(ty, ptr, ".access")
+	return loadedPtr
 }
 
 func (c *codegen) generateExternDecl(external *ast.ExternDecl) {
@@ -780,8 +785,10 @@ func (c *codegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
 		panic("unimplemented var args")
 	case ast.KIND_STRUCT_LITERAL_EXPR:
 		return c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr)), bitSize, hasFloat
+	case ast.KIND_FIELD_ACCESS:
+		return c.generateFieldAccessExpr(expr.Node.(*ast.FieldAccess)), bitSize, hasFloat
 	default:
-		log.Fatalf("unimplemented expr: %s", reflect.TypeOf(expr))
+		log.Fatalf("unimplemented expr: %v", expr)
 		return llvm.Value{}, bitSize, hasFloat
 	}
 }

@@ -1897,7 +1897,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			structLiteral, err := p.parseStructLiteralExpr(parentScope)
 			return structLiteral, err
 		case token.DOT:
-			fmt.Println("TODO: parse struct access expression")
+			return p.parseFieldAccess()
 		}
 
 		p.lex.Skip()
@@ -2051,7 +2051,7 @@ func (p *Parser) parseFieldAccess() (*ast.Node, error) {
 		}
 		access.Right = right
 
-		n.Kind = ast.KIND_FIELD_ACCESS_STMT
+		n.Kind = ast.KIND_FIELD_ACCESS
 		n.Node = access
 	}
 
@@ -2082,8 +2082,6 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		return nil, fmt.Errorf("expected struct, not %s\n", symbol.Node)
 	}
 	st := symbol.Node.(*ast.StructDecl)
-
-	// TODO: make sure struct exists
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	// TODO(errors): add proper error

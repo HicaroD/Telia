@@ -303,7 +303,7 @@ func (sema *sema) checkVar(variable *ast.VarStmt, referenceScope *ast.Scope, dec
 		if currentVar.Kind == ast.KIND_VAR_ID_STMT {
 			err = sema.checkNormalVariable(currentVar.Node.(*ast.VarIdStmt), variable.IsDecl, referenceScope)
 		} else {
-			err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope, declScope, fromImportPackage)
+			_, _, err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope, declScope, fromImportPackage)
 		}
 
 		if err != nil {
@@ -532,30 +532,30 @@ func (sema *sema) getAccessedField(fieldAccess *ast.FieldAccess, referenceScope 
 		return nil, nil, err
 	}
 
-	switch sym.Kind {
-	case ast.KIND_VAR_ID_STMT:
-		variable := sym.Node.(*ast.VarIdStmt)
-		if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
-			return nil, nil, fmt.Errorf("expected variable type to be a struct")
-		}
-		st := variable.Type.T.(*ast.StructType).Decl
-		fieldAccess.StructVar = variable
-		fieldAccess.Decl = st
-
-		switch fieldAccess.Right.Kind {
-		case ast.KIND_ID_EXPR:
-			attr := fieldAccess.Right.Node.(*ast.IdExpr)
-			stAtt, found := st.FindAttribute(attr.Name.Name())
-			// TODO(errors)
-			if !found {
-				return nil, nil, fmt.Errorf("attribute '%s' not found on '%s' struct\n", attr.Name.Name(), st.Name.Name())
-			}
-			return attr, stAtt, nil
-		default:
-			return nil, nil, fmt.Errorf("other field access type was found during sema")
-		}
-	default:
+	if sym.Kind != ast.KIND_VAR_ID_STMT {
 		return nil, nil, fmt.Errorf("expected identifier to be a variable for field accessing")
+	}
+
+	variable := sym.Node.(*ast.VarIdStmt)
+	if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
+		return nil, nil, fmt.Errorf("expected variable type to be a struct")
+	}
+	st := variable.Type.T.(*ast.StructType).Decl
+	fieldAccess.StructVar = variable
+	fieldAccess.Decl = st
+
+	switch fieldAccess.Right.Kind {
+	case ast.KIND_ID_EXPR:
+		id := fieldAccess.Right.Node.(*ast.IdExpr)
+		stField, found := st.FindAttribute(id.Name.Name())
+		// TODO(errors)
+		if !found {
+			return nil, nil, fmt.Errorf("attribute '%s' not found on '%s' struct\n", id.Name.Name(), st.Name.Name())
+		}
+		fieldAccess.AccessedField = stField
+		return id, stField, nil
+	default:
+		return nil, nil, fmt.Errorf("other field access type was found during sema")
 	}
 }
 
@@ -811,11 +811,11 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return s.inferTupleExprTypeWithContext(expr.Node.(*ast.TupleExpr), expectedType, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_STRUCT_LITERAL_EXPR:
-		fmt.Println("TODO: struct literal expr")
 		return s.inferStructLiteralExprWithContext(expr.Node.(*ast.StructLiteralExpr), expectedType, referenceScope, declScope, fromImportPackage)
+	case ast.KIND_FIELD_ACCESS:
+		return s.inferStructFieldAccessExprWithContext(expr.Node.(*ast.FieldAccess), expectedType, referenceScope, declScope, fromImportPackage)
 	default:
-		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
-		return nil, nil
+		panic(fmt.Sprintf("infer expr type with context - unimplemented expr: %v\n", expr))
 	}
 }
 
@@ -1149,6 +1149,23 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	return expectedType, nil
 }
 
+func (s *sema) inferStructFieldAccessExprWithContext(
+	fieldAccess *ast.FieldAccess,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+) (*ast.ExprType, error) {
+	_, field, err := s.checkFieldAccessVariable(fieldAccess, referenceScope, declScope, fromImportPackage)
+	if err != nil {
+		return nil, err
+	}
+	if !field.Type.Equals(expectedType) {
+		return nil, fmt.Errorf("type mismatch on struct field access, expected %s, got %s\n", expectedType.T, field.Type.T)
+	}
+	return expectedType, nil
+}
+
 func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
@@ -1236,6 +1253,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferTupleExprTypeWithoutContext(expr.Node.(*ast.TupleExpr), referenceScope, declScope, fromImportPackage)
 	case ast.KIND_STRUCT_LITERAL_EXPR:
 		return sema.inferStructLiteralExprWithoutContext(expr.Node.(*ast.StructLiteralExpr), referenceScope, declScope, fromImportPackage)
+	case ast.KIND_FIELD_ACCESS:
+		return sema.inferStructFieldAccessExprWithoutContext(expr.Node.(*ast.FieldAccess), referenceScope, declScope, fromImportPackage)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -1367,6 +1386,11 @@ func (sema *sema) inferStructLiteralExprWithoutContext(
 	return inferredTy, true, err
 }
 
+func (sema *sema) inferStructFieldAccessExprWithoutContext(fieldAccess *ast.FieldAccess, referenceScope, declScope *ast.Scope, fromImportPackage bool) (*ast.ExprType, bool, error) {
+	_, field, err := sema.checkFieldAccessVariable(fieldAccess, referenceScope, declScope, fromImportPackage)
+	return field.Type, true, err
+}
+
 func (sema *sema) validateInteger(value []byte) error {
 	base := 10
 	intSize := strconv.IntSize
@@ -1442,18 +1466,9 @@ func (sema *sema) checkFieldAccessVariable(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
-) error {
+) (*ast.IdExpr, *ast.StructField, error) {
 	id, field, err := sema.getAccessedField(fieldAccess, referenceScope, fromImportPackage)
-	if err != nil {
-		return err
-	}
-
-	n := new(ast.Node)
-	n.Kind = ast.KIND_STRUCT_FIELD
-	n.Node = field
-	id.N = n
-
-	return nil
+	return id, field, err
 }
 
 func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, declScope *ast.Scope, fromImportPackage bool) (*ast.ExprType, error) {

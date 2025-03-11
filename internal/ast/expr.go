@@ -71,9 +71,10 @@ type FieldAccess struct {
 	Right *Node
 
 	// Codegen
-	StructVar   *VarIdStmt
-	Decl        *StructDecl
-	BackendType any
+	AccessedField *StructField
+	StructVar     *VarIdStmt
+	Decl          *StructDecl
+	BackendType   any
 }
 
 func (f *FieldAccess) String() string {
@@ -125,4 +126,8 @@ type StructFieldValue struct {
 	Name  *token.Token
 	Index int
 	Value *Node
+}
+
+type StructFieldAccessExpr struct {
+	Access *Node
 }
