@@ -510,6 +510,10 @@ func (c *codegen) getType(ty *ast.ExprType) llvm.Type {
 			u8 := ast.NewBasicType(token.U8_TYPE)
 			u8Type := c.getType(u8)
 			return c.getPtrType(u8Type)
+		case token.RAWPTR_TYPE:
+			u8 := ast.NewBasicType(token.U8_TYPE)
+			u8Type := c.getType(u8)
+			return c.getPtrType(u8Type)
 		}
 	case ast.EXPR_TYPE_TUPLE:
 		tuple := ty.T.(*ast.TupleType)

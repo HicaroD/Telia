@@ -32,7 +32,8 @@ const (
 	// Types
 	BASIC_TYPE_START // basic type start delimiter
 
-	BOOL_TYPE // bool
+	RAWPTR_TYPE // rawptr
+	BOOL_TYPE   // bool
 
 	NUMERIC_TYPE_START // numeric type start delimiter
 
@@ -138,7 +139,8 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"true":  UNTYPED_BOOL,
 	"false": UNTYPED_BOOL,
 
-	"bool": BOOL_TYPE,
+	"rawptr": RAWPTR_TYPE,
+	"bool":   BOOL_TYPE,
 
 	"int": INT_TYPE,
 	"i8":  I8_TYPE,
@@ -248,6 +250,8 @@ func (k Kind) String() string {
 		return "defer"
 	case STRUCT:
 		return "struct"
+	case RAWPTR_TYPE:
+		return "rawptr"
 	case BOOL_TYPE:
 		return "bool"
 	case UNTYPED_FLOAT:
