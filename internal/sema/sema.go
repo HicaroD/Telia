@@ -539,6 +539,7 @@ func (sema *sema) getAccessedField(fieldAccess *ast.FieldAccess, referenceScope 
 			return nil, nil, fmt.Errorf("expected variable type to be a struct")
 		}
 		st := variable.Type.T.(*ast.StructType).Decl
+		fieldAccess.StructVar = variable
 		fieldAccess.Decl = st
 
 		switch fieldAccess.Right.Kind {

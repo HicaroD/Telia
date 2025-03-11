@@ -332,9 +332,8 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
 	case ast.KIND_ID_EXPR:
 		attr := fieldAccess.Right.Node.(*ast.IdExpr)
 		field := attr.N.Node.(*ast.StructField)
-		obj := c.builder.CreateAlloca(st, ".access")
-		allocatedField := c.builder.CreateStructGEP(st, obj, field.Index, ".field")
-		return allocatedField
+		obj := fieldAccess.StructVar.BackendType.(*Variable)
+		return c.builder.CreateStructGEP(st, obj.Ptr, field.Index, ".field")
 	default:
 		panic("unimplemented other type of field access")
 	}
@@ -957,6 +956,11 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 		return err
 	}
 	defer irFile.Close()
+
+	if err := llvm.VerifyModule(c.module, llvm.AbortProcessAction); err != nil {
+		fmt.Println("error: module is not valid")
+		return err
+	}
 
 	module := c.module.String()
 	_, err = irFile.WriteString(module)

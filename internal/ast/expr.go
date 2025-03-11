@@ -71,6 +71,7 @@ type FieldAccess struct {
 	Right *Node
 
 	// Codegen
+	StructVar   *VarIdStmt
 	Decl        *StructDecl
 	BackendType any
 }
