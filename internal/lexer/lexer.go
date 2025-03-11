@@ -115,6 +115,8 @@ func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 }
 
 func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
+	tok.Pos = lex.pos
+
 	switch ch {
 	case '\n':
 		lex.consumeTokenNoLex(tok, token.NEWLINE)
@@ -166,7 +168,6 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.consumeTokenNoLex(tok, token.CLOSE_BRACKET)
 		lex.nextChar()
 	case '!':
-		tok.Pos = lex.pos
 		lex.nextChar()
 
 		invalidCharacter := diagnostics.Diag{
