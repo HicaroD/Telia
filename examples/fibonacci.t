@@ -2,7 +2,7 @@ package main
 
 use "std::io"
 
-fn fib(n int) int {
+fn fib(n i32) i32 {
   if n <= 1 {
     return n
   }
@@ -11,7 +11,6 @@ fn fib(n int) int {
 
 fn main() i32 {
   n := 40
-  result := fib(i)
-  io::libc::printf("Telia - Fibonacci(%d) = %d\n", n, result)
+  io::libc::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
   return 0
 }
