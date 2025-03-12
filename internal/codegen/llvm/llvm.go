@@ -506,7 +506,7 @@ func (c *codegen) getType(ty *ast.ExprType) llvm.Type {
 		case token.BOOL_TYPE, token.UNTYPED_BOOL, token.INT_TYPE,
 			token.UINT_TYPE, token.UNTYPED_INT, token.I8_TYPE, token.U8_TYPE,
 			token.I16_TYPE, token.U16_TYPE, token.I32_TYPE, token.U32_TYPE,
-			token.I64_TYPE, token.U64_TYPE:
+			token.I64_TYPE, token.U64_TYPE, token.I128_TYPE, token.U128_TYPE:
 
 			bitSize := b.Kind.BitSize()
 			return c.context.IntType(bitSize)

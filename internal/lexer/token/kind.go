@@ -43,11 +43,13 @@ const (
 	I16_TYPE           // i16
 	I32_TYPE           // i32
 	I64_TYPE           // i64
+	I128_TYPE          // i128
 	UINT_TYPE          // int
 	U8_TYPE            // u8
 	U16_TYPE           // u16
 	U32_TYPE           // u32
 	U64_TYPE           // u64
+	U128_TYPE          // u128
 	INTEGER_TYPE_END   // integer type end delimiter
 
 	FLOAT_TYPE_START // float type start delimiter
@@ -142,17 +144,19 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"rawptr": RAWPTR_TYPE,
 	"bool":   BOOL_TYPE,
 
-	"int": INT_TYPE,
-	"i8":  I8_TYPE,
-	"i16": I16_TYPE,
-	"i32": I32_TYPE,
-	"i64": I64_TYPE,
+	"int":  INT_TYPE,
+	"i8":   I8_TYPE,
+	"i16":  I16_TYPE,
+	"i32":  I32_TYPE,
+	"i64":  I64_TYPE,
+	"i128": I128_TYPE,
 
 	"uint": UINT_TYPE,
 	"u8":   U8_TYPE,
 	"u16":  U16_TYPE,
 	"u32":  U32_TYPE,
 	"u64":  U64_TYPE,
+	"u128": U128_TYPE,
 
 	"float": FLOAT_TYPE,
 	"f32":   F32_TYPE,
@@ -174,6 +178,8 @@ func (k Kind) BitSize() int {
 		return 32
 	case I64_TYPE, U64_TYPE, F64_TYPE:
 		return 64
+	case I128_TYPE, U128_TYPE:
+		return 128
 	default:
 		return -1
 	}
@@ -278,6 +284,8 @@ func (k Kind) String() string {
 		return "i32"
 	case I64_TYPE:
 		return "i64"
+	case I128_TYPE:
+		return "i128"
 	case U8_TYPE:
 		return "u8"
 	case U16_TYPE:
@@ -286,6 +294,8 @@ func (k Kind) String() string {
 		return "u32"
 	case U64_TYPE:
 		return "u64"
+	case U128_TYPE:
+		return "u128"
 	case UNTYPED_STRING:
 		return "untyped string"
 	case STRING_TYPE:

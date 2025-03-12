@@ -1526,12 +1526,10 @@ VarDecl:
 		}
 
 		if !isFieldAccess {
-			fmt.Println("since it is not a field access, use the current expression type")
 			variable := currentVar.Node.(*ast.VarIdStmt)
 			variable.Type = ty
 			variable.NeedsInference = false
 		} else {
-			fmt.Println("it is a field access and you tried to add a type to it, you actually can't do that")
 			return nil, fmt.Errorf("type is not allowed on field access")
 		}
 
