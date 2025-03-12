@@ -1,11 +1,8 @@
 package main
 
-#[default_cc="c"]
-extern libc {
-  fn printf(format cstring, ...) i32
-}
+use "std::io"
 
-fn fib(n int) int {
+fn fib(n i32) i32 {
   if n <= 1 {
     return n
   }
@@ -14,9 +11,6 @@ fn fib(n int) int {
 
 fn main() i32 {
   n := 40
-  for i := 0; i < n; i = i + 1  {
-    result := fib(i)
-    libc.printf("%d ", result)
-  }
+  io::libc::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
   return 0
 }

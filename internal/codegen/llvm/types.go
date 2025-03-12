@@ -8,20 +8,6 @@ type LLVMValue interface {
 	Value() string
 }
 
-type Function struct {
-	LLVMValue
-	Fn llvm.Value
-	Ty llvm.Type
-}
-
-func NewFunctionValue(fn llvm.Value, ty llvm.Type) *Function {
-	return &Function{Fn: fn, Ty: ty}
-}
-
-func (function Function) Value() string {
-	return "Function"
-}
-
 type Variable struct {
 	LLVMValue
 	Ty  llvm.Type

@@ -6,17 +6,41 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
-type FnDecl struct {
-	Scope       *Scope
-	Attributes  *Attributes
-	Name        *token.Token
-	Params      *Params
-	RetType     *ExprType
-	Block       *BlockStmt
-	BackendType any // LLVM: *values.Function
+type StructDecl struct {
+	Attributes *Attributes
+	Name       *token.Token
+	Fields     []*StructField
 }
 
-func (fnDecl FnDecl) String() string {
+func (st *StructDecl) String() string {
+	return fmt.Sprintf("STRUCT: %v | Fields: %v\n", st.Name.Name(), st.Fields)
+}
+
+func (st *StructDecl) FindAttribute(name string) (*StructField, bool) {
+	for _, field := range st.Fields {
+		if field.Name.Name() == name {
+			return field, true
+		}
+	}
+	return nil, false
+}
+
+type StructField struct {
+	Index int
+	Name  *token.Token
+	Type  *ExprType
+}
+
+type FnDecl struct {
+	Scope      *Scope
+	Attributes *Attributes
+	Name       *token.Token
+	Params     *Params
+	RetType    *ExprType
+	Block      *BlockStmt
+}
+
+func (fnDecl *FnDecl) String() string {
 	return fmt.Sprintf(
 		"Scope: %v\nName: %v\nParams: %v\nRetType: %v\nBlock: %v\n",
 		fnDecl.Scope,
@@ -35,7 +59,7 @@ type ExternDecl struct {
 	BackendType any // LLVM: *values.Extern
 }
 
-func (extern ExternDecl) String() string {
+func (extern *ExternDecl) String() string {
 	return fmt.Sprintf("EXTERN: %s", extern.Name)
 }
 
@@ -44,24 +68,22 @@ type Proto struct {
 	Name       *token.Token
 	Params     *Params
 	RetType    *ExprType
-
-	BackendType any // LLVM: *values.Function
 }
 
-func (proto Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
+func (proto *Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
 
 type PkgDecl struct {
 	Name *token.Token
 }
 
-func (pkg PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
+func (pkg *PkgDecl) String() string { return fmt.Sprintf("PKG: %s", pkg.Name) }
 
 type UseDecl struct {
 	Name    string
 	Package *Package
 }
 
-func (imp UseDecl) String() string {
+func (imp *UseDecl) String() string {
 	return fmt.Sprintf("USE: %s", imp.Name)
 }
 

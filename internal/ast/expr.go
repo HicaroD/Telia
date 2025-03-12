@@ -40,7 +40,7 @@ type LiteralExpr struct {
 	Value []byte
 }
 
-func (literal LiteralExpr) String() string {
+func (literal *LiteralExpr) String() string {
 	return fmt.Sprintf("%v %v\n", literal.Type, literal.Value)
 }
 
@@ -62,8 +62,23 @@ type NamespaceAccess struct {
 	Right    *Node
 }
 
-func (namespaceAccess NamespaceAccess) String() string {
-	return fmt.Sprintf("%v.%v\n", namespaceAccess.Left, namespaceAccess.Right)
+func (n *NamespaceAccess) String() string {
+	return fmt.Sprintf("%v::%v\n", n.Left, n.Right)
+}
+
+type FieldAccess struct {
+	Left  *IdExpr
+	Right *Node
+
+	// Codegen
+	AccessedField *StructField
+	StructVar     *VarIdStmt
+	Decl          *StructDecl
+	BackendType   any
+}
+
+func (f *FieldAccess) String() string {
+	return fmt.Sprintf("%v.%v\n", f.Left, f.Right)
 }
 
 type UnaryExpr struct {
@@ -71,7 +86,7 @@ type UnaryExpr struct {
 	Value *Node
 }
 
-func (unary UnaryExpr) String() string {
+func (unary *UnaryExpr) String() string {
 	return fmt.Sprintf("%v %v\n", unary.Op, unary.Value)
 }
 
@@ -81,7 +96,7 @@ type BinaryExpr struct {
 	Right *Node
 }
 
-func (binExpr BinaryExpr) String() string {
+func (binExpr *BinaryExpr) String() string {
 	return fmt.Sprintf("(%v) %v (%v)\n", binExpr.Left, binExpr.Op, binExpr.Right)
 }
 
@@ -90,14 +105,29 @@ type TupleExpr struct {
 	Exprs []*Node
 }
 
-func (te TupleExpr) String() string {
+func (te *TupleExpr) String() string {
 	return fmt.Sprintf("%v\n", te.Exprs)
 }
 
-type VarArgs struct {
+type VarArgsExpr struct {
 	Args []*Node
 }
 
-func (v VarArgs) String() string {
+func (v *VarArgsExpr) String() string {
 	return fmt.Sprintf("VARGS: %v\n", v.Args)
+}
+
+type StructLiteralExpr struct {
+	Name   *token.Token
+	Values []*StructFieldValue
+}
+
+type StructFieldValue struct {
+	Name  *token.Token
+	Index int
+	Value *Node
+}
+
+type StructFieldAccessExpr struct {
+	Access *Node
 }

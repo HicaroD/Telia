@@ -11,6 +11,7 @@ type ExprTypeKind int
 const (
 	EXPR_TYPE_BASIC ExprTypeKind = iota
 	EXPR_TYPE_ID
+	EXPR_TYPE_STRUCT
 	EXPR_TYPE_POINTER
 	EXPR_TYPE_ALIAS
 	EXPR_TYPE_TUPLE
@@ -173,6 +174,10 @@ func (t *TupleType) Equal(other *TupleType) bool {
 
 func (tt TupleType) String() string {
 	return fmt.Sprintf("TUPLE: %v\n", tt.Types)
+}
+
+type StructType struct {
+	Decl *StructDecl
 }
 
 // Operator validation

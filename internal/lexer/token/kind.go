@@ -27,11 +27,13 @@ const (
 	TYPE
 	USE
 	DEFER
+	STRUCT
 
 	// Types
 	BASIC_TYPE_START // basic type start delimiter
 
-	BOOL_TYPE // bool
+	RAWPTR_TYPE // rawptr
+	BOOL_TYPE   // bool
 
 	NUMERIC_TYPE_START // numeric type start delimiter
 
@@ -90,6 +92,7 @@ const (
 	DOT_DOT
 	DOT_DOT_DOT
 	EQUAL
+	COLON
 	COLON_EQUAL
 	COLON_COLON
 
@@ -131,11 +134,13 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"type":    TYPE,
 	"use":     USE,
 	"defer":   DEFER,
+	"struct":  STRUCT,
 
 	"true":  UNTYPED_BOOL,
 	"false": UNTYPED_BOOL,
 
-	"bool": BOOL_TYPE,
+	"rawptr": RAWPTR_TYPE,
+	"bool":   BOOL_TYPE,
 
 	"int": INT_TYPE,
 	"i8":  I8_TYPE,
@@ -243,6 +248,10 @@ func (k Kind) String() string {
 		return "use"
 	case DEFER:
 		return "defer"
+	case STRUCT:
+		return "struct"
+	case RAWPTR_TYPE:
+		return "rawptr"
 	case BOOL_TYPE:
 		return "bool"
 	case UNTYPED_FLOAT:
@@ -299,6 +308,8 @@ func (k Kind) String() string {
 		return "]"
 	case COMMA:
 		return ","
+	case COLON:
+		return ":"
 	case SEMICOLON:
 		return ";"
 	case DOT:

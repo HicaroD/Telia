@@ -13,6 +13,7 @@ const (
 	KIND_PKG_DECL
 	KIND_USE_DECL
 	KIND_TYPE_ALIAS_DECL
+	KIND_STRUCT_DECL
 
 	DECL_END // declaration node end delimiter
 
@@ -27,6 +28,7 @@ const (
 	KIND_FOR_LOOP_STMT
 	KIND_WHILE_LOOP_STMT
 	KIND_DEFER_STMT
+	KIND_FIELD_ACCESS
 
 	EXPR_START // expression node start delimiter
 
@@ -41,12 +43,14 @@ const (
 	KIND_ID_EXPR
 	KIND_UNARY_EXPR
 	KIND_BINARY_EXPR
-	KIND_TUPLE_EXPR
+	KIND_TUPLE_LITERAL_EXPR
+	KIND_STRUCT_LITERAL_EXPR
 
 	EXPR_END // expression node start delimiter
 
 	KIND_PACKAGE
 	KIND_FIELD
+	KIND_STRUCT_FIELD
 	KIND_PROTO
 )
 
@@ -91,6 +95,8 @@ func (n *Node) String() string {
 		return "KIND_USE_DECL"
 	case KIND_TYPE_ALIAS_DECL:
 		return "KIND_TYPE_ALIAS_DECL"
+	case KIND_STRUCT_DECL:
+		return "KIND_STRUCT_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
 	case KIND_VAR_ID_STMT:
@@ -111,6 +117,8 @@ func (n *Node) String() string {
 		return "KIND_WHILE_LOOP_STMT"
 	case KIND_DEFER_STMT:
 		return "KIND_DEFER_STMT"
+	case KIND_FIELD_ACCESS:
+		return "KIND_FIELD_ACCESS_STMT"
 	case KIND_FN_CALL:
 		return "KIND_FN_CALL"
 	case KIND_NAMESPACE_ACCESS:
@@ -127,10 +135,12 @@ func (n *Node) String() string {
 		return "KIND_UNARY_EXPR"
 	case KIND_BINARY_EXPR:
 		return "KIND_BINARY_EXPR"
-	case KIND_TUPLE_EXPR:
-		return "KIND_TUPLE_EXPR"
+	case KIND_TUPLE_LITERAL_EXPR:
+		return "KIND_TUPLE_LITERAL_EXPR"
 	case KIND_FIELD:
 		return "KIND_FIELD"
+	case KIND_STRUCT_FIELD:
+		return "KIND_STRUCT_FIELD"
 	case KIND_PROTO:
 		return "KIND_PROTO"
 	default:

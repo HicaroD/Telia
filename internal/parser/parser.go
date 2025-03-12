@@ -31,8 +31,8 @@ func New(collector *diagnostics.Collector) *Parser {
 	parser.pkg = nil
 	parser.file = nil
 	parser.imports = make(map[string]*ast.Package)
-	parser.collector = collector
 	parser.processing = make(map[string]bool)
+	parser.collector = collector
 	return parser
 }
 
@@ -230,7 +230,6 @@ func (p *Parser) processPackageFiles(path string, handler func(entry os.DirEntry
 func (p *Parser) next(file *ast.File) (*ast.Node, bool, error) {
 	var err error
 	var attributes *ast.Attributes
-	var attributesFound bool
 	var eof bool
 
 peekAgain:
@@ -242,15 +241,10 @@ peekAgain:
 		eof = true
 		return nil, eof, nil
 	case token.SHARP:
-		// TODO(errors)
-		if attributesFound {
-			return nil, eof, fmt.Errorf("attributes already defined\n")
-		}
 		attributes, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
 		}
-		attributesFound = true
 		goto peekAgain
 	}
 
@@ -283,11 +277,18 @@ peekAgain:
 	case token.EXTERN:
 		externDecl, err := p.parseExternDecl(attributes)
 		file.AnyDeclNodeFound = true
+		attributes = nil
 		return externDecl, eof, err
 	case token.FN:
 		fnDecl, err := p.parseFnDecl(attributes)
 		file.AnyDeclNodeFound = true
+		attributes = nil
 		return fnDecl, eof, err
+	case token.STRUCT:
+		st, err := p.parseStruct(attributes)
+		file.AnyDeclNodeFound = true
+		attributes = nil
+		return st, eof, err
 	default:
 		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
@@ -381,6 +382,11 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 			return nil, fmt.Errorf("expected closing bracket")
 		}
 
+		_, ok = p.expect(token.NEWLINE)
+		if !ok {
+			return nil, fmt.Errorf("expected new line after the end of attribute")
+		}
+
 		if !p.lex.NextIs(token.SHARP) {
 			break
 		}
@@ -393,7 +399,6 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	externDecl := new(ast.ExternDecl)
 	if attributes != nil {
 		externDecl.Attributes = attributes
-		attributes = nil
 	}
 
 	ext, ok := p.expect(token.EXTERN)
@@ -466,15 +471,15 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 			break
 		}
 
-		var attributes *ast.Attributes
+		var protoAttributes *ast.Attributes
 		if p.lex.NextIs(token.SHARP) {
-			attributes, err = p.parseAttributes()
+			protoAttributes, err = p.parseAttributes()
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		proto, err := p.parsePrototype(attributes)
+		proto, err := p.parsePrototype(protoAttributes)
 		if err != nil {
 			return nil, err
 		}
@@ -664,11 +669,104 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 	return nil, nil
 }
 
+func (p *Parser) parseStruct(attributes *ast.Attributes) (*ast.Node, error) {
+	n := new(ast.Node)
+	n.Kind = ast.KIND_STRUCT_DECL
+
+	st := new(ast.StructDecl)
+
+	if attributes != nil {
+		st.Attributes = attributes
+	}
+
+	structKw, ok := p.expect(token.STRUCT)
+	if !ok {
+		return nil, fmt.Errorf("expected struct keyword, not %s\n", structKw.Name())
+	}
+
+	name, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected struct name, not %s\n", structKw.Name())
+	}
+	st.Name = name
+
+	fields, err := p.parseStructFields()
+	if err != nil {
+		return nil, err
+	}
+	st.Fields = fields
+	n.Node = st
+
+	err = p.pkg.Scope.Insert(name.Name(), n)
+	// TODO(errors): struct already defined on package
+	if err != nil {
+		return nil, err
+	}
+
+	return n, nil
+}
+
+func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
+	fields := make([]*ast.StructField, 0)
+
+	tk, ok := p.expect(token.OPEN_CURLY)
+	if !ok {
+		return nil, fmt.Errorf("expected open curly, not %s\n", tk.Name())
+	}
+
+	_, ok = p.expect(token.NEWLINE)
+	if !ok {
+		return nil, fmt.Errorf("expected new line after open curly, not %s\n", tk.Name())
+	}
+
+	index := 0
+	for {
+		field := new(ast.StructField)
+
+		name, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected struct field name, not %s\n", name.Name())
+		}
+		field.Name = name
+
+		ty, err := p.parseExprType()
+		if err != nil {
+			return nil, err
+		}
+		field.Type = ty
+
+		_, ok = p.expect(token.NEWLINE)
+		if !ok {
+			return nil, fmt.Errorf("expected new line, not %s\n", name.Name())
+		}
+
+		field.Index = index
+		index++
+		fields = append(fields, field)
+
+		if p.lex.NextIs(token.CLOSE_CURLY) {
+			break
+		}
+	}
+
+	tk, ok = p.expect(token.CLOSE_CURLY)
+	if !ok {
+		return nil, fmt.Errorf("expected close curly, not %s\n", tk.Name())
+	}
+
+	_, ok = p.expect(token.NEWLINE)
+	if !ok {
+		return nil, fmt.Errorf("expected new line after close curly, not %s\n", tk.Name())
+	}
+
+	return fields, nil
+}
+
 func (p *Parser) parseTypeAlias() (*ast.Node, error) {
-	pkg, ok := p.expect(token.TYPE)
+	tyKw, ok := p.expect(token.TYPE)
 	// TODO(errors)
 	if !ok {
-		return nil, fmt.Errorf("expected 'type' keyword, not %s\n", pkg.Kind.String())
+		return nil, fmt.Errorf("expected 'type' keyword, not %s\n", tyKw.Kind.String())
 	}
 
 	name, ok := p.expect(token.ID)
@@ -719,7 +817,6 @@ func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) 
 	prototype := new(ast.Proto)
 	if attributes != nil {
 		prototype.Attributes = attributes
-		attributes = nil
 	}
 
 	fn, ok := p.expect(token.FN)
@@ -792,7 +889,6 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 
 	if attributes != nil {
 		fnDecl.Attributes = attributes
-		attributes = nil
 	}
 
 	_, ok := p.expect(token.FN)
@@ -1134,6 +1230,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
+
 		symbol, err := p.pkg.Scope.LookupAcrossScopes(tok.Name())
 		// TODO(errors)
 		if err != nil {
@@ -1141,14 +1238,17 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
 			}
 		}
-		// TODO: add more id types, such as struct
 
-		if symbol.Kind == ast.KIND_TYPE_ALIAS_DECL {
+		switch symbol.Kind {
+		case ast.KIND_TYPE_ALIAS_DECL:
 			alias := symbol.Node.(*ast.TypeAlias)
 			return alias.Type, nil
+		case ast.KIND_STRUCT_DECL:
+			t.Kind = ast.EXPR_TYPE_STRUCT
+			t.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
+			return t, nil
 		}
 
-		// NOTE: I think ast.IdType won't be necessary anymore
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
 	case token.OPEN_PAREN:
@@ -1365,32 +1465,47 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.COLON_COLON:
 		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccessing, err
-	case token.DOT:
-		return nil, fmt.Errorf("unimplemented field access with dot")
 	default:
 		return p.parseVar(parentScope)
 	}
 }
 
 func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
-	variables := make([]*ast.VarId, 0)
+	variables := make([]*ast.Node, 0)
 	isDecl := false
+	hasFieldAccess := false
 
 VarDecl:
 	for {
-		name, ok := p.expect(token.ID)
-		// TODO(errors): add proper error
-		if !ok {
-			return nil, fmt.Errorf("expected ID")
-		}
+		isFieldAccess := p.lex.Peek1().Kind == token.DOT
+		var currentVar *ast.Node
 
-		variable := &ast.VarId{
-			Name:           name,
-			NeedsInference: true,
-			Type:           nil,
-			BackendType:    nil,
+		if isFieldAccess {
+			hasFieldAccess = true
+			fieldAccess, err := p.parseFieldAccess()
+			if err != nil {
+				return nil, err
+			}
+			currentVar = fieldAccess
+		} else {
+			name, ok := p.expect(token.ID)
+			// TODO(errors): add proper error
+			if !ok {
+				return nil, fmt.Errorf("expected ID")
+			}
+			variable := &ast.VarIdStmt{
+				Name:           name,
+				NeedsInference: true,
+				Type:           nil,
+				BackendType:    nil,
+			}
+
+			n := new(ast.Node)
+			n.Kind = ast.KIND_VAR_ID_STMT
+			n.Node = variable
+			currentVar = n
 		}
-		variables = append(variables, variable)
+		variables = append(variables, currentVar)
 
 		next := p.lex.Peek()
 		switch next.Kind {
@@ -1399,7 +1514,7 @@ VarDecl:
 			isDecl = next.Kind == token.COLON_EQUAL
 			break VarDecl
 		case token.COMMA:
-			p.lex.Skip()
+			p.lex.Skip() // ,
 			continue
 		}
 
@@ -1407,8 +1522,16 @@ VarDecl:
 		if err != nil {
 			return nil, err
 		}
-		variable.Type = ty
-		variable.NeedsInference = false
+
+		if !isFieldAccess {
+			fmt.Println("since it is not a field access, use the current expression type")
+			variable := currentVar.Node.(*ast.VarIdStmt)
+			variable.Type = ty
+			variable.NeedsInference = false
+		} else {
+			fmt.Println("it is a field access and you tried to add a type to it, you actually can't do that")
+			return nil, fmt.Errorf("type is not allowed on field access")
+		}
 
 		next = p.lex.Peek()
 		switch next.Kind {
@@ -1429,12 +1552,12 @@ VarDecl:
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_VAR_STMT
-	n.Node = &ast.VarStmt{IsDecl: isDecl, Names: variables, Expr: expr}
+	n.Node = &ast.VarStmt{IsDecl: isDecl, HasFieldAccess: hasFieldAccess, Names: variables, Expr: expr}
 	return n, nil
 }
 
 // Useful for testing
-func parseVarFrom(filename, input string) (*ast.VarId, error) {
+func parseVarFrom(filename, input string) (*ast.VarIdStmt, error) {
 	collector := diagnostics.New()
 
 	src := []byte(input)
@@ -1448,7 +1571,7 @@ func parseVarFrom(filename, input string) (*ast.VarId, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stmt.Node.(*ast.VarId), nil
+	return stmt.Node.(*ast.VarIdStmt), nil
 }
 
 func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
@@ -1565,7 +1688,7 @@ func (p *Parser) parseAnyExpr(possibleEnds []token.Kind, parentScope *ast.Scope)
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_TUPLE_EXPR
+	n.Kind = ast.KIND_TUPLE_LITERAL_EXPR
 	n.Node = &ast.TupleExpr{Exprs: exprs}
 	return n, nil
 }
@@ -1760,22 +1883,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 	tok := p.lex.Peek()
 	switch tok.Kind {
 	case token.ID:
-		idExpr := &ast.IdExpr{Name: tok}
-
-		next := p.lex.Peek1()
-		switch next.Kind {
-		case token.OPEN_PAREN:
-			return p.parseFnCall(parentScope)
-		case token.DOT, token.COLON_COLON:
-			fieldAccess, err := p.parseNamespaceAccess(parentScope)
-			return fieldAccess, err
-		}
-
-		p.lex.Skip()
-
-		n.Kind = ast.KIND_ID_EXPR
-		n.Node = idExpr
-		return n, nil
+		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
 		expr, err := p.parseSingleExpr(parentScope)
@@ -1806,6 +1914,35 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			tok.Pos,
 		)
 	}
+}
+
+func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	n := new(ast.Node)
+	tok := p.lex.Peek()
+	if tok.Kind != token.ID {
+		return nil, fmt.Errorf("expected identifier, not %s\n", tok.Kind)
+	}
+	idExpr := &ast.IdExpr{Name: tok}
+
+	next := p.lex.Peek1()
+	switch next.Kind {
+	case token.OPEN_PAREN:
+		return p.parseFnCall(parentScope)
+	case token.COLON_COLON:
+		fieldAccess, err := p.parseNamespaceAccess(parentScope)
+		return fieldAccess, err
+	case token.OPEN_CURLY:
+		structLiteral, err := p.parseStructLiteralExpr(parentScope)
+		return structLiteral, err
+	case token.DOT:
+		return p.parseFieldAccess()
+	}
+
+	p.lex.Skip()
+
+	n.Kind = ast.KIND_ID_EXPR
+	n.Node = idExpr
+	return n, nil
 }
 
 func (p *Parser) parseExprList(possibleEnds []token.Kind, parentScope *ast.Scope) ([]*ast.Node, error) {
@@ -1849,10 +1986,10 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, err
 	}
 
-	_, ok = parser.expect(token.CLOSE_PAREN)
+	cp, ok := parser.expect(token.CLOSE_PAREN)
 	// TODO(errors): add proper error
 	if !ok {
-		return nil, fmt.Errorf("expected ')'")
+		return nil, fmt.Errorf("%s error: expected closing parenthesis, not %s\n", cp.Pos, cp.Kind)
 	}
 
 	var atOp *ast.AtOperator
@@ -1870,33 +2007,136 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 }
 
 func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error) {
-	id, ok := p.expect(token.ID)
+	ahead := p.lex.Peek1()
+	switch ahead.Kind {
+	case token.OPEN_PAREN:
+		return p.parseFnCall(parentScope)
+	case token.OPEN_CURLY:
+		return p.parseStructLiteralExpr(parentScope)
+	}
+
+	tk, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected identifier for namespace access")
+	}
+
+	_, lookupErr := parentScope.LookupAcrossScopes(tk.Name())
+	_, isImport := p.file.Imports[tk.Name()]
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_ID_EXPR
+	id := &ast.IdExpr{Name: tk}
+	n.Node = id
+
+	if _, ok = p.expect(token.COLON_COLON); ok {
+		access := new(ast.NamespaceAccess)
+		access.Left = id
+		access.Right = nil
+		access.IsImport = isImport && lookupErr != nil
+
+		right, err := p.parseNamespaceAccess(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		access.Right = right
+
+		n.Kind = ast.KIND_NAMESPACE_ACCESS
+		n.Node = access
+	}
+
+	return n, nil
+}
+
+func (p *Parser) parseFieldAccess() (*ast.Node, error) {
+	n := new(ast.Node)
+	n.Kind = ast.KIND_ID_EXPR
+
+	tk, ok := p.expect(token.ID)
+	if !ok {
+		return nil, fmt.Errorf("expected identifier for field accessing")
+	}
+	id := &ast.IdExpr{Name: tk}
+	n.Node = id
+
+	if _, ok := p.expect(token.DOT); ok {
+		access := new(ast.FieldAccess)
+		access.Left = id
+		access.Right = nil
+
+		right, err := p.parseFieldAccess()
+		if err != nil {
+			return nil, err
+		}
+		access.Right = right
+
+		n.Kind = ast.KIND_FIELD_ACCESS
+		n.Node = access
+	}
+
+	return n, nil
+}
+
+func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	expr := new(ast.StructLiteralExpr)
+	values := make([]*ast.StructFieldValue, 0)
+
+	p.lex.StrictNewline = false
+	defer func() {
+		p.lex.StrictNewline = true
+	}()
+
+	name, ok := p.expect(token.ID)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("error: expected ID")
 	}
+	expr.Name = name
 
-	_, lookupErr := parentScope.LookupAcrossScopes(id.Name())
-	_, isImport := p.file.Imports[id.Name()]
+	openCurly, ok := p.expect(token.OPEN_CURLY)
+	// TODO(errors): add proper error
+	if !ok {
+		return nil, fmt.Errorf("error: expected open curly, got %s\n", openCurly.Kind.String())
+	}
 
-	p.lex.Skip() // ::
+	// TODO: deal with default field values
+	for {
+		if p.lex.NextIs(token.CLOSE_CURLY) {
+			break
+		}
 
-	right, err := p.parsePrimary(parentScope)
-	if err != nil {
-		log.Fatal(err)
+		name, ok := p.expect(token.ID)
+		if !ok {
+			return nil, fmt.Errorf("expected struct field name, not %s\n", name)
+		}
+
+		colon, ok := p.expect(token.COLON)
+		if !ok {
+			return nil, fmt.Errorf("expected colon, not %s\n", colon)
+		}
+
+		value, err := p.parseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, &ast.StructFieldValue{Name: name, Value: value})
+
+		if p.lex.NextIs(token.COMMA) {
+			p.lex.Skip() // ,
+		}
+	}
+
+	expr.Values = values
+
+	closeCurly, ok := p.expect(token.CLOSE_CURLY)
+	// TODO(errors): add proper error
+	if !ok {
+		return nil, fmt.Errorf("error: expected close curly, got %s\n", closeCurly.Kind.String())
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_NAMESPACE_ACCESS
-
-	access := new(ast.NamespaceAccess)
-	// NOTE: it is an import when I found it in the import list and there is no
-	// symbol with the same name in the parent scope
-	access.IsImport = isImport && lookupErr != nil
-	access.Left = &ast.IdExpr{Name: id}
-	access.Right = right
-
-	n.Node = access
+	n.Kind = ast.KIND_STRUCT_LITERAL_EXPR
+	n.Node = expr
 	return n, nil
 }
 

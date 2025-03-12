@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"unicode"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -15,8 +14,9 @@ import (
 const eof = '\000'
 
 type Lexer struct {
-	Loc       *ast.Loc
-	Collector *diagnostics.Collector
+	Loc           *ast.Loc
+	Collector     *diagnostics.Collector
+	StrictNewline bool
 
 	src    []byte
 	offset int
@@ -27,36 +27,13 @@ func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer := new(Lexer)
 
 	lexer.Loc = loc
-	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.Collector = collector
+	lexer.StrictNewline = true
+	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.src = src
 	lexer.offset = 0
 
 	return lexer
-}
-
-func FilePosFromPath(path string) token.Pos {
-	fullPath, err := filepath.Abs(path)
-	// TODO(errors)
-	if err != nil {
-		log.Fatalf("Error getting absolute path: %v\n", err)
-	}
-
-	info, err := os.Stat(fullPath)
-	// TODO(errors)
-	if err != nil {
-		log.Fatalf("Error stating the path: %v\n", err)
-	}
-
-	// TODO(errors)
-	if !info.Mode().IsRegular() {
-		log.Fatalf("path is not a file: %s\n", path)
-	}
-
-	dirName := filepath.Dir(fullPath)
-	fileName := filepath.Base(fullPath)
-
-	return token.Pos{Dir: dirName, Filename: fileName, Line: 1, Column: 1}
 }
 
 func NewFromFilePath(loc *ast.Loc, collector *diagnostics.Collector) (*Lexer, error) {
@@ -138,6 +115,8 @@ func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 }
 
 func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
+	tok.Pos = lex.pos
+
 	switch ch {
 	case '\n':
 		lex.consumeTokenNoLex(tok, token.NEWLINE)
@@ -189,7 +168,6 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.consumeTokenNoLex(tok, token.CLOSE_BRACKET)
 		lex.nextChar()
 	case '!':
-		tok.Pos = lex.pos
 		lex.nextChar()
 
 		invalidCharacter := diagnostics.Diag{
@@ -268,23 +246,10 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		tok.Kind = token.DOT_DOT_DOT
 	case ':':
 		tok.Pos = lex.pos
+		tok.Kind = token.COLON
 		lex.nextChar() // :
 
-		invalidCharacter := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: invalid character :",
-				tok.Pos.Filename,
-				tok.Pos.Line,
-				tok.Pos.Column,
-			),
-		}
-
 		next := lex.peekChar()
-		if next == eof {
-			lex.Collector.ReportAndSave(invalidCharacter)
-			return tok
-		}
-
 		if next == '=' {
 			lex.nextChar() // =
 			tok.Kind = token.COLON_EQUAL
@@ -294,8 +259,6 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			tok.Kind = token.COLON_COLON
 			break
 		}
-
-		lex.Collector.ReportAndSave(invalidCharacter)
 	default:
 		if unicode.IsLetter(rune(ch)) || ch == '_' {
 			lex.getIdOrKeyword(tok)
@@ -422,7 +385,9 @@ func (lex *Lexer) consumeTokenNoLex(tok *token.Token, kind token.Kind) {
 }
 
 func (lex *Lexer) skipWhitespace() {
-	lex.readWhile(func(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\r' })
+	lex.readWhile(func(ch byte) bool {
+		return ch == ' ' || ch == '\t' || ch == '\r' || (ch == '\n' && !lex.StrictNewline)
+	})
 }
 
 func (lex *Lexer) readWhile(isValid func(byte) bool) []byte {
