@@ -112,7 +112,7 @@ func (c *codegen) generateFnSignature(fnDecl *ast.FnDecl) {
 func (c *codegen) generateFnBody(fnDecl *ast.FnDecl) {
 	fn := c.module.NamedFunction(fnDecl.Name.Name())
 	if fn.IsNil() {
-		panic("function is nil")
+		panic("function is nil when generating fn body")
 	}
 	body := c.context.AddBasicBlock(fn, "entry")
 	c.builder.SetInsertPointAtEnd(body)
@@ -386,7 +386,7 @@ func (c *codegen) generateFnCall(call *ast.FnCall) llvm.Value {
 	args := c.getCallArgs(call)
 	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
-		panic("function is NULL")
+		panic("function is nil when generating function call")
 	}
 	return c.builder.CreateCall(fn.GlobalValueType(), fn, args, "")
 }
@@ -428,8 +428,8 @@ func (c *codegen) generateFieldAccessExpr(fieldAccess *ast.FieldAccess) llvm.Val
 }
 
 func (c *codegen) generateExternDecl(external *ast.ExternDecl) {
-	for i := range external.Prototypes {
-		c.generatePrototype(external.Attributes, external.Prototypes[i])
+	for _, proto := range external.Prototypes {
+		c.generatePrototype(proto.Attributes, proto)
 	}
 }
 
@@ -441,17 +441,24 @@ func (c *codegen) generateStructDecl(st *ast.StructDecl) {
 	structTy.StructSetBody(fields, packed)
 }
 
-func (c *codegen) generatePrototype(attributes *ast.Attributes, prototype *ast.Proto) {
+func (c *codegen) generatePrototype(externAttributes *ast.Attributes, prototype *ast.Proto) {
 	returnTy := c.getType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
-	if attributes != nil {
-		protoValue.SetFunctionCallConv(c.getCallingConvention(attributes.DefaultCallingConvention))
+	if externAttributes != nil {
+		protoValue.SetFunctionCallConv(c.getCallingConvention(externAttributes.DefaultCallingConvention))
 	}
-	if prototype.Attributes != nil {
+	if prototype.Attributes == nil {
+		return
+	}
+
+	if prototype.Attributes.DefaultCallingConvention != "" {
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
+	}
+	if prototype.Attributes.LinkName != "" {
+		protoValue.SetName(externAttributes.LinkName)
 	}
 }
 
@@ -463,7 +470,7 @@ func (c *codegen) getFunctionLinkage(linkage string) llvm.Linkage {
 	// Make sure to choose the perfect match
 	case "weak":
 		return llvm.WeakAnyLinkage
-	// NOTE: there are several types of link once linkage
+	// NOTE: there are several types of link_once linkage
 	// Makesure to choose the perfect match
 	case "link_once":
 		return llvm.LinkOnceAnyLinkage
@@ -892,8 +899,11 @@ func (c *codegen) generateImportAccess(right *ast.Node) llvm.Value {
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
 		return c.generateNamespaceAccess(namespaceAccess)
+	case ast.KIND_STRUCT_LITERAL_EXPR:
+		stLit := right.Node.(*ast.StructLiteralExpr)
+		return c.generateStructLiteral(stLit)
 	default:
-		panic("unimplemented import access")
+		panic(fmt.Sprintf("unimplemented import access: %v\n", right.Kind))
 	}
 }
 

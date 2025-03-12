@@ -9,5 +9,6 @@ fn main() i32 {
   user := utils::User{
     name: "Hicaro"
   }
+  io::println(user.name)
   return 0
 }

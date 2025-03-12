@@ -1122,16 +1122,21 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	if stLit.Name.Name() != st.Decl.Name.Name() {
 		return nil, fmt.Errorf("struct type mismatch, expected %s, got %s\n", st.Decl.Name.Name(), stLit.Name.Name())
 	}
-	for i, field := range st.Decl.Fields {
+	for _, field := range st.Decl.Fields {
 		var currentField *ast.StructFieldValue
-		for _, val := range stLit.Values {
-			if val.Index == i {
-				currentField = val
+		var litFieldName *token.Token
+
+		fieldFoundOnStructLiteral := false
+		for _, literalField := range stLit.Values {
+			if literalField.Name.Name() == field.Name.Name() {
+				currentField = literalField
+				litFieldName = field.Name
+				fieldFoundOnStructLiteral = true
+				break
 			}
 		}
-		// TODO(errors)
-		if currentField == nil {
-			panic("currentField is nil, deal with this")
+		if !fieldFoundOnStructLiteral {
+			return nil, fmt.Errorf("field %s does not exist in the struct\n", litFieldName.Name())
 		}
 
 		_, err := sema.inferExprTypeWithContext(
@@ -1146,6 +1151,7 @@ func (sema *sema) inferStructLiteralExprWithContext(
 			return nil, err
 		}
 	}
+
 	return expectedType, nil
 }
 
@@ -1483,6 +1489,10 @@ func (sema *sema) checkImportAccess(node *ast.Node, referenceScope *ast.Scope, d
 		return ty, err
 	case ast.KIND_EXTERN_DECL:
 		return nil, fmt.Errorf("nothing do with a extern declaration, try accessing a prototype")
+	case ast.KIND_STRUCT_LITERAL_EXPR:
+		stLit := node.Node.(*ast.StructLiteralExpr)
+		ty, _, err := sema.inferStructLiteralExprWithoutContext(stLit, referenceScope, declScope, fromImportPackage)
+		return ty, err
 	default:
 		return nil, fmt.Errorf("unimplemented symbol to import: %s\n", node.Kind)
 	}

@@ -230,7 +230,6 @@ func (p *Parser) processPackageFiles(path string, handler func(entry os.DirEntry
 func (p *Parser) next(file *ast.File) (*ast.Node, bool, error) {
 	var err error
 	var attributes *ast.Attributes
-	var attributesFound bool
 	var eof bool
 
 peekAgain:
@@ -242,15 +241,10 @@ peekAgain:
 		eof = true
 		return nil, eof, nil
 	case token.SHARP:
-		// TODO(errors)
-		if attributesFound {
-			return nil, eof, fmt.Errorf("attributes already defined\n")
-		}
 		attributes, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
 		}
-		attributesFound = true
 		goto peekAgain
 	}
 
@@ -283,14 +277,17 @@ peekAgain:
 	case token.EXTERN:
 		externDecl, err := p.parseExternDecl(attributes)
 		file.AnyDeclNodeFound = true
+		attributes = nil
 		return externDecl, eof, err
 	case token.FN:
 		fnDecl, err := p.parseFnDecl(attributes)
 		file.AnyDeclNodeFound = true
+		attributes = nil
 		return fnDecl, eof, err
 	case token.STRUCT:
 		st, err := p.parseStruct(attributes)
 		file.AnyDeclNodeFound = true
+		attributes = nil
 		return st, eof, err
 	default:
 		pos := tok.Pos
@@ -385,6 +382,11 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 			return nil, fmt.Errorf("expected closing bracket")
 		}
 
+		_, ok = p.expect(token.NEWLINE)
+		if !ok {
+			return nil, fmt.Errorf("expected new line after the end of attribute")
+		}
+
 		if !p.lex.NextIs(token.SHARP) {
 			break
 		}
@@ -397,7 +399,6 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 	externDecl := new(ast.ExternDecl)
 	if attributes != nil {
 		externDecl.Attributes = attributes
-		attributes = nil
 	}
 
 	ext, ok := p.expect(token.EXTERN)
@@ -470,15 +471,15 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 			break
 		}
 
-		var attributes *ast.Attributes
+		var protoAttributes *ast.Attributes
 		if p.lex.NextIs(token.SHARP) {
-			attributes, err = p.parseAttributes()
+			protoAttributes, err = p.parseAttributes()
 			if err != nil {
 				return nil, err
 			}
 		}
 
-		proto, err := p.parsePrototype(attributes)
+		proto, err := p.parsePrototype(protoAttributes)
 		if err != nil {
 			return nil, err
 		}
@@ -816,7 +817,6 @@ func (p *Parser) parsePrototype(attributes *ast.Attributes) (*ast.Proto, error) 
 	prototype := new(ast.Proto)
 	if attributes != nil {
 		prototype.Attributes = attributes
-		attributes = nil
 	}
 
 	fn, ok := p.expect(token.FN)
@@ -889,7 +889,6 @@ func (p *Parser) parseFnDecl(attributes *ast.Attributes) (*ast.Node, error) {
 
 	if attributes != nil {
 		fnDecl.Attributes = attributes
-		attributes = nil
 	}
 
 	_, ok := p.expect(token.FN)
@@ -2093,15 +2092,6 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	}
 	expr.Name = name
 
-	symbol, err := parentScope.LookupAcrossScopes(name.Name())
-	if err != nil {
-		return nil, err
-	}
-	if symbol.Kind != ast.KIND_STRUCT_DECL {
-		return nil, fmt.Errorf("expected struct, not %s\n", symbol.Node)
-	}
-	st := symbol.Node.(*ast.StructDecl)
-
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	// TODO(errors): add proper error
 	if !ok {
@@ -2119,20 +2109,6 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 			return nil, fmt.Errorf("expected struct field name, not %s\n", name)
 		}
 
-		// TODO: make sure field exists in the current struct
-		index := 0
-		fieldFound := false
-		for i, field := range st.Fields {
-			if field.Name.Name() == name.Name() {
-				index = i
-				fieldFound = true
-				break
-			}
-		}
-		if !fieldFound {
-			return nil, fmt.Errorf("field %s does not exist in the struct\n", name.Name())
-		}
-
 		colon, ok := p.expect(token.COLON)
 		if !ok {
 			return nil, fmt.Errorf("expected colon, not %s\n", colon)
@@ -2143,7 +2119,7 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 			return nil, err
 		}
 
-		values = append(values, &ast.StructFieldValue{Name: name, Index: index, Value: value})
+		values = append(values, &ast.StructFieldValue{Name: name, Value: value})
 
 		if p.lex.NextIs(token.COMMA) {
 			p.lex.Skip() // ,
