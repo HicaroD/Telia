@@ -283,9 +283,12 @@ func (c *codegen) generateVarDecl(
 	variable := name.Node.(*ast.VarIdStmt)
 	ty = c.getType(variable.Type)
 
-	if expr.Kind == ast.KIND_STRUCT_LITERAL_EXPR {
+	switch expr.Kind {
+	case ast.KIND_STRUCT_LITERAL_EXPR:
 		ptr = c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr))
-	} else {
+	case ast.KIND_NAMESPACE_ACCESS:
+		ptr = c.generateNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
+	default:
 		ptr = c.builder.CreateAlloca(ty, ".ptr")
 		generatedExpr, _, _ := c.getExpr(expr)
 		c.builder.CreateStore(generatedExpr, ptr)
