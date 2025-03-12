@@ -213,7 +213,9 @@ func (p *Parser) buildPackage(pkg *ast.Package) error {
 	})
 }
 
-func (p *Parser) processPackageFiles(path string, handler func(entry os.DirEntry, fullPath string) error) error {
+type PathHandler func(entry os.DirEntry, fullPath string) error
+
+func (p *Parser) processPackageFiles(path string, handler PathHandler) error {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory %q: %w", path, err)

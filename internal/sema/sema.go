@@ -60,6 +60,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 
 	hasMainMethod := false
 	requiresMainMethod := false
+	mainPackageFound := false
 
 	for _, file := range pkg.Files {
 		prevFile := s.file
@@ -76,10 +77,9 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 
 		if file.PkgName == "main" {
 			if s.mainPackageFound {
-				// TODO(errors)
 				return fmt.Errorf("error: main package already defined somewhere else")
 			}
-			s.mainPackageFound = true
+			mainPackageFound = true
 			requiresMainMethod = true
 		}
 
@@ -97,6 +97,8 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 		}
 		hasMainMethod = hasMainMethod || fileHasMain
 	}
+
+	s.mainPackageFound = mainPackageFound
 
 	// TODO(errors)
 	if requiresMainMethod && !hasMainMethod {
