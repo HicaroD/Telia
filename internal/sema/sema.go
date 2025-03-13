@@ -75,6 +75,10 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 			}
 		}
 
+		if mainPackageFound && file.PkgName != "main" {
+			return fmt.Errorf("expected package name to be 'main', but got %s\n", file.PkgName)
+		}
+
 		if file.PkgName == "main" {
 			if s.mainPackageFound {
 				return fmt.Errorf("error: main package already defined somewhere else")
@@ -97,8 +101,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 		}
 		hasMainMethod = hasMainMethod || fileHasMain
 	}
-
-	s.mainPackageFound = mainPackageFound
+	s.mainPackageFound = s.mainPackageFound || mainPackageFound
 
 	// TODO(errors)
 	if requiresMainMethod && !hasMainMethod {
@@ -164,6 +167,8 @@ func (sema *sema) checkExternAttributes(attributes *ast.Attributes) error {
 	if attributes.Linkage != "" {
 		return fmt.Errorf("'linkage' is not a valid attribute for extern declaration\n")
 	}
+
+	// TODO: check linkage
 
 	ccFound := false
 	for _, cc := range VALID_CALLING_CONVENTIONS {
