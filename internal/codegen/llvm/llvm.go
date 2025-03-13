@@ -310,11 +310,17 @@ func (c *codegen) generateVarReassign(
 
 	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		node := name.Node.(*ast.VarIdStmt)
-		varPtr = node.BackendType.(*Variable).Ptr
-	case ast.KIND_FIELD:
-		node := name.Node.(*ast.Param)
-		varPtr = node.BackendType.(*Variable).Ptr
+		varId := name.Node.(*ast.VarIdStmt)
+		switch varId.N.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			variable := varId.N.Node.(*ast.VarIdStmt)
+			varPtr = variable.BackendType.(*Variable).Ptr
+		case ast.KIND_FIELD:
+			param := varId.N.Node.(*ast.Param)
+			varPtr = param.BackendType.(*Variable).Ptr
+		default:
+			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
+		}
 	case ast.KIND_FIELD_ACCESS:
 		node := name.Node.(*ast.FieldAccess)
 		varPtr = c.getStructFieldPtr(node)
