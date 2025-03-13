@@ -717,7 +717,8 @@ func (sema *sema) checkFnCall(
 	if symbol.Kind == ast.KIND_PROTO {
 		proto := symbol.Node.(*ast.Proto)
 		fnCall.Proto = proto
-		return proto.RetType, nil
+		err := sema.checkFnCallArgs(fnCall, proto.Params, referenceScope, declScope, fromImportPackage)
+		return proto.RetType, err
 	} else {
 		fnDecl := symbol.Node.(*ast.FnDecl)
 		fnCall.Decl = fnDecl
