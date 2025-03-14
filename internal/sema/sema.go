@@ -751,6 +751,25 @@ func (sema *sema) checkFnCallArgs(fnCall *ast.FnCall, params *ast.Params, refere
 		return diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	if !params.IsVariadic && len(fnCall.Args) != params.Len {
+		pos := fnCall.Name.Pos
+		// TODO(errors): show which arguments were passed and which types we
+		// were expecting
+		notEnoughArguments := diagnostics.Diag{
+			Message: fmt.Sprintf(
+				"%s:%d:%d: not enough arguments in call to '%s', expected %d arguments, but got %d arguments",
+				pos.Filename,
+				pos.Line,
+				pos.Column,
+				fnCall.Name.Name(),
+				params.Len,
+				len(fnCall.Args),
+			),
+		}
+		sema.collector.ReportAndSave(notEnoughArguments)
+		return diagnostics.COMPILER_ERROR_FOUND
+	}
+
 	requiredArgs := slices.Clone(fnCall.Args[:params.Len])
 	variadicArgs := slices.Clone(fnCall.Args[params.Len:])
 

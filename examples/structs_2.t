@@ -14,5 +14,8 @@ fn main() {
   }
   user.name = "Hicro"
   io::libc::puts(user.name)
+
+  number i32 := 10
+  val := number.other
   return
 }
