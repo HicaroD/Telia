@@ -102,12 +102,14 @@ const (
 
 	AND
 	OR
+	CMP_OP_START // comparison op start delimiter
 	BANG_EQUAL
 	EQUAL_EQUAL
 	GREATER
 	GREATER_EQ
 	LESS
 	LESS_EQ
+	CMP_OP_END // comparison op end delimiter
 
 	LOGICAL_OP_END // logical op end delimiter
 
@@ -212,6 +214,10 @@ func (k Kind) IsStringType() bool {
 
 func (k Kind) IsLogicalOp() bool {
 	return k > LOGICAL_OP_START && k < LOGICAL_OP_END
+}
+
+func (k Kind) IsCmpOp() bool {
+	return k > CMP_OP_START && k < CMP_OP_END
 }
 
 func (k Kind) String() string {

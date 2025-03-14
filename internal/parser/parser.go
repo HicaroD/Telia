@@ -1772,7 +1772,7 @@ func (p *Parser) parseLogical(parentScope *ast.Scope) (*ast.Node, error) {
 
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
-			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
 			lhs = l
 		} else {
 			break
@@ -1799,7 +1799,7 @@ func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
 
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
-			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
 			lhs = l
 		} else {
 			break
@@ -1824,7 +1824,7 @@ func (p *Parser) parseTerm(parentScope *ast.Scope) (*ast.Node, error) {
 			}
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
-			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
 			lhs = l
 		} else {
 			break
@@ -1849,7 +1849,7 @@ func (p *Parser) parseFactor(parentScope *ast.Scope) (*ast.Node, error) {
 			}
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
-			l.Node = &ast.BinaryExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
 			lhs = l
 		} else {
 			break

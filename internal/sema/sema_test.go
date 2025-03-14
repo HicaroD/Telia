@@ -189,7 +189,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "1 + 1",
 					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
@@ -215,7 +215,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "-1 + 1",
 					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.UnaryExpr{
 							Op: token.MINUS,
 							Value: &ast.LiteralExpr{
@@ -233,7 +233,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "a + 1",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.IdExpr{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						},
@@ -247,7 +247,7 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "1 + a",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.I8_TYPE},
@@ -261,8 +261,8 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "1 + 2 + a",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
-						Left: &ast.BinaryExpr{
+					value: &ast.BinExpr{
+						Left: &ast.BinExpr{
 							Left: &ast.LiteralExpr{
 								Value: []byte("1"),
 								Type:  &ast.BasicType{Kind: token.I8_TYPE},
@@ -282,8 +282,8 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 				{
 					input: "1 + a + 3",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
-						Left: &ast.BinaryExpr{
+					value: &ast.BinExpr{
+						Left: &ast.BinExpr{
 							Left: &ast.LiteralExpr{
 								Value: []byte("1"),
 								Type:  &ast.BasicType{Kind: token.I8_TYPE},
@@ -356,7 +356,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 				{
 					input: "a + 1",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.IdExpr{
 							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
 						},
@@ -370,7 +370,7 @@ func TestExprInferenceWithContext(t *testing.T) {
 				{
 					input: "1 + a",
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinaryExpr{
+					value: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},

@@ -826,7 +826,7 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
 	case ast.KIND_BINARY_EXPR:
-		ty, _, err := s.inferBinaryExprType(expr.Node.(*ast.BinaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
+		ty, _, err := s.inferBinaryExprType(expr.Node.(*ast.BinExpr), expectedType, referenceScope, declScope, fromImportPackage)
 		return ty, err
 	case ast.KIND_UNARY_EXPR:
 		ty, _, err := s.inferUnaryExprType(expr.Node.(*ast.UnaryExpr), expectedType, referenceScope, declScope, fromImportPackage)
@@ -909,7 +909,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 }
 
 func (s *sema) inferBinaryExprType(
-	binary *ast.BinaryExpr,
+	binary *ast.BinExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
@@ -960,7 +960,7 @@ func (s *sema) inferBinaryExprType(
 }
 
 func (s *sema) ensureBinaryOperatorsAreTheSame(
-	binary *ast.BinaryExpr,
+	binary *ast.BinExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
@@ -1277,7 +1277,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 	case ast.KIND_UNARY_EXPR:
 		return sema.inferUnaryExprType(expr.Node.(*ast.UnaryExpr), nil, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_BINARY_EXPR:
-		return sema.inferBinaryExprType(expr.Node.(*ast.BinaryExpr), nil, referenceScope, declScope, fromImportPackage)
+		return sema.inferBinaryExprType(expr.Node.(*ast.BinExpr), nil, referenceScope, declScope, fromImportPackage)
 	case ast.KIND_FN_CALL:
 		return sema.inferFnCallExprTypeWithoutContext(expr.Node.(*ast.FnCall), referenceScope, declScope, fromImportPackage, isArg)
 	case ast.KIND_NAMESPACE_ACCESS:
