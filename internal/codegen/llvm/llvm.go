@@ -137,9 +137,10 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	builder.SetInsertPointAtEnd(body)
 
 	paramsTypes := fn.GlobalValueType().ParamTypes()
-	for i, paramPtrValue := range fn.Params() {
+	for i, paramPtr := range fn.Params() {
 		field := fnDecl.Params.Fields[i]
-		c.emitParam(field, paramsTypes[i], paramPtrValue)
+		paramVal := c.emitParam(field, paramsTypes[i])
+		builder.CreateStore(paramPtr, paramVal)
 	}
 
 	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
@@ -148,14 +149,14 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	}
 }
 
-func (c *codegen) emitParam(field *ast.Param, ty llvm.Type, val llvm.Value) {
+func (c *codegen) emitParam(field *ast.Param, ty llvm.Type) llvm.Value {
 	paramVal := builder.CreateAlloca(ty, "")
-	builder.CreateStore(val, paramVal)
 	variable := &Variable{
 		Ty:  ty,
 		Ptr: paramVal,
 	}
 	field.BackendType = variable
+	return paramVal
 }
 
 func (c *codegen) emitBlock(
@@ -185,12 +186,7 @@ func (c *codegen) emitStmt(
 		c.emitFnCall(stmt.Node.(*ast.FnCall))
 	case ast.KIND_RETURN_STMT:
 		if len(block.DeferStack) > 0 {
-			for i := len(block.DeferStack) - 1; i >= 0; i-- {
-				if block.DeferStack[i].Skip {
-					continue
-				}
-				c.emitStmt(function, block, block.DeferStack[i].Stmt)
-			}
+			c.emitDefers(function, block, block.DeferStack)
 		}
 		c.emitReturn(stmt.Node.(*ast.ReturnStmt))
 	case ast.KIND_VAR_STMT:
@@ -204,13 +200,19 @@ func (c *codegen) emitStmt(
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.emitWhileLoop(stmt.Node.(*ast.WhileLoop), function)
 	case ast.KIND_DEFER_STMT:
-		// NOTE: ignored because defer statements are handled during block
-		// generation
-		goto Ignore
+		break
 	default:
 		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
-Ignore:
+}
+
+func (c *codegen) emitDefers(fn llvm.Value, block *ast.BlockStmt, defers []*ast.DeferStmt) {
+	for i := len(defers) - 1; i >= 0; i-- {
+		if defers[i].Skip {
+			continue
+		}
+		c.emitStmt(fn, block, defers[i].Stmt)
+	}
 }
 
 func (c *codegen) emitReturn(
@@ -436,6 +438,14 @@ func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) llvm.Value {
 	return tupleVal
 }
 
+func (c *codegen) emitStructDecl(st *ast.StructDecl) {
+	fields := c.getStructFieldList(st.Fields)
+	structTy := context.StructCreateNamed(st.Name.Name())
+	// TODO: set packed properly
+	packed := false
+	structTy.StructSetBody(fields, packed)
+}
+
 func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 	st := c.module.GetTypeByName(lit.Name.Name())
 	if st.IsNil() {
@@ -445,7 +455,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 	obj := builder.CreateAlloca(st, "")
 	for _, field := range lit.Values {
 		expr, _, _ := c.emitExpr(field.Value)
-		allocatedField := builder.CreateStructGEP(st, obj, field.Index, ".field")
+		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
 		builder.CreateStore(expr, allocatedField)
 	}
 
@@ -455,7 +465,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) llvm.Value {
 	ptr := c.getStructFieldPtr(fieldAccess)
 	ty := c.emitType(fieldAccess.AccessedField.Type)
-	loadedPtr := builder.CreateLoad(ty, ptr, ".access")
+	loadedPtr := builder.CreateLoad(ty, ptr, "")
 	return loadedPtr
 }
 
@@ -463,14 +473,6 @@ func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
 	for _, proto := range external.Prototypes {
 		c.emitPrototype(proto.Attributes, proto)
 	}
-}
-
-func (c *codegen) emitStructDecl(st *ast.StructDecl) {
-	fields := c.getStructFieldList(st.Fields)
-	structTy := context.StructCreateNamed(st.Name.Name())
-	// TODO: set packed properly
-	packed := false
-	structTy.StructSetBody(fields, packed)
 }
 
 func (c *codegen) emitPrototype(externAttributes *ast.Attributes, prototype *ast.Proto) {
@@ -688,8 +690,7 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, int, bool) 
 		case token.BOOL_TYPE:
 			return c.emitBool(lit), bitSize, hasFloat
 		default:
-			log.Fatalf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value))
-			return llvm.Value{}, bitSize, hasFloat
+			panic(fmt.Sprintf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value)))
 		}
 	case ast.EXPR_TYPE_POINTER:
 		panic("unimplemented pointer type")
@@ -763,7 +764,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, int, bool) {
 		hasFloat = true
 	}
 
-	loadedVariable := builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
+	loadedVariable := builder.CreateLoad(localVar.Ty, localVar.Ptr, "")
 	return loadedVariable, bitSize, hasFloat
 }
 
@@ -789,32 +790,17 @@ func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, int, bool) {
 
 func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, int, bool) {
 	expr, bitSize, hasFloat := c.emitExpr(unary.Value)
+	if hasFloat && unary.Op == token.MINUS {
+		return builder.CreateFNeg(expr, ""), bitSize, hasFloat
+	}
 
-	if hasFloat {
-		switch unary.Op {
-		case token.MINUS:
-			return builder.CreateFNeg(expr, ""), bitSize, hasFloat
-		case token.NOT:
-			var ty llvm.Type
-			if bitSize == 32 {
-				ty = B_F32_TYPE
-			} else {
-				ty = B_F64_TYPE
-			}
-			falseVal := llvm.ConstFloat(ty, 0)
-			return builder.CreateICmp(llvm.IntEQ, falseVal, expr, ""), bitSize, hasFloat
-		default:
-			panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
-		}
-	} else {
-		switch unary.Op {
-		case token.MINUS:
-			return builder.CreateNeg(expr, ".neg"), bitSize, hasFloat
-		case token.NOT:
-			return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ".not"), bitSize, hasFloat
-		default:
-			panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
-		}
+	switch unary.Op {
+	case token.MINUS:
+		return builder.CreateNeg(expr, ""), bitSize, hasFloat
+	case token.NOT:
+		return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ""), bitSize, hasFloat
+	default:
+		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
 	}
 }
 
@@ -973,13 +959,12 @@ func (c *codegen) emitNamespaceAccess(
 		return c.emitImportAccess(namespaceAccess.Right)
 	}
 
-	switch namespaceAccess.Left.N.Kind {
-	case ast.KIND_EXTERN_DECL:
-		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
-		return c.emitFnCall(fnCall)
-	default:
-		panic("unreachable")
+	if namespaceAccess.Left.N.Kind != ast.KIND_EXTERN_DECL {
+		panic("expected extern declaration for left side of namespace access")
 	}
+
+	fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
+	return c.emitFnCall(fnCall)
 }
 
 func (c *codegen) emitImportAccess(right *ast.Node) llvm.Value {
