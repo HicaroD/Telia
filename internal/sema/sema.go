@@ -1195,29 +1195,48 @@ func (sema *sema) inferIdExprTypeWithContext(
 	}
 	id.N = symbol
 
-	var ty *ast.ExprType
+	var idTy *ast.ExprType
+
 	switch symbol.Kind {
 	case ast.KIND_VAR_ID_STMT:
-		ty = symbol.Node.(*ast.VarIdStmt).Type
+		idTy = symbol.Node.(*ast.VarIdStmt).Type
 	case ast.KIND_FIELD:
-		ty = symbol.Node.(*ast.Param).Type
+		idTy = symbol.Node.(*ast.Param).Type
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
 	}
 
-	switch ty.Kind {
+	switch idTy.Kind {
 	case ast.EXPR_TYPE_BASIC:
-		actualBasicType := ty.T.(*ast.BasicType)
-		// TODO(errors)
-		if expectedType.Kind != ast.EXPR_TYPE_BASIC {
-			return nil, fmt.Errorf("error: type mismatch for id expression")
+		actualBasicType := idTy.T.(*ast.BasicType)
+
+		var err error
+
+		switch expectedType.Kind {
+		case ast.EXPR_TYPE_BASIC:
+			expectedBasicType := expectedType.T.(*ast.BasicType)
+			ty, err := sema.inferBasicExprTypeWithContext(actualBasicType, expectedBasicType)
+			if err != nil {
+				return nil, err
+			}
+			expectedType.T = ty
+		case ast.EXPR_TYPE_POINTER:
+			expectedPtrType := expectedType.T.(*ast.PointerType)
+			ty, err := sema.inferIdExprTypeWithContext(
+				id,
+				expectedPtrType.Type,
+				referenceScope,
+			)
+			if err != nil {
+				return nil, err
+			}
+			expectedType = ty
 		}
-		expectedBasicType := expectedType.T.(*ast.BasicType)
-		_, err := sema.inferBasicExprTypeWithContext(actualBasicType, expectedBasicType)
-		if err != nil {
-			return nil, err
-		}
+		return expectedType, err
+	case ast.EXPR_TYPE_POINTER:
+		actualPtrType := idTy.T.(*ast.PointerType)
+		fmt.Println(id, actualPtrType.Type.T, expectedType.T)
 		return expectedType, nil
 	default:
 		// TODO(errors)
@@ -1600,7 +1619,11 @@ func (s *sema) inferPtrExprWithContext(
 		fromImportPackage,
 		isArg,
 	)
-	return underlyingPtrExprType, err
+
+	t := new(ast.ExprType)
+	t.Kind = ast.EXPR_TYPE_POINTER
+	t.T = &ast.PointerType{Type: underlyingPtrExprType}
+	return t, err
 }
 
 func (s *sema) inferBasicExprTypeWithContext(
@@ -1742,6 +1765,14 @@ func (sema *sema) inferExprTypeWithoutContext(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+		)
+	case ast.KIND_POINTER_EXPR:
+		return sema.inferPtrExprWithoutContext(
+			expr.Node.(*ast.PointerExpr),
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
 		)
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
@@ -1903,6 +1934,66 @@ func (sema *sema) inferStructFieldAccessExprWithoutContext(
 		fromImportPackage,
 	)
 	return field.Type, true, err
+}
+
+func (sema *sema) inferPtrExprWithoutContext(
+	ptr *ast.PointerExpr,
+	referenceScope, declScope *ast.Scope,
+	fromImportPackage bool,
+	isArg bool,
+) (*ast.ExprType, bool, error) {
+	var ty *ast.ExprType
+
+	switch ptr.Expr.Kind {
+	case ast.KIND_ID_EXPR:
+		idExpr := ptr.Expr.Node.(*ast.IdExpr)
+
+		if idExpr.N == nil {
+			_, _, err := sema.inferIdExprTypeWithoutContext(
+				idExpr,
+				referenceScope,
+			)
+			if err != nil {
+				return nil, false, err
+			}
+		}
+
+		switch idExpr.N.Kind {
+		case ast.KIND_FIELD:
+			param := idExpr.N.Node.(*ast.Param)
+			ty = param.Type
+		case ast.KIND_VAR_ID_STMT:
+			variable := idExpr.N.Node.(*ast.VarIdStmt)
+			ty = variable.Type
+		}
+	case ast.KIND_FIELD_ACCESS:
+		_, field, err := sema.getAccessedField(
+			ptr.Expr.Node.(*ast.FieldAccess),
+			referenceScope,
+			fromImportPackage,
+		)
+		if err != nil {
+			return nil, false, err
+		}
+		ty = field.Type
+	}
+
+	t := new(ast.ExprType)
+	t.Kind = ast.EXPR_TYPE_POINTER
+	t.T = &ast.PointerType{Type: ty}
+
+	exprTy, err := sema.inferPtrExprWithContext(
+		ptr,
+		t,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+	return exprTy, !exprTy.IsUntyped(), nil
 }
 
 func (sema *sema) validateInteger(value []byte) error {

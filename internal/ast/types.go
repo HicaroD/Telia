@@ -87,11 +87,15 @@ func (ty *ExprType) IsPointer() bool {
 }
 
 func (ty *ExprType) IsUntyped() bool {
-	if ty.Kind != EXPR_TYPE_BASIC {
-		return false
+	if ty.Kind == EXPR_TYPE_BASIC {
+		basic := ty.T.(*BasicType)
+		return basic.IsUntyped()
 	}
-	basic := ty.T.(*BasicType)
-	return basic.IsUntyped()
+	if ty.Kind == EXPR_TYPE_POINTER {
+		ptr := ty.T.(*PointerType)
+		return ptr.Type.IsUntyped()
+	}
+	return false
 }
 
 type BasicType struct {

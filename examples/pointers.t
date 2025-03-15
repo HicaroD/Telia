@@ -13,7 +13,7 @@ fn pass_by_pointer(a *i32) {
 }
 
 fn main() i32 {
-  a := 10
+  a i32 := 10
 
   pass_by_value(a)
   io::printf("pass_by_value: %d\n", a)
