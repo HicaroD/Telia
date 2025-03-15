@@ -40,6 +40,14 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 }
 
+func (ty *ExprType) IsNumeric() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind.IsNumeric()
+}
+
 func (ty *ExprType) IsBoolean() bool {
 	if ty.Kind != EXPR_TYPE_BASIC {
 		return false
@@ -202,6 +210,12 @@ var UnaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -229,6 +243,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -245,6 +265,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -261,6 +287,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -277,6 +309,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -305,6 +343,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -321,6 +365,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -337,6 +387,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -353,6 +409,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -369,6 +431,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
@@ -378,13 +446,18 @@ var BinaryOperators = OperatorTable{
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
-			// integers
 			NewBasicType(token.UINT_TYPE),
 			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),
 			NewBasicType(token.I16_TYPE),
 			NewBasicType(token.I32_TYPE),
 			NewBasicType(token.I64_TYPE),
+			NewBasicType(token.I128_TYPE),
+			NewBasicType(token.U8_TYPE),
+			NewBasicType(token.U16_TYPE),
+			NewBasicType(token.U32_TYPE),
+			NewBasicType(token.U64_TYPE),
+			NewBasicType(token.U128_TYPE),
 			// floats
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),

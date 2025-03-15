@@ -266,7 +266,7 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 }
 
 func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
-	genFnCall := c.emitFnCall(fnCall)
+	genFnCall, _, _ := c.emitFnCall(fnCall)
 
 	if len(variables) == 1 {
 		c.emitVariableWithValue(variables[0], genFnCall, isDecl)
@@ -306,9 +306,9 @@ func (c *codegen) emitVarDecl(
 
 	switch expr.Kind {
 	case ast.KIND_STRUCT_LITERAL_EXPR:
-		ptr = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
+		ptr, _, _ = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		ptr = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
+		ptr, _, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
 		ptr = builder.CreateAlloca(ty, "")
 		generatedExpr, _, _ := c.emitExpr(expr, false)
@@ -413,16 +413,25 @@ func (c *codegen) emitVarReassignWithValue(
 	builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *codegen) emitFnCall(call *ast.FnCall) llvm.Value {
+func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Value, bool, int) {
 	args := c.getCallArgs(call)
 	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
-	return builder.CreateCall(fn.GlobalValueType(), fn, args, "")
+
+	var hasFloat bool
+	var bitSize int
+
+	if call.Decl != nil {
+		hasFloat, bitSize = c.checkFloatTypeForBitSize(call.Decl.RetType)
+	} else {
+		hasFloat, bitSize = c.checkFloatTypeForBitSize(call.Proto.RetType)
+	}
+	return builder.CreateCall(fn.GlobalValueType(), fn, args, ""), hasFloat, bitSize
 }
 
-func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) llvm.Value {
+func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Value, bool, int) {
 	types := c.emitTypes(tuple.Type.Types)
 	tupleTy := context.StructType(types, false)
 	tupleVal := llvm.ConstNull(tupleTy)
@@ -432,7 +441,7 @@ func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) llvm.Value {
 		tupleVal = builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
 	}
 
-	return tupleVal
+	return tupleVal, false, -1
 }
 
 func (c *codegen) emitStructDecl(st *ast.StructDecl) {
@@ -443,7 +452,7 @@ func (c *codegen) emitStructDecl(st *ast.StructDecl) {
 	structTy.StructSetBody(fields, packed)
 }
 
-func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
+func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, bool, int) {
 	st := c.module.GetTypeByName(lit.Name.Name())
 	if st.IsNil() {
 		panic("struct is nil")
@@ -456,13 +465,17 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 		builder.CreateStore(expr, allocatedField)
 	}
 
-	return obj
+	return obj, false, -1
 }
 
-func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess, isArg bool) llvm.Value {
+func (c *codegen) emitFieldAccessExpr(
+	fieldAccess *ast.FieldAccess,
+	isArg bool,
+) (llvm.Value, bool, int) {
 	ptr := c.getStructFieldPtr(fieldAccess)
 	ty := c.emitType(fieldAccess.AccessedField.Type)
-	return builder.CreateLoad(ty, ptr, "")
+	hasFloat, bitSize := c.checkFloatTypeForBitSize(fieldAccess.AccessedField.Type)
+	return builder.CreateLoad(ty, ptr, ""), hasFloat, bitSize
 }
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
@@ -626,10 +639,7 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	return values
 }
 
-func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, int, bool) {
-	hasFloat := false
-	floatBitSize := 32
-
+func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool, int) {
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
@@ -638,17 +648,17 @@ func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, int, bool) {
 	case ast.KIND_BINARY_EXPR:
 		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
-		return c.emitFnCall(expr.Node.(*ast.FnCall)), floatBitSize, hasFloat
+		return c.emitFnCall(expr.Node.(*ast.FnCall))
 	case ast.KIND_UNARY_EXPR:
 		return c.emitUnaryExpr(expr.Node.(*ast.UnaryExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess)), floatBitSize, hasFloat
+		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	case ast.KIND_TUPLE_LITERAL_EXPR:
-		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr)), floatBitSize, hasFloat
+		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr))
 	case ast.KIND_STRUCT_LITERAL_EXPR:
-		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr)), floatBitSize, hasFloat
+		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_FIELD_ACCESS:
-		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg), floatBitSize, hasFloat
+		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg)
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:
@@ -656,10 +666,7 @@ func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, int, bool) {
 	}
 }
 
-func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, int, bool) {
-	hasFloat := false
-	bitSize := 32
-
+func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, bool, int) {
 	switch lit.Type.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		basic := lit.Type.T.(*ast.BasicType)
@@ -670,14 +677,14 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, int, bool) 
 
 		if basic.Kind.IsInteger() {
 			integerValue, bitSize := c.getIntegerValue(lit, basic)
-			return llvm.ConstInt(context.IntType(bitSize), integerValue, false), bitSize, hasFloat
+			return llvm.ConstInt(context.IntType(bitSize), integerValue, false), false, -1
 		}
 
 		switch basic.Kind {
 		case token.STRING_TYPE, token.CSTRING_TYPE:
-			return c.emitCstringLit(lit.Value), bitSize, hasFloat
+			return c.emitCstringLit(lit.Value), false, -1
 		case token.BOOL_TYPE:
-			return c.emitBool(lit), bitSize, hasFloat
+			return c.emitBool(lit), false, -1
 		default:
 			panic(fmt.Sprintf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value)))
 		}
@@ -688,13 +695,13 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, int, bool) 
 	}
 }
 
-func (c *codegen) emitFloat(lit *ast.LiteralExpr, ty *ast.BasicType) (llvm.Value, int, bool) {
+func (c *codegen) emitFloat(lit *ast.LiteralExpr, ty *ast.BasicType) (llvm.Value, bool, int) {
 	hasFloat := true
 	floatValue, bitSize := c.getFloatValue(lit, ty)
 	if bitSize == 32 {
-		return llvm.ConstFloat(B_F32_TYPE, floatValue), bitSize, hasFloat
+		return llvm.ConstFloat(B_F32_TYPE, floatValue), hasFloat, bitSize
 	} else {
-		return llvm.ConstFloat(B_F64_TYPE, floatValue), bitSize, hasFloat
+		return llvm.ConstFloat(B_F64_TYPE, floatValue), hasFloat, bitSize
 	}
 }
 
@@ -729,7 +736,7 @@ func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
 	return llvm.ConstInt(B_BOOL_TYPE, val, false)
 }
 
-func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, int, bool) {
+func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool, int) {
 	var localVar *Variable
 	var varTy *ast.ExprType
 
@@ -747,24 +754,23 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, int, bool)
 		localVar = variable.BackendType.(*Variable)
 	}
 
-	if varTy.IsFloat() {
+	if varTy.IsNumeric() {
 		bt := varTy.T.(*ast.BasicType)
 		bitSize = bt.Kind.BitSize()
-		hasFloat = true
+		hasFloat = bt.Kind.IsFloat()
 	}
 
-	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), bitSize, hasFloat
+	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat, bitSize
 }
 
-func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, int, bool) {
-	lhs, lhsBitSize, lhsHasFloat := c.emitExpr(bin.Left, false)
-	rhs, rhsBitSize, rhsHasFloat := c.emitExpr(bin.Right, false)
-
-	if lhsBitSize != rhsBitSize {
+func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool, int) {
+	lhs, lhsHasFloat, lhsBitSize := c.emitExpr(bin.Left, false)
+	rhs, rhsHasFloat, rhsBitSize := c.emitExpr(bin.Right, false)
+	hasFloat := lhsHasFloat || rhsHasFloat
+	if hasFloat && lhsBitSize != rhsBitSize {
 		panic("expected bit size to be the same")
 	}
 
-	hasFloat := lhsHasFloat || rhsHasFloat
 	bitSize := lhsBitSize // since they are the same
 
 	var binExpr llvm.Value
@@ -773,20 +779,20 @@ func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, int, bool) {
 	} else {
 		binExpr = c.emitIntBinExpr(lhs, bin.Op, rhs)
 	}
-	return binExpr, bitSize, hasFloat
+	return binExpr, hasFloat, bitSize
 }
 
-func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, int, bool) {
-	expr, bitSize, hasFloat := c.emitExpr(unary.Value, false)
+func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, bool, int) {
+	expr, hasFloat, bitSize := c.emitExpr(unary.Value, false)
 	if hasFloat && unary.Op == token.MINUS {
-		return builder.CreateFNeg(expr, ""), bitSize, hasFloat
+		return builder.CreateFNeg(expr, ""), hasFloat, bitSize
 	}
 
 	switch unary.Op {
 	case token.MINUS:
-		return builder.CreateNeg(expr, ""), bitSize, hasFloat
+		return builder.CreateNeg(expr, ""), hasFloat, bitSize
 	case token.NOT:
-		return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ""), bitSize, hasFloat
+		return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ""), hasFloat, bitSize
 	default:
 		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
 	}
@@ -942,7 +948,7 @@ func (c *codegen) emitCond(
 
 func (c *codegen) emitNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
-) llvm.Value {
+) (llvm.Value, bool, int) {
 	if namespaceAccess.IsImport {
 		return c.emitImportAccess(namespaceAccess.Right)
 	}
@@ -955,7 +961,7 @@ func (c *codegen) emitNamespaceAccess(
 	return c.emitFnCall(fnCall)
 }
 
-func (c *codegen) emitImportAccess(right *ast.Node) llvm.Value {
+func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Value, bool, int) {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
@@ -1022,6 +1028,14 @@ func (c *codegen) emitWhileLoop(
 	builder.CreateBr(whileInitBlock)
 
 	builder.SetInsertPointAtEnd(endBlock)
+}
+
+func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {
+	if ty.IsFloat() {
+		b := ty.T.(*ast.BasicType)
+		return true, b.Kind.BitSize()
+	}
+	return false, -1
 }
 
 func (c *codegen) generateExe(buildType config.BuildType) error {
