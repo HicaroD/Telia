@@ -24,20 +24,17 @@ var (
 var (
 	B_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
 	B_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
-)
 
-var (
-	B_VOID_TYPE = context.VoidType()
-
-	B_BOOL_TYPE  = context.Int1Type()
-	B_INT8_TYPE  = context.Int8Type()
-	B_INT32_TYPE = context.Int32Type()
-
-	B_F32_TYPE = context.FloatType()
-	B_F64_TYPE = context.DoubleType()
-
+	B_VOID_TYPE   = context.VoidType()
+	B_BOOL_TYPE   = context.Int1Type()
+	B_INT8_TYPE   = context.Int8Type()
+	B_INT32_TYPE  = context.Int32Type()
+	B_F32_TYPE    = context.FloatType()
+	B_F64_TYPE    = context.DoubleType()
 	B_RAWPTR_TYPE = llvm.PointerType(B_INT8_TYPE, 0) // *u8
 )
+
+var ()
 
 type codegen struct {
 	module llvm.Module
@@ -338,7 +335,6 @@ func (c *codegen) emitVarReassign(
 			varPtr = variable.BackendType.(*Variable).Ptr
 		case ast.KIND_FIELD:
 			param := varId.N.Node.(*ast.Param)
-			fmt.Println(param)
 			varPtr = param.BackendType.(*Variable).Ptr
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
