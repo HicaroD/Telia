@@ -52,7 +52,11 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 					},
@@ -81,11 +85,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -114,11 +126,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -147,11 +167,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -180,11 +208,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -213,11 +249,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -246,11 +290,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -279,11 +331,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -312,11 +372,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -345,11 +413,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -378,11 +454,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -411,11 +495,19 @@ func TestFunctionDecl(t *testing.T) {
 					Open: token.New(nil, token.OPEN_PAREN, token.NewPosition(filename, 14, 1)),
 					Fields: []*ast.Param{
 						{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 15, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 15, 1),
+							),
 							Type: &ast.BasicType{Kind: token.BOOL_TYPE},
 						},
 						{
-							Name: token.New([]byte("b"), token.ID, token.NewPosition(filename, 23, 1)),
+							Name: token.New(
+								[]byte("b"),
+								token.ID,
+								token.NewPosition(filename, 23, 1),
+							),
 							Type: &ast.BasicType{Kind: token.I32_TYPE},
 						},
 					},
@@ -477,7 +569,7 @@ func TestForLoop(t *testing.T) {
 						Value: []byte("0"),
 					},
 				},
-				Cond: &ast.BinaryExpr{
+				Cond: &ast.BinExpr{
 					Left: &ast.IdExpr{
 						Name: token.New([]byte("i"), token.ID, token.NewPosition(filename, 14, 1)),
 					},
@@ -496,7 +588,7 @@ func TestForLoop(t *testing.T) {
 					),
 					Type:           nil,
 					NeedsInference: true,
-					Value: &ast.BinaryExpr{
+					Value: &ast.BinExpr{
 						Left: &ast.IdExpr{
 							Name: token.New(
 								[]byte("i"),
@@ -602,7 +694,10 @@ func TestLiteralExpr(t *testing.T) {
 	tests := []exprTest{
 		{
 			input: "1",
-			node:  &ast.LiteralExpr{Value: []byte("1"), Type: &ast.BasicType{Kind: token.INTEGER_LITERAL}},
+			node: &ast.LiteralExpr{
+				Value: []byte("1"),
+				Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
+			},
 		},
 		{
 			input: "true",
@@ -692,7 +787,7 @@ func TestBinaryExpr(t *testing.T) {
 	tests := []exprTest{
 		{
 			input: "1 + 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -706,7 +801,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "2 - 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("2"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -720,7 +815,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "5 * 10",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("5"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -734,13 +829,13 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "3 + 4 * 5",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("3"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.PLUS,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("4"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -755,13 +850,13 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "3 + (4 * 5)",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("3"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.PLUS,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("4"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -776,7 +871,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "10 / 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("10"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -790,8 +885,8 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "6 / 3 - 1",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("6"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -811,13 +906,13 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "6 / (3 - 1)",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("6"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.SLASH,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("3"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -832,13 +927,13 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 / (1 + 1)",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.SLASH,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -853,7 +948,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 > 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -867,7 +962,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 >= 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -881,7 +976,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 < 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -895,7 +990,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 <= 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -912,7 +1007,7 @@ func TestBinaryExpr(t *testing.T) {
 			input: "not (1 > 1)",
 			node: &ast.UnaryExpr{
 				Op: token.NOT,
-				Value: &ast.BinaryExpr{
+				Value: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -927,8 +1022,8 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 > 1 and 1 > 1",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -940,7 +1035,7 @@ func TestBinaryExpr(t *testing.T) {
 					},
 				},
 				Op: token.AND,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -955,8 +1050,8 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 > 1 or 1 > 1",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -968,7 +1063,7 @@ func TestBinaryExpr(t *testing.T) {
 					},
 				},
 				Op: token.OR,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -983,11 +1078,15 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "celsius*9/5+32",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
-					Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
+					Left: &ast.BinExpr{
 						Left: &ast.IdExpr{
-							Name: token.New([]byte("celsius"), token.ID, token.NewPosition("test.tt", 1, 1)),
+							Name: token.New(
+								[]byte("celsius"),
+								token.ID,
+								token.NewPosition("test.tt", 1, 1),
+							),
 						},
 						Op: token.STAR,
 						Right: &ast.LiteralExpr{
@@ -1010,9 +1109,9 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "get_celsius()*9/5+32",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
-					Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
+					Left: &ast.BinExpr{
 						Left: &ast.FnCall{
 							Name: token.New(
 								[]byte("get_celsius"),
@@ -1042,8 +1141,8 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 > 1 > 1",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -1063,7 +1162,7 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "n == 1",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.IdExpr{
 					Name: token.New([]byte("n"), token.ID, token.NewPosition("test.tt", 1, 1)),
 				},
@@ -1076,8 +1175,8 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "n == 1 or n == 2",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
 					Left: &ast.IdExpr{
 						Name: token.New([]byte("n"), token.ID, token.NewPosition("test.tt", 1, 1)),
 					},
@@ -1088,7 +1187,7 @@ func TestBinaryExpr(t *testing.T) {
 					},
 				},
 				Op: token.OR,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.IdExpr{
 						Name: token.New([]byte("n"), token.ID, token.NewPosition("test.tt", 11, 1)),
 					},
@@ -1102,9 +1201,9 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 + 1 > 2 and 1 == 1",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
-					Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
+					Left: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("1"),
 							Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -1122,7 +1221,7 @@ func TestBinaryExpr(t *testing.T) {
 					},
 				},
 				Op: token.AND,
-				Right: &ast.BinaryExpr{
+				Right: &ast.BinExpr{
 					Left: &ast.LiteralExpr{
 						Value: []byte("1"),
 						Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
@@ -1137,9 +1236,9 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "true and true and true and true",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
-					Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
+					Left: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("true"),
 							Type:  &ast.BasicType{Kind: token.TRUE_BOOL_LITERAL},
@@ -1165,9 +1264,9 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "(((true and true) and true) and true)",
-			node: &ast.BinaryExpr{
-				Left: &ast.BinaryExpr{
-					Left: &ast.BinaryExpr{
+			node: &ast.BinExpr{
+				Left: &ast.BinExpr{
+					Left: &ast.BinExpr{
 						Left: &ast.LiteralExpr{
 							Value: []byte("true"),
 							Type:  &ast.BasicType{Kind: token.TRUE_BOOL_LITERAL},
@@ -1193,14 +1292,18 @@ func TestBinaryExpr(t *testing.T) {
 		},
 		{
 			input: "1 + multiply_by_2(10)",
-			node: &ast.BinaryExpr{
+			node: &ast.BinExpr{
 				Left: &ast.LiteralExpr{
 					Value: []byte("1"),
 					Type:  &ast.BasicType{Kind: token.INTEGER_LITERAL},
 				},
 				Op: token.PLUS,
 				Right: &ast.FnCall{
-					Name: token.New([]byte("multiply_by_2"), token.ID, token.NewPosition(filename, 5, 1)),
+					Name: token.New(
+						[]byte("multiply_by_2"),
+						token.ID,
+						token.NewPosition(filename, 5, 1),
+					),
 					Args: []ast.Expr{
 						&ast.LiteralExpr{
 							Value: []byte("10"),
@@ -1242,10 +1345,18 @@ func TestFieldAccessExpr(t *testing.T) {
 				},
 				Right: &ast.NamespaceAccess{
 					Left: &ast.IdExpr{
-						Name: token.New([]byte("second"), token.ID, token.NewPosition(filename, 7, 1)),
+						Name: token.New(
+							[]byte("second"),
+							token.ID,
+							token.NewPosition(filename, 7, 1),
+						),
 					},
 					Right: &ast.IdExpr{
-						Name: token.New([]byte("third"), token.ID, token.NewPosition(filename, 14, 1)),
+						Name: token.New(
+							[]byte("third"),
+							token.ID,
+							token.NewPosition(filename, 14, 1),
+						),
 					},
 				},
 			},
@@ -1353,7 +1464,11 @@ func TestVar(t *testing.T) {
 					token.NewPosition(filename, 1, 1),
 				),
 				Type: &ast.IdType{
-					Name: token.New([]byte("SomeType"), token.ID, token.NewPosition(filename, 7, 1)),
+					Name: token.New(
+						[]byte("SomeType"),
+						token.ID,
+						token.NewPosition(filename, 7, 1),
+					),
 				},
 				NeedsInference: false,
 				Value: &ast.LiteralExpr{
@@ -1368,8 +1483,12 @@ func TestVar(t *testing.T) {
 				IsDecl: true,
 				Variables: []*ast.VarStmt{
 					{
-						Decl:           true,
-						Name:           token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+						Decl: true,
+						Name: token.New(
+							[]byte("a"),
+							token.ID,
+							token.NewPosition(filename, 1, 1),
+						),
 						Type:           nil,
 						NeedsInference: true,
 						Value: &ast.LiteralExpr{
@@ -1378,8 +1497,12 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
-						Decl:           true,
-						Name:           token.New([]byte("b"), token.ID, token.NewPosition(filename, 4, 1)),
+						Decl: true,
+						Name: token.New(
+							[]byte("b"),
+							token.ID,
+							token.NewPosition(filename, 4, 1),
+						),
 						Type:           nil,
 						NeedsInference: true,
 						Value: &ast.LiteralExpr{
@@ -1396,7 +1519,11 @@ func TestVar(t *testing.T) {
 				IsDecl: false,
 				Variables: []*ast.VarStmt{
 					{
-						Name:           token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+						Name: token.New(
+							[]byte("a"),
+							token.ID,
+							token.NewPosition(filename, 1, 1),
+						),
 						Type:           nil,
 						NeedsInference: true,
 						Value: &ast.LiteralExpr{
@@ -1405,7 +1532,11 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
-						Name:           token.New([]byte("b"), token.ID, token.NewPosition(filename, 4, 1)),
+						Name: token.New(
+							[]byte("b"),
+							token.ID,
+							token.NewPosition(filename, 4, 1),
+						),
 						Type:           nil,
 						NeedsInference: true,
 						Value: &ast.LiteralExpr{
@@ -1435,7 +1566,11 @@ func TestVar(t *testing.T) {
 				IsDecl: false,
 				Variables: []*ast.VarStmt{
 					{
-						Name:           token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+						Name: token.New(
+							[]byte("a"),
+							token.ID,
+							token.NewPosition(filename, 1, 1),
+						),
 						Type:           nil,
 						NeedsInference: true,
 						Value: &ast.LiteralExpr{
@@ -1444,7 +1579,11 @@ func TestVar(t *testing.T) {
 						},
 					},
 					{
-						Name:           token.New([]byte("b"), token.ID, token.NewPosition(filename, 4, 1)),
+						Name: token.New(
+							[]byte("b"),
+							token.ID,
+							token.NewPosition(filename, 4, 1),
+						),
 						Type:           &ast.BasicType{Kind: token.U8_TYPE},
 						NeedsInference: false,
 						Value: &ast.LiteralExpr{

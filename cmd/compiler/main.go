@@ -55,13 +55,21 @@ func main() {
 	}
 }
 
-func buildPackage(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildPackage(
+	argLoc string,
+	loc *ast.Loc,
+	collector *diagnostics.Collector,
+) (*ast.Program, error) {
 	p := parser.New(collector)
 	program, err := p.ParsePackageAsProgram(argLoc, loc)
 	return program, err
 }
 
-func buildFile(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+func buildFile(
+	argLoc string,
+	loc *ast.Loc,
+	collector *diagnostics.Collector,
+) (*ast.Program, error) {
 	p := parser.New(collector)
 	program, err := p.ParseFileAsProgram(argLoc, loc, collector)
 	return program, err

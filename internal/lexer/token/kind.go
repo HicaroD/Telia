@@ -102,12 +102,14 @@ const (
 
 	AND
 	OR
+	CMP_OP_START // comparison op start delimiter
 	BANG_EQUAL
 	EQUAL_EQUAL
 	GREATER
 	GREATER_EQ
 	LESS
 	LESS_EQ
+	CMP_OP_END // comparison op end delimiter
 
 	LOGICAL_OP_END // logical op end delimiter
 
@@ -168,13 +170,15 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 func (k Kind) BitSize() int {
 	switch k {
-	case BOOL_TYPE, UNTYPED_BOOL:
+	case VOID_TYPE:
+		return 0
+	case BOOL_TYPE:
 		return 1
 	case I8_TYPE, U8_TYPE:
 		return 8
 	case I16_TYPE, U16_TYPE:
 		return 16
-	case I32_TYPE, U32_TYPE, INT_TYPE, UINT_TYPE, F32_TYPE, FLOAT_TYPE, UNTYPED_FLOAT, UNTYPED_INT:
+	case I32_TYPE, U32_TYPE, INT_TYPE, UINT_TYPE, F32_TYPE, FLOAT_TYPE:
 		return 32
 	case I64_TYPE, U64_TYPE, F64_TYPE:
 		return 64
@@ -212,6 +216,10 @@ func (k Kind) IsStringType() bool {
 
 func (k Kind) IsLogicalOp() bool {
 	return k > LOGICAL_OP_START && k < LOGICAL_OP_END
+}
+
+func (k Kind) IsCmpOp() bool {
+	return k > CMP_OP_START && k < CMP_OP_END
 }
 
 func (k Kind) String() string {

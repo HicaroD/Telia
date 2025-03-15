@@ -101,7 +101,13 @@ func (a *Attributes) String() string {
 	if a == nil {
 		return "No attributes"
 	}
-	return fmt.Sprintf("LinkName: '%s' | Linkage: '%s' | DefaultCC: '%s' | LinkPrefix: '%s'\n", a.LinkName, a.Linkage, a.DefaultCallingConvention, a.LinkPrefix)
+	return fmt.Sprintf(
+		"LinkName: '%s' | Linkage: '%s' | DefaultCC: '%s' | LinkPrefix: '%s'\n",
+		a.LinkName,
+		a.Linkage,
+		a.DefaultCallingConvention,
+		a.LinkPrefix,
+	)
 }
 
 type AtOperatorKind int

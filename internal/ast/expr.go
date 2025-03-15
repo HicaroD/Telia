@@ -90,13 +90,13 @@ func (unary *UnaryExpr) String() string {
 	return fmt.Sprintf("%v %v\n", unary.Op, unary.Value)
 }
 
-type BinaryExpr struct {
+type BinExpr struct {
 	Left  *Node
 	Op    token.Kind
 	Right *Node
 }
 
-func (binExpr *BinaryExpr) String() string {
+func (binExpr *BinExpr) String() string {
 	return fmt.Sprintf("(%v) %v (%v)\n", binExpr.Left, binExpr.Op, binExpr.Right)
 }
 

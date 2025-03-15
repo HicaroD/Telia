@@ -52,7 +52,13 @@ func LocFromPath(path string) (*Loc, error) {
 }
 
 func (l Loc) String() string {
-	return fmt.Sprintf("Name: %s | Dir: %s | Path: %s | isPackage: %v", l.Name, l.Dir, l.Path, l.IsPackage)
+	return fmt.Sprintf(
+		"Name: %s | Dir: %s | Path: %s | isPackage: %v",
+		l.Name,
+		l.Dir,
+		l.Path,
+		l.IsPackage,
+	)
 }
 
 type Package struct {

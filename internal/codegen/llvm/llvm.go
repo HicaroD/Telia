@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -16,10 +15,29 @@ import (
 	"tinygo.org/x/go-llvm"
 )
 
+var (
+	context llvm.Context = llvm.NewContext()
+	builder llvm.Builder = context.NewBuilder()
+)
+
+// B stands for (B)ackend
+var (
+	B_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
+	B_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
+
+	B_VOID_TYPE   = context.VoidType()
+	B_BOOL_TYPE   = context.Int1Type()
+	B_INT8_TYPE   = context.Int8Type()
+	B_INT32_TYPE  = context.Int32Type()
+	B_F32_TYPE    = context.FloatType()
+	B_F64_TYPE    = context.DoubleType()
+	B_RAWPTR_TYPE = llvm.PointerType(B_INT8_TYPE, 0) // *u8
+)
+
+var ()
+
 type codegen struct {
-	context llvm.Context
-	module  llvm.Module
-	builder llvm.Builder
+	module llvm.Module
 
 	loc     *ast.Loc
 	program *ast.Program
@@ -27,9 +45,7 @@ type codegen struct {
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
-	context := llvm.NewContext()
 	module := context.NewModule(loc.Dir)
-	builder := context.NewBuilder()
 
 	defaultTargetTriple := llvm.DefaultTargetTriple()
 	module.SetTarget(defaultTargetTriple)
@@ -37,9 +53,7 @@ func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
 	return &codegen{
 		loc:     loc,
 		program: program,
-		context: context,
 		module:  module,
-		builder: builder,
 	}
 }
 
@@ -62,91 +76,91 @@ func (c *codegen) generatePackage(pkg *ast.Package) {
 		for _, imp := range file.Imports {
 			c.generatePackage(imp.Package)
 		}
-		c.generateDeclarations(file)
+		c.emitDeclarations(file)
 	}
 
 	for _, file := range pkg.Files {
-		c.generateBodies(file)
+		c.emitBodies(file)
 	}
 
 	pkg.Processed = true
 }
 
-func (c *codegen) generateDeclarations(file *ast.File) {
+func (c *codegen) emitDeclarations(file *ast.File) {
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
-			c.generateFnSignature(node.Node.(*ast.FnDecl))
+			c.emitFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
-			c.generateExternDecl(node.Node.(*ast.ExternDecl))
+			c.emitExternDecl(node.Node.(*ast.ExternDecl))
 		case ast.KIND_STRUCT_DECL:
-			c.generateStructDecl(node.Node.(*ast.StructDecl))
+			c.emitStructDecl(node.Node.(*ast.StructDecl))
 		default:
 			continue
 		}
 	}
 }
 
-func (c *codegen) generateBodies(file *ast.File) {
+func (c *codegen) emitBodies(file *ast.File) {
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
-			c.generateFnBody(node.Node.(*ast.FnDecl))
+			c.emitFnBody(node.Node.(*ast.FnDecl))
 		default:
 			continue
 		}
 	}
 }
 
-func (c *codegen) generateFnSignature(fnDecl *ast.FnDecl) {
-	returnType := c.getType(fnDecl.RetType)
+func (c *codegen) emitFnSignature(fnDecl *ast.FnDecl) {
+	returnType := c.emitType(fnDecl.RetType)
 	paramsTypes := c.getFieldListTypes(fnDecl.Params)
 	functionType := llvm.FunctionType(returnType, paramsTypes, fnDecl.Params.IsVariadic)
 	functionValue := llvm.AddFunction(c.module, fnDecl.Name.Name(), functionType)
 
 	if fnDecl.Attributes != nil {
-		functionValue.SetFunctionCallConv(c.getCallingConvention(fnDecl.Attributes.DefaultCallingConvention))
+		functionValue.SetFunctionCallConv(
+			c.getCallingConvention(fnDecl.Attributes.DefaultCallingConvention),
+		)
 	}
 }
 
-func (c *codegen) generateFnBody(fnDecl *ast.FnDecl) {
+func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	fn := c.module.NamedFunction(fnDecl.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating fn body")
 	}
-	body := c.context.AddBasicBlock(fn, "entry")
-	c.builder.SetInsertPointAtEnd(body)
+	body := context.AddBasicBlock(fn, "entry")
+	builder.SetInsertPointAtEnd(body)
 
 	paramsTypes := fn.GlobalValueType().ParamTypes()
-	for i, paramPtrValue := range fn.Params() {
+	for i, fnParam := range fn.Params() {
+		argPtr := builder.CreateAlloca(paramsTypes[i], "")
+		builder.CreateStore(fnParam, argPtr)
+
+		variable := &Variable{
+			Ty:  paramsTypes[i],
+			Ptr: argPtr,
+		}
+
 		field := fnDecl.Params.Fields[i]
-		c.generateParam(field, paramsTypes[i], paramPtrValue)
+		field.BackendType = variable
 	}
 
-	stoppedOnReturn := c.generateBlock(fn, fnDecl.Block)
+	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
 	if !stoppedOnReturn && fnDecl.RetType.IsVoid() {
-		c.builder.CreateRetVoid()
+		builder.CreateRetVoid()
 	}
 }
 
-func (c *codegen) generateParam(field *ast.Param, ty llvm.Type, val llvm.Value) {
-	paramVal := c.builder.CreateAlloca(ty, ".param")
-	c.builder.CreateStore(val, paramVal)
-	variable := &Variable{
-		Ty:  ty,
-		Ptr: paramVal,
-	}
-	field.BackendType = variable
-}
-
-func (c *codegen) generateBlock(
+func (c *codegen) emitBlock(
 	fn llvm.Value,
 	block *ast.BlockStmt,
 ) bool {
 	stoppedOnReturn := false
 
 	for _, stmt := range block.Statements {
-		c.generateStmt(fn, block, stmt)
+		c.emitStmt(fn, block, stmt)
 		if stmt.IsReturn() {
 			stoppedOnReturn = true
 			break
@@ -156,124 +170,128 @@ func (c *codegen) generateBlock(
 	return stoppedOnReturn
 }
 
-func (c *codegen) generateStmt(
+func (c *codegen) emitStmt(
 	function llvm.Value,
 	block *ast.BlockStmt,
 	stmt *ast.Node,
 ) {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
-		c.generateFnCall(stmt.Node.(*ast.FnCall))
+		c.emitFnCall(stmt.Node.(*ast.FnCall))
 	case ast.KIND_RETURN_STMT:
 		if len(block.DeferStack) > 0 {
-			for i := len(block.DeferStack) - 1; i >= 0; i-- {
-				if block.DeferStack[i].Skip {
-					continue
-				}
-				c.generateStmt(function, block, block.DeferStack[i].Stmt)
-			}
+			c.emitDefers(function, block, block.DeferStack)
 		}
-		c.generateReturnStmt(stmt.Node.(*ast.ReturnStmt))
+		c.emitReturn(stmt.Node.(*ast.ReturnStmt))
 	case ast.KIND_VAR_STMT:
-		c.generateVar(stmt.Node.(*ast.VarStmt))
+		c.emitVar(stmt.Node.(*ast.VarStmt))
 	case ast.KIND_NAMESPACE_ACCESS:
-		c.generateNamespaceAccess(stmt.Node.(*ast.NamespaceAccess))
+		c.emitNamespaceAccess(stmt.Node.(*ast.NamespaceAccess))
 	case ast.KIND_COND_STMT:
-		c.generateCondStmt(stmt.Node.(*ast.CondStmt), function)
+		c.emitCond(stmt.Node.(*ast.CondStmt), function)
 	case ast.KIND_FOR_LOOP_STMT:
-		c.generateForLoop(stmt.Node.(*ast.ForLoop), function)
+		c.emitForLoop(stmt.Node.(*ast.ForLoop), function)
 	case ast.KIND_WHILE_LOOP_STMT:
-		c.generateWhileLoop(stmt.Node.(*ast.WhileLoop), function)
+		c.emitWhileLoop(stmt.Node.(*ast.WhileLoop), function)
 	case ast.KIND_DEFER_STMT:
-		// NOTE: ignored because defer statements are handled during block
-		// generation
-		goto Ignore
+		break
 	default:
 		log.Fatalf("unimplemented block statement: %s\n", stmt)
 	}
-Ignore:
 }
 
-func (c *codegen) generateReturnStmt(
+func (c *codegen) emitDefers(fn llvm.Value, block *ast.BlockStmt, defers []*ast.DeferStmt) {
+	for i := len(defers) - 1; i >= 0; i-- {
+		if defers[i].Skip {
+			continue
+		}
+		c.emitStmt(fn, block, defers[i].Stmt)
+	}
+}
+
+func (c *codegen) emitReturn(
 	ret *ast.ReturnStmt,
 ) {
 	if ret.Value.IsVoid() {
-		c.builder.CreateRetVoid()
+		builder.CreateRetVoid()
 		return
 	}
-	returnValue, _, _ := c.getExpr(ret.Value)
+	returnValue, _ := c.emitExpr(ret.Value, false)
 	// TODO: learn more about noundef for return values
-	c.builder.CreateRet(returnValue)
+	builder.CreateRet(returnValue)
 }
 
-func (c *codegen) generateVar(variable *ast.VarStmt) {
+func (c *codegen) emitVar(variable *ast.VarStmt) {
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
-
-		t := 0
-		for _, expr := range tuple.Exprs {
-			switch expr.Kind {
-			case ast.KIND_TUPLE_LITERAL_EXPR:
-				innerTupleExpr := expr.Node.(*ast.TupleExpr)
-				for _, innerExpr := range innerTupleExpr.Exprs {
-					c.generateVariable(variable.Names[t], innerExpr, variable.IsDecl)
-					t++
-				}
-			case ast.KIND_FN_CALL:
-				fnCall := expr.Node.(*ast.FnCall)
-				if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
-					tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
-					affectedVariables := variable.Names[t : t+len(tupleType.Types)]
-					c.generateFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
-					t += len(affectedVariables)
-				} else {
-					c.generateVariable(variable.Names[t], expr, variable.IsDecl)
-					t++
-				}
-			default:
-				c.generateVariable(variable.Names[t], expr, variable.IsDecl)
-				t++
-			}
-		}
+		c.emitTupleLiteralAsVarValue(variable, tuple)
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
-		c.generateFnCallForTuple(variable.Names, fnCall, variable.IsDecl)
+		c.emitFnCallForTuple(variable.Names, fnCall, variable.IsDecl)
 	default:
-		c.generateVariable(variable.Names[0], variable.Expr, variable.IsDecl)
+		c.emitVariable(variable.Names[0], variable.Expr, variable.IsDecl)
 	}
 }
 
-func (c *codegen) generateFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
-	genFnCall := c.generateFnCall(fnCall)
-
-	if len(variables) == 1 {
-		c.generateVariableWithValue(variables[0], genFnCall, isDecl)
-	} else {
-		for i, currentVar := range variables {
-			value := c.builder.CreateExtractValue(genFnCall, i, ".arg")
-			c.generateVariableWithValue(currentVar, value, isDecl)
+func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.TupleExpr) {
+	t := 0
+	for _, expr := range tuple.Exprs {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_LITERAL_EXPR:
+			innerTupleExpr := expr.Node.(*ast.TupleExpr)
+			for _, innerExpr := range innerTupleExpr.Exprs {
+				c.emitVariable(variable.Names[t], innerExpr, variable.IsDecl)
+				t++
+			}
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
+				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
+				t += len(affectedVariables)
+			} else {
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+				t++
+			}
+		default:
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+			t++
 		}
 	}
 }
 
-func (c *codegen) generateVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
-	if isDecl {
-		c.generateVarDecl(name, expr)
+func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
+	genFnCall, _ := c.emitFnCall(fnCall)
+
+	if len(variables) == 1 {
+		c.emitVariableWithValue(variables[0], genFnCall, isDecl)
 	} else {
-		c.generateVarReassign(name, expr)
+		for i, currentVar := range variables {
+			value := builder.CreateExtractValue(genFnCall, i, ".arg")
+			c.emitVariableWithValue(currentVar, value, isDecl)
+		}
 	}
 }
 
-func (c *codegen) generateVariableWithValue(name *ast.Node, value llvm.Value, isDecl bool) {
+func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
 	if isDecl {
-		c.generateVarDeclWithValue(name, value)
+		c.emitVarDecl(name, expr)
 	} else {
-		c.generateVarReassignWithValue(name, value)
+		c.emitVarReassign(name, expr)
 	}
 }
 
-func (c *codegen) generateVarDecl(
+func (c *codegen) emitVariableWithValue(name *ast.Node, value llvm.Value, isDecl bool) {
+	if isDecl {
+		c.emitVarDeclWithValue(name, value)
+	} else {
+		c.emitVarReassignWithValue(name, value)
+	}
+}
+
+func (c *codegen) emitVarDecl(
 	name *ast.Node,
 	expr *ast.Node,
 ) {
@@ -281,17 +299,17 @@ func (c *codegen) generateVarDecl(
 	var ptr llvm.Value
 
 	variable := name.Node.(*ast.VarIdStmt)
-	ty = c.getType(variable.Type)
+	ty = c.emitType(variable.Type)
 
 	switch expr.Kind {
 	case ast.KIND_STRUCT_LITERAL_EXPR:
-		ptr = c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr))
+		ptr, _ = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		ptr = c.generateNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
+		ptr, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
-		ptr = c.builder.CreateAlloca(ty, ".ptr")
-		generatedExpr, _, _ := c.getExpr(expr)
-		c.builder.CreateStore(generatedExpr, ptr)
+		ptr = builder.CreateAlloca(ty, "")
+		generatedExpr, _ := c.emitExpr(expr, false)
+		builder.CreateStore(generatedExpr, ptr)
 	}
 
 	variableLlvm := &Variable{
@@ -301,11 +319,11 @@ func (c *codegen) generateVarDecl(
 	variable.BackendType = variableLlvm
 }
 
-func (c *codegen) generateVarReassign(
+func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
 ) {
-	generatedExpr, _, _ := c.getExpr(expr)
+	generatedExpr, _ := c.emitExpr(expr, false)
 	var varPtr llvm.Value
 
 	switch name.Kind {
@@ -328,7 +346,10 @@ func (c *codegen) generateVarReassign(
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
 
-	c.builder.CreateStore(generatedExpr, varPtr)
+	if varPtr.IsNil() {
+		panic("variable ptr is nil")
+	}
+	builder.CreateStore(generatedExpr, varPtr)
 }
 
 func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
@@ -340,30 +361,31 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
 		obj := fieldAccess.StructVar.BackendType.(*Variable)
-		return c.builder.CreateStructGEP(st, obj.Ptr, fieldAccess.AccessedField.Index, ".field")
+		return builder.CreateStructGEP(st, obj.Ptr, fieldAccess.AccessedField.Index, ".field")
 	default:
 		panic("unimplemented other type of field access")
 	}
 }
 
-func (c *codegen) generateVarDeclWithValue(
+func (c *codegen) emitVarDeclWithValue(
 	name *ast.Node,
 	value llvm.Value,
 ) {
 	variable := name.Node.(*ast.VarIdStmt)
 
-	ty := c.getType(variable.Type)
-	ptr := c.builder.CreateAlloca(ty, ".ptr")
-	c.builder.CreateStore(value, ptr)
+	ty := c.emitType(variable.Type)
+	ptr := builder.CreateAlloca(ty, "")
+	builder.CreateStore(value, ptr)
 
 	variableLlvm := &Variable{
 		Ty:  ty,
 		Ptr: ptr,
 	}
+
 	variable.BackendType = variableLlvm
 }
 
-func (c *codegen) generateVarReassignWithValue(
+func (c *codegen) emitVarReassignWithValue(
 	name *ast.Node,
 	value llvm.Value,
 ) {
@@ -380,84 +402,93 @@ func (c *codegen) generateVarReassignWithValue(
 			param := node.N.Node.(*ast.Param)
 			variable = param.BackendType.(*Variable)
 		}
-	// TODO: check if the case below is reachable
-	case ast.KIND_FIELD:
-		node := name.Node.(*ast.Param)
-		variable = node.BackendType.(*Variable)
 	default:
-		log.Fatalf("invalid symbol on generateVarReassign: %v\n", reflect.TypeOf(variable))
+		panic(fmt.Sprintf("unimplemented symbol on generateVarReassign: %v\n", name.Node))
 	}
 
-	c.builder.CreateStore(value, variable.Ptr)
+	builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *codegen) generateFnCall(call *ast.FnCall) llvm.Value {
+func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Value, bool) {
 	args := c.getCallArgs(call)
 	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
-	return c.builder.CreateCall(fn.GlobalValueType(), fn, args, "")
+
+	var hasFloat bool
+
+	if call.Decl != nil {
+		hasFloat, _ = c.checkFloatTypeForBitSize(call.Decl.RetType)
+	} else {
+		hasFloat, _ = c.checkFloatTypeForBitSize(call.Proto.RetType)
+	}
+	return builder.CreateCall(fn.GlobalValueType(), fn, args, ""), hasFloat
 }
 
-func (c *codegen) generateTupleExpr(tuple *ast.TupleExpr) llvm.Value {
-	types := c.getTypes(tuple.Type.Types)
-	tupleTy := c.context.StructType(types, false)
+func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Value, bool) {
+	types := c.emitTypes(tuple.Type.Types)
+	tupleTy := context.StructType(types, false)
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		generatedExpr, _, _ := c.getExpr(expr)
-		tupleVal = c.builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
+		generatedExpr, _ := c.emitExpr(expr, false)
+		tupleVal = builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
 	}
 
-	return tupleVal
+	return tupleVal, false
 }
 
-func (c *codegen) generateStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
-	st := c.module.GetTypeByName(lit.Name.Name())
-	if st.IsNil() {
-		panic("struct is nil")
-	}
-
-	obj := c.builder.CreateAlloca(st, ".obj")
-	for _, field := range lit.Values {
-		expr, _, _ := c.getExpr(field.Value)
-		allocatedField := c.builder.CreateStructGEP(st, obj, field.Index, ".field")
-		c.builder.CreateStore(expr, allocatedField)
-	}
-
-	return obj
-}
-
-func (c *codegen) generateFieldAccessExpr(fieldAccess *ast.FieldAccess) llvm.Value {
-	ptr := c.getStructFieldPtr(fieldAccess)
-	ty := c.getType(fieldAccess.AccessedField.Type)
-	loadedPtr := c.builder.CreateLoad(ty, ptr, ".access")
-	return loadedPtr
-}
-
-func (c *codegen) generateExternDecl(external *ast.ExternDecl) {
-	for _, proto := range external.Prototypes {
-		c.generatePrototype(proto.Attributes, proto)
-	}
-}
-
-func (c *codegen) generateStructDecl(st *ast.StructDecl) {
+func (c *codegen) emitStructDecl(st *ast.StructDecl) {
 	fields := c.getStructFieldList(st.Fields)
-	structTy := c.context.StructCreateNamed(st.Name.Name())
+	structTy := context.StructCreateNamed(st.Name.Name())
 	// TODO: set packed properly
 	packed := false
 	structTy.StructSetBody(fields, packed)
 }
 
-func (c *codegen) generatePrototype(externAttributes *ast.Attributes, prototype *ast.Proto) {
-	returnTy := c.getType(prototype.RetType)
+func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, bool) {
+	st := c.module.GetTypeByName(lit.Name.Name())
+	if st.IsNil() {
+		panic("struct is nil")
+	}
+
+	obj := builder.CreateAlloca(st, "")
+	for _, field := range lit.Values {
+		expr, _ := c.emitExpr(field.Value, false)
+		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
+		builder.CreateStore(expr, allocatedField)
+	}
+
+	return obj, false
+}
+
+func (c *codegen) emitFieldAccessExpr(
+	fieldAccess *ast.FieldAccess,
+	isArg bool,
+) (llvm.Value, bool) {
+	ptr := c.getStructFieldPtr(fieldAccess)
+	ty := c.emitType(fieldAccess.AccessedField.Type)
+	hasFloat, _ := c.checkFloatTypeForBitSize(fieldAccess.AccessedField.Type)
+	return builder.CreateLoad(ty, ptr, ""), hasFloat
+}
+
+func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
+	for _, proto := range external.Prototypes {
+		c.emitPrototype(proto.Attributes, proto)
+	}
+}
+
+func (c *codegen) emitPrototype(externAttributes *ast.Attributes, prototype *ast.Proto) {
+	returnTy := c.emitType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if externAttributes != nil {
-		protoValue.SetFunctionCallConv(c.getCallingConvention(externAttributes.DefaultCallingConvention))
+		protoValue.SetFunctionCallConv(
+			c.getCallingConvention(externAttributes.DefaultCallingConvention),
+		)
 	}
 	if prototype.Attributes == nil {
 		return
@@ -504,55 +535,62 @@ func (c *codegen) getCallingConvention(callingConvention string) llvm.CallConv {
 	}
 }
 
-func (c *codegen) getType(ty *ast.ExprType) llvm.Type {
+func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 	switch ty.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
 		switch b.Kind {
-		case token.BOOL_TYPE, token.UNTYPED_BOOL, token.INT_TYPE,
-			token.UINT_TYPE, token.UNTYPED_INT, token.I8_TYPE, token.U8_TYPE,
+		case token.BOOL_TYPE, token.INT_TYPE,
+			token.UINT_TYPE, token.I8_TYPE, token.U8_TYPE,
 			token.I16_TYPE, token.U16_TYPE, token.I32_TYPE, token.U32_TYPE,
 			token.I64_TYPE, token.U64_TYPE, token.I128_TYPE, token.U128_TYPE:
 
 			bitSize := b.Kind.BitSize()
-			return c.context.IntType(bitSize)
-		case token.F32_TYPE, token.FLOAT_TYPE, token.UNTYPED_FLOAT:
-			return c.context.FloatType()
+			return context.IntType(bitSize)
+		case token.F32_TYPE, token.FLOAT_TYPE:
+			return B_F32_TYPE
 		case token.F64_TYPE:
-			return c.context.DoubleType()
+			return B_F64_TYPE
 		case token.VOID_TYPE:
-			return c.context.VoidType()
+			return B_VOID_TYPE
 		case token.STRING_TYPE, token.CSTRING_TYPE:
 			u8 := ast.NewBasicType(token.U8_TYPE)
-			u8Type := c.getType(u8)
-			return c.getPtrType(u8Type)
+			u8Type := c.emitType(u8)
+			return c.emitPtrType(u8Type)
 		case token.RAWPTR_TYPE:
-			u8 := ast.NewBasicType(token.U8_TYPE)
-			u8Type := c.getType(u8)
-			return c.getPtrType(u8Type)
+			return B_RAWPTR_TYPE
+		case token.UNTYPED_BOOL:
+			panic("unimplemented untyped bool")
+		case token.UNTYPED_INT:
+			panic("unimplemented untyped int")
+		case token.UNTYPED_FLOAT:
+			panic("unimplemented untyped float")
+		case token.UNTYPED_STRING:
+			panic("unimplemented untyped string")
+		default:
+			panic(fmt.Sprintf("unimplemented basic type: %v\n", ty.Kind))
 		}
 	case ast.EXPR_TYPE_TUPLE:
 		tuple := ty.T.(*ast.TupleType)
-		innerTypes := c.getTypes(tuple.Types)
-		tupleTy := c.context.StructType(innerTypes, false)
+		innerTypes := c.emitTypes(tuple.Types)
+		tupleTy := context.StructType(innerTypes, false)
 		return tupleTy
 	case ast.EXPR_TYPE_STRUCT:
 		ty := ty.T.(*ast.StructType)
 		return c.module.GetTypeByName(ty.Decl.Name.Name())
 	default:
-		log.Fatalf("unimplemented type: %v\n", ty.Kind)
+		panic(fmt.Sprintf("unimplemented type: %v\n", ty.Kind))
 	}
-	return c.context.VoidType()
 }
 
-func (c *codegen) getPtrType(ty llvm.Type) llvm.Type {
+func (c *codegen) emitPtrType(ty llvm.Type) llvm.Type {
 	return llvm.PointerType(ty, 0)
 }
 
-func (c *codegen) getTypes(types []*ast.ExprType) []llvm.Type {
+func (c *codegen) emitTypes(types []*ast.ExprType) []llvm.Type {
 	tys := make([]llvm.Type, len(types))
 	for i, ty := range types {
-		tys[i] = c.getType(ty)
+		tys[i] = c.emitType(ty)
 	}
 	return tys
 }
@@ -560,7 +598,7 @@ func (c *codegen) getTypes(types []*ast.ExprType) []llvm.Type {
 func (c *codegen) getStructFieldList(fields []*ast.StructField) []llvm.Type {
 	types := make([]llvm.Type, len(fields))
 	for i, field := range fields {
-		types[i] = c.getType(field.Type)
+		types[i] = c.emitType(field.Type)
 	}
 	return types
 }
@@ -568,7 +606,7 @@ func (c *codegen) getStructFieldList(fields []*ast.StructField) []llvm.Type {
 func (c *codegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	types := make([]llvm.Type, params.Len)
 	for i := range params.Len {
-		types[i] = c.getType(params.Fields[i].Type)
+		types[i] = c.emitType(params.Fields[i].Type)
 	}
 	return types
 }
@@ -581,245 +619,257 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 	values := make([]llvm.Value, nExprs)
 	for i := range nExprs {
-		value, _, _ := c.getExpr(call.Args[i])
+		value, _ := c.emitExpr(call.Args[i], true)
 		values[i] = value
 	}
 
 	if call.Variadic {
 		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
-			varArg, _, _ := c.getExpr(arg)
+			varArg, _ := c.emitExpr(arg, true)
 			values = append(values, varArg)
 		}
 	}
+
 	return values
 }
 
-func (c *codegen) getExpr(expr *ast.Node) (llvm.Value, int, bool) {
-	hasFloat := false
-	bitSize := 32
-
+func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
-		lit := expr.Node.(*ast.LiteralExpr)
-		switch lit.Type.Kind {
-		case ast.EXPR_TYPE_BASIC:
-			basic := lit.Type.T.(*ast.BasicType)
-
-			if basic.Kind.IsFloat() {
-				hasFloat = true
-				floatValue, bitSize := c.getFloatValue(lit, basic)
-				if bitSize == 32 {
-					return llvm.ConstFloat(c.context.FloatType(), floatValue), bitSize, hasFloat
-				} else {
-					return llvm.ConstFloat(c.context.DoubleType(), floatValue), bitSize, hasFloat
-				}
-			}
-
-			if basic.Kind.IsInteger() {
-				integerValue, bitSize := c.getIntegerValue(lit, basic)
-				return llvm.ConstInt(c.context.IntType(bitSize), integerValue, false), bitSize, hasFloat
-			}
-
-			switch basic.Kind {
-			case token.STRING_TYPE, token.CSTRING_TYPE:
-				strlen := len(lit.Value) + 1
-				arrTy := llvm.ArrayType(c.context.Int8Type(), strlen)
-				arr := llvm.ConstArray(arrTy, c.llvmConstInt8s(lit.Value, strlen))
-
-				globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
-				globalVal.SetInitializer(arr)
-				globalVal.SetLinkage(llvm.PrivateLinkage)
-				globalVal.SetGlobalConstant(true)
-				globalVal.SetAlignment(1)
-				globalVal.SetUnnamedAddr(true)
-
-				zero := llvm.ConstInt(c.context.Int32Type(), 0, false)
-				indices := []llvm.Value{zero, zero}
-				ptr := llvm.ConstInBoundsGEP(arrTy, globalVal, indices)
-
-				return ptr, bitSize, hasFloat
-			case token.BOOL_TYPE, token.UNTYPED_BOOL:
-				ty := c.getType(lit.Type)
-				boolVal := string(lit.Value)
-				var val uint64
-				if boolVal == "true" {
-					val = 1
-				} else {
-					val = 0
-				}
-				return llvm.ConstInt(ty, val, false), bitSize, hasFloat
-			default:
-				log.Fatalf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value))
-				return llvm.Value{}, bitSize, hasFloat
-			}
-		case ast.EXPR_TYPE_POINTER:
-			panic("unimplemented pointer type")
-		default:
-			panic("unimplemented literal type")
-		}
+		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
-		id := expr.Node.(*ast.IdExpr)
-
-		var localVar *Variable
-		var varTy *ast.ExprType
-
-		switch id.N.Kind {
-		case ast.KIND_VAR_ID_STMT:
-			variable := id.N.Node.(*ast.VarIdStmt)
-			varTy = variable.Type
-			localVar = variable.BackendType.(*Variable)
-		case ast.KIND_FIELD:
-			variable := id.N.Node.(*ast.Param)
-			varTy = variable.Type
-			localVar = variable.BackendType.(*Variable)
-		}
-
-		if varTy.IsFloat() {
-			bt := varTy.T.(*ast.BasicType)
-			bitSize = bt.Kind.BitSize()
-			hasFloat = true
-		}
-
-		loadedVariable := c.builder.CreateLoad(localVar.Ty, localVar.Ptr, ".load")
-		return loadedVariable, bitSize, hasFloat
+		return c.emitIdExpr(expr.Node.(*ast.IdExpr), isArg)
 	case ast.KIND_BINARY_EXPR:
-		binary := expr.Node.(*ast.BinaryExpr)
-
-		lhs, lhsBitSize, lhsHasFloat := c.getExpr(binary.Left)
-		rhs, rhsBitSize, rhsHasFloat := c.getExpr(binary.Right)
-		if lhsBitSize != rhsBitSize {
-			panic("expected bit size to be the same")
-		}
-
-		hasFloat = lhsHasFloat || rhsHasFloat
-		bitSize = lhsBitSize // since they are the same
-
-		if hasFloat {
-			if lhsBitSize != rhsBitSize {
-				fmt.Println(binary.Op, binary.Left, lhsBitSize, binary.Right, rhsBitSize)
-				panic("expected bit size to be the same")
-			}
-			bitSize = lhsBitSize // since they are the same
-
-			switch binary.Op {
-			// TODO: deal with signed or unsigned operations
-			// I'm assuming all unsigned for now
-			case token.EQUAL_EQUAL:
-				return c.builder.CreateFCmp(llvm.FloatOEQ, lhs, rhs, ".fcmpeq"), bitSize, hasFloat
-			case token.BANG_EQUAL:
-				return c.builder.CreateFCmp(llvm.FloatONE, lhs, rhs, ".fcmpneq"), bitSize, hasFloat
-			case token.STAR:
-				return c.builder.CreateFMul(lhs, rhs, ".fmul"), bitSize, hasFloat
-			case token.MINUS:
-				return c.builder.CreateFSub(lhs, rhs, ".fsub"), bitSize, hasFloat
-			case token.PLUS:
-				return c.builder.CreateFAdd(lhs, rhs, ".fadd"), bitSize, hasFloat
-			case token.LESS:
-				return c.builder.CreateFCmp(llvm.FloatULT, lhs, rhs, ".fcmplt"), bitSize, hasFloat
-			case token.LESS_EQ:
-				return c.builder.CreateFCmp(llvm.FloatULT, lhs, rhs, ".fcmple"), bitSize, hasFloat
-			case token.GREATER:
-				return c.builder.CreateFCmp(llvm.FloatUGT, lhs, rhs, ".fcmpgt"), bitSize, hasFloat
-			case token.GREATER_EQ:
-				return c.builder.CreateFCmp(llvm.FloatOGE, lhs, rhs, ".fcmpge"), bitSize, hasFloat
-			case token.SLASH:
-				return c.builder.CreateFDiv(lhs, rhs, ".fdiv"), bitSize, hasFloat
-			default:
-				log.Fatalf("unimplemented binary operator: %s", binary.Op)
-				return llvm.Value{}, bitSize, hasFloat
-			}
-		} else {
-			switch binary.Op {
-			// TODO: deal with signed or unsigned operations
-			// I'm assuming all unsigned for now
-			case token.EQUAL_EQUAL:
-				return c.builder.CreateICmp(llvm.IntEQ, lhs, rhs, ".cmpeq"), bitSize, hasFloat
-			case token.BANG_EQUAL:
-				return c.builder.CreateICmp(llvm.IntNE, lhs, rhs, ".cmpneq"), bitSize, hasFloat
-			case token.STAR:
-				return c.builder.CreateMul(lhs, rhs, ".mul"), bitSize, hasFloat
-			case token.MINUS:
-				return c.builder.CreateSub(lhs, rhs, ".sub"), bitSize, hasFloat
-			case token.PLUS:
-				return c.builder.CreateAdd(lhs, rhs, ".add"), bitSize, hasFloat
-			case token.LESS:
-				return c.builder.CreateICmp(llvm.IntULT, lhs, rhs, ".cmplt"), bitSize, hasFloat
-			case token.LESS_EQ:
-				return c.builder.CreateICmp(llvm.IntULE, lhs, rhs, ".cmple"), bitSize, hasFloat
-			case token.GREATER:
-				return c.builder.CreateICmp(llvm.IntUGT, lhs, rhs, ".cmpgt"), bitSize, hasFloat
-			case token.GREATER_EQ:
-				return c.builder.CreateICmp(llvm.IntUGE, lhs, rhs, ".cmpge"), bitSize, hasFloat
-			case token.SLASH:
-				return c.builder.CreateExactSDiv(lhs, rhs, ".exactdiv"), bitSize, hasFloat
-			default:
-				log.Fatalf("unimplemented binary operator: %s", binary.Op)
-				return llvm.Value{}, bitSize, hasFloat
-			}
-		}
+		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
-		fnCall := expr.Node.(*ast.FnCall)
-		call := c.generateFnCall(fnCall)
-		return call, bitSize, hasFloat
+		return c.emitFnCall(expr.Node.(*ast.FnCall))
 	case ast.KIND_UNARY_EXPR:
-		unary := expr.Node.(*ast.UnaryExpr)
-		expr, bitSize, hasFloat := c.getExpr(unary.Value)
-
-		if hasFloat {
-			switch unary.Op {
-			case token.MINUS:
-				return c.builder.CreateFNeg(expr, ".fneg"), bitSize, hasFloat
-			case token.NOT:
-				var ty llvm.Type
-				if bitSize == 32 {
-					ty = c.context.FloatType()
-				} else {
-					ty = c.context.DoubleType()
-				}
-				falseVal := llvm.ConstFloat(ty, 0)
-				return c.builder.CreateICmp(llvm.IntEQ, falseVal, expr, ".not"), bitSize, hasFloat
-			default:
-				log.Fatalf("unimplemented unary operator: %s", unary.Op)
-				return llvm.Value{}, bitSize, hasFloat
-			}
-		} else {
-			switch unary.Op {
-			case token.MINUS:
-				return c.builder.CreateNeg(expr, ".neg"), bitSize, hasFloat
-			case token.NOT:
-				falseVal := llvm.ConstInt(c.context.Int1Type(), 0, false)
-				return c.builder.CreateICmp(llvm.IntEQ, falseVal, expr, ".not"), bitSize, hasFloat
-			default:
-				log.Fatalf("unimplemented unary operator: %s", unary.Op)
-				return llvm.Value{}, bitSize, hasFloat
-			}
-		}
+		return c.emitUnaryExpr(expr.Node.(*ast.UnaryExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		namespaceAccess := expr.Node.(*ast.NamespaceAccess)
-		value := c.generateNamespaceAccess(namespaceAccess)
-		return value, bitSize, hasFloat
+		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	case ast.KIND_TUPLE_LITERAL_EXPR:
-		return c.generateTupleExpr(expr.Node.(*ast.TupleExpr)), bitSize, hasFloat
+		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr))
+	case ast.KIND_STRUCT_LITERAL_EXPR:
+		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
+	case ast.KIND_FIELD_ACCESS:
+		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg)
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
-	case ast.KIND_STRUCT_LITERAL_EXPR:
-		return c.generateStructLiteral(expr.Node.(*ast.StructLiteralExpr)), bitSize, hasFloat
-	case ast.KIND_FIELD_ACCESS:
-		return c.generateFieldAccessExpr(expr.Node.(*ast.FieldAccess)), bitSize, hasFloat
 	default:
-		log.Fatalf("unimplemented expr: %v", expr)
-		return llvm.Value{}, bitSize, hasFloat
+		panic(fmt.Sprintf("unimplemented expr: %v", expr))
 	}
 }
 
-func (c *codegen) llvmConstInt8s(data []byte, length int) []llvm.Value {
+func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, bool) {
+	switch lit.Type.Kind {
+	case ast.EXPR_TYPE_BASIC:
+		basic := lit.Type.T.(*ast.BasicType)
+
+		if basic.Kind.IsFloat() {
+			return c.emitFloat(lit, basic)
+		}
+
+		if basic.Kind.IsInteger() {
+			integerValue, bitSize := c.getIntegerValue(lit, basic)
+			return llvm.ConstInt(context.IntType(bitSize), integerValue, false), false
+		}
+
+		switch basic.Kind {
+		case token.STRING_TYPE, token.CSTRING_TYPE:
+			return c.emitCstringLit(lit.Value), false
+		case token.BOOL_TYPE:
+			return c.emitBool(lit), false
+		default:
+			panic(fmt.Sprintf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value)))
+		}
+	case ast.EXPR_TYPE_POINTER:
+		panic("unimplemented pointer type")
+	default:
+		panic("unimplemented literal type")
+	}
+}
+
+func (c *codegen) emitFloat(lit *ast.LiteralExpr, ty *ast.BasicType) (llvm.Value, bool) {
+	hasFloat := true
+	floatValue, bitSize := c.getFloatValue(lit, ty)
+	if bitSize == 32 {
+		return llvm.ConstFloat(B_F32_TYPE, floatValue), hasFloat
+	} else {
+		return llvm.ConstFloat(B_F64_TYPE, floatValue), hasFloat
+	}
+}
+
+func (c *codegen) emitCstringLit(str []byte) llvm.Value {
+	strlen := len(str) + 1
+	arrTy := llvm.ArrayType(B_INT8_TYPE, strlen)
+	arr := llvm.ConstArray(arrTy, c.emitConstInt8sForCstring(str, strlen))
+
+	globalVal := llvm.AddGlobal(c.module, arrTy, ".str")
+	globalVal.SetInitializer(arr)
+	globalVal.SetLinkage(llvm.PrivateLinkage)
+	globalVal.SetGlobalConstant(true)
+	globalVal.SetAlignment(1)
+	globalVal.SetUnnamedAddr(true)
+
+	zero := llvm.ConstInt(B_INT32_TYPE, 0, false)
+	indices := []llvm.Value{zero, zero}
+	ptr := llvm.ConstInBoundsGEP(arrTy, globalVal, indices)
+	return ptr
+}
+
+func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
+	boolVal := string(lit.Value)
+
+	var val uint64
+	if boolVal == "true" {
+		val = 1
+	} else {
+		val = 0
+	}
+
+	return llvm.ConstInt(B_BOOL_TYPE, val, false)
+}
+
+func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
+	var localVar *Variable
+	var varTy *ast.ExprType
+
+	hasFloat := false
+
+	switch id.N.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		variable := id.N.Node.(*ast.VarIdStmt)
+		varTy = variable.Type
+		localVar = variable.BackendType.(*Variable)
+	case ast.KIND_FIELD:
+		variable := id.N.Node.(*ast.Param)
+		varTy = variable.Type
+		localVar = variable.BackendType.(*Variable)
+	}
+
+	if varTy.IsNumeric() {
+		bt := varTy.T.(*ast.BasicType)
+		hasFloat = bt.Kind.IsFloat()
+	}
+
+	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+}
+
+func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
+	lhs, lhsHasFloat := c.emitExpr(bin.Left, false)
+	rhs, rhsHasFloat := c.emitExpr(bin.Right, false)
+	hasFloat := lhsHasFloat || rhsHasFloat
+
+	var binExpr llvm.Value
+	if hasFloat {
+		binExpr = c.emitFloatBinExpr(lhs, bin.Op, rhs)
+	} else {
+		binExpr = c.emitIntBinExpr(lhs, bin.Op, rhs)
+	}
+	return binExpr, hasFloat
+}
+
+func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, bool) {
+	expr, hasFloat := c.emitExpr(unary.Value, false)
+	if hasFloat && unary.Op == token.MINUS {
+		return builder.CreateFNeg(expr, ""), hasFloat
+	}
+
+	switch unary.Op {
+	case token.MINUS:
+		return builder.CreateNeg(expr, ""), hasFloat
+	case token.NOT:
+		return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ""), hasFloat
+	default:
+		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
+	}
+}
+
+func (c *codegen) emitIntBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Value) llvm.Value {
+	if binOp.IsCmpOp() {
+		var predicate llvm.IntPredicate
+
+		switch binOp {
+		case token.EQUAL_EQUAL:
+			predicate = llvm.IntEQ
+		case token.BANG_EQUAL:
+			predicate = llvm.IntNE
+		case token.LESS:
+			predicate = llvm.IntULT
+		case token.LESS_EQ:
+			predicate = llvm.IntULE
+		case token.GREATER:
+			predicate = llvm.IntUGT
+		case token.GREATER_EQ:
+			predicate = llvm.IntUGE
+		default:
+			panic(fmt.Sprintf("unsupported comparison operator: %v", binOp))
+		}
+
+		cmp := builder.CreateICmp(predicate, lhs, rhs, "")
+		return cmp
+	}
+
+	switch binOp {
+	case token.STAR:
+		return builder.CreateMul(lhs, rhs, "")
+	case token.MINUS:
+		return builder.CreateSub(lhs, rhs, "")
+	case token.PLUS:
+		return builder.CreateAdd(lhs, rhs, "")
+	case token.SLASH:
+		return builder.CreateExactSDiv(lhs, rhs, "")
+	default:
+		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
+	}
+}
+
+func (c *codegen) emitFloatBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Value) llvm.Value {
+	if binOp.IsCmpOp() {
+		var predicate llvm.FloatPredicate
+
+		switch binOp {
+		case token.EQUAL_EQUAL:
+			predicate = llvm.FloatOEQ // ordered and equal
+		case token.BANG_EQUAL:
+			predicate = llvm.FloatONE // ordered and not equal
+		case token.LESS:
+			predicate = llvm.FloatOLT // ordered and less than
+		case token.LESS_EQ:
+			predicate = llvm.FloatOLE // ordered and less equal
+		case token.GREATER:
+			predicate = llvm.FloatOGT // ordered and greater than
+		case token.GREATER_EQ:
+			predicate = llvm.FloatOGE // ordered and greater equal
+		default:
+			panic(fmt.Sprintf("unsupported comparison operator: %v", binOp))
+		}
+
+		return builder.CreateFCmp(predicate, lhs, rhs, "")
+	}
+
+	switch binOp {
+	case token.STAR:
+		return builder.CreateFMul(lhs, rhs, "")
+	case token.MINUS:
+		return builder.CreateFSub(lhs, rhs, "")
+	case token.PLUS:
+		return builder.CreateFAdd(lhs, rhs, "")
+	case token.SLASH:
+		return builder.CreateFDiv(lhs, rhs, "")
+	default:
+		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
+	}
+}
+
+func (c *codegen) emitConstInt8sForCstring(data []byte, length int) []llvm.Value {
 	out := make([]llvm.Value, length)
 	for i, b := range data {
-		out[i] = llvm.ConstInt(c.context.Int8Type(), uint64(b), false)
+		out[i] = llvm.ConstInt(B_INT8_TYPE, uint64(b), false)
 	}
 	// c-strings are null terminated
-	out[length-1] = llvm.ConstInt(c.context.Int8Type(), uint64(0), false)
+	out[length-1] = llvm.ConstInt(B_INT8_TYPE, uint64(0), false)
 	return out
 }
 
@@ -849,7 +899,7 @@ func (c *codegen) getFloatValue(
 	return val, bitSize
 }
 
-func (c *codegen) generateCondStmt(
+func (c *codegen) emitCond(
 	condStmt *ast.CondStmt,
 	function llvm.Value,
 ) {
@@ -858,65 +908,64 @@ func (c *codegen) generateCondStmt(
 	endBlock := llvm.AddBasicBlock(function, ".end")
 
 	// If
-	ifExpr, _, _ := c.getExpr(condStmt.IfStmt.Expr)
-	c.builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
-	c.builder.SetInsertPointAtEnd(ifBlock)
-	stoppedOnReturn := c.generateBlock(function, condStmt.IfStmt.Block)
+	ifExpr, _ := c.emitExpr(condStmt.IfStmt.Expr, false)
+	builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
+	builder.SetInsertPointAtEnd(ifBlock)
+	stoppedOnReturn := c.emitBlock(function, condStmt.IfStmt.Block)
 	if !stoppedOnReturn {
-		c.builder.CreateBr(endBlock)
+		builder.CreateBr(endBlock)
 	}
 
 	// TODO: implement elif statements (at the end, they are just ifs and elses)
 
 	// Else
-	c.builder.SetInsertPointAtEnd(elseBlock)
+	builder.SetInsertPointAtEnd(elseBlock)
 	if condStmt.ElseStmt != nil {
-		elseStoppedOnReturn := c.generateBlock(
+		elseStoppedOnReturn := c.emitBlock(
 			function,
 			condStmt.ElseStmt.Block,
 		)
 		if !elseStoppedOnReturn {
-			c.builder.CreateBr(endBlock)
+			builder.CreateBr(endBlock)
 		}
 	} else {
-		c.builder.CreateBr(endBlock)
+		builder.CreateBr(endBlock)
 	}
-	c.builder.SetInsertPointAtEnd(endBlock)
+	builder.SetInsertPointAtEnd(endBlock)
 }
 
-func (c *codegen) generateNamespaceAccess(
+func (c *codegen) emitNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
-) llvm.Value {
+) (llvm.Value, bool) {
 	if namespaceAccess.IsImport {
-		return c.generateImportAccess(namespaceAccess.Right)
+		return c.emitImportAccess(namespaceAccess.Right)
 	}
 
-	switch namespaceAccess.Left.N.Kind {
-	case ast.KIND_EXTERN_DECL:
-		fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
-		return c.generateFnCall(fnCall)
-	default:
-		panic("unreachable")
+	if namespaceAccess.Left.N.Kind != ast.KIND_EXTERN_DECL {
+		panic("expected extern declaration for left side of namespace access")
 	}
+
+	fnCall := namespaceAccess.Right.Node.(*ast.FnCall)
+	return c.emitFnCall(fnCall)
 }
 
-func (c *codegen) generateImportAccess(right *ast.Node) llvm.Value {
+func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Value, bool) {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
-		return c.generateFnCall(fnCall)
+		return c.emitFnCall(fnCall)
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
-		return c.generateNamespaceAccess(namespaceAccess)
+		return c.emitNamespaceAccess(namespaceAccess)
 	case ast.KIND_STRUCT_LITERAL_EXPR:
 		stLit := right.Node.(*ast.StructLiteralExpr)
-		return c.generateStructLiteral(stLit)
+		return c.emitStructLiteral(stLit)
 	default:
 		panic(fmt.Sprintf("unimplemented import access: %v\n", right.Kind))
 	}
 }
 
-func (c *codegen) generateForLoop(
+func (c *codegen) emitForLoop(
 	forLoop *ast.ForLoop,
 	function llvm.Value,
 ) {
@@ -926,30 +975,30 @@ func (c *codegen) generateForLoop(
 	forUpdateBlock := llvm.AddBasicBlock(function, ".forupdate")
 	endBlock := llvm.AddBasicBlock(function, ".forend")
 
-	c.builder.CreateBr(forPrepBlock)
-	c.builder.SetInsertPointAtEnd(forPrepBlock)
-	c.generateStmt(function, forLoop.Block, forLoop.Init)
+	builder.CreateBr(forPrepBlock)
+	builder.SetInsertPointAtEnd(forPrepBlock)
+	c.emitStmt(function, forLoop.Block, forLoop.Init)
 
-	c.builder.CreateBr(forInitBlock)
-	c.builder.SetInsertPointAtEnd(forInitBlock)
+	builder.CreateBr(forInitBlock)
+	builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr, _, _ := c.getExpr(forLoop.Cond)
+	expr, _ := c.emitExpr(forLoop.Cond, false)
 
-	c.builder.CreateCondBr(expr, forBodyBlock, endBlock)
+	builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
-	c.builder.SetInsertPointAtEnd(forBodyBlock)
-	c.generateBlock(function, forLoop.Block)
+	builder.SetInsertPointAtEnd(forBodyBlock)
+	c.emitBlock(function, forLoop.Block)
 
-	c.builder.CreateBr(forUpdateBlock)
-	c.builder.SetInsertPointAtEnd(forUpdateBlock)
-	c.generateStmt(function, forLoop.Block, forLoop.Update)
+	builder.CreateBr(forUpdateBlock)
+	builder.SetInsertPointAtEnd(forUpdateBlock)
+	c.emitStmt(function, forLoop.Block, forLoop.Update)
 
-	c.builder.CreateBr(forInitBlock)
+	builder.CreateBr(forInitBlock)
 
-	c.builder.SetInsertPointAtEnd(endBlock)
+	builder.SetInsertPointAtEnd(endBlock)
 }
 
-func (c *codegen) generateWhileLoop(
+func (c *codegen) emitWhileLoop(
 	whileLoop *ast.WhileLoop,
 	function llvm.Value,
 ) {
@@ -957,16 +1006,24 @@ func (c *codegen) generateWhileLoop(
 	whileBodyBlock := llvm.AddBasicBlock(function, ".whilebody")
 	endBlock := llvm.AddBasicBlock(function, ".whileend")
 
-	c.builder.CreateBr(whileInitBlock)
-	c.builder.SetInsertPointAtEnd(whileInitBlock)
-	expr, _, _ := c.getExpr(whileLoop.Cond)
-	c.builder.CreateCondBr(expr, whileBodyBlock, endBlock)
+	builder.CreateBr(whileInitBlock)
+	builder.SetInsertPointAtEnd(whileInitBlock)
+	expr, _ := c.emitExpr(whileLoop.Cond, false)
+	builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
-	c.builder.SetInsertPointAtEnd(whileBodyBlock)
-	c.generateBlock(function, whileLoop.Block)
-	c.builder.CreateBr(whileInitBlock)
+	builder.SetInsertPointAtEnd(whileBodyBlock)
+	c.emitBlock(function, whileLoop.Block)
+	builder.CreateBr(whileInitBlock)
 
-	c.builder.SetInsertPointAtEnd(endBlock)
+	builder.SetInsertPointAtEnd(endBlock)
+}
+
+func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {
+	if ty.IsFloat() {
+		b := ty.T.(*ast.BasicType)
+		return true, b.Kind.BitSize()
+	}
+	return false, -1
 }
 
 func (c *codegen) generateExe(buildType config.BuildType) error {
