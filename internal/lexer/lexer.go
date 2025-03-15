@@ -167,6 +167,9 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	case ']':
 		lex.consumeTokenNoLex(tok, token.CLOSE_BRACKET)
 		lex.nextChar()
+	case '&':
+		lex.consumeTokenNoLex(tok, token.AMPERSAND)
+		lex.nextChar()
 	case '!':
 		lex.nextChar()
 

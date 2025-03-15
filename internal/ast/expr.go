@@ -131,3 +131,7 @@ type StructFieldValue struct {
 type StructFieldAccessExpr struct {
 	Access *Node
 }
+
+type PointerExpr struct {
+	Expr *Node
+}

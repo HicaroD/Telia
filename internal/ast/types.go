@@ -82,6 +82,10 @@ func (ty *ExprType) IsFloat() bool {
 		basic.Kind == token.FLOAT_TYPE_END
 }
 
+func (ty *ExprType) IsPointer() bool {
+	return ty.Kind == EXPR_TYPE_POINTER
+}
+
 func (ty *ExprType) IsUntyped() bool {
 	if ty.Kind != EXPR_TYPE_BASIC {
 		return false

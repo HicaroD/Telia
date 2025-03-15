@@ -1359,7 +1359,7 @@ func (p *Parser) parseStmt(
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-	case token.ID:
+	case token.ID, token.STAR:
 		endsWithNewLine = true
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
@@ -1492,12 +1492,14 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
 	isDecl := false
-	hasFieldAccess := false
-	anyVariableDeclaredType := false
+	var hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
 
 VarDecl:
 	for {
+		_, hasPointerReceiver := p.expect(token.STAR)
+		hasAnyPointerReceiver = hasAnyPointerReceiver || hasPointerReceiver
 		isFieldAccess := p.lex.Peek1().Kind == token.DOT
+
 		var currentVar *ast.Node
 
 		if isFieldAccess {
@@ -1514,10 +1516,11 @@ VarDecl:
 				return nil, fmt.Errorf("expected ID")
 			}
 			variable := &ast.VarIdStmt{
-				Name:           name,
-				NeedsInference: true,
-				Type:           nil,
-				BackendType:    nil,
+				Name:            name,
+				NeedsInference:  true,
+				PointerReceiver: hasPointerReceiver,
+				Type:            nil,
+				BackendType:     nil,
 			}
 
 			n := new(ast.Node)
@@ -1579,10 +1582,11 @@ VarDecl:
 	n := new(ast.Node)
 	n.Kind = ast.KIND_VAR_STMT
 	n.Node = &ast.VarStmt{
-		IsDecl:         isDecl,
-		HasFieldAccess: hasFieldAccess,
-		Names:          variables,
-		Expr:           expr,
+		IsDecl:             isDecl,
+		HasFieldAccess:     hasFieldAccess,
+		HasPointerReceiver: hasAnyPointerReceiver,
+		Names:              variables,
+		Expr:               expr,
 	}
 	return n, nil
 }
@@ -1918,6 +1922,20 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
+	case token.AMPERSAND:
+		p.lex.Skip() // &
+		expr, err := p.parseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		if expr.Kind != ast.KIND_ID_EXPR && expr.Kind != ast.KIND_FIELD_ACCESS {
+			return nil, fmt.Errorf("invalid expression for operator &")
+		}
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_POINTER_EXPR
+		n.Node = &ast.PointerExpr{Expr: expr}
+		return n, nil
 	case token.ID:
 		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
@@ -1965,8 +1983,8 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.OPEN_PAREN:
 		return p.parseFnCall(parentScope)
 	case token.COLON_COLON:
-		fieldAccess, err := p.parseNamespaceAccess(parentScope)
-		return fieldAccess, err
+		namespaceAccess, err := p.parseNamespaceAccess(parentScope)
+		return namespaceAccess, err
 	case token.OPEN_CURLY:
 		structLiteral, err := p.parseStructLiteralExpr(parentScope)
 		return structLiteral, err
@@ -2174,7 +2192,7 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_STRUCT_LITERAL_EXPR
+	n.Kind = ast.KIND_STRUCT_EXPR
 	n.Node = expr
 	return n, nil
 }

@@ -137,14 +137,13 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	for i, fnParam := range fn.Params() {
 		argPtr := builder.CreateAlloca(paramsTypes[i], "")
 		builder.CreateStore(fnParam, argPtr)
-
 		variable := &Variable{
 			Ty:  paramsTypes[i],
 			Ptr: argPtr,
 		}
-
 		field := fnDecl.Params.Fields[i]
 		field.BackendType = variable
+
 	}
 
 	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
@@ -216,7 +215,7 @@ func (c *codegen) emitReturn(
 		builder.CreateRetVoid()
 		return
 	}
-	returnValue, _ := c.emitExpr(ret.Value, false)
+	returnValue, _ := c.emitExpr(ret.Value)
 	// TODO: learn more about noundef for return values
 	builder.CreateRet(returnValue)
 }
@@ -230,7 +229,12 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 		fnCall := variable.Expr.Node.(*ast.FnCall)
 		c.emitFnCallForTuple(variable.Names, fnCall, variable.IsDecl)
 	default:
-		c.emitVariable(variable.Names[0], variable.Expr, variable.IsDecl)
+		c.emitVariable(
+			variable.Names[0],
+			variable.Expr,
+			variable.IsDecl,
+			variable.HasPointerReceiver,
+		)
 	}
 }
 
@@ -241,7 +245,12 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 		case ast.KIND_TUPLE_LITERAL_EXPR:
 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
 			for _, innerExpr := range innerTupleExpr.Exprs {
-				c.emitVariable(variable.Names[t], innerExpr, variable.IsDecl)
+				c.emitVariable(
+					variable.Names[t],
+					innerExpr,
+					variable.IsDecl,
+					variable.HasPointerReceiver,
+				)
 				t++
 			}
 		case ast.KIND_FN_CALL:
@@ -252,11 +261,11 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 				t += len(affectedVariables)
 			} else {
-				c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.HasPointerReceiver)
 				t++
 			}
 		default:
-			c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.HasPointerReceiver)
 			t++
 		}
 	}
@@ -275,11 +284,11 @@ func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, 
 	}
 }
 
-func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
+func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl, pointerReceiver bool) {
 	if isDecl {
 		c.emitVarDecl(name, expr)
 	} else {
-		c.emitVarReassign(name, expr)
+		c.emitVarReassign(name, expr, pointerReceiver)
 	}
 }
 
@@ -302,13 +311,13 @@ func (c *codegen) emitVarDecl(
 	ty = c.emitType(variable.Type)
 
 	switch expr.Kind {
-	case ast.KIND_STRUCT_LITERAL_EXPR:
+	case ast.KIND_STRUCT_EXPR:
 		ptr, _ = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
 		ptr, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
 		ptr = builder.CreateAlloca(ty, "")
-		generatedExpr, _ := c.emitExpr(expr, false)
+		generatedExpr, _ := c.emitExpr(expr)
 		builder.CreateStore(generatedExpr, ptr)
 	}
 
@@ -322,9 +331,10 @@ func (c *codegen) emitVarDecl(
 func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
+	pointerReceiver bool,
 ) {
-	generatedExpr, _ := c.emitExpr(expr, false)
-	var varPtr llvm.Value
+	var t llvm.Type
+	var p llvm.Value
 
 	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
@@ -332,27 +342,39 @@ func (c *codegen) emitVarReassign(
 		switch varId.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
-			varPtr = variable.BackendType.(*Variable).Ptr
+			v := variable.BackendType.(*Variable)
+			t = v.Ty
+			p = v.Ptr
 		case ast.KIND_FIELD:
 			param := varId.N.Node.(*ast.Param)
-			varPtr = param.BackendType.(*Variable).Ptr
+			v := param.BackendType.(*Variable)
+			t = v.Ty
+			p = v.Ptr
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
 	case ast.KIND_FIELD_ACCESS:
 		node := name.Node.(*ast.FieldAccess)
-		varPtr = c.getStructFieldPtr(node)
+		t, p = c.getStructFieldPtr(node)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
 
-	if varPtr.IsNil() {
+	if p.IsNil() {
 		panic("variable ptr is nil")
 	}
-	builder.CreateStore(generatedExpr, varPtr)
+
+	generatedExpr, _ := c.emitExpr(expr)
+	if pointerReceiver {
+		ptr := c.emitPtrType(t)
+		loaded := builder.CreateLoad(ptr, p, "")
+		builder.CreateStore(generatedExpr, loaded)
+		return
+	}
+	builder.CreateStore(generatedExpr, p)
 }
 
-func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
+func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value) {
 	st := c.module.GetTypeByName(fieldAccess.Decl.Name.Name())
 	if st.IsNil() {
 		panic("struct is nil")
@@ -361,7 +383,12 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
 		obj := fieldAccess.StructVar.BackendType.(*Variable)
-		return builder.CreateStructGEP(st, obj.Ptr, fieldAccess.AccessedField.Index, ".field")
+		return obj.Ty, builder.CreateStructGEP(
+			st,
+			obj.Ptr,
+			fieldAccess.AccessedField.Index,
+			".field",
+		)
 	default:
 		panic("unimplemented other type of field access")
 	}
@@ -432,7 +459,7 @@ func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Value, bool) {
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		generatedExpr, _ := c.emitExpr(expr, false)
+		generatedExpr, _ := c.emitExpr(expr)
 		tupleVal = builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
 	}
 
@@ -455,7 +482,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, boo
 
 	obj := builder.CreateAlloca(st, "")
 	for _, field := range lit.Values {
-		expr, _ := c.emitExpr(field.Value, false)
+		expr, _ := c.emitExpr(field.Value)
 		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
 		builder.CreateStore(expr, allocatedField)
 	}
@@ -463,14 +490,39 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, boo
 	return obj, false
 }
 
-func (c *codegen) emitFieldAccessExpr(
-	fieldAccess *ast.FieldAccess,
-	isArg bool,
-) (llvm.Value, bool) {
-	ptr := c.getStructFieldPtr(fieldAccess)
-	ty := c.emitType(fieldAccess.AccessedField.Type)
+func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Value, bool) {
+	ty, ptr := c.getStructFieldPtr(fieldAccess)
 	hasFloat, _ := c.checkFloatTypeForBitSize(fieldAccess.AccessedField.Type)
 	return builder.CreateLoad(ty, ptr, ""), hasFloat
+}
+
+func (c *codegen) emitPtrExpr(ptr *ast.PointerExpr) (llvm.Value, bool) {
+	// var t llvm.Type
+	var p llvm.Value
+
+	switch ptr.Expr.Kind {
+	case ast.KIND_ID_EXPR:
+		id := ptr.Expr.Node.(*ast.IdExpr)
+
+		switch id.N.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			variable := id.N.Node.(*ast.VarIdStmt)
+			v := variable.BackendType.(*Variable)
+			// t = v.Ty
+			p = v.Ptr
+		case ast.KIND_FIELD:
+			variable := id.N.Node.(*ast.Param)
+			v := variable.BackendType.(*Variable)
+			// t = v.Ty
+			p = v.Ptr
+		}
+	case ast.KIND_FIELD_ACCESS:
+		fieldAccess := ptr.Expr.Node.(*ast.FieldAccess)
+		_, p = c.getStructFieldPtr(fieldAccess)
+	}
+
+	return p, false
+
 }
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
@@ -578,6 +630,10 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 	case ast.EXPR_TYPE_STRUCT:
 		ty := ty.T.(*ast.StructType)
 		return c.module.GetTypeByName(ty.Decl.Name.Name())
+	case ast.EXPR_TYPE_POINTER:
+		ptr := ty.T.(*ast.PointerType)
+		ptrTy := c.emitType(ptr.Type)
+		return c.emitPtrType(ptrTy)
 	default:
 		panic(fmt.Sprintf("unimplemented type: %v\n", ty.Kind))
 	}
@@ -619,14 +675,14 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 	values := make([]llvm.Value, nExprs)
 	for i := range nExprs {
-		value, _ := c.emitExpr(call.Args[i], true)
+		value, _ := c.emitExpr(call.Args[i])
 		values[i] = value
 	}
 
 	if call.Variadic {
 		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
-			varArg, _ := c.emitExpr(arg, true)
+			varArg, _ := c.emitExpr(arg)
 			values = append(values, varArg)
 		}
 	}
@@ -634,12 +690,12 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	return values
 }
 
-func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
+func (c *codegen) emitExpr(expr *ast.Node) (llvm.Value, bool) {
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
-		return c.emitIdExpr(expr.Node.(*ast.IdExpr), isArg)
+		return c.emitIdExpr(expr.Node.(*ast.IdExpr))
 	case ast.KIND_BINARY_EXPR:
 		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
@@ -650,10 +706,12 @@ func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
 		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr))
-	case ast.KIND_STRUCT_LITERAL_EXPR:
+	case ast.KIND_STRUCT_EXPR:
 		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_FIELD_ACCESS:
-		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg)
+		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess))
+	case ast.KIND_POINTER_EXPR:
+		return c.emitPtrExpr(expr.Node.(*ast.PointerExpr))
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:
@@ -731,7 +789,7 @@ func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
 	return llvm.ConstInt(B_BOOL_TYPE, val, false)
 }
 
-func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
+func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, bool) {
 	var localVar *Variable
 	var varTy *ast.ExprType
 
@@ -757,8 +815,8 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
-	lhs, lhsHasFloat := c.emitExpr(bin.Left, false)
-	rhs, rhsHasFloat := c.emitExpr(bin.Right, false)
+	lhs, lhsHasFloat := c.emitExpr(bin.Left)
+	rhs, rhsHasFloat := c.emitExpr(bin.Right)
 	hasFloat := lhsHasFloat || rhsHasFloat
 
 	var binExpr llvm.Value
@@ -771,7 +829,7 @@ func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
 }
 
 func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, bool) {
-	expr, hasFloat := c.emitExpr(unary.Value, false)
+	expr, hasFloat := c.emitExpr(unary.Value)
 	if hasFloat && unary.Op == token.MINUS {
 		return builder.CreateFNeg(expr, ""), hasFloat
 	}
@@ -908,7 +966,7 @@ func (c *codegen) emitCond(
 	endBlock := llvm.AddBasicBlock(function, ".end")
 
 	// If
-	ifExpr, _ := c.emitExpr(condStmt.IfStmt.Expr, false)
+	ifExpr, _ := c.emitExpr(condStmt.IfStmt.Expr)
 	builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.emitBlock(function, condStmt.IfStmt.Block)
@@ -957,7 +1015,7 @@ func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Value, bool) {
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
 		return c.emitNamespaceAccess(namespaceAccess)
-	case ast.KIND_STRUCT_LITERAL_EXPR:
+	case ast.KIND_STRUCT_EXPR:
 		stLit := right.Node.(*ast.StructLiteralExpr)
 		return c.emitStructLiteral(stLit)
 	default:
@@ -982,7 +1040,7 @@ func (c *codegen) emitForLoop(
 	builder.CreateBr(forInitBlock)
 	builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr, _ := c.emitExpr(forLoop.Cond, false)
+	expr, _ := c.emitExpr(forLoop.Cond)
 
 	builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
@@ -1008,7 +1066,7 @@ func (c *codegen) emitWhileLoop(
 
 	builder.CreateBr(whileInitBlock)
 	builder.SetInsertPointAtEnd(whileInitBlock)
-	expr, _ := c.emitExpr(whileLoop.Cond, false)
+	expr, _ := c.emitExpr(whileLoop.Cond)
 	builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	builder.SetInsertPointAtEnd(whileBodyBlock)

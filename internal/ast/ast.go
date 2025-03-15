@@ -44,7 +44,8 @@ const (
 	KIND_UNARY_EXPR
 	KIND_BINARY_EXPR
 	KIND_TUPLE_LITERAL_EXPR
-	KIND_STRUCT_LITERAL_EXPR
+	KIND_STRUCT_EXPR
+	KIND_POINTER_EXPR
 
 	EXPR_END // expression node start delimiter
 
@@ -137,6 +138,10 @@ func (n *Node) String() string {
 		return "KIND_BINARY_EXPR"
 	case KIND_TUPLE_LITERAL_EXPR:
 		return "KIND_TUPLE_LITERAL_EXPR"
+	case KIND_STRUCT_EXPR:
+		return "KIND_STRUCT_EXPR"
+	case KIND_POINTER_EXPR:
+		return "KIND_POINTER_EXPR"
 	case KIND_FIELD:
 		return "KIND_FIELD"
 	case KIND_STRUCT_FIELD:
