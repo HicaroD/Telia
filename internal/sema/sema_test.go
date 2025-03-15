@@ -235,7 +235,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinExpr{
 						Left: &ast.IdExpr{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 1, 1),
+							),
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
@@ -254,7 +258,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 5, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 5, 1),
+							),
 						},
 					},
 				},
@@ -275,7 +283,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 9, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 9, 1),
+							),
 						},
 					},
 				},
@@ -290,7 +302,11 @@ func TestExprInferenceWithoutContext(t *testing.T) {
 							},
 							Op: token.PLUS,
 							Right: &ast.IdExpr{
-								Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 5, 1)),
+								Name: token.New(
+									[]byte("a"),
+									token.ID,
+									token.NewPosition(filename, 5, 1),
+								),
 							},
 						},
 						Op: token.PLUS,
@@ -358,7 +374,11 @@ func TestExprInferenceWithContext(t *testing.T) {
 					ty:    &ast.BasicType{Kind: token.I8_TYPE},
 					value: &ast.BinExpr{
 						Left: &ast.IdExpr{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 1, 1),
+							),
 						},
 						Op: token.PLUS,
 						Right: &ast.LiteralExpr{
@@ -377,7 +397,11 @@ func TestExprInferenceWithContext(t *testing.T) {
 						},
 						Op: token.PLUS,
 						Right: &ast.IdExpr{
-							Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
+							Name: token.New(
+								[]byte("a"),
+								token.ID,
+								token.NewPosition(filename, 1, 1),
+							),
 						},
 					},
 				},

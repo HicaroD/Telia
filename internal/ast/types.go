@@ -61,7 +61,8 @@ func (ty *ExprType) IsInteger() bool {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind > token.INTEGER_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.INTEGER_TYPE_END
+	return basic.Kind > token.INTEGER_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END ||
+		basic.Kind == token.INTEGER_TYPE_END
 }
 
 func (ty *ExprType) IsFloat() bool {
@@ -69,7 +70,8 @@ func (ty *ExprType) IsFloat() bool {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind > token.FLOAT_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END || basic.Kind == token.FLOAT_TYPE_END
+	return basic.Kind > token.FLOAT_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END ||
+		basic.Kind == token.FLOAT_TYPE_END
 }
 
 func (ty *ExprType) IsUntyped() bool {

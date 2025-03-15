@@ -117,7 +117,11 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	return impName, fullPkgPath, pkg, nil
 }
 
-func (p *Parser) ParseFileAsProgram(argLoc string, loc *ast.Loc, collector *diagnostics.Collector) (*ast.Program, error) {
+func (p *Parser) ParseFileAsProgram(
+	argLoc string,
+	loc *ast.Loc,
+	collector *diagnostics.Collector,
+) (*ast.Program, error) {
 	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
@@ -376,7 +380,10 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 			}
 			attributes.Linkage = attributeValue.Name()
 		default:
-			return nil, fmt.Errorf("invalid attribute for extern declaration: %s\n", attribute.Name())
+			return nil, fmt.Errorf(
+				"invalid attribute for extern declaration: %s\n",
+				attribute.Name(),
+			)
 		}
 
 		_, ok = p.expect(token.CLOSE_BRACKET)
@@ -979,7 +986,11 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 	return fnDecl.Node.(*ast.FnDecl), nil
 }
 
-func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPrototype bool) (*ast.Params, error) {
+func (p *Parser) parseFnParams(
+	functionName *token.Token,
+	scope *ast.Scope,
+	isPrototype bool,
+) (*ast.Params, error) {
 	var params []*ast.Param
 	var length int
 	isVariadic := false
@@ -1111,7 +1122,9 @@ func (p *Parser) parseFnParams(functionName *token.Token, scope *ast.Scope, isPr
 		if !isPrototype {
 			if scope == nil {
 				// TODO(errors): add proper error
-				return nil, fmt.Errorf("error: scope should not be null when validating function parameters")
+				return nil, fmt.Errorf(
+					"error: scope should not be null when validating function parameters",
+				)
 			}
 
 			n := new(ast.Node)
@@ -1304,7 +1317,11 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 	return &ast.TupleType{Types: types}, nil
 }
 
-func (p *Parser) parseStmt(block *ast.BlockStmt, parentScope *ast.Scope, allowDefer bool) (*ast.Node, error) {
+func (p *Parser) parseStmt(
+	block *ast.BlockStmt,
+	parentScope *ast.Scope,
+	allowDefer bool,
+) (*ast.Node, error) {
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1545,14 +1562,22 @@ VarDecl:
 		}
 	}
 
-	expr, err := p.parseAnyExpr([]token.Kind{token.NEWLINE, token.AT, token.SEMICOLON, token.OPEN_CURLY}, parentScope)
+	expr, err := p.parseAnyExpr(
+		[]token.Kind{token.NEWLINE, token.AT, token.SEMICOLON, token.OPEN_CURLY},
+		parentScope,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_VAR_STMT
-	n.Node = &ast.VarStmt{IsDecl: isDecl, HasFieldAccess: hasFieldAccess, Names: variables, Expr: expr}
+	n.Node = &ast.VarStmt{
+		IsDecl:         isDecl,
+		HasFieldAccess: hasFieldAccess,
+		Names:          variables,
+		Expr:           expr,
+	}
 	return n, nil
 }
 
@@ -1601,7 +1626,9 @@ func (p *Parser) parseCondStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	}
 
 	if isNewLineBeforeElse && p.lex.NextIs(token.NEWLINE) {
-		return nil, fmt.Errorf("invalid isolated else, considering removing the line between if/elif and else")
+		return nil, fmt.Errorf(
+			"invalid isolated else, considering removing the line between if/elif and else",
+		)
 	}
 
 	n := new(ast.Node)
@@ -1677,7 +1704,10 @@ func (p *Parser) parseElseCond(parentScope *ast.Scope) (*ast.ElseCond, error) {
 	return &ast.ElseCond{Else: &elseToken.Pos, Block: elseBlock, Scope: elseScope}, nil
 }
 
-func (p *Parser) parseAnyExpr(possibleEnds []token.Kind, parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parseAnyExpr(
+	possibleEnds []token.Kind,
+	parentScope *ast.Scope,
+) (*ast.Node, error) {
 	exprs, err := p.parseExprList(possibleEnds, parentScope)
 	if err != nil {
 		return nil, err
@@ -1945,7 +1975,10 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseExprList(possibleEnds []token.Kind, parentScope *ast.Scope) ([]*ast.Node, error) {
+func (p *Parser) parseExprList(
+	possibleEnds []token.Kind,
+	parentScope *ast.Scope,
+) ([]*ast.Node, error) {
 	var exprs []*ast.Node
 Var:
 	for {

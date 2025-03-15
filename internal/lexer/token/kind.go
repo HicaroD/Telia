@@ -170,13 +170,13 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 func (k Kind) BitSize() int {
 	switch k {
-	case BOOL_TYPE, UNTYPED_BOOL:
+	case BOOL_TYPE:
 		return 1
 	case I8_TYPE, U8_TYPE:
 		return 8
 	case I16_TYPE, U16_TYPE:
 		return 16
-	case I32_TYPE, U32_TYPE, INT_TYPE, UINT_TYPE, F32_TYPE, FLOAT_TYPE, UNTYPED_FLOAT, UNTYPED_INT:
+	case I32_TYPE, U32_TYPE, INT_TYPE, UINT_TYPE, F32_TYPE, FLOAT_TYPE:
 		return 32
 	case I64_TYPE, U64_TYPE, F64_TYPE:
 		return 64
