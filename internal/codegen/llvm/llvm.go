@@ -137,26 +137,23 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	builder.SetInsertPointAtEnd(body)
 
 	paramsTypes := fn.GlobalValueType().ParamTypes()
-	for i, paramPtr := range fn.Params() {
+	for i, fnParam := range fn.Params() {
+		argPtr := builder.CreateAlloca(paramsTypes[i], "")
+		builder.CreateStore(fnParam, argPtr)
+
+		variable := &Variable{
+			Ty:  paramsTypes[i],
+			Ptr: argPtr,
+		}
+
 		field := fnDecl.Params.Fields[i]
-		paramVal := c.emitParam(field, paramsTypes[i])
-		builder.CreateStore(paramPtr, paramVal)
+		field.BackendType = variable
 	}
 
 	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
 	if !stoppedOnReturn && fnDecl.RetType.IsVoid() {
 		builder.CreateRetVoid()
 	}
-}
-
-func (c *codegen) emitParam(field *ast.Param, ty llvm.Type) llvm.Value {
-	paramVal := builder.CreateAlloca(ty, "")
-	variable := &Variable{
-		Ty:  ty,
-		Ptr: paramVal,
-	}
-	field.BackendType = variable
-	return paramVal
 }
 
 func (c *codegen) emitBlock(
@@ -222,7 +219,7 @@ func (c *codegen) emitReturn(
 		builder.CreateRetVoid()
 		return
 	}
-	returnValue, _, _ := c.emitExpr(ret.Value)
+	returnValue, _, _ := c.emitExpr(ret.Value, false)
 	// TODO: learn more about noundef for return values
 	builder.CreateRet(returnValue)
 }
@@ -314,7 +311,7 @@ func (c *codegen) emitVarDecl(
 		ptr = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
 		ptr = builder.CreateAlloca(ty, "")
-		generatedExpr, _, _ := c.emitExpr(expr)
+		generatedExpr, _, _ := c.emitExpr(expr, false)
 		builder.CreateStore(generatedExpr, ptr)
 	}
 
@@ -329,7 +326,7 @@ func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
 ) {
-	generatedExpr, _, _ := c.emitExpr(expr)
+	generatedExpr, _, _ := c.emitExpr(expr, false)
 	var varPtr llvm.Value
 
 	switch name.Kind {
@@ -341,6 +338,7 @@ func (c *codegen) emitVarReassign(
 			varPtr = variable.BackendType.(*Variable).Ptr
 		case ast.KIND_FIELD:
 			param := varId.N.Node.(*ast.Param)
+			fmt.Println(param)
 			varPtr = param.BackendType.(*Variable).Ptr
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
@@ -352,6 +350,9 @@ func (c *codegen) emitVarReassign(
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
 
+	if varPtr.IsNil() {
+		panic("variable ptr is nil")
+	}
 	builder.CreateStore(generatedExpr, varPtr)
 }
 
@@ -431,7 +432,7 @@ func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) llvm.Value {
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		generatedExpr, _, _ := c.emitExpr(expr)
+		generatedExpr, _, _ := c.emitExpr(expr, false)
 		tupleVal = builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
 	}
 
@@ -454,7 +455,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 
 	obj := builder.CreateAlloca(st, "")
 	for _, field := range lit.Values {
-		expr, _, _ := c.emitExpr(field.Value)
+		expr, _, _ := c.emitExpr(field.Value, false)
 		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
 		builder.CreateStore(expr, allocatedField)
 	}
@@ -462,11 +463,10 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) llvm.Value {
 	return obj
 }
 
-func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) llvm.Value {
+func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess, isArg bool) llvm.Value {
 	ptr := c.getStructFieldPtr(fieldAccess)
 	ty := c.emitType(fieldAccess.AccessedField.Type)
-	loadedPtr := builder.CreateLoad(ty, ptr, "")
-	return loadedPtr
+	return builder.CreateLoad(ty, ptr, "")
 }
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
@@ -615,14 +615,14 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 	values := make([]llvm.Value, nExprs)
 	for i := range nExprs {
-		value, _, _ := c.emitExpr(call.Args[i])
+		value, _, _ := c.emitExpr(call.Args[i], true)
 		values[i] = value
 	}
 
 	if call.Variadic {
 		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
-			varArg, _, _ := c.emitExpr(arg)
+			varArg, _, _ := c.emitExpr(arg, true)
 			values = append(values, varArg)
 		}
 	}
@@ -630,36 +630,29 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	return values
 }
 
-func (c *codegen) emitExpr(expr *ast.Node) (llvm.Value, int, bool) {
+func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, int, bool) {
 	hasFloat := false
 	floatBitSize := 32
 
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
-		lit, bitSize, hasFloat := c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
-		return lit, bitSize, hasFloat
+		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
-		id, bitSize, hasFloat := c.emitIdExpr(expr.Node.(*ast.IdExpr))
-		return id, bitSize, hasFloat
+		return c.emitIdExpr(expr.Node.(*ast.IdExpr), isArg)
 	case ast.KIND_BINARY_EXPR:
-		binExpr, bitSize, hasFloat := c.emitBinExpr(expr.Node.(*ast.BinExpr))
-		return binExpr, bitSize, hasFloat
+		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
-		fnCall := expr.Node.(*ast.FnCall)
-		call := c.emitFnCall(fnCall)
-		return call, floatBitSize, hasFloat
+		return c.emitFnCall(expr.Node.(*ast.FnCall)), floatBitSize, hasFloat
 	case ast.KIND_UNARY_EXPR:
-		unary, bitSize, hasFloat := c.emitUnaryExpr(expr.Node.(*ast.UnaryExpr))
-		return unary, bitSize, hasFloat
+		return c.emitUnaryExpr(expr.Node.(*ast.UnaryExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		value := c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
-		return value, floatBitSize, hasFloat
+		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess)), floatBitSize, hasFloat
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr)), floatBitSize, hasFloat
 	case ast.KIND_STRUCT_LITERAL_EXPR:
 		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr)), floatBitSize, hasFloat
 	case ast.KIND_FIELD_ACCESS:
-		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess)), floatBitSize, hasFloat
+		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg), floatBitSize, hasFloat
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:
@@ -740,7 +733,7 @@ func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
 	return llvm.ConstInt(B_BOOL_TYPE, val, false)
 }
 
-func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, int, bool) {
+func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, int, bool) {
 	var localVar *Variable
 	var varTy *ast.ExprType
 
@@ -764,13 +757,12 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, int, bool) {
 		hasFloat = true
 	}
 
-	loadedVariable := builder.CreateLoad(localVar.Ty, localVar.Ptr, "")
-	return loadedVariable, bitSize, hasFloat
+	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), bitSize, hasFloat
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, int, bool) {
-	lhs, lhsBitSize, lhsHasFloat := c.emitExpr(bin.Left)
-	rhs, rhsBitSize, rhsHasFloat := c.emitExpr(bin.Right)
+	lhs, lhsBitSize, lhsHasFloat := c.emitExpr(bin.Left, false)
+	rhs, rhsBitSize, rhsHasFloat := c.emitExpr(bin.Right, false)
 
 	if lhsBitSize != rhsBitSize {
 		panic("expected bit size to be the same")
@@ -789,7 +781,7 @@ func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, int, bool) {
 }
 
 func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, int, bool) {
-	expr, bitSize, hasFloat := c.emitExpr(unary.Value)
+	expr, bitSize, hasFloat := c.emitExpr(unary.Value, false)
 	if hasFloat && unary.Op == token.MINUS {
 		return builder.CreateFNeg(expr, ""), bitSize, hasFloat
 	}
@@ -926,7 +918,7 @@ func (c *codegen) emitCond(
 	endBlock := llvm.AddBasicBlock(function, ".end")
 
 	// If
-	ifExpr, _, _ := c.emitExpr(condStmt.IfStmt.Expr)
+	ifExpr, _, _ := c.emitExpr(condStmt.IfStmt.Expr, false)
 	builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.emitBlock(function, condStmt.IfStmt.Block)
@@ -1000,7 +992,7 @@ func (c *codegen) emitForLoop(
 	builder.CreateBr(forInitBlock)
 	builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr, _, _ := c.emitExpr(forLoop.Cond)
+	expr, _, _ := c.emitExpr(forLoop.Cond, false)
 
 	builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
@@ -1026,7 +1018,7 @@ func (c *codegen) emitWhileLoop(
 
 	builder.CreateBr(whileInitBlock)
 	builder.SetInsertPointAtEnd(whileInitBlock)
-	expr, _, _ := c.emitExpr(whileLoop.Cond)
+	expr, _, _ := c.emitExpr(whileLoop.Cond, false)
 	builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	builder.SetInsertPointAtEnd(whileBodyBlock)
