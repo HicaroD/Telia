@@ -483,6 +483,15 @@ func (sema *sema) checkNormalVariable(
 			}
 			return err
 		}
+		switch symbol.Kind {
+		case ast.KIND_FIELD:
+			param := symbol.Node.(*ast.Param)
+			if currentVar.Type != nil && !currentVar.Type.Equals(param.Type) {
+				return fmt.Errorf("type mismatch on parameter reassignment, expected %v, got %v\n", param.Type, currentVar.Type)
+			}
+			currentVar.NeedsInference = false
+			currentVar.Type = param.Type
+		}
 		currentVar.N = symbol
 	}
 	return nil

@@ -406,10 +406,6 @@ func (c *codegen) emitVarReassignWithValue(
 			param := node.N.Node.(*ast.Param)
 			variable = param.BackendType.(*Variable)
 		}
-	// TODO: check if the case below is reachable
-	// case ast.KIND_FIELD:
-	// 	node := name.Node.(*ast.Param)
-	// 	variable = node.BackendType.(*Variable)
 	default:
 		panic(fmt.Sprintf("unimplemented symbol on generateVarReassign: %v\n", name.Node))
 	}

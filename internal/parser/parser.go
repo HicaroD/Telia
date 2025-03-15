@@ -1493,6 +1493,7 @@ func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
 	isDecl := false
 	hasFieldAccess := false
+	anyVariableDeclaredType := false
 
 VarDecl:
 	for {
@@ -1541,6 +1542,7 @@ VarDecl:
 		if err != nil {
 			return nil, err
 		}
+		anyVariableDeclaredType = true
 
 		if !isFieldAccess {
 			variable := currentVar.Node.(*ast.VarIdStmt)
@@ -1560,6 +1562,10 @@ VarDecl:
 			p.lex.Skip()
 			continue
 		}
+	}
+
+	if anyVariableDeclaredType && !isDecl {
+		return nil, fmt.Errorf("impossible to define a type for any variable reassignment")
 	}
 
 	expr, err := p.parseAnyExpr(
