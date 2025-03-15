@@ -14,12 +14,13 @@ fn pass_by_pointer(a *i32) {
 
 fn main() i32 {
   a i32 := 10
+  b := &a
 
-  pass_by_value(a)
-  io::printf("pass_by_value: %d\n", a)
+  pass_by_value(*b)
+  io::printf("pass_by_value: a=%d b=%d\n", a, *b)
 
-  pass_by_pointer(&a)
-  io::printf("pass_by_pointer: %d\n", a)
+  pass_by_pointer(b)
+  io::printf("pass_by_pointer: a=%d b=%d\n", a, *b)
 
   return 0
 }

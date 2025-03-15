@@ -45,7 +45,8 @@ func (literal *LiteralExpr) String() string {
 }
 
 type IdExpr struct {
-	Name *token.Token
+	Name            *token.Token
+	PointerReceiver bool
 
 	// Codegen
 	N *Node
@@ -67,8 +68,9 @@ func (n *NamespaceAccess) String() string {
 }
 
 type FieldAccess struct {
-	Left  *IdExpr
-	Right *Node
+	Left            *IdExpr
+	Right           *Node
+	PointerReceiver bool
 
 	// Codegen
 	AccessedField *StructField

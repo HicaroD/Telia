@@ -34,8 +34,6 @@ var (
 	B_RAWPTR_TYPE = llvm.PointerType(B_INT8_TYPE, 0) // *u8
 )
 
-var ()
-
 type codegen struct {
 	module llvm.Module
 
@@ -811,7 +809,24 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, bool) {
 		hasFloat = bt.Kind.IsFloat()
 	}
 
-	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+	if id.PointerReceiver {
+		return c.emitPtrLoad(varTy, localVar.Ptr), hasFloat
+	} else {
+		return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+	}
+}
+
+func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
+	if ty.Kind == ast.EXPR_TYPE_POINTER {
+		emittedTy := c.emitType(ty)
+		loaded := builder.CreateLoad(emittedTy, val, "")
+		ptr := ty.T.(*ast.PointerType)
+		return c.emitPtrLoad(ptr.Type, loaded)
+	}
+
+	emittedTy := c.emitType(ty)
+	backingPtr := builder.CreateLoad(emittedTy, val, "")
+	return backingPtr
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
@@ -1102,15 +1117,15 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	}
 	defer irFile.Close()
 
-	if err := llvm.VerifyModule(c.module, llvm.AbortProcessAction); err != nil {
-		fmt.Println("error: module is not valid")
-		return err
-	}
-
 	module := c.module.String()
 	_, err = irFile.WriteString(module)
 	// TODO(errors)
 	if err != nil {
+		return err
+	}
+
+	if err := llvm.VerifyModule(c.module, llvm.ReturnStatusAction); err != nil {
+		fmt.Printf("error: module is not valid, generated at '%s'\n", dir)
 		return err
 	}
 

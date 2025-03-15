@@ -1207,6 +1207,16 @@ func (sema *sema) inferIdExprTypeWithContext(
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
 	}
 
+	if id.PointerReceiver {
+		if idTy.Kind != ast.EXPR_TYPE_POINTER {
+			return nil, fmt.Errorf(
+				"expected identifier to be a pointer due to the pointer receiver\n",
+			)
+		}
+		ptr := idTy.T.(*ast.PointerType)
+		idTy = ptr.Type
+	}
+
 	switch idTy.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		actualBasicType := idTy.T.(*ast.BasicType)
@@ -1235,8 +1245,13 @@ func (sema *sema) inferIdExprTypeWithContext(
 		}
 		return expectedType, err
 	case ast.EXPR_TYPE_POINTER:
-		actualPtrType := idTy.T.(*ast.PointerType)
-		fmt.Println(id, actualPtrType.Type.T, expectedType.T)
+		if !expectedType.Equals(idTy) {
+			return nil, fmt.Errorf(
+				"type mismatch, expected %s, but got %s\n",
+				expectedType.T,
+				idTy.T,
+			)
+		}
 		return expectedType, nil
 	default:
 		// TODO(errors)

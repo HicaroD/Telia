@@ -1504,7 +1504,7 @@ VarDecl:
 
 		if isFieldAccess {
 			hasFieldAccess = true
-			fieldAccess, err := p.parseFieldAccess()
+			fieldAccess, err := p.parseFieldAccess(hasPointerReceiver)
 			if err != nil {
 				return nil, err
 			}
@@ -1936,8 +1936,9 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		n.Kind = ast.KIND_POINTER_EXPR
 		n.Node = &ast.PointerExpr{Expr: expr}
 		return n, nil
-	case token.ID:
-		return p.parseIdExpr(parentScope)
+	case token.STAR, token.ID:
+		_, pointerReceiver := p.expect(token.STAR)
+		return p.parseIdExpr(parentScope, pointerReceiver)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
 		expr, err := p.parseSingleExpr(parentScope)
@@ -1961,6 +1962,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 
 			return n, nil
 		}
+
 		return nil, fmt.Errorf(
 			"invalid token for expression parsing: %s %s %s",
 			tok.Kind,
@@ -1970,13 +1972,13 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 	}
 }
 
-func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parseIdExpr(parentScope *ast.Scope, pointerReceiver bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	tok := p.lex.Peek()
 	if tok.Kind != token.ID {
 		return nil, fmt.Errorf("expected identifier, not %s\n", tok.Kind)
 	}
-	idExpr := &ast.IdExpr{Name: tok}
+	idExpr := &ast.IdExpr{Name: tok, PointerReceiver: pointerReceiver}
 
 	next := p.lex.Peek1()
 	switch next.Kind {
@@ -1989,7 +1991,7 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		structLiteral, err := p.parseStructLiteralExpr(parentScope)
 		return structLiteral, err
 	case token.DOT:
-		return p.parseFieldAccess()
+		return p.parseFieldAccess(pointerReceiver)
 	}
 
 	p.lex.Skip()
@@ -2104,7 +2106,7 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 	return n, nil
 }
 
-func (p *Parser) parseFieldAccess() (*ast.Node, error) {
+func (p *Parser) parseFieldAccess(pointerReceiver bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	n.Kind = ast.KIND_ID_EXPR
 
@@ -2112,15 +2114,16 @@ func (p *Parser) parseFieldAccess() (*ast.Node, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected identifier for field accessing")
 	}
-	id := &ast.IdExpr{Name: tk}
+	id := &ast.IdExpr{Name: tk, PointerReceiver: pointerReceiver}
 	n.Node = id
 
 	if _, ok := p.expect(token.DOT); ok {
 		access := new(ast.FieldAccess)
 		access.Left = id
 		access.Right = nil
+		access.PointerReceiver = pointerReceiver
 
-		right, err := p.parseFieldAccess()
+		right, err := p.parseFieldAccess(pointerReceiver)
 		if err != nil {
 			return nil, err
 		}
