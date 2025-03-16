@@ -1985,6 +1985,7 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		n := new(ast.Node)
 		n.Kind = ast.KIND_DEREF_POINTER_EXPR
 		n.Node = derefPtr
+		fmt.Println(derefPtr)
 		return n, nil
 	}
 

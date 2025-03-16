@@ -1217,16 +1217,6 @@ func (sema *sema) inferIdExprTypeWithContext(
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
 	}
 
-	// if id.PointerReceiver {
-	// 	if idTy.Kind != ast.EXPR_TYPE_POINTER {
-	// 		return nil, fmt.Errorf(
-	// 			"expected identifier to be a pointer due to the pointer receiver\n",
-	// 		)
-	// 	}
-	// 	ptr := idTy.T.(*ast.PointerType)
-	// 	idTy = ptr.Type
-	// }
-
 	switch idTy.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		actualBasicType := idTy.T.(*ast.BasicType)
@@ -1279,19 +1269,15 @@ func (sema *sema) inferDerefPtrExprTypeWithContext(
 ) (*ast.ExprType, error) {
 	switch deref.Expr.Kind {
 	case ast.KIND_DEREF_POINTER_EXPR:
-		if expectedType.Kind != ast.EXPR_TYPE_POINTER {
-			return nil, fmt.Errorf("expected pointer type")
-		}
-		expectedPtrTy := expectedType.T.(*ast.PointerType)
-
-		return sema.inferDerefPtrExprTypeWithContext(
+		ty, err := sema.inferDerefPtrExprTypeWithContext(
 			deref.Expr.Node.(*ast.DerefPointerExpr),
-			expectedPtrTy.Type,
+			expectedType,
 			referenceScope,
 			declScope,
 			fromImportPackage,
 			isArg,
 		)
+		return ty, err
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithContext(
 			deref.Expr.Node.(*ast.IdExpr),

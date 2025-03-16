@@ -1,7 +1,5 @@
 package main
 
-use "std::io"
-
 fn pass_by_value(a i32) {
   a = 20
   return
@@ -16,12 +14,7 @@ fn main() i32 {
   a i32 := 10
   b := &a
   c := &b
-
-  pass_by_value(*b)
-  io::printf("pass_by_value: a=%d b=%d\n", a, **c)
-
-  pass_by_pointer(b)
-  io::printf("pass_by_pointer: a=%d b=%d\n", a, **c)
-
+  pass_by_value(**c)
+  pass_by_pointer(*c)
   return 0
 }
