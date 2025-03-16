@@ -372,7 +372,7 @@ func (sema *sema) checkVar(
 			)
 		}
 
-		if variable.HasPointerReceiver {
+		if variable.Pointer {
 			return fmt.Errorf(
 				"error: not allowed to dereference a variable when declaring it",
 			)
@@ -1080,6 +1080,15 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
+	case ast.KIND_DEREF_POINTER_EXPR:
+		return s.inferDerefPtrExprTypeWithContext(
+			expr.Node.(*ast.DerefPointerExpr),
+			expectedType,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
 	case ast.KIND_BINARY_EXPR:
 		ty, _, err := s.inferBinaryExprType(
 			expr.Node.(*ast.BinExpr),
@@ -1166,6 +1175,7 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 		}
 	case ast.EXPR_TYPE_POINTER:
 		expectedPtrType := expectedType.T.(*ast.PointerType)
+
 		if expectedPtrType.Type.Kind != ast.EXPR_TYPE_BASIC {
 			return nil, fmt.Errorf(
 				"expected underlying pointer type to be basic, not %s\n",
@@ -1207,15 +1217,15 @@ func (sema *sema) inferIdExprTypeWithContext(
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
 	}
 
-	if id.PointerReceiver {
-		if idTy.Kind != ast.EXPR_TYPE_POINTER {
-			return nil, fmt.Errorf(
-				"expected identifier to be a pointer due to the pointer receiver\n",
-			)
-		}
-		ptr := idTy.T.(*ast.PointerType)
-		idTy = ptr.Type
-	}
+	// if id.PointerReceiver {
+	// 	if idTy.Kind != ast.EXPR_TYPE_POINTER {
+	// 		return nil, fmt.Errorf(
+	// 			"expected identifier to be a pointer due to the pointer receiver\n",
+	// 		)
+	// 	}
+	// 	ptr := idTy.T.(*ast.PointerType)
+	// 	idTy = ptr.Type
+	// }
 
 	switch idTy.Kind {
 	case ast.EXPR_TYPE_BASIC:
@@ -1256,6 +1266,40 @@ func (sema *sema) inferIdExprTypeWithContext(
 	default:
 		// TODO(errors)
 		panic("unimplemented infer id expr type with context")
+	}
+}
+
+func (sema *sema) inferDerefPtrExprTypeWithContext(
+	deref *ast.DerefPointerExpr,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+	isArg bool,
+) (*ast.ExprType, error) {
+	switch deref.Expr.Kind {
+	case ast.KIND_DEREF_POINTER_EXPR:
+		if expectedType.Kind != ast.EXPR_TYPE_POINTER {
+			return nil, fmt.Errorf("expected pointer type")
+		}
+		expectedPtrTy := expectedType.T.(*ast.PointerType)
+
+		return sema.inferDerefPtrExprTypeWithContext(
+			deref.Expr.Node.(*ast.DerefPointerExpr),
+			expectedPtrTy.Type,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
+	case ast.KIND_ID_EXPR:
+		return sema.inferIdExprTypeWithContext(
+			deref.Expr.Node.(*ast.IdExpr),
+			expectedType,
+			referenceScope,
+		)
+	default:
+		panic(fmt.Sprintf("unimplemented derefered expression type: %s\n"))
 	}
 }
 

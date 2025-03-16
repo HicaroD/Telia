@@ -231,7 +231,7 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 			variable.Names[0],
 			variable.Expr,
 			variable.IsDecl,
-			variable.HasPointerReceiver,
+			variable.Pointer,
 		)
 	}
 }
@@ -247,7 +247,7 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 					variable.Names[t],
 					innerExpr,
 					variable.IsDecl,
-					variable.HasPointerReceiver,
+					variable.Pointer,
 				)
 				t++
 			}
@@ -259,11 +259,11 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 				t += len(affectedVariables)
 			} else {
-				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.HasPointerReceiver)
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
 				t++
 			}
 		default:
-			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.HasPointerReceiver)
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
 			t++
 		}
 	}
@@ -694,6 +694,8 @@ func (c *codegen) emitExpr(expr *ast.Node) (llvm.Value, bool) {
 		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
 		return c.emitIdExpr(expr.Node.(*ast.IdExpr))
+	case ast.KIND_DEREF_POINTER_EXPR:
+		return c.emitDerefPtrExpr(expr.Node.(*ast.DerefPointerExpr))
 	case ast.KIND_BINARY_EXPR:
 		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
@@ -809,25 +811,41 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, bool) {
 		hasFloat = bt.Kind.IsFloat()
 	}
 
-	if id.PointerReceiver {
-		return c.emitPtrLoad(varTy, localVar.Ptr), hasFloat
-	} else {
-		return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+	// if id.PointerReceiver {
+	// 	return c.emitPtrLoad(varTy, localVar.Ptr), hasFloat
+	// } else {
+	// 	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+	// }
+
+	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+}
+
+func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Value, bool) {
+	switch deref.Expr.Kind {
+	case ast.KIND_DEREF_POINTER_EXPR:
+		ty := c.emitType(deref.Type)
+		ptrTy := c.emitPtrType(ty)
+		emittedVal, hasFloat := c.emitDerefPtrExpr(deref.Expr.Node.(*ast.DerefPointerExpr))
+		return builder.CreateLoad(ptrTy, emittedVal, ""), hasFloat
+	case ast.KIND_ID_EXPR:
+		return c.emitIdExpr(deref.Expr.Node.(*ast.IdExpr))
+	default:
+		panic("unimplemented")
 	}
 }
 
-func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
-	if ty.Kind == ast.EXPR_TYPE_POINTER {
-		emittedTy := c.emitType(ty)
-		loaded := builder.CreateLoad(emittedTy, val, "")
-		ptr := ty.T.(*ast.PointerType)
-		return c.emitPtrLoad(ptr.Type, loaded)
-	}
-
-	emittedTy := c.emitType(ty)
-	backingPtr := builder.CreateLoad(emittedTy, val, "")
-	return backingPtr
-}
+// func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
+// 	if ty.Kind == ast.EXPR_TYPE_POINTER {
+// 		emittedTy := c.emitType(ty)
+// 		loaded := builder.CreateLoad(emittedTy, val, "")
+// 		ptr := ty.T.(*ast.PointerType)
+// 		return c.emitPtrLoad(ptr.Type, loaded)
+// 	}
+//
+// 	emittedTy := c.emitType(ty)
+// 	backingPtr := builder.CreateLoad(emittedTy, val, "")
+// 	return backingPtr
+// }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
 	lhs, lhsHasFloat := c.emitExpr(bin.Left)

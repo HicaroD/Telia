@@ -19,10 +19,10 @@ func (block BlockStmt) String() string {
 }
 
 type VarIdStmt struct {
-	Name            *token.Token
-	Type            *ExprType
-	NeedsInference  bool
-	PointerReceiver bool
+	Name           *token.Token
+	Type           *ExprType
+	NeedsInference bool
+	Pointer        bool
 
 	// Codegen
 	BackendType any
@@ -30,11 +30,11 @@ type VarIdStmt struct {
 }
 
 type VarStmt struct {
-	IsDecl             bool
-	HasFieldAccess     bool
-	HasPointerReceiver bool
-	Names              []*Node
-	Expr               *Node
+	IsDecl         bool
+	HasFieldAccess bool
+	Pointer        bool
+	Names          []*Node
+	Expr           *Node
 }
 
 func (v VarStmt) String() string {
