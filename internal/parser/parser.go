@@ -1948,7 +1948,6 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		n.Node = &ast.PointerExpr{Expr: expr}
 		return n, nil
 	case token.STAR, token.ID:
-		// _, pointerReceiver := p.expect(token.STAR)
 		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
@@ -1986,6 +1985,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	if p.lex.NextIs(token.STAR) {
 		p.lex.Skip() // *
+
 		derefPtr := new(ast.DerefPointerExpr)
 		expr, err := p.parseIdExpr(parentScope)
 		if err != nil {
