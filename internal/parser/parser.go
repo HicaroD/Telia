@@ -1493,17 +1493,26 @@ func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
 	isDecl := false
 	var hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
+	var numberOfPointerReceivers int
 
 VarDecl:
 	for {
-		_, pointer := p.expect(token.STAR)
-		hasAnyPointerReceiver = hasAnyPointerReceiver || pointer
+		for {
+			_, hasPointer := p.expect(token.STAR)
+			if !hasPointer {
+				break
+			}
+			hasAnyPointerReceiver = hasAnyPointerReceiver || hasPointer
+			numberOfPointerReceivers++
+		}
+
 		isFieldAccess := p.lex.Peek1().Kind == token.DOT
 
 		var currentVar *ast.Node
 
 		if isFieldAccess {
 			hasFieldAccess = true
+			// TODO: set number of pointer receivers for field access
 			fieldAccess, err := p.parseFieldAccess()
 			if err != nil {
 				return nil, err
@@ -1516,12 +1525,14 @@ VarDecl:
 				return nil, fmt.Errorf("expected ID")
 			}
 			variable := &ast.VarIdStmt{
-				Name:           name,
-				NeedsInference: true,
-				Pointer:        pointer,
-				Type:           nil,
-				BackendType:    nil,
+				Name:                     name,
+				NeedsInference:           true,
+				Pointer:                  hasAnyPointerReceiver,
+				NumberOfPointerReceivers: numberOfPointerReceivers,
+				Type:                     nil,
+				BackendType:              nil,
 			}
+			fmt.Println(hasAnyPointerReceiver, numberOfPointerReceivers)
 
 			n := new(ast.Node)
 			n.Kind = ast.KIND_VAR_ID_STMT
