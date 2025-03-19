@@ -51,7 +51,7 @@ const (
 	EXPR_END // expression node start delimiter
 
 	KIND_PACKAGE
-	KIND_FIELD
+	KIND_PARAM
 	KIND_STRUCT_FIELD
 	KIND_PROTO
 )
@@ -145,8 +145,8 @@ func (n *Node) String() string {
 		return "KIND_POINTER_EXPR"
 	case KIND_DEREF_POINTER_EXPR:
 		return "KIND_DEREF_POINTER_EXPR"
-	case KIND_FIELD:
-		return "KIND_FIELD"
+	case KIND_PARAM:
+		return "KIND_PARAM"
 	case KIND_STRUCT_FIELD:
 		return "KIND_STRUCT_FIELD"
 	case KIND_PROTO:

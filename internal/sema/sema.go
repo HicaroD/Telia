@@ -364,21 +364,6 @@ func (sema *sema) checkVar(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) error {
-	// TODO(errors)
-	if variable.IsDecl {
-		if variable.HasFieldAccess {
-			return fmt.Errorf(
-				"error: not allowed to use := when variables contains a field access because field access are not declarations",
-			)
-		}
-
-		if variable.Pointer {
-			return fmt.Errorf(
-				"error: not allowed to dereference a variable when declaring it",
-			)
-		}
-	}
-
 	for _, currentVar := range variable.Names {
 		var err error
 
@@ -395,7 +380,6 @@ func (sema *sema) checkVar(
 		if err != nil {
 			return err
 		}
-
 	}
 
 	switch variable.Expr.Kind {
@@ -460,6 +444,26 @@ func (sema *sema) checkVar(
 	return nil
 }
 
+func (sema *sema) inferTypeAfterDeref(
+	variableType *ast.ExprType,
+	exprType *ast.ExprType,
+	numberOfPointerReceivers int,
+) error {
+	if numberOfPointerReceivers >= 0 {
+		if variableType.Kind == ast.EXPR_TYPE_POINTER {
+			innerTy := variableType.T.(*ast.PointerType)
+			numberOfPointerReceivers--
+			return sema.inferTypeAfterDeref(innerTy.Type, exprType, numberOfPointerReceivers)
+		}
+	}
+
+	if !variableType.Equals(exprType) {
+		return fmt.Errorf("mismatched types: expected %v, but got %v\n", variableType.T, exprType.T)
+	}
+
+	return nil
+}
+
 func (sema *sema) checkNormalVariable(
 	currentVar *ast.VarIdStmt,
 	isDecl bool,
@@ -493,7 +497,7 @@ func (sema *sema) checkNormalVariable(
 		}
 
 		switch symbol.Kind {
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			param := symbol.Node.(*ast.Param)
 			if currentVar.Type != nil && !currentVar.Type.Equals(param.Type) {
 				return fmt.Errorf("type mismatch on parameter reassignment, expected %v, got %v\n", param.Type, currentVar.Type)
@@ -632,8 +636,11 @@ func (sema *sema) checkVarExpr(
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
 ) error {
+	var exprTy *ast.ExprType
+	var err error
+
 	if variable.Kind == ast.KIND_VAR_ID_STMT {
-		return sema.checkNormalVarExpr(
+		exprTy, err = sema.checkNormalVarExpr(
 			variable.Node.(*ast.VarIdStmt),
 			expr,
 			referenceScope,
@@ -641,8 +648,23 @@ func (sema *sema) checkVarExpr(
 			fromImportPackage,
 		)
 	} else {
-		return sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
+		exprTy, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	switch variable.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		v := variable.Node.(*ast.VarIdStmt)
+		err := sema.inferTypeAfterDeref(v.Type, exprTy, v.NumberOfPointerReceivers)
+		return err
+	case ast.KIND_PARAM:
+		panic("unimplemented param")
+	}
+
+	return nil
 }
 
 func (sema *sema) checkNormalVarExpr(
@@ -650,16 +672,16 @@ func (sema *sema) checkNormalVarExpr(
 	expr *ast.Node,
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
-) error {
+) (*ast.ExprType, error) {
 	if variable.NeedsInference {
 		// TODO(errors): need a test for it
 		if variable.Type != nil {
-			return fmt.Errorf(
+			return nil, fmt.Errorf(
 				"needs inference, but variable already has a type: %s",
 				variable.Type,
 			)
 		}
-		exprType, _, err := sema.inferExprTypeWithoutContext(
+		exprTy, _, err := sema.inferExprTypeWithoutContext(
 			expr,
 			referenceScope,
 			declScope,
@@ -668,9 +690,10 @@ func (sema *sema) checkNormalVarExpr(
 		)
 		// TODO(errors)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		variable.Type = exprType
+		variable.Type = exprTy
+		return exprTy, nil
 	} else {
 		// TODO(errors)
 		if variable.Type == nil {
@@ -679,14 +702,14 @@ func (sema *sema) checkNormalVarExpr(
 
 		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		// NOTE: I don't this check is necessary
 		if !variable.Type.Equals(exprTy) {
-			return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
+			return nil, fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
 		}
+		return exprTy, nil
 	}
-	return nil
 }
 
 func (sema *sema) checkFieldAccessExpr(
@@ -694,10 +717,10 @@ func (sema *sema) checkFieldAccessExpr(
 	expr *ast.Node,
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
-) error {
+) (*ast.ExprType, error) {
 	_, field, err := sema.getAccessedField(variable, referenceScope, fromImportPackage)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	exprTy, err := sema.inferExprTypeWithContext(
@@ -709,13 +732,17 @@ func (sema *sema) checkFieldAccessExpr(
 		false,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// NOTE: I don't this check is necessary
 	if !field.Type.Equals(exprTy) {
-		return fmt.Errorf("type mismatch on variable decl, expected %s, got %s", field.Type, exprTy)
+		return nil, fmt.Errorf(
+			"type mismatch on variable decl, expected %s, got %s",
+			field.Type,
+			exprTy,
+		)
 	}
-	return nil
+	return exprTy, nil
 }
 
 func (sema *sema) getAccessedField(
@@ -1210,7 +1237,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	switch symbol.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		idTy = symbol.Node.(*ast.VarIdStmt).Type
-	case ast.KIND_FIELD:
+	case ast.KIND_PARAM:
 		idTy = symbol.Node.(*ast.Param).Type
 	default:
 		// TODO(errors)
@@ -1491,7 +1518,6 @@ func (sema *sema) inferUnaryExprType(
 	}
 
 	if expectedType != nil && resultType.Kind != expectedType.Kind {
-		fmt.Print("it runs here!")
 		return nil, false, fmt.Errorf(
 			"type mismatch: expected %s, got %s\n",
 			expectedType,
@@ -1878,7 +1904,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	case ast.KIND_VAR_ID_STMT:
 		ty := variable.Node.(*ast.VarIdStmt).Type
 		return ty, !ty.IsUntyped(), nil
-	case ast.KIND_FIELD:
+	case ast.KIND_PARAM:
 		return variable.Node.(*ast.Param).Type, true, nil
 	default:
 		// TODO(errors)
@@ -2004,7 +2030,7 @@ func (sema *sema) inferPtrExprWithoutContext(
 		}
 
 		switch idExpr.N.Kind {
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			param := idExpr.N.Node.(*ast.Param)
 			ty = param.Type
 		case ast.KIND_VAR_ID_STMT:

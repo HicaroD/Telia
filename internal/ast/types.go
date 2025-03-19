@@ -161,7 +161,7 @@ func (p *PointerType) Equal(other *PointerType) bool {
 }
 
 func (pointer PointerType) String() string {
-	return fmt.Sprintf("*%v", pointer.Type)
+	return fmt.Sprintf("*%s", pointer.Type.T)
 }
 
 type TypeAlias struct {

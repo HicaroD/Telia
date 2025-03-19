@@ -1128,7 +1128,7 @@ func (p *Parser) parseFnParams(
 			}
 
 			n := new(ast.Node)
-			n.Kind = ast.KIND_FIELD
+			n.Kind = ast.KIND_PARAM
 			n.Node = param
 
 			err = scope.Insert(param.Name.Name(), n)
@@ -1491,8 +1491,7 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 
 func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
-	isDecl := false
-	var hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
+	var isDecl, hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
 	var numberOfPointerReceivers int
 
 VarDecl:
@@ -1532,7 +1531,6 @@ VarDecl:
 				Type:                     nil,
 				BackendType:              nil,
 			}
-			fmt.Println(hasAnyPointerReceiver, numberOfPointerReceivers)
 
 			n := new(ast.Node)
 			n.Kind = ast.KIND_VAR_ID_STMT
@@ -1578,7 +1576,18 @@ VarDecl:
 		}
 	}
 
-	if anyVariableDeclaredType && !isDecl {
+	if isDecl {
+		if hasFieldAccess {
+			return nil, fmt.Errorf(
+				"error: not allowed to use := when variables contains a field access because field access are not declarations",
+			)
+		}
+		if hasAnyPointerReceiver {
+			return nil, fmt.Errorf("impossible to set pointer receiver for variable declaration")
+		}
+	}
+
+	if !isDecl && anyVariableDeclaredType {
 		return nil, fmt.Errorf("impossible to define a type for any variable reassignment")
 	}
 

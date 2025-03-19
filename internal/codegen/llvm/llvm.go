@@ -343,7 +343,7 @@ func (c *codegen) emitVarReassign(
 			v := variable.BackendType.(*Variable)
 			t = v.Ty
 			p = v.Ptr
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v := param.BackendType.(*Variable)
 			t = v.Ty
@@ -423,7 +423,7 @@ func (c *codegen) emitVarReassignWithValue(
 		case ast.KIND_VAR_ID_STMT:
 			varId := node.N.Node.(*ast.VarIdStmt)
 			variable = varId.BackendType.(*Variable)
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			param := node.N.Node.(*ast.Param)
 			variable = param.BackendType.(*Variable)
 		}
@@ -508,7 +508,7 @@ func (c *codegen) emitPtrExpr(ptr *ast.PointerExpr) (llvm.Value, bool) {
 			v := variable.BackendType.(*Variable)
 			// t = v.Ty
 			p = v.Ptr
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			variable := id.N.Node.(*ast.Param)
 			v := variable.BackendType.(*Variable)
 			// t = v.Ty
@@ -800,7 +800,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Value, bool) {
 		variable := id.N.Node.(*ast.VarIdStmt)
 		varTy = variable.Type
 		localVar = variable.BackendType.(*Variable)
-	case ast.KIND_FIELD:
+	case ast.KIND_PARAM:
 		variable := id.N.Node.(*ast.Param)
 		varTy = variable.Type
 		localVar = variable.BackendType.(*Variable)
