@@ -334,6 +334,7 @@ func (c *codegen) emitVarReassign(
 ) {
 	var t llvm.Type
 	var p llvm.Value
+	var nPointerDereference int
 
 	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
@@ -344,11 +345,13 @@ func (c *codegen) emitVarReassign(
 			v := variable.BackendType.(*Variable)
 			t = v.Ty
 			p = v.Ptr
+			nPointerDereference = variable.NumberOfPointerReceivers
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v := param.BackendType.(*Variable)
 			t = v.Ty
 			p = v.Ptr
+			nPointerDereference = 0
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
@@ -365,6 +368,7 @@ func (c *codegen) emitVarReassign(
 
 	// TODO: allow multiple dereferences
 	// **a = 10
+	fmt.Println(nPointerDereference)
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
 	if pointerReceiver {
 		ptr := c.emitPtrType(t)
