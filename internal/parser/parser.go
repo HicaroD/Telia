@@ -2011,16 +2011,19 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	}
 	idExpr := &ast.IdExpr{Name: tok}
 
-	next := p.lex.Peek1()
-	switch next.Kind {
+	peeked1 := p.lex.PeekN(1)
+	peeked2 := p.lex.PeekN(2)
+
+	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
+		return p.parseStructLiteralExpr(parentScope)
+	}
+
+	switch peeked1.Kind {
 	case token.OPEN_PAREN:
 		return p.parseFnCall(parentScope)
 	case token.COLON_COLON:
 		namespaceAccess, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccess, err
-	case token.OPEN_CURLY:
-		structLiteral, err := p.parseStructLiteralExpr(parentScope)
-		return structLiteral, err
 	case token.DOT:
 		return p.parseFieldAccess()
 	}
@@ -2181,6 +2184,11 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		return nil, fmt.Errorf("error: expected ID")
 	}
 	expr.Name = name
+
+	dot, ok := p.expect(token.DOT)
+	if !ok {
+		return nil, fmt.Errorf("error: expected dot, got %s\n", dot.Kind.String())
+	}
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	// TODO(errors): add proper error

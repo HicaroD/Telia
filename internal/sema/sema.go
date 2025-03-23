@@ -1611,11 +1611,12 @@ func (sema *sema) inferStructLiteralExprWithContext(
 		var litFieldName *token.Token
 
 		fieldFoundOnStructLiteral := false
-		for _, literalField := range stLit.Values {
+		for i, literalField := range stLit.Values {
 			if literalField.Name.Name() == field.Name.Name() {
 				currentField = literalField
 				litFieldName = field.Name
 				fieldFoundOnStructLiteral = true
+				currentField.Index = i
 				break
 			}
 		}

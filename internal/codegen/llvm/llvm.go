@@ -353,8 +353,8 @@ func (c *codegen) emitVarReassign(
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
 	case ast.KIND_FIELD_ACCESS:
-		node := name.Node.(*ast.FieldAccess)
-		t, p = c.getStructFieldPtr(node)
+		f := name.Node.(*ast.FieldAccess)
+		t, p = c.getStructFieldPtr(f)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
@@ -440,7 +440,7 @@ func (c *codegen) emitVarReassignWithValue(
 }
 
 func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
-	args := c.getCallArgs(call)
+	args := c.emitCallArgs(call)
 	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
@@ -671,7 +671,7 @@ func (c *codegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	return types
 }
 
-func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
+func (c *codegen) emitCallArgs(call *ast.FnCall) []llvm.Value {
 	nExprs := len(call.Args)
 	if call.Variadic {
 		nExprs-- // desconsider the variadic argument place for now
