@@ -380,16 +380,18 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, ll
 	if st.IsNil() {
 		panic("struct is nil")
 	}
+	fTy := fieldAccess.AccessedField.Type
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
 		obj := fieldAccess.StructVar.BackendType.(*Variable)
-		return obj.Ty, builder.CreateStructGEP(
+		gep := builder.CreateStructGEP(
 			st,
 			obj.Ptr,
 			fieldAccess.AccessedField.Index,
 			".field",
 		)
+		return c.emitType(fTy), gep
 	default:
 		panic("unimplemented other type of field access")
 	}
@@ -768,7 +770,13 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Type, llvm.Value, 
 			ty, val := c.emitBool(lit)
 			return ty, val, false
 		default:
-			panic(fmt.Sprintf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value)))
+			panic(
+				fmt.Sprintf(
+					"unimplemented basic type: %s %s\n",
+					basic.Kind.String(),
+					string(lit.Value),
+				),
+			)
 		}
 	case ast.EXPR_TYPE_POINTER:
 		panic("unimplemented pointer type")

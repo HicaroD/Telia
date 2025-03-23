@@ -12,10 +12,9 @@ fn main() {
     name: "Hicaro",
     age: 21,
   }
-  user.name = "Hicro"
-  io::puts(user.name)
 
-  number i32 := 10
-  val := number.other
+  username := &user.name
+  *username = "Hicro Danrlley"
+  io::puts(user.name)
   return
 }

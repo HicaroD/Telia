@@ -756,6 +756,7 @@ func (sema *sema) getAccessedField(
 
 	variable := sym.Node.(*ast.VarIdStmt)
 	if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
+		fmt.Println(variable)
 		return nil, nil, fmt.Errorf("expected variable type to be a struct")
 	}
 	st := variable.Type.T.(*ast.StructType).Decl
@@ -2012,6 +2013,9 @@ func (sema *sema) inferStructFieldAccessExprWithoutContext(
 		declScope,
 		fromImportPackage,
 	)
+	if err != nil {
+		return nil, false, err
+	}
 	return field.Type, true, err
 }
 
