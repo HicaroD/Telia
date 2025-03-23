@@ -16,7 +16,7 @@ fn other2(a i32, b i32) (i32, i32) {
 }
 
 fn main() i32 {
-  a, b := other2(1, 3)
-  io::libc::printf("%d %d", a, b)
+  a, b := get(3)
+  io::printf("%d %d\n", a, b)
   return 0
 }

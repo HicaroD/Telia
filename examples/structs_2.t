@@ -13,7 +13,7 @@ fn main() {
     age: 21,
   }
   user.name = "Hicro"
-  io::libc::puts(user.name)
+  io::puts(user.name)
 
   number i32 := 10
   val := number.other

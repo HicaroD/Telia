@@ -15,6 +15,7 @@ fn gcd(a int, b int) int {
 }
 
 fn main() {
+  b { name: "Hicaro" }
   a, b := 48, 18
   result := gcd(a, b)
   io::printf("GCD of %d and %d: %d", a, b, result)

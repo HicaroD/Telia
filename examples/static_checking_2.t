@@ -1,6 +1,6 @@
 package main
 
-fn get_unsigned(a int) {
+fn get_unsigned(a uint) {
   return
 }
 

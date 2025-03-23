@@ -693,9 +693,13 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 }
 
 var NO_PRELOAD = []ast.NodeKind{
+	ast.KIND_DEREF_POINTER_EXPR,
+	ast.KIND_ADDRESS_OF_EXPR,
 	ast.KIND_LITERAL_EXPR,
 	ast.KIND_FN_CALL,
 	ast.KIND_BINARY_EXPR,
+	ast.KIND_UNARY_EXPR,
+	ast.KIND_TUPLE_LITERAL_EXPR,
 }
 
 func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
