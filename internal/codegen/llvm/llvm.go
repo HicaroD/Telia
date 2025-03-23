@@ -694,7 +694,7 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
 	ty, val, hasFloat := c.emitExpr(expr)
-	if expr.Kind == ast.KIND_LITERAL_EXPR || expr.Kind == ast.KIND_DEREF_POINTER_EXPR {
+	if expr.Kind == ast.KIND_LITERAL_EXPR {
 		return ty, val, hasFloat
 	}
 	l := builder.CreateLoad(ty, val, "")
@@ -832,7 +832,11 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
 	t, v, hasFloat := c.emitExpr(deref.Expr)
-	return t, c.emitPtrLoad(deref.Type, v), hasFloat
+	if deref.Type.Kind != ast.EXPR_TYPE_POINTER {
+		return t, v, hasFloat
+	}
+	ptr := deref.Type.T.(*ast.PointerType)
+	return t, c.emitPtrLoad(ptr.Type, v), hasFloat
 }
 
 func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
