@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -213,10 +214,9 @@ func (c *codegen) emitReturn(
 		builder.CreateRetVoid()
 		return
 	}
-	_, val, _ := c.emitExpr(ret.Value)
-	// loadedVal := builder.CreateLoad(ty, val, "")
+	_, v, _ := c.emitExprWithLoadIfNeeded(ret.Value)
 	// TODO: learn more about noundef for return values
-	builder.CreateRet(val)
+	builder.CreateRet(v)
 }
 
 func (c *codegen) emitVar(variable *ast.VarStmt) {
@@ -316,7 +316,7 @@ func (c *codegen) emitVarDecl(
 		_, ptr, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
 		ptr = builder.CreateAlloca(ty, "")
-		_, val, _ := c.emitExpr(expr)
+		_, val, _ := c.emitExprWithLoadIfNeeded(expr)
 		builder.CreateStore(val, ptr)
 	}
 
@@ -363,14 +363,16 @@ func (c *codegen) emitVarReassign(
 		panic("variable ptr is nil")
 	}
 
-	ty, e, _ := c.emitExpr(expr)
+	// TODO: allow multiple dereferences
+	// **a = 10
+	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
 	if pointerReceiver {
 		ptr := c.emitPtrType(t)
 		loaded := builder.CreateLoad(ptr, p, "")
 		builder.CreateStore(e, loaded)
 		return
 	}
-	builder.CreateStore(builder.CreateLoad(ty, e, ""), p)
+	builder.CreateStore(e, p)
 }
 
 func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value) {
@@ -459,7 +461,7 @@ func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Type, llvm.Value, bo
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		_, e, _ := c.emitExpr(expr)
+		_, e, _ := c.emitExprWithLoadIfNeeded(expr)
 		tupleVal = builder.CreateInsertValue(tupleVal, e, i, "")
 	}
 
@@ -482,7 +484,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm
 
 	obj := builder.CreateAlloca(st, "")
 	for _, field := range lit.Values {
-		_, e, _ := c.emitExpr(field.Value)
+		_, e, _ := c.emitExprWithLoadIfNeeded(field.Value)
 		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
 		builder.CreateStore(e, allocatedField)
 	}
@@ -493,7 +495,7 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm
 func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value, bool) {
 	ty, ptr := c.getStructFieldPtr(fieldAccess)
 	hasFloat, _ := c.checkFloatTypeForBitSize(fieldAccess.AccessedField.Type)
-	return ty, builder.CreateLoad(ty, ptr, ""), hasFloat
+	return ty, ptr, hasFloat
 }
 
 func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bool) {
@@ -675,7 +677,6 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 	values := make([]llvm.Value, nExprs)
 	for i := range nExprs {
-		// _, v, _ := c.emitExpr(call.Args[i])
 		_, v, _ := c.emitExprWithLoadIfNeeded(call.Args[i])
 		values[i] = v
 	}
@@ -683,7 +684,6 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	if call.Variadic {
 		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
-			// _, v, _ := c.emitExpr(arg)
 			_, v, _ := c.emitExprWithLoadIfNeeded(arg)
 			values = append(values, v)
 		}
@@ -692,11 +692,20 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 	return values
 }
 
+var NO_PRELOAD = []ast.NodeKind{
+	ast.KIND_LITERAL_EXPR,
+	ast.KIND_FN_CALL,
+	ast.KIND_BINARY_EXPR,
+}
+
 func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
 	ty, val, hasFloat := c.emitExpr(expr)
-	if expr.Kind == ast.KIND_LITERAL_EXPR {
+
+	noPreload := slices.Contains(NO_PRELOAD, expr.Kind)
+	if noPreload {
 		return ty, val, hasFloat
 	}
+
 	l := builder.CreateLoad(ty, val, "")
 	return ty, l, hasFloat
 }
@@ -831,7 +840,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 }
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
-	t, v, hasFloat := c.emitExpr(deref.Expr)
+	t, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	if deref.Type.Kind != ast.EXPR_TYPE_POINTER {
 		return t, v, hasFloat
 	}
@@ -850,8 +859,8 @@ func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {
-	tLhs, vLhs, lhsHasFloat := c.emitExpr(bin.Left)
-	_, vRhs, rhsHasFloat := c.emitExpr(bin.Right)
+	tLhs, vLhs, lhsHasFloat := c.emitExprWithLoadIfNeeded(bin.Left)
+	_, vRhs, rhsHasFloat := c.emitExprWithLoadIfNeeded(bin.Right)
 	hasFloat := lhsHasFloat || rhsHasFloat
 
 	var binExpr llvm.Value
@@ -865,7 +874,7 @@ func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {
 }
 
 func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Type, llvm.Value, bool) {
-	ty, e, hasFloat := c.emitExpr(unary.Value)
+	ty, e, hasFloat := c.emitExprWithLoadIfNeeded(unary.Value)
 	if hasFloat && unary.Op == token.MINUS {
 		return ty, builder.CreateFNeg(e, ""), hasFloat
 	}
@@ -1002,7 +1011,7 @@ func (c *codegen) emitCond(
 	endBlock := llvm.AddBasicBlock(function, ".end")
 
 	// If
-	_, ifExpr, _ := c.emitExpr(condStmt.IfStmt.Expr)
+	_, ifExpr, _ := c.emitExprWithLoadIfNeeded(condStmt.IfStmt.Expr)
 	builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.emitBlock(function, condStmt.IfStmt.Block)
@@ -1069,26 +1078,28 @@ func (c *codegen) emitForLoop(
 	forUpdateBlock := llvm.AddBasicBlock(function, ".forupdate")
 	endBlock := llvm.AddBasicBlock(function, ".forend")
 
+	// INIT
 	builder.CreateBr(forPrepBlock)
 	builder.SetInsertPointAtEnd(forPrepBlock)
 	c.emitStmt(function, forLoop.Block, forLoop.Init)
-
 	builder.CreateBr(forInitBlock)
 	builder.SetInsertPointAtEnd(forInitBlock)
 
-	_, expr, _ := c.emitExpr(forLoop.Cond)
-
+	// COND
+	_, expr, _ := c.emitExprWithLoadIfNeeded(forLoop.Cond)
 	builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
+	// FOR LOOP BLOCK
 	builder.SetInsertPointAtEnd(forBodyBlock)
 	c.emitBlock(function, forLoop.Block)
 
+	// UPDATE
 	builder.CreateBr(forUpdateBlock)
 	builder.SetInsertPointAtEnd(forUpdateBlock)
 	c.emitStmt(function, forLoop.Block, forLoop.Update)
-
 	builder.CreateBr(forInitBlock)
 
+	// END
 	builder.SetInsertPointAtEnd(endBlock)
 }
 
@@ -1102,7 +1113,7 @@ func (c *codegen) emitWhileLoop(
 
 	builder.CreateBr(whileInitBlock)
 	builder.SetInsertPointAtEnd(whileInitBlock)
-	_, expr, _ := c.emitExpr(whileLoop.Cond)
+	_, expr, _ := c.emitExprWithLoadIfNeeded(whileLoop.Cond)
 	builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	builder.SetInsertPointAtEnd(whileBodyBlock)

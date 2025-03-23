@@ -1300,7 +1300,10 @@ func (sema *sema) inferDerefPtrExprTypeWithContext(
 		return nil, err
 	}
 	if !pointeeType.IsPointer() {
-		return nil, fmt.Errorf("impossible to dereference non-pointer expression of type %s\n", pointeeType)
+		return nil, fmt.Errorf(
+			"impossible to dereference non-pointer expression of type %s\n",
+			pointeeType,
+		)
 	}
 
 	deref.Type = pointeeType

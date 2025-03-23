@@ -5,6 +5,6 @@ fn get(a i32, b i32) {
 }
 
 fn main() i32 {
-  get(1, 2, 3)
+  get(1, 2)
   return 0
 }

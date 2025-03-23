@@ -1,13 +1,10 @@
 package main
 
-#[default_cc="c"]
-extern libc {
-  #[link_name="puts"] fn puts(format cstring) i32
-}
+use "std::io"
 
 fn main() i32 {
-  for i := 0; i <= 10; i = i + 1 {
-    libc.puts("Hello, world")
+  for i i32 := 0; i <= 10; i = i + 1 {
+    io::puts("Hello, world")
   }
   return 0
 }

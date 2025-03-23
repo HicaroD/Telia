@@ -1,16 +1,13 @@
 package main
 
-#[default_cc="c"]
-extern C {
-  fn puts(s cstring)
-  fn printf(format cstring, ...)
-}
+use "std::io"
 
 fn gcd(a int, b int) int {
   while b != 0 {
     if a > b {
       a = a - b
-    } else {
+    }
+    else {
       b = b - a
     }
   }
@@ -20,6 +17,6 @@ fn gcd(a int, b int) int {
 fn main() {
   a, b := 48, 18
   result := gcd(a, b)
-  C.printf("GCD of %d and %d: %d", a, b, result)
+  io::printf("GCD of %d and %d: %d", a, b, result)
   return
 }
