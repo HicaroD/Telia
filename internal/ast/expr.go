@@ -132,7 +132,7 @@ type StructFieldAccessExpr struct {
 	Access *Node
 }
 
-type PointerExpr struct {
+type AddressOfExpr struct {
 	Expr *Node
 }
 

@@ -58,9 +58,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 		return fmt.Errorf("package name is not allowed to be 'main'")
 	}
 
-	hasMainMethod := false
-	requiresMainMethod := false
-	mainPackageFound := false
+	var hasMainMethod, requiresMainMethod, mainPackageFound bool
 
 	for _, file := range pkg.Files {
 		prevFile := s.file
@@ -141,10 +139,10 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 		case ast.KIND_PKG_DECL:
 			continue
 		default:
-			return false, fmt.Errorf(
+			panic(fmt.Sprintf(
 				"unimplemented ast node for sema: %s\n",
 				reflect.TypeOf(node.Node),
-			)
+			))
 		}
 	}
 
@@ -444,11 +442,27 @@ func (sema *sema) checkVar(
 	return nil
 }
 
+func (sema *sema) getTypeAfterDeref(
+	variableType *ast.ExprType,
+	numberOfPointerReceivers int,
+) *ast.ExprType {
+	if numberOfPointerReceivers > 0 {
+		if variableType.Kind == ast.EXPR_TYPE_POINTER {
+			innerTy := variableType.T.(*ast.PointerType)
+			numberOfPointerReceivers--
+			return sema.getTypeAfterDeref(innerTy.Type, numberOfPointerReceivers)
+		}
+	}
+	return variableType
+}
+
 func (sema *sema) inferTypeAfterDeref(
 	variableType *ast.ExprType,
 	exprType *ast.ExprType,
 	numberOfPointerReceivers int,
 ) error {
+	fmt.Println(variableType.T, exprType.T, numberOfPointerReceivers)
+
 	if numberOfPointerReceivers >= 0 {
 		if variableType.Kind == ast.EXPR_TYPE_POINTER {
 			innerTy := variableType.T.(*ast.PointerType)
@@ -636,11 +650,10 @@ func (sema *sema) checkVarExpr(
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
 ) error {
-	var exprTy *ast.ExprType
 	var err error
 
 	if variable.Kind == ast.KIND_VAR_ID_STMT {
-		exprTy, err = sema.checkNormalVarExpr(
+		_, err = sema.checkNormalVarExpr(
 			variable.Node.(*ast.VarIdStmt),
 			expr,
 			referenceScope,
@@ -648,23 +661,9 @@ func (sema *sema) checkVarExpr(
 			fromImportPackage,
 		)
 	} else {
-		exprTy, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
+		_, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
 	}
-
-	if err != nil {
-		return err
-	}
-
-	switch variable.Kind {
-	case ast.KIND_VAR_ID_STMT:
-		v := variable.Node.(*ast.VarIdStmt)
-		err := sema.inferTypeAfterDeref(v.Type, exprTy, v.NumberOfPointerReceivers)
-		return err
-	case ast.KIND_PARAM:
-		panic("unimplemented param")
-	}
-
-	return nil
+	return err
 }
 
 func (sema *sema) checkNormalVarExpr(
@@ -700,15 +699,10 @@ func (sema *sema) checkNormalVarExpr(
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 
-		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
-		if err != nil {
-			return nil, err
-		}
-		// NOTE: I don't this check is necessary
-		if !variable.Type.Equals(exprTy) {
-			return nil, fmt.Errorf("type mismatch on variable decl, expected %s, got %s", variable.Type, exprTy)
-		}
-		return exprTy, nil
+		typeAfterDeref := sema.getTypeAfterDeref(variable.Type, variable.NumberOfPointerReceivers)
+		variable.Type = typeAfterDeref
+		exprTy, err := sema.inferExprTypeWithContext(expr, typeAfterDeref, referenceScope, declScope, fromImportPackage, false)
+		return exprTy, err
 	}
 }
 
@@ -1107,15 +1101,6 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
 	case ast.KIND_ID_EXPR:
 		return s.inferIdExprTypeWithContext(expr.Node.(*ast.IdExpr), expectedType, referenceScope)
-	case ast.KIND_DEREF_POINTER_EXPR:
-		return s.inferDerefPtrExprTypeWithContext(
-			expr.Node.(*ast.DerefPointerExpr),
-			expectedType,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			isArg,
-		)
 	case ast.KIND_BINARY_EXPR:
 		ty, _, err := s.inferBinaryExprType(
 			expr.Node.(*ast.BinExpr),
@@ -1169,9 +1154,18 @@ func (s *sema) inferExprTypeWithContext(
 			declScope,
 			fromImportPackage,
 		)
-	case ast.KIND_POINTER_EXPR:
+	case ast.KIND_DEREF_POINTER_EXPR:
+		return s.inferDerefPtrExprTypeWithContext(
+			expr.Node.(*ast.DerefPointerExpr),
+			expectedType,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
+	case ast.KIND_ADDRESS_OF_EXPR:
 		return s.inferPtrExprWithContext(
-			expr.Node.(*ast.PointerExpr),
+			expr.Node.(*ast.AddressOfExpr),
 			expectedType,
 			referenceScope,
 			declScope,
@@ -1294,26 +1288,23 @@ func (sema *sema) inferDerefPtrExprTypeWithContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
-	switch deref.Expr.Kind {
-	case ast.KIND_DEREF_POINTER_EXPR:
-		ty, err := sema.inferDerefPtrExprTypeWithContext(
-			deref.Expr.Node.(*ast.DerefPointerExpr),
-			expectedType,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			isArg,
-		)
-		return ty, err
-	case ast.KIND_ID_EXPR:
-		return sema.inferIdExprTypeWithContext(
-			deref.Expr.Node.(*ast.IdExpr),
-			expectedType,
-			referenceScope,
-		)
-	default:
-		panic(fmt.Sprintf("unimplemented derefered expression type: %s\n"))
+	innerExpr := deref.Expr
+	pointeeType, _, err := sema.inferExprTypeWithoutContext(
+		innerExpr,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
+	if err != nil {
+		return nil, err
 	}
+	if !pointeeType.IsPointer() {
+		return nil, fmt.Errorf("impossible to dereference non-pointer expression of type %s\n", pointeeType)
+	}
+
+	deref.Type = pointeeType
+	return pointeeType, nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1671,7 +1662,7 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 }
 
 func (s *sema) inferPtrExprWithContext(
-	ptr *ast.PointerExpr,
+	ptr *ast.AddressOfExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
@@ -1681,6 +1672,7 @@ func (s *sema) inferPtrExprWithContext(
 	if !expectedType.IsPointer() {
 		return nil, fmt.Errorf("expected type needs to be a pointer, not %s\n", expectedType.T)
 	}
+
 	expectedPtrType := expectedType.T.(*ast.PointerType)
 	underlyingPtrExprType, err := s.inferExprTypeWithContext(
 		ptr.Expr,
@@ -1694,6 +1686,10 @@ func (s *sema) inferPtrExprWithContext(
 	t := new(ast.ExprType)
 	t.Kind = ast.EXPR_TYPE_POINTER
 	t.T = &ast.PointerType{Type: underlyingPtrExprType}
+
+	if !expectedType.Equals(t) {
+		return nil, fmt.Errorf("pointer type mismatch: expected %s, got %s\n", expectedType.T, t.T)
+	}
 	return t, err
 }
 
@@ -1837,9 +1833,18 @@ func (sema *sema) inferExprTypeWithoutContext(
 			declScope,
 			fromImportPackage,
 		)
-	case ast.KIND_POINTER_EXPR:
-		return sema.inferPtrExprWithoutContext(
-			expr.Node.(*ast.PointerExpr),
+	case ast.KIND_DEREF_POINTER_EXPR:
+		panic("unimplemented infer pointer deref expr without context")
+		// return sema.inferDerefPtrExprTypeWithoutContext(
+		// 	expr.Node.(*ast.DerefPointerExpr),
+		// 	referenceScope,
+		// 	declScope,
+		// 	fromImportPackage,
+		// 	isArg,
+		// )
+	case ast.KIND_ADDRESS_OF_EXPR:
+		return sema.inferAddressOfExprWithoutContext(
+			expr.Node.(*ast.AddressOfExpr),
 			referenceScope,
 			declScope,
 			fromImportPackage,
@@ -2007,8 +2012,8 @@ func (sema *sema) inferStructFieldAccessExprWithoutContext(
 	return field.Type, true, err
 }
 
-func (sema *sema) inferPtrExprWithoutContext(
-	ptr *ast.PointerExpr,
+func (sema *sema) inferAddressOfExprWithoutContext(
+	ptr *ast.AddressOfExpr,
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
 	isArg bool,

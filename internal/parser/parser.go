@@ -1948,13 +1948,9 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if expr.Kind != ast.KIND_ID_EXPR && expr.Kind != ast.KIND_FIELD_ACCESS {
-			return nil, fmt.Errorf("invalid expression for operator &")
-		}
-
 		n := new(ast.Node)
-		n.Kind = ast.KIND_POINTER_EXPR
-		n.Node = &ast.PointerExpr{Expr: expr}
+		n.Kind = ast.KIND_ADDRESS_OF_EXPR
+		n.Node = &ast.AddressOfExpr{Expr: expr}
 		return n, nil
 	case token.STAR, token.ID:
 		return p.parseIdExpr(parentScope)
@@ -2005,7 +2001,6 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		n := new(ast.Node)
 		n.Kind = ast.KIND_DEREF_POINTER_EXPR
 		n.Node = derefPtr
-		fmt.Println(derefPtr)
 		return n, nil
 	}
 
