@@ -510,14 +510,36 @@ func (sema *sema) checkNormalVariable(
 			return err
 		}
 
+		var symbolTy *ast.ExprType
+
 		switch symbol.Kind {
 		case ast.KIND_PARAM:
 			param := symbol.Node.(*ast.Param)
 			if currentVar.Type != nil && !currentVar.Type.Equals(param.Type) {
 				return fmt.Errorf("type mismatch on parameter reassignment, expected %v, got %v\n", param.Type, currentVar.Type)
 			}
+			symbolTy = param.Type
 			currentVar.Type = param.Type
 			currentVar.NeedsInference = false
+		case ast.KIND_VAR_ID_STMT:
+			variable := symbol.Node.(*ast.VarIdStmt)
+			// NOTE: WHAT IF VARIABLE TYPE IS NIL?
+			symbolTy = variable.Type
+		}
+
+		if currentVar.Pointer {
+			numberOfDerefs := currentVar.NumberOfPointerReceivers
+			for numberOfDerefs > 0 {
+				// TODO(errors)
+				if !symbolTy.IsPointer() {
+					return fmt.Errorf("cannot dereference non-pointer variable: %s\n", currentVar.Name.Name())
+				}
+				ptrTy := symbolTy.T.(*ast.PointerType)
+				symbolTy = ptrTy.Type
+				numberOfDerefs--
+			}
+			currentVar.NeedsInference = false
+			currentVar.Type = symbolTy
 		}
 
 		currentVar.N = symbol

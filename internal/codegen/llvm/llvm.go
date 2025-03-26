@@ -332,7 +332,7 @@ func (c *codegen) emitVarReassign(
 	expr *ast.Node,
 	pointerReceiver bool,
 ) {
-	var t llvm.Type
+	var vT *ast.ExprType
 	var p llvm.Value
 	var nPointerDereference int
 
@@ -343,21 +343,25 @@ func (c *codegen) emitVarReassign(
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
 			v := variable.BackendType.(*Variable)
-			t = v.Ty
 			p = v.Ptr
+			vT = variable.Type
 			nPointerDereference = variable.NumberOfPointerReceivers
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v := param.BackendType.(*Variable)
-			t = v.Ty
+			vT = param.Type
 			p = v.Ptr
+			// TODO: set the same logic for parameter
 			nPointerDereference = 0
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
 	case ast.KIND_FIELD_ACCESS:
 		f := name.Node.(*ast.FieldAccess)
-		t, p = c.getStructFieldPtr(f)
+		_, p = c.getStructFieldPtr(f)
+		vT = f.AccessedField.Type
+		// TODO: set the same logic for field access
+		nPointerDereference = 0
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
@@ -366,15 +370,14 @@ func (c *codegen) emitVarReassign(
 		panic("variable ptr is nil")
 	}
 
-	// TODO: allow multiple dereferences
-	// **a = 10
-	fmt.Println(nPointerDereference)
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
 	if pointerReceiver {
-		ptr := c.emitPtrType(t)
-		loaded := builder.CreateLoad(ptr, p, "")
-		builder.CreateStore(e, loaded)
-		return
+		for nPointerDereference > 0 {
+			ptr := c.emitType(vT)
+			p = builder.CreateLoad(ptr, p, "")
+			pointeeType := vT.T.(*ast.PointerType)
+			vT = pointeeType.Type
+		}
 	}
 	builder.CreateStore(e, p)
 }
