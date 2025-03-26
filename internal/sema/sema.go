@@ -442,20 +442,6 @@ func (sema *sema) checkVar(
 	return nil
 }
 
-func (sema *sema) getTypeAfterDeref(
-	variableType *ast.ExprType,
-	numberOfPointerReceivers int,
-) *ast.ExprType {
-	if numberOfPointerReceivers > 0 {
-		if variableType.Kind == ast.EXPR_TYPE_POINTER {
-			innerTy := variableType.T.(*ast.PointerType)
-			numberOfPointerReceivers--
-			return sema.getTypeAfterDeref(innerTy.Type, numberOfPointerReceivers)
-		}
-	}
-	return variableType
-}
-
 func (sema *sema) inferTypeAfterDeref(
 	variableType *ast.ExprType,
 	exprType *ast.ExprType,
@@ -541,7 +527,6 @@ func (sema *sema) checkNormalVariable(
 			currentVar.NeedsInference = false
 			currentVar.Type = symbolTy
 		}
-
 		currentVar.N = symbol
 	}
 	return nil
@@ -721,9 +706,8 @@ func (sema *sema) checkNormalVarExpr(
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 
-		typeAfterDeref := sema.getTypeAfterDeref(variable.Type, variable.NumberOfPointerReceivers)
-		variable.Type = typeAfterDeref
-		exprTy, err := sema.inferExprTypeWithContext(expr, typeAfterDeref, referenceScope, declScope, fromImportPackage, false)
+		fmt.Printf("%s - %s\n", variable.Name.Name(), variable.Type.T)
+		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
 		return exprTy, err
 	}
 }
@@ -1218,20 +1202,8 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 			return nil, err
 		}
 	case ast.EXPR_TYPE_POINTER:
-		expectedPtrType := expectedType.T.(*ast.PointerType)
-
-		if expectedPtrType.Type.Kind != ast.EXPR_TYPE_BASIC {
-			return nil, fmt.Errorf(
-				"expected underlying pointer type to be basic, not %s\n",
-				expectedPtrType.Type.T,
-			)
-		}
-		underlyingPtrBasicType := expectedPtrType.Type.T.(*ast.BasicType)
-
-		_, err := sema.inferBasicExprTypeWithContext(actualBasicType, underlyingPtrBasicType)
-		if err != nil {
-			return nil, err
-		}
+		// TODO(errors)
+		return nil, fmt.Errorf("expected a pointer expression, not a literal")
 	}
 
 	return expectedType, nil
