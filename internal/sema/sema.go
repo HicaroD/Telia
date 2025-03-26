@@ -684,7 +684,6 @@ func (sema *sema) checkNormalVarExpr(
 			log.Fatalf("variable does not have a type and it said it does not need inference")
 		}
 
-		fmt.Printf("%s - %s\n", variable.Name.Name(), variable.Type.T)
 		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
 		return exprTy, err
 	}
@@ -740,7 +739,6 @@ func (sema *sema) getAccessedField(
 
 	variable := sym.Node.(*ast.VarIdStmt)
 	if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
-		fmt.Println(variable)
 		return nil, nil, fmt.Errorf("expected variable type to be a struct")
 	}
 	st := variable.Type.T.(*ast.StructType).Decl

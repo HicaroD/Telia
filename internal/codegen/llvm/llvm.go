@@ -717,7 +717,6 @@ func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Valu
 	}
 
 	l := builder.CreateLoad(ty, val, "")
-	fmt.Println(l)
 	return ty, l, hasFloat
 }
 
