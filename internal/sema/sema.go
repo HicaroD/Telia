@@ -1281,7 +1281,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	}
 }
 
-func (sema *sema) inferDerefPtrExprTypeWithContext(
+func (s *sema) inferDerefPtrExprTypeWithContext(
 	deref *ast.DerefPointerExpr,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
@@ -1290,7 +1290,7 @@ func (sema *sema) inferDerefPtrExprTypeWithContext(
 	isArg bool,
 ) (*ast.ExprType, error) {
 	innerExpr := deref.Expr
-	pointeeType, _, err := sema.inferExprTypeWithoutContext(
+	ty, _, err := s.inferExprTypeWithoutContext(
 		innerExpr,
 		referenceScope,
 		declScope,
@@ -1300,15 +1300,45 @@ func (sema *sema) inferDerefPtrExprTypeWithContext(
 	if err != nil {
 		return nil, err
 	}
-	if !pointeeType.IsPointer() {
+	if !ty.IsPointer() {
+		return nil, fmt.Errorf("cannot dereference non-pointer expression: %s\n", ty.T)
+	}
+	pointeeType := ty.T.(*ast.PointerType)
+	if !pointeeType.Type.Equals(expectedType) {
 		return nil, fmt.Errorf(
-			"impossible to dereference non-pointer expression of type %s\n",
-			pointeeType,
+			"type mismatch, expected %s, got %s\n",
+			expectedType.T,
+			pointeeType.Type.T,
 		)
 	}
+	deref.Type = pointeeType.Type
+	return ty, nil
+}
 
-	deref.Type = pointeeType
-	return pointeeType, nil
+func (s *sema) inferDerefPtrExprTypeWithoutContext(
+	deref *ast.DerefPointerExpr,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+	isArg bool,
+) (*ast.ExprType, bool, error) {
+	innerExpr := deref.Expr
+	ty, _, err := s.inferExprTypeWithoutContext(
+		innerExpr,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ty.IsPointer() {
+		return nil, false, fmt.Errorf("cannot dereference non-pointer type: %s\n", ty.T)
+	}
+	pointeeType := ty.T.(*ast.PointerType)
+	deref.Type = pointeeType.Type
+	return pointeeType.Type, false, nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1839,14 +1869,13 @@ func (sema *sema) inferExprTypeWithoutContext(
 			fromImportPackage,
 		)
 	case ast.KIND_DEREF_POINTER_EXPR:
-		panic("unimplemented infer pointer deref expr without context")
-		// return sema.inferDerefPtrExprTypeWithoutContext(
-		// 	expr.Node.(*ast.DerefPointerExpr),
-		// 	referenceScope,
-		// 	declScope,
-		// 	fromImportPackage,
-		// 	isArg,
-		// )
+		return sema.inferDerefPtrExprTypeWithoutContext(
+			expr.Node.(*ast.DerefPointerExpr),
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
 	case ast.KIND_ADDRESS_OF_EXPR:
 		return sema.inferAddressOfExprWithoutContext(
 			expr.Node.(*ast.AddressOfExpr),

@@ -69,12 +69,16 @@ func (n *Node) IsExpr() bool {
 	return n.Kind > EXPR_START && n.Kind < EXPR_END
 }
 
-func (n *Node) IsDecl() bool {
-	return n.Kind > DECL_START && n.Kind < DECL_END
+func (n *Node) IsDerefExpr() bool {
+	return n.Kind == KIND_DEREF_POINTER_EXPR
 }
 
 func (n *Node) IsId() bool {
 	return n.Kind == KIND_ID_EXPR
+}
+
+func (n *Node) IsDecl() bool {
+	return n.Kind > DECL_START && n.Kind < DECL_END
 }
 
 func (n *Node) IsReturn() bool {
