@@ -334,34 +334,31 @@ func (c *codegen) emitVarReassign(
 ) {
 	var vT *ast.ExprType
 	var p llvm.Value
-	var nPointerDereference int
 
 	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		varId := name.Node.(*ast.VarIdStmt)
+
+		var v *Variable
+
 		switch varId.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
-			v := variable.BackendType.(*Variable)
-			p = v.Ptr
+			v = variable.BackendType.(*Variable)
 			vT = variable.Type
-			nPointerDereference = variable.NumberOfPointerReceivers
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
-			v := param.BackendType.(*Variable)
+			v = param.BackendType.(*Variable)
 			vT = param.Type
-			p = v.Ptr
-			// TODO: set the same logic for parameter
-			nPointerDereference = 0
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
+
+		p = v.Ptr
 	case ast.KIND_FIELD_ACCESS:
 		f := name.Node.(*ast.FieldAccess)
 		_, p = c.getStructFieldPtr(f)
 		vT = f.AccessedField.Type
-		// TODO: set the same logic for field access
-		nPointerDereference = 0
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
@@ -372,9 +369,9 @@ func (c *codegen) emitVarReassign(
 
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
 	if pointerReceiver {
-		for nPointerDereference > 0 {
-			ptr := c.emitType(vT)
-			p = builder.CreateLoad(ptr, p, "")
+		for vT.IsPointer() {
+			ptrTy := c.emitType(vT)
+			p = builder.CreateLoad(ptrTy, p, "")
 			pointeeType := vT.T.(*ast.PointerType)
 			vT = pointeeType.Type
 		}
@@ -720,6 +717,7 @@ func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Valu
 	}
 
 	l := builder.CreateLoad(ty, val, "")
+	fmt.Println(l)
 	return ty, l, hasFloat
 }
 
@@ -859,22 +857,10 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 }
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
-	t, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
-	if deref.Type.Kind != ast.EXPR_TYPE_POINTER {
-		return t, v, hasFloat
-	}
-	ptr := deref.Type.T.(*ast.PointerType)
-	return t, c.emitPtrLoad(ptr.Type, v), hasFloat
-}
-
-func (c *codegen) emitPtrLoad(ty *ast.ExprType, val llvm.Value) llvm.Value {
-	if ty.Kind != ast.EXPR_TYPE_POINTER {
-		return val
-	}
-	emittedTy := c.emitType(ty)
-	loadedVal := builder.CreateLoad(emittedTy, val, "")
-	ptr := ty.T.(*ast.PointerType)
-	return c.emitPtrLoad(ptr.Type, loadedVal)
+	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
+	ty := c.emitType(deref.Type)
+	l := builder.CreateLoad(ty, v, "")
+	return ty, l, hasFloat
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {

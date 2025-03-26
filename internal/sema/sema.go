@@ -442,28 +442,6 @@ func (sema *sema) checkVar(
 	return nil
 }
 
-func (sema *sema) inferTypeAfterDeref(
-	variableType *ast.ExprType,
-	exprType *ast.ExprType,
-	numberOfPointerReceivers int,
-) error {
-	fmt.Println(variableType.T, exprType.T, numberOfPointerReceivers)
-
-	if numberOfPointerReceivers >= 0 {
-		if variableType.Kind == ast.EXPR_TYPE_POINTER {
-			innerTy := variableType.T.(*ast.PointerType)
-			numberOfPointerReceivers--
-			return sema.inferTypeAfterDeref(innerTy.Type, exprType, numberOfPointerReceivers)
-		}
-	}
-
-	if !variableType.Equals(exprType) {
-		return fmt.Errorf("mismatched types: expected %v, but got %v\n", variableType.T, exprType.T)
-	}
-
-	return nil
-}
-
 func (sema *sema) checkNormalVariable(
 	currentVar *ast.VarIdStmt,
 	isDecl bool,
