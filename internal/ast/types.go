@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -29,15 +28,40 @@ func (t *ExprType) Equals(other *ExprType) bool {
 
 	switch t.Kind {
 	case EXPR_TYPE_BASIC:
-		return t.T.(*BasicType).Equal(other.T.(*BasicType))
+		return t.T.(*BasicType).Equals(other.T.(*BasicType))
 	case EXPR_TYPE_POINTER:
-		return t.T.(*PointerType).Equal(other.T.(*PointerType))
+		return t.T.(*PointerType).Equals(other.T.(*PointerType))
 	case EXPR_TYPE_TUPLE:
-		return t.T.(*TupleType).Equal(other.T.(*TupleType))
-	// Add other type cases
+		return t.T.(*TupleType).Equals(other.T.(*TupleType))
 	default:
 		return false
 	}
+}
+
+func (ty *ExprType) Promote() error {
+	switch ty.Kind {
+	case EXPR_TYPE_BASIC:
+		basicType := ty.T.(*BasicType)
+		if basicType.Kind.IsInteger() {
+			ty.T = &BasicType{Kind: token.INT_TYPE}
+		} else if basicType.Kind.IsFloat() {
+			ty.T = &BasicType{Kind: token.FLOAT_TYPE}
+		}
+	case EXPR_TYPE_POINTER:
+		ptrType := ty.T.(*PointerType)
+		if err := ptrType.Type.Promote(); err != nil {
+			return err
+		}
+	case EXPR_TYPE_TUPLE:
+		tupleType := ty.T.(*TupleType)
+		for _, t := range tupleType.Types {
+			if err := t.Promote(); err != nil {
+				return err
+			}
+		}
+		// Add more cases for other types, such as structs or aliases, if necessary.
+	}
+	return nil
 }
 
 func (ty *ExprType) IsNumeric() bool {
@@ -109,7 +133,7 @@ func NewBasicType(kind token.Kind) *ExprType {
 	return ty
 }
 
-func (left *BasicType) Equal(right *BasicType) bool {
+func (left *BasicType) Equals(right *BasicType) bool {
 	if left.Kind.IsUntyped() || right.Kind.IsUntyped() {
 		return left.IsCompatibleWith(right)
 	}
@@ -156,7 +180,7 @@ type PointerType struct {
 	Type *ExprType
 }
 
-func (p *PointerType) Equal(other *PointerType) bool {
+func (p *PointerType) Equals(other *PointerType) bool {
 	return p.Type.Equals(other.Type)
 }
 
@@ -177,7 +201,7 @@ type TupleType struct {
 	Types []*ExprType
 }
 
-func (t *TupleType) Equal(other *TupleType) bool {
+func (t *TupleType) Equals(other *TupleType) bool {
 	if len(t.Types) != len(other.Types) {
 		return false
 	}

@@ -272,6 +272,33 @@ func (sema *sema) checkBlock(
 			return err
 		}
 	}
+
+	for _, statement := range block.Statements {
+		err := sema.promoteUntyped(statement)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (sema *sema) promoteUntyped(stmt *ast.Node) error {
+	if stmt.Kind != ast.KIND_VAR_STMT {
+		return nil
+	}
+	varDecl := stmt.Node.(*ast.VarStmt)
+	variables := varDecl.Names
+	for _, variable := range variables {
+		varId := variable.Node.(*ast.VarIdStmt)
+		if !varId.Type.IsUntyped() {
+			continue
+		}
+		err := varId.Type.Promote()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1709,8 +1736,7 @@ func (s *sema) inferBasicExprTypeWithContext(
 		actual.Kind = expected.Kind
 		return actual, nil
 	}
-
-	if !actual.Equal(expected) {
+	if !actual.Equals(expected) {
 		return nil, fmt.Errorf("type mismatch: expected %s, got %s\n", expected, actual)
 	}
 	return actual, nil
