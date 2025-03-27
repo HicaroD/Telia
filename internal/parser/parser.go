@@ -1128,7 +1128,7 @@ func (p *Parser) parseFnParams(
 			}
 
 			n := new(ast.Node)
-			n.Kind = ast.KIND_FIELD
+			n.Kind = ast.KIND_PARAM
 			n.Node = param
 
 			err = scope.Insert(param.Name.Name(), n)
@@ -1359,7 +1359,7 @@ func (p *Parser) parseStmt(
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-	case token.ID:
+	case token.ID, token.STAR:
 		endsWithNewLine = true
 		idStmt, err := p.ParseIdStmt(parentScope)
 		if err != nil {
@@ -1491,17 +1491,27 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 
 func (p *Parser) parseVar(parentScope *ast.Scope) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
-	isDecl := false
-	hasFieldAccess := false
-	anyVariableDeclaredType := false
+	var isDecl, hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
+	var numberOfPointerReceivers int
 
 VarDecl:
 	for {
+		for {
+			_, hasPointer := p.expect(token.STAR)
+			if !hasPointer {
+				break
+			}
+			hasAnyPointerReceiver = hasAnyPointerReceiver || hasPointer
+			numberOfPointerReceivers++
+		}
+
 		isFieldAccess := p.lex.Peek1().Kind == token.DOT
+
 		var currentVar *ast.Node
 
 		if isFieldAccess {
 			hasFieldAccess = true
+			// TODO: set number of pointer receivers for field access
 			fieldAccess, err := p.parseFieldAccess()
 			if err != nil {
 				return nil, err
@@ -1514,10 +1524,12 @@ VarDecl:
 				return nil, fmt.Errorf("expected ID")
 			}
 			variable := &ast.VarIdStmt{
-				Name:           name,
-				NeedsInference: true,
-				Type:           nil,
-				BackendType:    nil,
+				Name:                     name,
+				NeedsInference:           true,
+				Pointer:                  hasAnyPointerReceiver,
+				NumberOfPointerReceivers: numberOfPointerReceivers,
+				Type:                     nil,
+				BackendType:              nil,
 			}
 
 			n := new(ast.Node)
@@ -1564,7 +1576,18 @@ VarDecl:
 		}
 	}
 
-	if anyVariableDeclaredType && !isDecl {
+	if isDecl {
+		if hasFieldAccess {
+			return nil, fmt.Errorf(
+				"error: not allowed to use := when variables contains a field access because field access are not declarations",
+			)
+		}
+		if hasAnyPointerReceiver {
+			return nil, fmt.Errorf("impossible to set pointer receiver for variable declaration")
+		}
+	}
+
+	if !isDecl && anyVariableDeclaredType {
 		return nil, fmt.Errorf("impossible to define a type for any variable reassignment")
 	}
 
@@ -1581,6 +1604,7 @@ VarDecl:
 	n.Node = &ast.VarStmt{
 		IsDecl:         isDecl,
 		HasFieldAccess: hasFieldAccess,
+		Pointer:        hasAnyPointerReceiver,
 		Names:          variables,
 		Expr:           expr,
 	}
@@ -1918,7 +1942,17 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
-	case token.ID:
+	case token.AMPERSAND:
+		p.lex.Skip() // &
+		expr, err := p.parseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n := new(ast.Node)
+		n.Kind = ast.KIND_ADDRESS_OF_EXPR
+		n.Node = &ast.AddressOfExpr{Expr: expr}
+		return n, nil
+	case token.STAR, token.ID:
 		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
@@ -1943,6 +1977,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 
 			return n, nil
 		}
+
 		return nil, fmt.Errorf(
 			"invalid token for expression parsing: %s %s %s",
 			tok.Kind,
@@ -1953,6 +1988,22 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 }
 
 func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	if p.lex.NextIs(token.STAR) {
+		p.lex.Skip() // *
+
+		derefPtr := new(ast.DerefPointerExpr)
+		expr, err := p.parseIdExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		derefPtr.Expr = expr
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_DEREF_POINTER_EXPR
+		n.Node = derefPtr
+		return n, nil
+	}
+
 	n := new(ast.Node)
 	tok := p.lex.Peek()
 	if tok.Kind != token.ID {
@@ -1960,16 +2011,19 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	}
 	idExpr := &ast.IdExpr{Name: tok}
 
-	next := p.lex.Peek1()
-	switch next.Kind {
+	peeked1 := p.lex.PeekN(1)
+	peeked2 := p.lex.PeekN(2)
+
+	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
+		return p.parseStructLiteralExpr(parentScope)
+	}
+
+	switch peeked1.Kind {
 	case token.OPEN_PAREN:
 		return p.parseFnCall(parentScope)
 	case token.COLON_COLON:
-		fieldAccess, err := p.parseNamespaceAccess(parentScope)
-		return fieldAccess, err
-	case token.OPEN_CURLY:
-		structLiteral, err := p.parseStructLiteralExpr(parentScope)
-		return structLiteral, err
+		namespaceAccess, err := p.parseNamespaceAccess(parentScope)
+		return namespaceAccess, err
 	case token.DOT:
 		return p.parseFieldAccess()
 	}
@@ -2131,6 +2185,11 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	}
 	expr.Name = name
 
+	dot, ok := p.expect(token.DOT)
+	if !ok {
+		return nil, fmt.Errorf("error: expected dot, got %s\n", dot.Kind.String())
+	}
+
 	openCurly, ok := p.expect(token.OPEN_CURLY)
 	// TODO(errors): add proper error
 	if !ok {
@@ -2174,7 +2233,7 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_STRUCT_LITERAL_EXPR
+	n.Kind = ast.KIND_STRUCT_EXPR
 	n.Node = expr
 	return n, nil
 }

@@ -87,6 +87,8 @@ const (
 	OPEN_BRACKET
 	CLOSE_BRACKET
 
+	AMPERSAND
+
 	COMMA
 	SEMICOLON
 
@@ -324,6 +326,8 @@ func (k Kind) String() string {
 		return "["
 	case CLOSE_BRACKET:
 		return "]"
+	case AMPERSAND:
+		return "&"
 	case COMMA:
 		return ","
 	case COLON:

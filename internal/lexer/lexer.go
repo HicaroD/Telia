@@ -73,6 +73,23 @@ func (lex *Lexer) Peek1() *token.Token {
 	return token
 }
 
+func (lex *Lexer) PeekN(n int) *token.Token {
+	prevPos := lex.pos
+	prevOffset := lex.offset
+
+	var token *token.Token
+
+	for n != 0 {
+		lex.Next()
+		n--
+	}
+	token = lex.Next()
+
+	lex.pos.SetPosition(prevPos)
+	lex.offset = prevOffset
+	return token
+}
+
 func (lex *Lexer) Skip() {
 	lex.Next()
 }
@@ -166,6 +183,9 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.nextChar()
 	case ']':
 		lex.consumeTokenNoLex(tok, token.CLOSE_BRACKET)
+		lex.nextChar()
+	case '&':
+		lex.consumeTokenNoLex(tok, token.AMPERSAND)
 		lex.nextChar()
 	case '!':
 		lex.nextChar()

@@ -8,14 +8,10 @@ struct User {
 }
 
 fn main() {
-  user := User{
+  user := User.{
     name: "Hicaro",
     age: 21,
   }
-  user.name = "Hicro"
-  io::libc::puts(user.name)
-
-  number i32 := 10
-  val := number.other
+  io::puts(user.name)
   return
 }

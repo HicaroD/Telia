@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,8 +34,6 @@ var (
 	B_F64_TYPE    = context.DoubleType()
 	B_RAWPTR_TYPE = llvm.PointerType(B_INT8_TYPE, 0) // *u8
 )
-
-var ()
 
 type codegen struct {
 	module llvm.Module
@@ -137,14 +136,13 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 	for i, fnParam := range fn.Params() {
 		argPtr := builder.CreateAlloca(paramsTypes[i], "")
 		builder.CreateStore(fnParam, argPtr)
-
 		variable := &Variable{
 			Ty:  paramsTypes[i],
 			Ptr: argPtr,
 		}
-
 		field := fnDecl.Params.Fields[i]
 		field.BackendType = variable
+
 	}
 
 	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
@@ -216,9 +214,9 @@ func (c *codegen) emitReturn(
 		builder.CreateRetVoid()
 		return
 	}
-	returnValue, _ := c.emitExpr(ret.Value, false)
+	_, v, _ := c.emitExprWithLoadIfNeeded(ret.Value)
 	// TODO: learn more about noundef for return values
-	builder.CreateRet(returnValue)
+	builder.CreateRet(v)
 }
 
 func (c *codegen) emitVar(variable *ast.VarStmt) {
@@ -230,7 +228,12 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 		fnCall := variable.Expr.Node.(*ast.FnCall)
 		c.emitFnCallForTuple(variable.Names, fnCall, variable.IsDecl)
 	default:
-		c.emitVariable(variable.Names[0], variable.Expr, variable.IsDecl)
+		c.emitVariable(
+			variable.Names[0],
+			variable.Expr,
+			variable.IsDecl,
+			variable.Pointer,
+		)
 	}
 }
 
@@ -241,7 +244,12 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 		case ast.KIND_TUPLE_LITERAL_EXPR:
 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
 			for _, innerExpr := range innerTupleExpr.Exprs {
-				c.emitVariable(variable.Names[t], innerExpr, variable.IsDecl)
+				c.emitVariable(
+					variable.Names[t],
+					innerExpr,
+					variable.IsDecl,
+					variable.Pointer,
+				)
 				t++
 			}
 		case ast.KIND_FN_CALL:
@@ -252,18 +260,18 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 				t += len(affectedVariables)
 			} else {
-				c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
 				t++
 			}
 		default:
-			c.emitVariable(variable.Names[t], expr, variable.IsDecl)
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
 			t++
 		}
 	}
 }
 
 func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
-	genFnCall, _ := c.emitFnCall(fnCall)
+	_, genFnCall, _ := c.emitFnCall(fnCall)
 
 	if len(variables) == 1 {
 		c.emitVariableWithValue(variables[0], genFnCall, isDecl)
@@ -275,11 +283,11 @@ func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, 
 	}
 }
 
-func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
+func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl, pointerReceiver bool) {
 	if isDecl {
 		c.emitVarDecl(name, expr)
 	} else {
-		c.emitVarReassign(name, expr)
+		c.emitVarReassign(name, expr, pointerReceiver)
 	}
 }
 
@@ -302,14 +310,14 @@ func (c *codegen) emitVarDecl(
 	ty = c.emitType(variable.Type)
 
 	switch expr.Kind {
-	case ast.KIND_STRUCT_LITERAL_EXPR:
-		ptr, _ = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
+	case ast.KIND_STRUCT_EXPR:
+		_, ptr, _ = c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_NAMESPACE_ACCESS:
-		ptr, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
+		_, ptr, _ = c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	default:
 		ptr = builder.CreateAlloca(ty, "")
-		generatedExpr, _ := c.emitExpr(expr, false)
-		builder.CreateStore(generatedExpr, ptr)
+		_, val, _ := c.emitExprWithLoadIfNeeded(expr)
+		builder.CreateStore(val, ptr)
 	}
 
 	variableLlvm := &Variable{
@@ -322,46 +330,72 @@ func (c *codegen) emitVarDecl(
 func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
+	pointerReceiver bool,
 ) {
-	generatedExpr, _ := c.emitExpr(expr, false)
-	var varPtr llvm.Value
+	var vT *ast.ExprType
+	var p llvm.Value
 
 	switch name.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		varId := name.Node.(*ast.VarIdStmt)
+
+		var v *Variable
+
 		switch varId.N.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
-			varPtr = variable.BackendType.(*Variable).Ptr
-		case ast.KIND_FIELD:
+			v = variable.BackendType.(*Variable)
+			vT = variable.Type
+		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
-			varPtr = param.BackendType.(*Variable).Ptr
+			v = param.BackendType.(*Variable)
+			vT = param.Type
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
+
+		p = v.Ptr
 	case ast.KIND_FIELD_ACCESS:
-		node := name.Node.(*ast.FieldAccess)
-		varPtr = c.getStructFieldPtr(node)
+		f := name.Node.(*ast.FieldAccess)
+		_, p = c.getStructFieldPtr(f)
+		vT = f.AccessedField.Type
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
 	}
 
-	if varPtr.IsNil() {
+	if p.IsNil() {
 		panic("variable ptr is nil")
 	}
-	builder.CreateStore(generatedExpr, varPtr)
+
+	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
+	if pointerReceiver {
+		for vT.IsPointer() {
+			ptrTy := c.emitType(vT)
+			p = builder.CreateLoad(ptrTy, p, "")
+			pointeeType := vT.T.(*ast.PointerType)
+			vT = pointeeType.Type
+		}
+	}
+	builder.CreateStore(e, p)
 }
 
-func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) llvm.Value {
+func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value) {
 	st := c.module.GetTypeByName(fieldAccess.Decl.Name.Name())
 	if st.IsNil() {
 		panic("struct is nil")
 	}
+	fTy := fieldAccess.AccessedField.Type
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
 		obj := fieldAccess.StructVar.BackendType.(*Variable)
-		return builder.CreateStructGEP(st, obj.Ptr, fieldAccess.AccessedField.Index, ".field")
+		gep := builder.CreateStructGEP(
+			st,
+			obj.Ptr,
+			fieldAccess.AccessedField.Index,
+			".field",
+		)
+		return c.emitType(fTy), gep
 	default:
 		panic("unimplemented other type of field access")
 	}
@@ -398,7 +432,7 @@ func (c *codegen) emitVarReassignWithValue(
 		case ast.KIND_VAR_ID_STMT:
 			varId := node.N.Node.(*ast.VarIdStmt)
 			variable = varId.BackendType.(*Variable)
-		case ast.KIND_FIELD:
+		case ast.KIND_PARAM:
 			param := node.N.Node.(*ast.Param)
 			variable = param.BackendType.(*Variable)
 		}
@@ -409,34 +443,35 @@ func (c *codegen) emitVarReassignWithValue(
 	builder.CreateStore(value, variable.Ptr)
 }
 
-func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Value, bool) {
-	args := c.getCallArgs(call)
+func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
+	args := c.emitCallArgs(call)
 	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
 
 	var hasFloat bool
-
 	if call.Decl != nil {
 		hasFloat, _ = c.checkFloatTypeForBitSize(call.Decl.RetType)
 	} else {
 		hasFloat, _ = c.checkFloatTypeForBitSize(call.Proto.RetType)
 	}
-	return builder.CreateCall(fn.GlobalValueType(), fn, args, ""), hasFloat
+
+	ty := fn.GlobalValueType()
+	return ty, builder.CreateCall(ty, fn, args, ""), hasFloat
 }
 
-func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Value, bool) {
+func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Type, llvm.Value, bool) {
 	types := c.emitTypes(tuple.Type.Types)
 	tupleTy := context.StructType(types, false)
 	tupleVal := llvm.ConstNull(tupleTy)
 
 	for i, expr := range tuple.Exprs {
-		generatedExpr, _ := c.emitExpr(expr, false)
-		tupleVal = builder.CreateInsertValue(tupleVal, generatedExpr, i, "")
+		_, e, _ := c.emitExprWithLoadIfNeeded(expr)
+		tupleVal = builder.CreateInsertValue(tupleVal, e, i, "")
 	}
 
-	return tupleVal, false
+	return tupleTy, tupleVal, false
 }
 
 func (c *codegen) emitStructDecl(st *ast.StructDecl) {
@@ -447,7 +482,7 @@ func (c *codegen) emitStructDecl(st *ast.StructDecl) {
 	structTy.StructSetBody(fields, packed)
 }
 
-func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, bool) {
+func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm.Value, bool) {
 	st := c.module.GetTypeByName(lit.Name.Name())
 	if st.IsNil() {
 		panic("struct is nil")
@@ -455,22 +490,47 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Value, boo
 
 	obj := builder.CreateAlloca(st, "")
 	for _, field := range lit.Values {
-		expr, _ := c.emitExpr(field.Value, false)
+		_, e, _ := c.emitExprWithLoadIfNeeded(field.Value)
 		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
-		builder.CreateStore(expr, allocatedField)
+		builder.CreateStore(e, allocatedField)
 	}
 
-	return obj, false
+	return st, obj, false
 }
 
-func (c *codegen) emitFieldAccessExpr(
-	fieldAccess *ast.FieldAccess,
-	isArg bool,
-) (llvm.Value, bool) {
-	ptr := c.getStructFieldPtr(fieldAccess)
-	ty := c.emitType(fieldAccess.AccessedField.Type)
+func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value, bool) {
+	ty, ptr := c.getStructFieldPtr(fieldAccess)
 	hasFloat, _ := c.checkFloatTypeForBitSize(fieldAccess.AccessedField.Type)
-	return builder.CreateLoad(ty, ptr, ""), hasFloat
+	return ty, ptr, hasFloat
+}
+
+func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bool) {
+	var t llvm.Type
+	var p llvm.Value
+
+	switch ptr.Expr.Kind {
+	case ast.KIND_ID_EXPR:
+		id := ptr.Expr.Node.(*ast.IdExpr)
+
+		switch id.N.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			variable := id.N.Node.(*ast.VarIdStmt)
+			v := variable.BackendType.(*Variable)
+			t = v.Ty
+			p = v.Ptr
+		case ast.KIND_PARAM:
+			variable := id.N.Node.(*ast.Param)
+			v := variable.BackendType.(*Variable)
+			t = v.Ty
+			p = v.Ptr
+		}
+	case ast.KIND_FIELD_ACCESS:
+		fieldAccess := ptr.Expr.Node.(*ast.FieldAccess)
+		_, p = c.getStructFieldPtr(fieldAccess)
+	}
+
+	return t, p, false
+
 }
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
@@ -578,6 +638,10 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 	case ast.EXPR_TYPE_STRUCT:
 		ty := ty.T.(*ast.StructType)
 		return c.module.GetTypeByName(ty.Decl.Name.Name())
+	case ast.EXPR_TYPE_POINTER:
+		ptr := ty.T.(*ast.PointerType)
+		ptrTy := c.emitType(ptr.Type)
+		return c.emitPtrType(ptrTy)
 	default:
 		panic(fmt.Sprintf("unimplemented type: %v\n", ty.Kind))
 	}
@@ -611,7 +675,7 @@ func (c *codegen) getFieldListTypes(params *ast.Params) []llvm.Type {
 	return types
 }
 
-func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
+func (c *codegen) emitCallArgs(call *ast.FnCall) []llvm.Value {
 	nExprs := len(call.Args)
 	if call.Variadic {
 		nExprs-- // desconsider the variadic argument place for now
@@ -619,27 +683,49 @@ func (c *codegen) getCallArgs(call *ast.FnCall) []llvm.Value {
 
 	values := make([]llvm.Value, nExprs)
 	for i := range nExprs {
-		value, _ := c.emitExpr(call.Args[i], true)
-		values[i] = value
+		_, v, _ := c.emitExprWithLoadIfNeeded(call.Args[i])
+		values[i] = v
 	}
 
 	if call.Variadic {
 		variadic := call.Args[nExprs].Node.(*ast.VarArgsExpr)
 		for _, arg := range variadic.Args {
-			varArg, _ := c.emitExpr(arg, true)
-			values = append(values, varArg)
+			_, v, _ := c.emitExprWithLoadIfNeeded(arg)
+			values = append(values, v)
 		}
 	}
 
 	return values
 }
 
-func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
+var NO_PRELOAD = []ast.NodeKind{
+	ast.KIND_DEREF_POINTER_EXPR,
+	ast.KIND_ADDRESS_OF_EXPR,
+	ast.KIND_LITERAL_EXPR,
+	ast.KIND_FN_CALL,
+	ast.KIND_BINARY_EXPR,
+	ast.KIND_UNARY_EXPR,
+	ast.KIND_TUPLE_LITERAL_EXPR,
+}
+
+func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
+	ty, val, hasFloat := c.emitExpr(expr)
+
+	noPreload := slices.Contains(NO_PRELOAD, expr.Kind)
+	if noPreload {
+		return ty, val, hasFloat
+	}
+
+	l := builder.CreateLoad(ty, val, "")
+	return ty, l, hasFloat
+}
+
+func (c *codegen) emitExpr(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteralExpr(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
-		return c.emitIdExpr(expr.Node.(*ast.IdExpr), isArg)
+		return c.emitIdExpr(expr.Node.(*ast.IdExpr))
 	case ast.KIND_BINARY_EXPR:
 		return c.emitBinExpr(expr.Node.(*ast.BinExpr))
 	case ast.KIND_FN_CALL:
@@ -650,10 +736,14 @@ func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
 		return c.emitNamespaceAccess(expr.Node.(*ast.NamespaceAccess))
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		return c.emitTupleExpr(expr.Node.(*ast.TupleExpr))
-	case ast.KIND_STRUCT_LITERAL_EXPR:
+	case ast.KIND_STRUCT_EXPR:
 		return c.emitStructLiteral(expr.Node.(*ast.StructLiteralExpr))
 	case ast.KIND_FIELD_ACCESS:
-		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess), isArg)
+		return c.emitFieldAccessExpr(expr.Node.(*ast.FieldAccess))
+	case ast.KIND_DEREF_POINTER_EXPR:
+		return c.emitDerefPtrExpr(expr.Node.(*ast.DerefPointerExpr))
+	case ast.KIND_ADDRESS_OF_EXPR:
+		return c.emitPtrExpr(expr.Node.(*ast.AddressOfExpr))
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:
@@ -661,7 +751,7 @@ func (c *codegen) emitExpr(expr *ast.Node, isArg bool) (llvm.Value, bool) {
 	}
 }
 
-func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, bool) {
+func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Type, llvm.Value, bool) {
 	switch lit.Type.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		basic := lit.Type.T.(*ast.BasicType)
@@ -672,16 +762,25 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, bool) {
 
 		if basic.Kind.IsInteger() {
 			integerValue, bitSize := c.getIntegerValue(lit, basic)
-			return llvm.ConstInt(context.IntType(bitSize), integerValue, false), false
+			ty := context.IntType(bitSize)
+			return ty, llvm.ConstInt(ty, integerValue, false), false
 		}
 
 		switch basic.Kind {
 		case token.STRING_TYPE, token.CSTRING_TYPE:
-			return c.emitCstringLit(lit.Value), false
+			ty, val := c.emitCstringLit(lit.Value)
+			return ty, val, false
 		case token.BOOL_TYPE:
-			return c.emitBool(lit), false
+			ty, val := c.emitBool(lit)
+			return ty, val, false
 		default:
-			panic(fmt.Sprintf("unimplemented basic type: %d %s\n", basic.Kind, string(lit.Value)))
+			panic(
+				fmt.Sprintf(
+					"unimplemented basic type: %s %s\n",
+					basic.Kind.String(),
+					string(lit.Value),
+				),
+			)
 		}
 	case ast.EXPR_TYPE_POINTER:
 		panic("unimplemented pointer type")
@@ -690,17 +789,17 @@ func (c *codegen) emitLiteralExpr(lit *ast.LiteralExpr) (llvm.Value, bool) {
 	}
 }
 
-func (c *codegen) emitFloat(lit *ast.LiteralExpr, ty *ast.BasicType) (llvm.Value, bool) {
+func (c *codegen) emitFloat(lit *ast.LiteralExpr, ty *ast.BasicType) (llvm.Type, llvm.Value, bool) {
 	hasFloat := true
 	floatValue, bitSize := c.getFloatValue(lit, ty)
 	if bitSize == 32 {
-		return llvm.ConstFloat(B_F32_TYPE, floatValue), hasFloat
+		return B_F32_TYPE, llvm.ConstFloat(B_F32_TYPE, floatValue), hasFloat
 	} else {
-		return llvm.ConstFloat(B_F64_TYPE, floatValue), hasFloat
+		return B_F64_TYPE, llvm.ConstFloat(B_F64_TYPE, floatValue), hasFloat
 	}
 }
 
-func (c *codegen) emitCstringLit(str []byte) llvm.Value {
+func (c *codegen) emitCstringLit(str []byte) (llvm.Type, llvm.Value) {
 	strlen := len(str) + 1
 	arrTy := llvm.ArrayType(B_INT8_TYPE, strlen)
 	arr := llvm.ConstArray(arrTy, c.emitConstInt8sForCstring(str, strlen))
@@ -715,10 +814,10 @@ func (c *codegen) emitCstringLit(str []byte) llvm.Value {
 	zero := llvm.ConstInt(B_INT32_TYPE, 0, false)
 	indices := []llvm.Value{zero, zero}
 	ptr := llvm.ConstInBoundsGEP(arrTy, globalVal, indices)
-	return ptr
+	return arrTy, ptr
 }
 
-func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
+func (c *codegen) emitBool(lit *ast.LiteralExpr) (llvm.Type, llvm.Value) {
 	boolVal := string(lit.Value)
 
 	var val uint64
@@ -728,10 +827,10 @@ func (c *codegen) emitBool(lit *ast.LiteralExpr) llvm.Value {
 		val = 0
 	}
 
-	return llvm.ConstInt(B_BOOL_TYPE, val, false)
+	return B_BOOL_TYPE, llvm.ConstInt(B_BOOL_TYPE, val, false)
 }
 
-func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
+func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 	var localVar *Variable
 	var varTy *ast.ExprType
 
@@ -742,7 +841,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
 		variable := id.N.Node.(*ast.VarIdStmt)
 		varTy = variable.Type
 		localVar = variable.BackendType.(*Variable)
-	case ast.KIND_FIELD:
+	case ast.KIND_PARAM:
 		variable := id.N.Node.(*ast.Param)
 		varTy = variable.Type
 		localVar = variable.BackendType.(*Variable)
@@ -753,34 +852,42 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr, isArg bool) (llvm.Value, bool) {
 		hasFloat = bt.Kind.IsFloat()
 	}
 
-	return builder.CreateLoad(localVar.Ty, localVar.Ptr, ""), hasFloat
+	return localVar.Ty, localVar.Ptr, hasFloat
 }
 
-func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Value, bool) {
-	lhs, lhsHasFloat := c.emitExpr(bin.Left, false)
-	rhs, rhsHasFloat := c.emitExpr(bin.Right, false)
+func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
+	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
+	ty := c.emitType(deref.Type)
+	l := builder.CreateLoad(ty, v, "")
+	return ty, l, hasFloat
+}
+
+func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {
+	tLhs, vLhs, lhsHasFloat := c.emitExprWithLoadIfNeeded(bin.Left)
+	_, vRhs, rhsHasFloat := c.emitExprWithLoadIfNeeded(bin.Right)
 	hasFloat := lhsHasFloat || rhsHasFloat
 
 	var binExpr llvm.Value
 	if hasFloat {
-		binExpr = c.emitFloatBinExpr(lhs, bin.Op, rhs)
+		binExpr = c.emitFloatBinExpr(vLhs, bin.Op, vRhs)
 	} else {
-		binExpr = c.emitIntBinExpr(lhs, bin.Op, rhs)
+		binExpr = c.emitIntBinExpr(vLhs, bin.Op, vRhs)
 	}
-	return binExpr, hasFloat
+	binTy := tLhs
+	return binTy, binExpr, hasFloat
 }
 
-func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Value, bool) {
-	expr, hasFloat := c.emitExpr(unary.Value, false)
+func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Type, llvm.Value, bool) {
+	ty, e, hasFloat := c.emitExprWithLoadIfNeeded(unary.Value)
 	if hasFloat && unary.Op == token.MINUS {
-		return builder.CreateFNeg(expr, ""), hasFloat
+		return ty, builder.CreateFNeg(e, ""), hasFloat
 	}
 
 	switch unary.Op {
 	case token.MINUS:
-		return builder.CreateNeg(expr, ""), hasFloat
+		return ty, builder.CreateNeg(e, ""), hasFloat
 	case token.NOT:
-		return builder.CreateICmp(llvm.IntEQ, B_FALSE, expr, ""), hasFloat
+		return ty, builder.CreateICmp(llvm.IntEQ, B_FALSE, e, ""), hasFloat
 	default:
 		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
 	}
@@ -908,7 +1015,7 @@ func (c *codegen) emitCond(
 	endBlock := llvm.AddBasicBlock(function, ".end")
 
 	// If
-	ifExpr, _ := c.emitExpr(condStmt.IfStmt.Expr, false)
+	_, ifExpr, _ := c.emitExprWithLoadIfNeeded(condStmt.IfStmt.Expr)
 	builder.CreateCondBr(ifExpr, ifBlock, elseBlock)
 	builder.SetInsertPointAtEnd(ifBlock)
 	stoppedOnReturn := c.emitBlock(function, condStmt.IfStmt.Block)
@@ -936,7 +1043,7 @@ func (c *codegen) emitCond(
 
 func (c *codegen) emitNamespaceAccess(
 	namespaceAccess *ast.NamespaceAccess,
-) (llvm.Value, bool) {
+) (llvm.Type, llvm.Value, bool) {
 	if namespaceAccess.IsImport {
 		return c.emitImportAccess(namespaceAccess.Right)
 	}
@@ -949,7 +1056,7 @@ func (c *codegen) emitNamespaceAccess(
 	return c.emitFnCall(fnCall)
 }
 
-func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Value, bool) {
+func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Type, llvm.Value, bool) {
 	switch right.Kind {
 	case ast.KIND_FN_CALL:
 		fnCall := right.Node.(*ast.FnCall)
@@ -957,7 +1064,7 @@ func (c *codegen) emitImportAccess(right *ast.Node) (llvm.Value, bool) {
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := right.Node.(*ast.NamespaceAccess)
 		return c.emitNamespaceAccess(namespaceAccess)
-	case ast.KIND_STRUCT_LITERAL_EXPR:
+	case ast.KIND_STRUCT_EXPR:
 		stLit := right.Node.(*ast.StructLiteralExpr)
 		return c.emitStructLiteral(stLit)
 	default:
@@ -975,26 +1082,28 @@ func (c *codegen) emitForLoop(
 	forUpdateBlock := llvm.AddBasicBlock(function, ".forupdate")
 	endBlock := llvm.AddBasicBlock(function, ".forend")
 
+	// INIT
 	builder.CreateBr(forPrepBlock)
 	builder.SetInsertPointAtEnd(forPrepBlock)
 	c.emitStmt(function, forLoop.Block, forLoop.Init)
-
 	builder.CreateBr(forInitBlock)
 	builder.SetInsertPointAtEnd(forInitBlock)
 
-	expr, _ := c.emitExpr(forLoop.Cond, false)
-
+	// COND
+	_, expr, _ := c.emitExprWithLoadIfNeeded(forLoop.Cond)
 	builder.CreateCondBr(expr, forBodyBlock, endBlock)
 
+	// FOR LOOP BLOCK
 	builder.SetInsertPointAtEnd(forBodyBlock)
 	c.emitBlock(function, forLoop.Block)
 
+	// UPDATE
 	builder.CreateBr(forUpdateBlock)
 	builder.SetInsertPointAtEnd(forUpdateBlock)
 	c.emitStmt(function, forLoop.Block, forLoop.Update)
-
 	builder.CreateBr(forInitBlock)
 
+	// END
 	builder.SetInsertPointAtEnd(endBlock)
 }
 
@@ -1008,7 +1117,7 @@ func (c *codegen) emitWhileLoop(
 
 	builder.CreateBr(whileInitBlock)
 	builder.SetInsertPointAtEnd(whileInitBlock)
-	expr, _ := c.emitExpr(whileLoop.Cond, false)
+	_, expr, _ := c.emitExprWithLoadIfNeeded(whileLoop.Cond)
 	builder.CreateCondBr(expr, whileBodyBlock, endBlock)
 
 	builder.SetInsertPointAtEnd(whileBodyBlock)
@@ -1044,15 +1153,15 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	}
 	defer irFile.Close()
 
-	if err := llvm.VerifyModule(c.module, llvm.AbortProcessAction); err != nil {
-		fmt.Println("error: module is not valid")
-		return err
-	}
-
 	module := c.module.String()
 	_, err = irFile.WriteString(module)
 	// TODO(errors)
 	if err != nil {
+		return err
+	}
+
+	if err := llvm.VerifyModule(c.module, llvm.ReturnStatusAction); err != nil {
+		fmt.Printf("error: module is not valid, generated at '%s'\n", dir)
 		return err
 	}
 

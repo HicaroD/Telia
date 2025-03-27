@@ -82,12 +82,20 @@ func (ty *ExprType) IsFloat() bool {
 		basic.Kind == token.FLOAT_TYPE_END
 }
 
+func (ty *ExprType) IsPointer() bool {
+	return ty.Kind == EXPR_TYPE_POINTER
+}
+
 func (ty *ExprType) IsUntyped() bool {
-	if ty.Kind != EXPR_TYPE_BASIC {
-		return false
+	if ty.Kind == EXPR_TYPE_BASIC {
+		basic := ty.T.(*BasicType)
+		return basic.IsUntyped()
 	}
-	basic := ty.T.(*BasicType)
-	return basic.IsUntyped()
+	if ty.Kind == EXPR_TYPE_POINTER {
+		ptr := ty.T.(*PointerType)
+		return ptr.Type.IsUntyped()
+	}
+	return false
 }
 
 type BasicType struct {
@@ -153,7 +161,7 @@ func (p *PointerType) Equal(other *PointerType) bool {
 }
 
 func (pointer PointerType) String() string {
-	return fmt.Sprintf("*%v", pointer.Type)
+	return fmt.Sprintf("*%s", pointer.Type.T)
 }
 
 type TypeAlias struct {

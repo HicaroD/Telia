@@ -44,12 +44,14 @@ const (
 	KIND_UNARY_EXPR
 	KIND_BINARY_EXPR
 	KIND_TUPLE_LITERAL_EXPR
-	KIND_STRUCT_LITERAL_EXPR
+	KIND_STRUCT_EXPR
+	KIND_ADDRESS_OF_EXPR
+	KIND_DEREF_POINTER_EXPR
 
 	EXPR_END // expression node start delimiter
 
 	KIND_PACKAGE
-	KIND_FIELD
+	KIND_PARAM
 	KIND_STRUCT_FIELD
 	KIND_PROTO
 )
@@ -67,12 +69,16 @@ func (n *Node) IsExpr() bool {
 	return n.Kind > EXPR_START && n.Kind < EXPR_END
 }
 
-func (n *Node) IsDecl() bool {
-	return n.Kind > DECL_START && n.Kind < DECL_END
+func (n *Node) IsDerefExpr() bool {
+	return n.Kind == KIND_DEREF_POINTER_EXPR
 }
 
 func (n *Node) IsId() bool {
 	return n.Kind == KIND_ID_EXPR
+}
+
+func (n *Node) IsDecl() bool {
+	return n.Kind > DECL_START && n.Kind < DECL_END
 }
 
 func (n *Node) IsReturn() bool {
@@ -137,8 +143,14 @@ func (n *Node) String() string {
 		return "KIND_BINARY_EXPR"
 	case KIND_TUPLE_LITERAL_EXPR:
 		return "KIND_TUPLE_LITERAL_EXPR"
-	case KIND_FIELD:
-		return "KIND_FIELD"
+	case KIND_STRUCT_EXPR:
+		return "KIND_STRUCT_EXPR"
+	case KIND_ADDRESS_OF_EXPR:
+		return "KIND_POINTER_EXPR"
+	case KIND_DEREF_POINTER_EXPR:
+		return "KIND_DEREF_POINTER_EXPR"
+	case KIND_PARAM:
+		return "KIND_PARAM"
 	case KIND_STRUCT_FIELD:
 		return "KIND_STRUCT_FIELD"
 	case KIND_PROTO:

@@ -11,6 +11,6 @@ fn fib(n i32) i32 {
 
 fn main() i32 {
   n := 40
-  io::libc::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
+  io::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
   return 0
 }

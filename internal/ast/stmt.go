@@ -23,6 +23,9 @@ type VarIdStmt struct {
 	Type           *ExprType
 	NeedsInference bool
 
+	Pointer                  bool
+	NumberOfPointerReceivers int
+
 	// Codegen
 	BackendType any
 	N           *Node
@@ -31,6 +34,7 @@ type VarIdStmt struct {
 type VarStmt struct {
 	IsDecl         bool
 	HasFieldAccess bool
+	Pointer        bool
 	Names          []*Node
 	Expr           *Node
 }
