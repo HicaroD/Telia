@@ -19,10 +19,9 @@ func (block BlockStmt) String() string {
 }
 
 type VarIdStmt struct {
-	Name           *token.Token
-	Type           *ExprType
-	NeedsInference bool
-
+	Name                     *token.Token
+	Type                     *ExprType
+	NeedsInference           bool
 	Pointer                  bool
 	NumberOfPointerReceivers int
 
