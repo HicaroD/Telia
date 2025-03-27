@@ -284,19 +284,19 @@ func (sema *sema) checkBlock(
 }
 
 func (sema *sema) promoteUntyped(stmt *ast.Node) error {
-	switch stmt.Kind {
-	case ast.KIND_VAR_STMT:
-		varDecl := stmt.Node.(*ast.VarStmt)
-		variables := varDecl.Names
-		for _, variable := range variables {
-			varId := variable.Node.(*ast.VarIdStmt)
-			if !varId.Type.IsUntyped() {
-				continue
-			}
-			err := varId.Type.Promote()
-			if err != nil {
-				return err
-			}
+	if stmt.Kind != ast.KIND_VAR_STMT {
+		return nil
+	}
+	varDecl := stmt.Node.(*ast.VarStmt)
+	variables := varDecl.Names
+	for _, variable := range variables {
+		varId := variable.Node.(*ast.VarIdStmt)
+		if !varId.Type.IsUntyped() {
+			continue
+		}
+		err := varId.Type.Promote()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
