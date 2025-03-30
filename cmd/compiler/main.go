@@ -31,9 +31,7 @@ func main() {
 		fmt.Print(HELP_COMMAND)
 		return
 	case COMMAND_ENV:
-		for k, v := range config.ENVS {
-			fmt.Printf("%s='%s'\n", k, v)
-		}
+		config.ENVS.ShowAll()
 		return
 	case COMMAND_BUILD:
 		var program *ast.Program
