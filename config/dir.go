@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	_ "embed"
 	"fmt"
 	"io"
 	"os"
@@ -14,9 +15,8 @@ var DEFAULT_ENV_FILE string = `T_STD=/usr/local/telia/std
 T_RUNTIME=/usr/local/telia/runtime
 `
 
-var DEFAULT_DEV_ENV_FILE string = `T_STD=./base/std
-T_RUNTIME=./base/runtime
-`
+//go:embed env
+var DEFAULT_DEV_ENV_FILE string
 
 var TELIA_CONFIG_DIR string
 
