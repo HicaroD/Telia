@@ -61,10 +61,6 @@ func cli() (CliResult, error) {
 
 	command := args[0]
 	switch command {
-	case "env":
-		result.Command = COMMAND_ENV
-	case "help":
-		result.Command = COMMAND_HELP
 	case "build":
 		result.Command = COMMAND_BUILD
 
@@ -104,8 +100,11 @@ func cli() (CliResult, error) {
 		if releaseBuildSet && debugBuildSet {
 			return result, fmt.Errorf("choose either -release or -build, not both")
 		}
+	case "help":
+		fallthrough
 	default:
-		return result, fmt.Errorf("TODO: show help")
+		result.Command = COMMAND_HELP
+		return result, nil
 	}
 	return result, nil
 }
