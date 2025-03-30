@@ -4,7 +4,6 @@ import (
 	"bufio"
 	_ "embed"
 	"fmt"
-	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -13,8 +12,9 @@ import (
 	"strings"
 )
 
-var DEFAULT_ENV_FILE string = `T_STD=/usr/local/telia/std
-T_RUNTIME=/usr/local/telia/runtime
+// TODO: properly map these paths to user
+var DEFAULT_ENV_FILE string = `T_STD=
+T_RUNTIME=
 `
 
 //go:embed env
@@ -156,63 +156,6 @@ func loadTeliaEnvFile(path string) (map[string]string, error) {
 	}
 
 	return env, nil
-}
-
-func copyFile(src, dst string) error {
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destinationFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destinationFile.Close()
-
-	_, err = io.Copy(destinationFile, sourceFile)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func copyDir(srcDir, dstDir string) error {
-	srcDirInfo, err := os.Stat(srcDir)
-	if err != nil {
-		return err
-	}
-
-	err = os.MkdirAll(dstDir, srcDirInfo.Mode())
-	if err != nil {
-		return err
-	}
-
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(srcDir, entry.Name())
-		dstPath := filepath.Join(dstDir, entry.Name())
-
-		if entry.IsDir() {
-			err := copyDir(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := copyFile(srcPath, dstPath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func writeStringToFile(fileName, content string) error {
