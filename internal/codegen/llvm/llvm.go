@@ -713,6 +713,7 @@ var NO_PRELOAD = []ast.NodeKind{
 	ast.KIND_BINARY_EXPR,
 	ast.KIND_UNARY_EXPR,
 	ast.KIND_TUPLE_LITERAL_EXPR,
+	ast.KIND_NULLPTR_EXPR,
 }
 
 func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
