@@ -11,7 +11,8 @@ import (
 // main contains an entrypoint
 
 type Program struct {
-	Root *Package
+	Root    *Package
+	Runtime *Package
 }
 
 type Loc struct {
@@ -54,6 +55,14 @@ func (l Loc) String() string {
 		l.IsPackage,
 	)
 }
+
+type PackageType int
+
+const (
+	PACKAGE_STD = iota
+	PACKAGE_RUNTIME
+	PACKAGE_USER
+)
 
 type Package struct {
 	Loc       *Loc

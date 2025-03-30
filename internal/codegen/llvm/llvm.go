@@ -40,10 +40,11 @@ type codegen struct {
 
 	loc     *ast.Loc
 	program *ast.Program
+	runtime *ast.Package
 	pkg     *ast.Package
 }
 
-func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
+func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
 	module := context.NewModule(loc.Dir)
 
 	defaultTargetTriple := llvm.DefaultTargetTriple()
@@ -53,10 +54,12 @@ func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
 		loc:     loc,
 		program: program,
 		module:  module,
+		runtime: runtime,
 	}
 }
 
 func (c *codegen) Generate(buildType config.BuildType) error {
+	c.generatePackage(c.runtime)
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
 	return err
@@ -868,6 +871,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
 	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	ty := c.emitType(deref.Type)
+	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{v})
 	l := builder.CreateLoad(ty, v, "")
 	return ty, l, hasFloat
 }
@@ -1137,7 +1141,14 @@ func (c *codegen) emitWhileLoop(
 	builder.SetInsertPointAtEnd(endBlock)
 }
 
-func (c *codegen) emitRuntimeCall(call string) {
+func (c *codegen) emitRuntimeCall(name string, args []llvm.Value) {
+	fn := c.module.NamedFunction(name)
+	if fn.IsNil() {
+		panic("function is nil when generating function call")
+	}
+
+	ty := fn.GlobalValueType()
+	builder.CreateCall(ty, fn, args, "")
 }
 
 func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {

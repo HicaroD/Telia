@@ -1,4 +1,4 @@
-package c
+package libc
 
 #[default_cc="c"]
 extern {

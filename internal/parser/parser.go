@@ -23,6 +23,8 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
+
+	Runtime *ast.Package
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -42,13 +44,21 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParsePackageAsProgram(argLoc string, loc *ast.Loc) (*ast.Program, error) {
+func (p *Parser) ParsePackageAsProgram(
+	argLoc string,
+	loc *ast.Loc,
+) (*ast.Program, *ast.Package, error) {
 	p.argLoc = argLoc
 	root, err := p.parsePackage(loc, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &ast.Program{Root: root}, nil
+
+	runtime, err := p.parseRuntimePackage()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &ast.Program{Root: root}, runtime, nil
 }
 
 func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
@@ -71,14 +81,36 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	return pkg, nil
 }
 
-func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Package, error) {
+func (p *Parser) parseRuntimePackage() (*ast.Package, error) {
+	loc, err := ast.LocFromPath(config.ENVS.RUNTIME)
+	if err != nil {
+		return nil, err
+	}
+
+	runtimePkg, err := p.parsePackage(loc, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return runtimePkg, nil
+}
+
+func (p *Parser) addPackage(
+	pkgTy ast.PackageType,
+	path []string,
+) (string, string, *ast.Package, error) {
 	pkgPath := strings.Join(path, "/")
 
 	var prefixPath string
-	if std {
+	switch pkgTy {
+	case ast.PACKAGE_STD:
 		prefixPath = config.ENVS.STD
-	} else {
+	case ast.PACKAGE_RUNTIME:
+		prefixPath = config.ENVS.RUNTIME
+	case ast.PACKAGE_USER:
 		prefixPath = p.argLoc
+	default:
+		panic(fmt.Sprintf("unknown package type: %d\n", pkgTy))
 	}
 
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
@@ -121,12 +153,12 @@ func (p *Parser) ParseFileAsProgram(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
-) (*ast.Program, error) {
+) (*ast.Program, *ast.Package, error) {
 	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Universe scope has a nil parent
@@ -142,13 +174,18 @@ func (p *Parser) ParseFileAsProgram(
 
 	file, err := p.parseFile(l, pkg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pkg.Files = []*ast.File{file}
 
 	p.pkg = pkg
 	program := &ast.Program{Root: pkg}
-	return program, nil
+
+	runtimePkg, err := p.parseRuntimePackage()
+	if err != nil {
+		return nil, nil, err
+	}
+	return program, runtimePkg, nil
 }
 
 func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error) {
@@ -650,12 +687,14 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("error: bad formatted import string")
 	}
 
-	var std bool
+	var pkgType ast.PackageType
 	switch parts[0] {
 	case "std":
-		std = true
+		pkgType = ast.PACKAGE_STD
 	case "pkg":
-		std = false
+		pkgType = ast.PACKAGE_USER
+	case "runtime":
+		pkgType = ast.PACKAGE_RUNTIME
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
@@ -667,7 +706,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
-	impName, fullPath, pkg, err := p.addPackage(std, parts[1:])
+	impName, fullPath, pkg, err := p.addPackage(pkgType, parts[1:])
 	if err != nil {
 		return nil, err
 	}

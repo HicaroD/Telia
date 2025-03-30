@@ -6,6 +6,10 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
+var (
+	RAWPTR_TYPE = NewBasicType(token.RAWPTR_TYPE)
+)
+
 type ExprTypeKind int
 
 const (
@@ -483,6 +487,7 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.F64_TYPE),
 			// pointer
 			POINTER_TYPE,
+			NewBasicType(token.RAWPTR_TYPE),
 		},
 		Handler: handleEqualityComparison,
 	},
@@ -506,6 +511,7 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.F64_TYPE),
 			// pointers
 			POINTER_TYPE,
+			NewBasicType(token.RAWPTR_TYPE),
 		},
 		Handler: handleEqualityComparison,
 	},

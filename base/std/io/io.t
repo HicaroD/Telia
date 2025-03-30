@@ -1,8 +1,8 @@
 package io
 
-use "std::c"
+use "std::libc"
 
 fn println(f string) {
-  c::puts(f)
+  libc::puts(f)
   return
 }

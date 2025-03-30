@@ -35,14 +35,15 @@ func main() {
 		return
 	case COMMAND_BUILD:
 		var program *ast.Program
+		var runtime *ast.Package
 		var err error
 
 		collector := diagnostics.New()
 
 		if args.Loc.IsPackage {
-			program, err = buildPackage(args.ArgLoc, args.Loc, collector)
+			program, runtime, err = buildPackage(args.ArgLoc, args.Loc, collector)
 		} else {
-			program, err = buildFile(args.ArgLoc, args.Loc, collector)
+			program, runtime, err = buildFile(args.ArgLoc, args.Loc, collector)
 		}
 
 		// TODO(errors)
@@ -51,7 +52,7 @@ func main() {
 		}
 
 		sema := sema.New(collector)
-		err = sema.Check(program)
+		err = sema.Check(program, runtime)
 		// TODO(errors)
 		if err != nil {
 			log.Fatal(err)
@@ -62,7 +63,7 @@ func main() {
 		// could have more
 
 		// TODO: properly set directory
-		codegen := llvm.NewCG(args.Loc, program)
+		codegen := llvm.NewCG(args.Loc, program, runtime)
 		err = codegen.Generate(args.BuildType)
 		// TODO(errors)
 		if err != nil {
@@ -94,18 +95,18 @@ func buildPackage(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
-) (*ast.Program, error) {
+) (*ast.Program, *ast.Package, error) {
 	p := parser.New(collector)
-	program, err := p.ParsePackageAsProgram(argLoc, loc)
-	return program, err
+	program, runtime, err := p.ParsePackageAsProgram(argLoc, loc)
+	return program, runtime, err
 }
 
 func buildFile(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
-) (*ast.Program, error) {
+) (*ast.Program, *ast.Package, error) {
 	p := parser.New(collector)
-	program, err := p.ParseFileAsProgram(argLoc, loc, collector)
-	return program, err
+	program, runtime, err := p.ParseFileAsProgram(argLoc, loc, collector)
+	return program, runtime, err
 }

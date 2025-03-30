@@ -31,7 +31,11 @@ func New(collector *diagnostics.Collector) *sema {
 	return s
 }
 
-func (s *sema) Check(program *ast.Program) error {
+func (s *sema) Check(program *ast.Program, runtime *ast.Package) error {
+	err := s.checkPackage(runtime)
+	if err != nil {
+		return err
+	}
 	return s.checkPackage(program.Root)
 }
 
@@ -90,6 +94,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 			return fmt.Errorf("error: expected package name to be 'main'\n")
 		}
 		if !requiresMainMethod && file.PkgName != pkg.Loc.Name {
+			fmt.Println(file.PkgName)
 			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Loc.Name)
 		}
 
@@ -1861,7 +1866,7 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
-	if !expectedType.IsPointer() {
+	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
 	nullptr.Type = expectedType
@@ -2024,7 +2029,6 @@ func (sema *sema) inferExprTypeWithoutContext(
 			isArg,
 		)
 	case ast.KIND_NULLPTR_EXPR:
-		fmt.Println("NULLPTR EXPR WITHOUT CONTEXT")
 		return nil, false, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
