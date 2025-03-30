@@ -1965,6 +1965,17 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			return nil, fmt.Errorf("expected closing parenthesis")
 		}
 		return expr, nil
+	case token.UNTYPED_NULLPTR:
+		p.lex.Skip()
+		nullptr := new(ast.Node)
+		nullptr.Kind = ast.KIND_NULLPTR_EXPR
+		nullptr.Node = &ast.NullPtrExpr{
+			Type: &ast.ExprType{
+				Kind: ast.EXPR_TYPE_BASIC,
+				T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+			},
+		}
+		return nullptr, nil
 	default:
 		if tok.Kind.IsUntyped() {
 			p.lex.Skip()

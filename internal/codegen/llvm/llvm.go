@@ -504,6 +504,11 @@ func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Type, 
 	return ty, ptr, hasFloat
 }
 
+func (c *codegen) emitNullPtrExpr(nullPtr *ast.NullPtrExpr) (llvm.Type, llvm.Value, bool) {
+	ty := c.emitType(nullPtr.Type)
+	return ty, llvm.ConstNull(ty), false
+}
+
 func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bool) {
 	var t llvm.Type
 	var p llvm.Value
@@ -627,6 +632,8 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 			panic("unimplemented untyped float")
 		case token.UNTYPED_STRING:
 			panic("unimplemented untyped string")
+		case token.UNTYPED_NULLPTR:
+			panic("unimplemented untyped nullptr")
 		default:
 			panic(fmt.Sprintf("unimplemented basic type: %v\n", ty.Kind))
 		}
@@ -744,6 +751,8 @@ func (c *codegen) emitExpr(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
 		return c.emitDerefPtrExpr(expr.Node.(*ast.DerefPointerExpr))
 	case ast.KIND_ADDRESS_OF_EXPR:
 		return c.emitPtrExpr(expr.Node.(*ast.AddressOfExpr))
+	case ast.KIND_NULLPTR_EXPR:
+		return c.emitNullPtrExpr(expr.Node.(*ast.NullPtrExpr))
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:

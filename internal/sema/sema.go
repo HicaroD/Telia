@@ -665,8 +665,9 @@ func (sema *sema) checkVarExpr(
 	var err error
 
 	if variable.Kind == ast.KIND_VAR_ID_STMT {
+		varId := variable.Node.(*ast.VarIdStmt)
 		_, err = sema.checkNormalVarExpr(
-			variable.Node.(*ast.VarIdStmt),
+			varId,
 			expr,
 			referenceScope,
 			declScope,
@@ -675,6 +676,7 @@ func (sema *sema) checkVarExpr(
 	} else {
 		_, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
 	}
+
 	return err
 }
 
@@ -1176,6 +1178,15 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_ADDRESS_OF_EXPR:
 		return s.inferPtrExprWithContext(
 			expr.Node.(*ast.AddressOfExpr),
+			expectedType,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
+	case ast.KIND_NULLPTR_EXPR:
+		return s.inferNullptrExprTypeWithContext(
+			expr.Node.(*ast.NullPtrExpr),
 			expectedType,
 			referenceScope,
 			declScope,
@@ -1725,6 +1736,21 @@ func (s *sema) inferPtrExprWithContext(
 	return t, err
 }
 
+func (s *sema) inferNullptrExprTypeWithContext(
+	nullptr *ast.NullPtrExpr,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+	isArg bool,
+) (*ast.ExprType, error) {
+	if !expectedType.IsPointer() {
+		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
+	}
+	nullptr.Type = expectedType
+	return nullptr.Type, nil
+}
+
 func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
@@ -1880,6 +1906,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 			fromImportPackage,
 			isArg,
 		)
+	case ast.KIND_NULLPTR_EXPR:
+		fmt.Println("NULLPTR EXPR WITHOUT CONTEXT")
+		return nil, false, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -1915,6 +1944,18 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 	case token.UNTYPED_BOOL:
 		actualBasicType.Kind = token.BOOL_TYPE
 		return literal.Type, true, nil
+	case token.UNTYPED_NULLPTR:
+		nullptr := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_POINTER,
+			T: &ast.PointerType{
+				Type: &ast.ExprType{
+					Kind: ast.EXPR_TYPE_BASIC,
+					T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+				},
+			},
+		}
+		literal.Type = nullptr
+		return literal.Type, false, nil
 	default:
 		// TODO(errors)
 		log.Fatalf("unimplemented literal expression: %s\n", actualBasicType.Kind)

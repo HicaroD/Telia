@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -131,6 +132,13 @@ func NewBasicType(kind token.Kind) *ExprType {
 	ty.Kind = EXPR_TYPE_BASIC
 	ty.T = &BasicType{Kind: kind}
 	return ty
+}
+
+func NewPointerType(ty *ExprType) *ExprType {
+	t := new(ExprType)
+	t.Kind = EXPR_TYPE_POINTER
+	t.T = &PointerType{Type: ty}
+	return t
 }
 
 func (left *BasicType) Equals(right *BasicType) bool {
@@ -473,6 +481,24 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
+			NewBasicType(token.F64_TYPE),
+			// pointers
+			NewPointerType(NewBasicType(token.UINT_TYPE)),
+			NewPointerType(NewBasicType(token.INT_TYPE)),
+			NewPointerType(NewBasicType(token.I8_TYPE)),
+			NewPointerType(NewBasicType(token.I16_TYPE)),
+			NewPointerType(NewBasicType(token.I32_TYPE)),
+			NewPointerType(NewBasicType(token.I64_TYPE)),
+			NewPointerType(NewBasicType(token.I128_TYPE)),
+			NewPointerType(NewBasicType(token.U8_TYPE)),
+			NewPointerType(NewBasicType(token.U16_TYPE)),
+			NewPointerType(NewBasicType(token.U32_TYPE)),
+			NewPointerType(NewBasicType(token.U64_TYPE)),
+			NewPointerType(NewBasicType(token.U128_TYPE)),
+			NewPointerType(NewBasicType(token.FLOAT_TYPE)),
+			NewPointerType(NewBasicType(token.F32_TYPE)),
+			NewPointerType(NewBasicType(token.F64_TYPE)),
+			NewPointerType(NewBasicType(token.F64_TYPE)),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
@@ -494,6 +520,23 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
+			// pointers
+			NewPointerType(NewBasicType(token.UINT_TYPE)),
+			NewPointerType(NewBasicType(token.INT_TYPE)),
+			NewPointerType(NewBasicType(token.I8_TYPE)),
+			NewPointerType(NewBasicType(token.I16_TYPE)),
+			NewPointerType(NewBasicType(token.I32_TYPE)),
+			NewPointerType(NewBasicType(token.I64_TYPE)),
+			NewPointerType(NewBasicType(token.I128_TYPE)),
+			NewPointerType(NewBasicType(token.U8_TYPE)),
+			NewPointerType(NewBasicType(token.U16_TYPE)),
+			NewPointerType(NewBasicType(token.U32_TYPE)),
+			NewPointerType(NewBasicType(token.U64_TYPE)),
+			NewPointerType(NewBasicType(token.U128_TYPE)),
+			NewPointerType(NewBasicType(token.FLOAT_TYPE)),
+			NewPointerType(NewBasicType(token.F32_TYPE)),
+			NewPointerType(NewBasicType(token.F64_TYPE)),
+			NewPointerType(NewBasicType(token.F64_TYPE)),
 		},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},

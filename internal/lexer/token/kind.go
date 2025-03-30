@@ -69,6 +69,7 @@ const (
 	UNTYPED_FLOAT
 	UNTYPED_INT
 	UNTYPED_BOOL
+	UNTYPED_NULLPTR
 
 	UNTYPED_END // literal end delimiter
 
@@ -144,6 +145,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 	"true":  UNTYPED_BOOL,
 	"false": UNTYPED_BOOL,
+	"nil":   UNTYPED_NULLPTR,
 
 	"rawptr": RAWPTR_TYPE,
 	"bool":   BOOL_TYPE,
@@ -276,6 +278,8 @@ func (k Kind) String() string {
 		return "untyped int"
 	case UNTYPED_BOOL:
 		return "untyped bool"
+	case UNTYPED_NULLPTR:
+		return "nil"
 	case FLOAT_TYPE:
 		return "f32"
 	case F32_TYPE:
