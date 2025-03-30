@@ -182,6 +182,17 @@ func (sema *sema) checkFnDecl(
 		fromImportPackage,
 	)
 
+	if !function.RetType.IsVoid() {
+		fnReturns := sema.checkNonVoidFunctionReturns(function.Block)
+		if !fnReturns {
+			return fmt.Errorf(
+				"%s non-void function '%s' must always return a value",
+				function.Name.Pos,
+				function.Name.Name(),
+			)
+		}
+	}
+
 	if function.RetType.Kind == ast.EXPR_TYPE_ID {
 		idTy := function.RetType.T.(*ast.IdType)
 		revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
@@ -192,6 +203,43 @@ func (sema *sema) checkFnDecl(
 	}
 
 	return err
+}
+
+func (sema *sema) checkNonVoidFunctionReturns(block *ast.BlockStmt) bool {
+	var hasReturn bool
+	for _, stmt := range block.Statements {
+		switch stmt.Kind {
+		case ast.KIND_COND_STMT:
+			cond := stmt.Node.(*ast.CondStmt)
+			ifStmt := cond.IfStmt
+			ifReturns := sema.checkNonVoidFunctionReturns(ifStmt.Block)
+
+			elseStmt := cond.ElseStmt
+			var elseReturns bool
+
+			if elseStmt != nil {
+				elseReturns = sema.checkNonVoidFunctionReturns(elseStmt.Block)
+			}
+
+			if elseStmt == nil && !ifReturns {
+				return false
+			}
+
+			if !ifReturns && !elseReturns {
+				return false
+			}
+
+			for _, elifStmt := range cond.ElifStmts {
+				elifReturns := sema.checkNonVoidFunctionReturns(elifStmt.Block)
+				if !elifReturns {
+					return false
+				}
+			}
+		case ast.KIND_RETURN_STMT:
+			hasReturn = true
+		}
+	}
+	return hasReturn
 }
 
 var VALID_CALLING_CONVENTIONS []string = []string{
