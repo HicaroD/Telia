@@ -35,7 +35,6 @@ Examples:
 For more information about Telia, visit: https://github.com/HicaroD/Telia
 `
 
-
 type Command int
 
 const (
