@@ -81,8 +81,13 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 		prefixPath = p.argLoc
 	}
 
-	impName := path[len(path)-1]
 	fullPkgPath := filepath.Join(prefixPath, pkgPath)
+	loc, err := ast.LocFromPath(fullPkgPath)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	impName := path[len(path)-1]
 	if pkg, found := p.imports[fullPkgPath]; found {
 		return impName, fullPkgPath, pkg, nil
 	}
@@ -93,11 +98,6 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	}
 	p.processing[fullPkgPath] = true
 	defer delete(p.processing, fullPkgPath)
-
-	loc, err := ast.LocFromPath(fullPkgPath)
-	if err != nil {
-		return "", "", nil, err
-	}
 
 	currentLex := p.lex
 	currentPkg := p.pkg

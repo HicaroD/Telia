@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -23,8 +25,8 @@ var TELIA_CONFIG_DIR string
 var ENVS *Envs
 
 type Envs struct {
-	STD     string `env:"T_STD"`
-	RUNTIME string `env:"T_RUNTIME"`
+	STD     string `env:"T_STD_PATH"`
+	RUNTIME string `env:"T_RUNTIME_PATH"`
 }
 
 func (e *Envs) ShowAll() {
@@ -244,6 +246,32 @@ func MapEnvToStruct(data map[string]string, result any) error {
 			if value, ok := data[envTag]; ok {
 				if fieldValue.CanSet() && fieldValue.Kind() == reflect.String {
 					fieldValue.SetString(value)
+				}
+
+				if strings.HasSuffix(envTag, "PATH") {
+					fullPath := value
+
+					usr, _ := user.Current()
+					homeDir := usr.HomeDir
+
+					// TODO: add support to different platforms, such as Windows
+					switch runtime.GOOS {
+					case "linux":
+						if value == "~" {
+							fullPath = homeDir
+						} else if value[:2] == "~/" {
+							fullPath = filepath.Join(homeDir, value[2:])
+						}
+					default:
+						return fmt.Errorf("unsupported os: %s", runtime.GOOS)
+					}
+
+					_, err := os.Stat(fullPath)
+					if err != nil {
+						return err
+					}
+
+					fieldValue.SetString(fullPath)
 				}
 			}
 		}
