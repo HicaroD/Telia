@@ -1346,7 +1346,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 	}
 	pointeeType := ty.T.(*ast.PointerType)
 	deref.Type = pointeeType.Type
-	return pointeeType.Type, false, nil
+	return pointeeType.Type, !pointeeType.Type.IsUntyped(), nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1376,7 +1376,7 @@ func (s *sema) inferBinaryExprType(
 
 	valid := false
 	for _, validType := range validation.ValidTypes {
-		if commonType.Equals(validType) {
+		if validType.Kind == commonType.Kind {
 			valid = true
 			break
 		}
@@ -1453,6 +1453,7 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	} else {
 		var lhsHasContext, rhsHasContext bool
 
+		fmt.Println(binary.Left)
 		lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage, false)
 		if err != nil {
 			return nil, nil, ctx, err
@@ -1463,9 +1464,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 			return nil, nil, ctx, err
 		}
 
-		if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
-			return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-		}
+		// if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
+		// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+		// }
 
 		if lhsHasContext && !rhsHasContext {
 			rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhs, referenceScope, declScope, fromImportPackage, false)
@@ -1488,9 +1489,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		}
 	}
 
-	if !lhs.Equals(rhs) {
-		return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-	}
+	// if !lhs.Equals(rhs) {
+	// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+	// }
 	return lhs, rhs, ctx, nil
 }
 

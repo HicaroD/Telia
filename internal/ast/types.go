@@ -240,6 +240,9 @@ type OperatorValidation struct {
 
 type OperatorTable map[token.Kind]OperatorValidation
 
+// Useful for dealing with recursive pointer type during semantic analysis
+var POINTER_TYPE = &ExprType{Kind: EXPR_TYPE_POINTER, T: new(PointerType)}
+
 var UnaryOperators = OperatorTable{
 	token.MINUS: {
 		ValidTypes: []*ExprType{
@@ -363,15 +366,11 @@ var BinaryOperators = OperatorTable{
 		Handler: handleNumericType,
 	},
 	token.OR: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.AND: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.LESS: {
@@ -482,25 +481,10 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
 			NewBasicType(token.F64_TYPE),
-			// pointers
-			NewPointerType(NewBasicType(token.UINT_TYPE)),
-			NewPointerType(NewBasicType(token.INT_TYPE)),
-			NewPointerType(NewBasicType(token.I8_TYPE)),
-			NewPointerType(NewBasicType(token.I16_TYPE)),
-			NewPointerType(NewBasicType(token.I32_TYPE)),
-			NewPointerType(NewBasicType(token.I64_TYPE)),
-			NewPointerType(NewBasicType(token.I128_TYPE)),
-			NewPointerType(NewBasicType(token.U8_TYPE)),
-			NewPointerType(NewBasicType(token.U16_TYPE)),
-			NewPointerType(NewBasicType(token.U32_TYPE)),
-			NewPointerType(NewBasicType(token.U64_TYPE)),
-			NewPointerType(NewBasicType(token.U128_TYPE)),
-			NewPointerType(NewBasicType(token.FLOAT_TYPE)),
-			NewPointerType(NewBasicType(token.F32_TYPE)),
-			NewPointerType(NewBasicType(token.F64_TYPE)),
-			NewPointerType(NewBasicType(token.F64_TYPE)),
+			// pointer
+			POINTER_TYPE,
 		},
-		ResultType: NewBasicType(token.BOOL_TYPE),
+		Handler: handleEqualityComparison,
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
@@ -521,25 +505,30 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
 			// pointers
-			NewPointerType(NewBasicType(token.UINT_TYPE)),
-			NewPointerType(NewBasicType(token.INT_TYPE)),
-			NewPointerType(NewBasicType(token.I8_TYPE)),
-			NewPointerType(NewBasicType(token.I16_TYPE)),
-			NewPointerType(NewBasicType(token.I32_TYPE)),
-			NewPointerType(NewBasicType(token.I64_TYPE)),
-			NewPointerType(NewBasicType(token.I128_TYPE)),
-			NewPointerType(NewBasicType(token.U8_TYPE)),
-			NewPointerType(NewBasicType(token.U16_TYPE)),
-			NewPointerType(NewBasicType(token.U32_TYPE)),
-			NewPointerType(NewBasicType(token.U64_TYPE)),
-			NewPointerType(NewBasicType(token.U128_TYPE)),
-			NewPointerType(NewBasicType(token.FLOAT_TYPE)),
-			NewPointerType(NewBasicType(token.F32_TYPE)),
-			NewPointerType(NewBasicType(token.F64_TYPE)),
-			NewPointerType(NewBasicType(token.F64_TYPE)),
+			POINTER_TYPE,
 		},
-		ResultType: NewBasicType(token.BOOL_TYPE),
+		Handler: handleEqualityComparison,
 	},
+}
+
+func handleEqualityComparison(operands []*ExprType) (*ExprType, error) {
+	leftType := operands[0]
+	rightType := operands[1]
+
+	boolTy := NewBasicType(token.BOOL_TYPE)
+
+	if leftType.IsPointer() && rightType.IsPointer() {
+		if leftType.Equals(rightType) {
+			return boolTy, nil
+		}
+		return nil, fmt.Errorf("type mismatch: cannot compare %s with %s", leftType.T, rightType.T)
+	}
+
+	if !leftType.IsPointer() && !rightType.IsPointer() {
+		return boolTy, nil
+	}
+
+	return nil, fmt.Errorf("type mismatch: cannot compare pointer and non-pointer type")
 }
 
 func handleNumericUnary(operands []*ExprType) (*ExprType, error) {
