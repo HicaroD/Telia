@@ -61,6 +61,8 @@ func cli() (CliResult, error) {
 
 	command := args[0]
 	switch command {
+	case "env":
+		result.Command = COMMAND_ENV
 	case "build":
 		result.Command = COMMAND_BUILD
 

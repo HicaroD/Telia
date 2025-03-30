@@ -25,12 +25,12 @@ func main() {
 		fmt.Println("[DEV MODE] initialized")
 	}
 
-	args, err := cli()
+	err := config.SetupConfigDir()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	envs, err := SetupConfigDir()
+	args, err := cli()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func main() {
 		fmt.Print(HELP_COMMAND)
 		return
 	case COMMAND_ENV:
-		for k, v := range envs {
+		for k, v := range config.ENVS {
 			fmt.Printf("%s='%s'\n", k, v)
 		}
 		return
