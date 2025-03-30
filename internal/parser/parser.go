@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
@@ -75,8 +76,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 
 	var prefixPath string
 	if std {
-		// TODO: get path to std directory from env
-		prefixPath = "./base/std"
+		prefixPath = config.ENVS.STD
 	} else {
 		prefixPath = p.argLoc
 	}

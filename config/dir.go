@@ -14,6 +14,10 @@ var DEFAULT_ENV_FILE string = `T_STD=/usr/local/telia/std
 T_RUNTIME=/usr/local/telia/runtime
 `
 
+var DEFAULT_DEV_ENV_FILE string = `T_STD=./base/std
+T_RUNTIME=./base/runtime
+`
+
 var TELIA_CONFIG_DIR string
 
 var ENVS *Envs
@@ -108,8 +112,20 @@ func loadTeliaEnvFile(path string) (map[string]string, error) {
 	}
 	defer file.Close()
 
+	// NOTE: if development mode and env file already exists, recreate
+	// it because developers might have changed the environment variables
+	// for debugging
+	if DEV && !envFileCreated {
+		envFileCreated = true
+	}
+
 	if envFileCreated {
-		err := writeStringToFile(path, DEFAULT_ENV_FILE)
+		var err error
+		if DEV {
+			err = writeStringToFile(path, DEFAULT_DEV_ENV_FILE)
+		} else {
+			err = writeStringToFile(path, DEFAULT_ENV_FILE)
+		}
 		if err != nil {
 			return nil, err
 		}
