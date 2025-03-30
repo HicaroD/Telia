@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 	"tinygo.org/x/go-llvm"
 )
@@ -1197,8 +1197,8 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
+		if config.DEV {
+			fmt.Printf("[DEV] OPT COMMAND: %s\n", cmd)
 		}
 		return err
 	}
@@ -1215,14 +1215,14 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
+		if config.DEV {
+			fmt.Printf("[DEV] CLANG COMMAND: %s\n", cmd)
 		}
 		return err
 	}
 
-	if config.DEBUG_MODE {
-		fmt.Printf("[DEBUG MODE] keeping '%s' build directory\n", dir)
+	if config.DEV {
+		fmt.Printf("[DEV] keeping '%s' build directory\n", dir)
 	} else {
 		err = os.RemoveAll(dir)
 		if err != nil {

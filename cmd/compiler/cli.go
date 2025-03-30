@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/config"
 )
 
 var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.

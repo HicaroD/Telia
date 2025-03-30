@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/codegen/llvm"
 	"github.com/HicaroD/Telia/internal/diagnostics"
@@ -11,12 +12,19 @@ import (
 	"github.com/HicaroD/Telia/internal/sema"
 )
 
+var DevMode string
+
 var (
 	APP_NAME = "telia"
 	ENV_FILE = "env"
 )
 
 func main() {
+	config.SetDevMode(DevMode == "1")
+	if config.DEV {
+		fmt.Println("[DEV MODE] initialized")
+	}
+
 	args, err := cli()
 	if err != nil {
 		log.Fatal(err)

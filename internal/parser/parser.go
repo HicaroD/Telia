@@ -76,7 +76,7 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	var prefixPath string
 	if std {
 		// TODO: get path to std directory from env
-		prefixPath = "./std"
+		prefixPath = "./base/std"
 	} else {
 		prefixPath = p.argLoc
 	}
