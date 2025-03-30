@@ -1,12 +1,8 @@
 package io
 
-#[default_cc="c"]
-extern {
-  fn printf(format string, @c args ...i32) i32
-  fn puts(format string) i32
-}
+use "std::c"
 
 fn println(f string) {
-  puts(f)
+  c::puts(f)
   return
 }

@@ -160,6 +160,20 @@ func (sema *sema) checkFnDecl(
 			return err
 		}
 	}
+
+	for _, param := range function.Params.Fields {
+		switch param.Type.Kind {
+		case ast.EXPR_TYPE_ID:
+			idTy := param.Type.T.(*ast.IdType)
+			revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
+			if err != nil {
+				return err
+			}
+			param.Type = revealedTy
+			fmt.Println("found id type:", param.Type.T)
+		}
+	}
+
 	err := sema.checkBlock(
 		function.Block,
 		function.RetType,
@@ -167,6 +181,16 @@ func (sema *sema) checkFnDecl(
 		declScope,
 		fromImportPackage,
 	)
+
+	if function.RetType.Kind == ast.EXPR_TYPE_ID {
+		idTy := function.RetType.T.(*ast.IdType)
+		revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
+		if err != nil {
+			return err
+		}
+		function.RetType = revealedTy
+	}
+
 	return err
 }
 
@@ -244,19 +268,64 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 
 	symbols := make(map[string]bool, len(proto.Params.Fields))
 	for _, param := range proto.Params.Fields {
+		// Id
 		if _, found := symbols[param.Name.Name()]; found {
 			// TODO(errors): add proper error here + tests
 			return fmt.Errorf(
-				"redeclaration of '%s' parameter on '%s' prototype at extern declaration '%s'\n",
+				"%s redeclaration of '%s' parameter of '%s' prototype on extern declaration '%s'",
+				param.Name.Pos,
 				param.Name.Name(),
 				proto.Name.Name(),
 				extern.Name.Name(),
 			)
 		}
 		symbols[param.Name.Name()] = true
+
+		// Type
+		if param.Type.Kind == ast.EXPR_TYPE_ID {
+			idTy := param.Type.T.(*ast.IdType)
+			revealedTy, err := sema.checkIdType(idTy, extern.Scope)
+			if err != nil {
+				return err
+			}
+			param.Type = revealedTy
+		}
+	}
+
+	if proto.RetType.Kind == ast.EXPR_TYPE_ID {
+		idTy := proto.RetType.T.(*ast.IdType)
+		revealedTy, err := sema.checkIdType(idTy, extern.Scope)
+		if err != nil {
+			return err
+		}
+		proto.RetType = revealedTy
 	}
 
 	return nil
+}
+
+func (sema *sema) checkIdType(idTy *ast.IdType, declScope *ast.Scope) (*ast.ExprType, error) {
+	idTyName := idTy.Name.Name()
+
+	symbol, err := declScope.LookupAcrossScopes(idTyName)
+	if err != nil {
+		if err == ast.ErrSymbolNotFoundOnScope {
+			return nil, fmt.Errorf("'%s' type not found on scope\n", idTyName)
+		}
+	}
+
+	switch symbol.Kind {
+	case ast.KIND_TYPE_ALIAS_DECL:
+		alias := symbol.Node.(*ast.TypeAlias)
+		return alias.Type, nil
+	case ast.KIND_STRUCT_DECL:
+		stTy := new(ast.ExprType)
+		stTy.Kind = ast.EXPR_TYPE_STRUCT
+		stTy.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
+		return stTy, nil
+	default:
+		panic(fmt.Sprintf("unknown id type: %s\n", symbol.Kind))
+	}
 }
 
 func (sema *sema) checkBlock(

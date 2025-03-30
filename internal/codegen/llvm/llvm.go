@@ -650,7 +650,7 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 		ptrTy := c.emitType(ptr.Type)
 		return c.emitPtrType(ptrTy)
 	default:
-		panic(fmt.Sprintf("unimplemented type: %v\n", ty.Kind))
+		panic(fmt.Sprintf("unimplemented type: %v\n", ty.T))
 	}
 }
 
@@ -1135,6 +1135,9 @@ func (c *codegen) emitWhileLoop(
 	builder.CreateBr(whileInitBlock)
 
 	builder.SetInsertPointAtEnd(endBlock)
+}
+
+func (c *codegen) emitRuntimeCall(call string) {
 }
 
 func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {

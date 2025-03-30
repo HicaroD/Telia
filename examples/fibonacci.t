@@ -1,6 +1,6 @@
 package main
 
-use "std::io"
+use libc "std::c"
 
 fn fib(n i32) i32 {
   if n <= 1 {
@@ -11,6 +11,6 @@ fn fib(n i32) i32 {
 
 fn main() i32 {
   n := 40
-  io::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
+  libc::printf("Telia - Fibonacci(%d) = %d\n", n, fib(n))
   return 0
 }

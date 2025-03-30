@@ -391,9 +391,9 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 			return nil, fmt.Errorf("expected closing bracket")
 		}
 
-		_, ok = p.expect(token.NEWLINE)
+		nl, ok := p.expect(token.NEWLINE)
 		if !ok {
-			return nil, fmt.Errorf("expected new line after the end of attribute")
+			return nil, fmt.Errorf("%s expected new line after the end of attribute", nl.Pos)
 		}
 
 		if !p.lex.NextIs(token.SHARP) {
@@ -632,6 +632,12 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
 	}
 
+	var hasImportAlias bool
+	importAlias, ok := p.expect(token.ID)
+	if ok {
+		hasImportAlias = true
+	}
+
 	useStr, ok := p.expect(token.UNTYPED_STRING)
 	// TODO(errors)
 	if !ok {
@@ -666,15 +672,17 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, err
 	}
 
-	// NOTE: by default, import name is the last name of the import
-	// TODO: add custom import name
-
 	_, found := p.file.Imports[fullPath]
 	// TODO(errors)
 	if found {
 		return nil, fmt.Errorf("name conflict for import: %s\n", impName)
 	}
-	p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
+	if hasImportAlias {
+		aliasName := importAlias.Name()
+		p.file.Imports[aliasName] = &ast.UseDecl{Name: aliasName, Package: pkg}
+	} else {
+		p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
+	}
 	return nil, nil
 }
 
@@ -1018,8 +1026,24 @@ func (p *Parser) parseFnParams(
 
 		param := new(ast.Param)
 
-		attributes := new(ast.ParamAttributes)
+		name, ok := p.expect(token.ID)
+		if !ok {
+			pos := name.Pos
+			expectedCloseParenOrId := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected parameter or ), not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Kind,
+				),
+			}
+			p.collector.ReportAndSave(expectedCloseParenOrId)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		param.Name = name
 
+		attributes := new(ast.ParamAttributes)
 		if p.lex.NextIs(token.AT) {
 			for p.lex.NextIs(token.AT) {
 				p.lex.Skip() // @
@@ -1051,27 +1075,10 @@ func (p *Parser) parseFnParams(
 		}
 		param.Attributes = attributes
 
-		name, ok := p.expect(token.ID)
-		if !ok {
-			pos := name.Pos
-			expectedCloseParenOrId := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: expected parameter or ), not %s",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					name.Kind,
-				),
-			}
-			p.collector.ReportAndSave(expectedCloseParenOrId)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
-		}
-		param.Name = name
-
 		if p.lex.NextIs(token.DOT_DOT_DOT) {
+			p.lex.Skip() // ...
 			isVariadic = true
 			param.Variadic = true
-			p.lex.Skip() // ...
 		}
 
 		if !param.Variadic && param.Attributes.C {
@@ -1245,25 +1252,6 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
-
-		symbol, err := p.pkg.Scope.LookupAcrossScopes(tok.Name())
-		// TODO(errors)
-		if err != nil {
-			if err == ast.ErrSymbolNotFoundOnScope {
-				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
-			}
-		}
-
-		switch symbol.Kind {
-		case ast.KIND_TYPE_ALIAS_DECL:
-			alias := symbol.Node.(*ast.TypeAlias)
-			return alias.Type, nil
-		case ast.KIND_STRUCT_DECL:
-			t.Kind = ast.EXPR_TYPE_STRUCT
-			t.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
-			return t, nil
-		}
-
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
 	case token.OPEN_PAREN:
@@ -1561,7 +1549,7 @@ VarDecl:
 			variable.Type = ty
 			variable.NeedsInference = false
 		} else {
-			return nil, fmt.Errorf("type is not allowed on field access")
+			return nil, fmt.Errorf("%s type is not allowed on field access", next.Pos)
 		}
 
 		next = p.lex.Peek()

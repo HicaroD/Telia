@@ -29,5 +29,5 @@ func (pos *Pos) SetPosition(newPos Pos) {
 }
 
 func (pos Pos) String() string {
-	return fmt.Sprintf("[%s:%d:%d]", pos.Filename, pos.Line, pos.Column)
+	return fmt.Sprintf("[%s:%s:%d:%d]", pos.Dir, pos.Filename, pos.Line, pos.Column)
 }
