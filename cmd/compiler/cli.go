@@ -9,21 +9,6 @@ import (
 	"github.com/HicaroD/Telia/internal/config"
 )
 
-type Command int
-
-const (
-	COMMAND_BUILD Command = iota
-	COMMAND_HELP
-	COMMAND_ENV
-)
-
-type CliResult struct {
-	Command   Command
-	BuildType config.BuildType
-	ArgLoc    string
-	Loc       *ast.Loc
-}
-
 var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.
 Telia offers robust features for building high-performance applications with simplicity and flexibility.
 
@@ -49,6 +34,22 @@ Examples:
 
 For more information about Telia, visit: https://github.com/HicaroD/Telia
 `
+
+
+type Command int
+
+const (
+	COMMAND_BUILD Command = iota
+	COMMAND_HELP
+	COMMAND_ENV
+)
+
+type CliResult struct {
+	Command   Command
+	BuildType config.BuildType
+	ArgLoc    string
+	Loc       *ast.Loc
+}
 
 func cli() (CliResult, error) {
 	result := CliResult{}
