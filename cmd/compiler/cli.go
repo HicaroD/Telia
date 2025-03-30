@@ -89,9 +89,15 @@ func cli() (CliResult, error) {
 		for _, arg := range args[1:] {
 			switch arg {
 			case "-release":
+				if releaseBuildSet {
+					return result, fmt.Errorf("duplicate -release flag")
+				}
 				releaseBuildSet = true
 				result.BuildType = config.RELEASE
 			case "-debug":
+				if debugBuildSet {
+					return result, fmt.Errorf("duplicate -debug flag")
+				}
 				debugBuildSet = true
 				result.BuildType = config.DEBUG
 			}

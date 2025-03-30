@@ -1453,7 +1453,6 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	} else {
 		var lhsHasContext, rhsHasContext bool
 
-		fmt.Println(binary.Left)
 		lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage, false)
 		if err != nil {
 			return nil, nil, ctx, err
