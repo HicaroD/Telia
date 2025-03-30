@@ -12,20 +12,11 @@ import (
 	"github.com/HicaroD/Telia/internal/sema"
 )
 
+// NOTE: this variable is set to 1 during build
 var DevMode string
 
-var (
-	APP_NAME = "telia"
-	ENV_FILE = "env"
-)
-
 func main() {
-	config.SetDevMode(DevMode == "1")
-	if config.DEV {
-		fmt.Println("[DEV MODE] initialized")
-	}
-
-	err := config.SetupConfigDir()
+	err := SetupAll()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,6 +71,25 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+func SetupAll() error {
+	config.SetDevMode(DevMode == "1")
+	if config.DEV {
+		fmt.Println("[DEV MODE] initialized")
+	}
+
+	err := config.SetupConfigDir()
+	if err != nil {
+		return err
+	}
+
+	err = config.SetupEnvFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func buildPackage(
