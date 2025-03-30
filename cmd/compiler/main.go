@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -10,13 +11,31 @@ import (
 	"github.com/HicaroD/Telia/internal/sema"
 )
 
+var (
+	APP_NAME = "telia"
+	ENV_FILE = "env"
+)
+
 func main() {
 	args, err := cli()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	envs, err := SetupConfigDir()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	switch args.Command {
+	case COMMAND_HELP:
+		fmt.Print(HELP_COMMAND)
+		return
+	case COMMAND_ENV:
+		for k, v := range envs {
+			fmt.Printf("%s='%s'\n", k, v)
+		}
+		return
 	case COMMAND_BUILD:
 		var program *ast.Program
 		var err error
