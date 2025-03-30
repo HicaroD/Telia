@@ -251,12 +251,12 @@ func MapEnvToStruct(data map[string]string, result any) error {
 				if strings.HasSuffix(envTag, "PATH") {
 					fullPath := value
 
-					usr, _ := user.Current()
-					homeDir := usr.HomeDir
-
 					// TODO: add support to different platforms, such as Windows
 					switch runtime.GOOS {
 					case "linux":
+						usr, _ := user.Current()
+						homeDir := usr.HomeDir
+
 						if value == "~" {
 							fullPath = homeDir
 						} else if value[:2] == "~/" {
