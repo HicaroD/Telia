@@ -41,7 +41,7 @@ Once the benchmark is executed, the results will provide insights into:
 
 ## Results
 
-[bench.png](./imgs/bench.png)
+![bench.png](./imgs/bench.png)
 
 
 | Input  | Telia  | C      | Go     |
