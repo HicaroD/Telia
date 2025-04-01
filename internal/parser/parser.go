@@ -1532,7 +1532,7 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
-		fnCall, err := p.parseFnCall(parentScope, false)
+		fnCall, err := p.parseFnCall(parentScope)
 		return fnCall, err
 	case token.COLON_COLON:
 		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
@@ -2084,7 +2084,7 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 
 	switch peeked1.Kind {
 	case token.OPEN_PAREN:
-		return p.parseFnCall(parentScope, true)
+		return p.parseFnCall(parentScope)
 	case token.COLON_COLON:
 		namespaceAccess, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccess, err
@@ -2126,7 +2126,7 @@ Var:
 	return exprs, nil
 }
 
-func (parser *Parser) parseFnCall(parentScope *ast.Scope, proto bool) (*ast.Node, error) {
+func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 	name, ok := parser.expect(token.ID)
 	if !ok {
 		return nil, fmt.Errorf("expected 'id'")
@@ -2159,7 +2159,7 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope, proto bool) (*ast.Node
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_CALL
-	n.Node = &ast.FnCall{Name: name, Args: args, IsProto: proto, AtOp: atOp}
+	n.Node = &ast.FnCall{Name: name, Args: args, AtOp: atOp}
 	return n, nil
 }
 
@@ -2167,7 +2167,7 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 	ahead := p.lex.Peek1()
 	switch ahead.Kind {
 	case token.OPEN_PAREN:
-		return p.parseFnCall(parentScope, true)
+		return p.parseFnCall(parentScope)
 	case token.OPEN_CURLY:
 		return p.parseStructLiteralExpr(parentScope)
 	}
