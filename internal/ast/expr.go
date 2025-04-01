@@ -140,3 +140,7 @@ type DerefPointerExpr struct {
 	Expr *Node
 	Type *ExprType
 }
+
+type NullPtrExpr struct {
+	Type *ExprType
+}

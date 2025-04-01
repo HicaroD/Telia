@@ -1,0 +1,82 @@
+Program        = Package ;
+
+Package        = "package" ID NEWLINE ( Declaration )* ;
+
+Declaration    = UseDecl
+               | ExternDecl
+               | StructDecl
+               | TypeDecl
+               | FnDecl
+               ;
+
+UseDecl        = "use" [ ID ] STRING NEWLINE ;
+ExternDecl     = "extern" [ ID ] [ Attributes ] "{" ( Prototype )* "}" ;
+StructDecl     = "struct" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
+TypeDecl       = "type" ID "=" Type NEWLINE ;
+FnDecl         = "fn" ID Parameters [ Type ] Block ;
+
+Attributes     = "#[" Attribute ( "," Attribute )* "]" NEWLINE ;
+Attribute      = ID "=" STRING ;
+
+Prototype      = "fn" ID Parameters [ Type ] NEWLINE ;
+Parameters     = "(" [ Param ( "," Param )* ] ")" ;
+Param          = ID [ Attributes ] [ "..." ] Type ;
+
+FieldDecl      = ID Type ;
+
+Type           = BasicType
+               | PointerType
+               | IdType
+               | TupleType
+               ;
+
+BasicType      = "bool" | "rawptr" | "string" | "cstring"
+               | ( "i" | "u" ) ( "8" | "16" | "32" | "64" | "128" )
+               | "f" ( "32" | "64" )
+               | "int" | "uint" | "float" | "void"
+               ;
+
+PointerType    = "*" Type ;
+IdType         = ID ;
+TupleType      = "(" Type ( "," Type )* ")" ;
+
+Block          = "{" ( Statement )* "}" ;
+Statement      = ReturnStmt
+               | VarStmt
+               | IfStmt
+               | ForStmt
+               | WhileStmt
+               | DeferStmt
+               | ExprStmt
+               ;
+
+ReturnStmt     = "return" [ Expr ] NEWLINE ;
+VarStmt        = ( ID | ( "*" )+ ID ) ( "," ( ID | ( "*" )+ ID ) )* 
+                 [ ":" Type ] ( ":=" | "=" ) Expr NEWLINE ;
+IfStmt         = "if" Expr Block ( "elif" Expr Block )* [ "else" Block ] ;
+ForStmt        = "for" VarStmt ";" Expr ";" VarStmt Block ;
+WhileStmt      = "while" Expr Block ;
+DeferStmt      = "defer" Statement ;
+ExprStmt       = Expr NEWLINE ;
+
+Expr           = LogicalExpr ;
+LogicalExpr    = ComparisonExpr [ ( "and" | "or" ) ComparisonExpr ] ;
+ComparisonExpr = Term [ ( "==" | "!=" | ">" | ">=" | "<" | "<=" ) Term ] ;
+Term           = Factor [ ( "+" | "-" ) Factor ] ;
+Factor         = UnaryExpr [ ( "*" | "/" ) UnaryExpr ] ;
+UnaryExpr      = [ "!" | "-" | "&" | "*" ] PrimaryExpr ;
+PrimaryExpr    = Literal
+               | ID
+               | "(" Expr ")"
+               | FnCall
+               | FieldAccess
+               | NamespaceAccess
+               | StructLiteral
+               ;
+
+Literal        = INT | FLOAT | STRING | "true" | "false" | "nil" ;
+FnCall         = ID "(" [ Expr ( "," Expr )* ] ")" [ "@" ID [ Block ] ] ;
+FieldAccess    = ID ( "." ID )+ ;
+NamespaceAccess= ID ( "::" ID )+ ;
+StructLiteral  = ID "." "{" [ FieldAssign ( "," FieldAssign )* ] "}" ;
+FieldAssign    = ID ":" Expr ;

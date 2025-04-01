@@ -11,7 +11,8 @@ import (
 // main contains an entrypoint
 
 type Program struct {
-	Root *Package
+	Root    *Package
+	Runtime *Package
 }
 
 type Loc struct {
@@ -21,31 +22,25 @@ type Loc struct {
 	IsPackage bool
 }
 
-func LocFromPath(path string) (*Loc, error) {
+func LocFromPath(fullPath string) (*Loc, error) {
 	loc := new(Loc)
-
-	fullPath, err := filepath.Abs(path)
-	// TODO(errors)
-	if err != nil {
-		return nil, err
-	}
 	loc.Path = fullPath
 
 	info, err := os.Stat(fullPath)
 	// TODO(errors)
 	if err != nil {
+		// fmt.Println(fullPath)
 		return nil, err
 	}
 
 	mode := info.Mode()
+	loc.IsPackage = mode.IsDir()
+	loc.Name = filepath.Base(fullPath)
+
 	if mode.IsDir() {
-		loc.Name = filepath.Base(fullPath)
 		loc.Dir = filepath.Base(fullPath)
-		loc.IsPackage = true
 	} else {
-		loc.Name = filepath.Base(path)
-		loc.Dir = filepath.Base(filepath.Dir(path))
-		loc.IsPackage = false
+		loc.Dir = filepath.Base(filepath.Dir(fullPath))
 	}
 
 	return loc, nil
@@ -60,6 +55,14 @@ func (l Loc) String() string {
 		l.IsPackage,
 	)
 }
+
+type PackageType int
+
+const (
+	PACKAGE_STD = iota
+	PACKAGE_RUNTIME
+	PACKAGE_USER
+)
 
 type Package struct {
 	Loc       *Loc

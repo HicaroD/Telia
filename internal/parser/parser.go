@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
@@ -22,6 +23,8 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
+
+	Runtime *ast.Package
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -41,13 +44,21 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	return &Parser{lex: lex, collector: collector}
 }
 
-func (p *Parser) ParsePackageAsProgram(argLoc string, loc *ast.Loc) (*ast.Program, error) {
+func (p *Parser) ParsePackageAsProgram(
+	argLoc string,
+	loc *ast.Loc,
+) (*ast.Program, *ast.Package, error) {
 	p.argLoc = argLoc
 	root, err := p.parsePackage(loc, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &ast.Program{Root: root}, nil
+
+	runtime, err := p.parseRuntimePackage()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &ast.Program{Root: root}, runtime, nil
 }
 
 func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
@@ -70,19 +81,45 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	return pkg, nil
 }
 
-func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Package, error) {
+func (p *Parser) parseRuntimePackage() (*ast.Package, error) {
+	loc, err := ast.LocFromPath(config.ENVS.RUNTIME)
+	if err != nil {
+		return nil, err
+	}
+
+	runtimePkg, err := p.parsePackage(loc, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return runtimePkg, nil
+}
+
+func (p *Parser) addPackage(
+	pkgTy ast.PackageType,
+	path []string,
+) (string, string, *ast.Package, error) {
 	pkgPath := strings.Join(path, "/")
 
 	var prefixPath string
-	if std {
-		// TODO: get path to std directory from env
-		prefixPath = "./std"
-	} else {
+	switch pkgTy {
+	case ast.PACKAGE_STD:
+		prefixPath = config.ENVS.STD
+	case ast.PACKAGE_RUNTIME:
+		prefixPath = config.ENVS.RUNTIME
+	case ast.PACKAGE_USER:
 		prefixPath = p.argLoc
+	default:
+		panic(fmt.Sprintf("unknown package type: %d\n", pkgTy))
+	}
+
+	fullPkgPath := filepath.Join(prefixPath, pkgPath)
+	loc, err := ast.LocFromPath(fullPkgPath)
+	if err != nil {
+		return "", "", nil, err
 	}
 
 	impName := path[len(path)-1]
-	fullPkgPath := filepath.Join(prefixPath, pkgPath)
 	if pkg, found := p.imports[fullPkgPath]; found {
 		return impName, fullPkgPath, pkg, nil
 	}
@@ -93,11 +130,6 @@ func (p *Parser) addPackage(std bool, path []string) (string, string, *ast.Packa
 	}
 	p.processing[fullPkgPath] = true
 	defer delete(p.processing, fullPkgPath)
-
-	loc, err := ast.LocFromPath(fullPkgPath)
-	if err != nil {
-		return "", "", nil, err
-	}
 
 	currentLex := p.lex
 	currentPkg := p.pkg
@@ -121,12 +153,12 @@ func (p *Parser) ParseFileAsProgram(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
-) (*ast.Program, error) {
+) (*ast.Program, *ast.Package, error) {
 	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Universe scope has a nil parent
@@ -142,13 +174,18 @@ func (p *Parser) ParseFileAsProgram(
 
 	file, err := p.parseFile(l, pkg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pkg.Files = []*ast.File{file}
 
 	p.pkg = pkg
 	program := &ast.Program{Root: pkg}
-	return program, nil
+
+	runtimePkg, err := p.parseRuntimePackage()
+	if err != nil {
+		return nil, nil, err
+	}
+	return program, runtimePkg, nil
 }
 
 func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error) {
@@ -391,9 +428,9 @@ func (p *Parser) parseAttributes() (*ast.Attributes, error) {
 			return nil, fmt.Errorf("expected closing bracket")
 		}
 
-		_, ok = p.expect(token.NEWLINE)
+		nl, ok := p.expect(token.NEWLINE)
 		if !ok {
-			return nil, fmt.Errorf("expected new line after the end of attribute")
+			return nil, fmt.Errorf("%s expected new line after the end of attribute", nl.Pos)
 		}
 
 		if !p.lex.NextIs(token.SHARP) {
@@ -455,8 +492,15 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	newline, ok := p.expect(token.NEWLINE)
+	var err error
+	var prototypes []*ast.Proto
+
+	tk, ok := p.expect(token.NEWLINE)
 	if !ok {
+		// struct something {}
+		if tk.Kind == token.CLOSE_CURLY {
+			goto AfterFields
+		}
 		pos := openCurly.Pos
 		expectedOpenCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
@@ -464,15 +508,13 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 				pos.Filename,
 				pos.Line,
 				pos.Column,
-				newline.Kind,
+				tk.Kind,
 			),
 		}
 		p.collector.ReportAndSave(expectedOpenCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	var err error
-	var prototypes []*ast.Proto
 	for {
 		p.skipNewLines()
 
@@ -496,6 +538,8 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		prototypes = append(prototypes, proto)
 	}
 	externDecl.Prototypes = prototypes
+
+AfterFields:
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
@@ -632,6 +676,12 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'use' keyword, not %s\n", use.Kind.String())
 	}
 
+	var hasImportAlias bool
+	importAlias, ok := p.expect(token.ID)
+	if ok {
+		hasImportAlias = true
+	}
+
 	useStr, ok := p.expect(token.UNTYPED_STRING)
 	// TODO(errors)
 	if !ok {
@@ -644,12 +694,14 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("error: bad formatted import string")
 	}
 
-	var std bool
+	var pkgType ast.PackageType
 	switch parts[0] {
 	case "std":
-		std = true
+		pkgType = ast.PACKAGE_STD
 	case "pkg":
-		std = false
+		pkgType = ast.PACKAGE_USER
+	case "runtime":
+		pkgType = ast.PACKAGE_RUNTIME
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
@@ -661,20 +713,22 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected new line, not %s\n", newline.Kind.String())
 	}
 
-	impName, fullPath, pkg, err := p.addPackage(std, parts[1:])
+	impName, fullPath, pkg, err := p.addPackage(pkgType, parts[1:])
 	if err != nil {
 		return nil, err
 	}
-
-	// NOTE: by default, import name is the last name of the import
-	// TODO: add custom import name
 
 	_, found := p.file.Imports[fullPath]
 	// TODO(errors)
 	if found {
 		return nil, fmt.Errorf("name conflict for import: %s\n", impName)
 	}
-	p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
+	if hasImportAlias {
+		aliasName := importAlias.Name()
+		p.file.Imports[aliasName] = &ast.UseDecl{Name: aliasName, Package: pkg}
+	} else {
+		p.file.Imports[impName] = &ast.UseDecl{Name: impName, Package: pkg}
+	}
 	return nil, nil
 }
 
@@ -723,13 +777,21 @@ func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 		return nil, fmt.Errorf("expected open curly, not %s\n", tk.Name())
 	}
 
-	_, ok = p.expect(token.NEWLINE)
+	index := 0
+
+	nl, ok := p.expect(token.NEWLINE)
 	if !ok {
+		if nl.Kind == token.CLOSE_CURLY {
+			goto AfterFields
+		}
 		return nil, fmt.Errorf("expected new line after open curly, not %s\n", tk.Name())
 	}
 
-	index := 0
 	for {
+		if p.lex.NextIs(token.CLOSE_CURLY) {
+			break
+		}
+
 		field := new(ast.StructField)
 
 		name, ok := p.expect(token.ID)
@@ -752,12 +814,9 @@ func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 		field.Index = index
 		index++
 		fields = append(fields, field)
-
-		if p.lex.NextIs(token.CLOSE_CURLY) {
-			break
-		}
 	}
 
+AfterFields:
 	tk, ok = p.expect(token.CLOSE_CURLY)
 	if !ok {
 		return nil, fmt.Errorf("expected close curly, not %s\n", tk.Name())
@@ -1018,8 +1077,24 @@ func (p *Parser) parseFnParams(
 
 		param := new(ast.Param)
 
-		attributes := new(ast.ParamAttributes)
+		name, ok := p.expect(token.ID)
+		if !ok {
+			pos := name.Pos
+			expectedCloseParenOrId := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: expected parameter or ), not %s",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					name.Kind,
+				),
+			}
+			p.collector.ReportAndSave(expectedCloseParenOrId)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		param.Name = name
 
+		attributes := new(ast.ParamAttributes)
 		if p.lex.NextIs(token.AT) {
 			for p.lex.NextIs(token.AT) {
 				p.lex.Skip() // @
@@ -1051,27 +1126,10 @@ func (p *Parser) parseFnParams(
 		}
 		param.Attributes = attributes
 
-		name, ok := p.expect(token.ID)
-		if !ok {
-			pos := name.Pos
-			expectedCloseParenOrId := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: expected parameter or ), not %s",
-					pos.Filename,
-					pos.Line,
-					pos.Column,
-					name.Kind,
-				),
-			}
-			p.collector.ReportAndSave(expectedCloseParenOrId)
-			return nil, diagnostics.COMPILER_ERROR_FOUND
-		}
-		param.Name = name
-
 		if p.lex.NextIs(token.DOT_DOT_DOT) {
+			p.lex.Skip() // ...
 			isVariadic = true
 			param.Variadic = true
-			p.lex.Skip() // ...
 		}
 
 		if !param.Variadic && param.Attributes.C {
@@ -1229,6 +1287,20 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 	return tok, true
 }
 
+func (p *Parser) expectOneOf(kinds []token.Kind) (*token.Token, bool) {
+	var found *token.Token
+	var ok bool
+
+	for _, expected := range kinds {
+		found, ok = p.expect(expected)
+		if ok {
+			break
+		}
+	}
+
+	return found, ok
+}
+
 func (p *Parser) parseExprType() (*ast.ExprType, error) {
 	t := new(ast.ExprType)
 
@@ -1245,25 +1317,6 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		t.T = &ast.PointerType{Type: ty}
 	case token.ID:
 		p.lex.Skip()
-
-		symbol, err := p.pkg.Scope.LookupAcrossScopes(tok.Name())
-		// TODO(errors)
-		if err != nil {
-			if err == ast.ErrSymbolNotFoundOnScope {
-				return nil, fmt.Errorf("id type '%s' not found on scope\n", tok.Name())
-			}
-		}
-
-		switch symbol.Kind {
-		case ast.KIND_TYPE_ALIAS_DECL:
-			alias := symbol.Node.(*ast.TypeAlias)
-			return alias.Type, nil
-		case ast.KIND_STRUCT_DECL:
-			t.Kind = ast.EXPR_TYPE_STRUCT
-			t.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
-			return t, nil
-		}
-
 		t.Kind = ast.EXPR_TYPE_ID
 		t.T = &ast.IdType{Name: tok}
 	case token.OPEN_PAREN:
@@ -1280,7 +1333,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 			t.T = &ast.BasicType{Kind: tok.Kind}
 			return t, nil
 		}
-		return nil, diagnostics.COMPILER_ERROR_FOUND
+		return nil, fmt.Errorf("%s: expected type, not %s", tok.Pos, tok.Name())
 	}
 	return t, nil
 }
@@ -1561,7 +1614,7 @@ VarDecl:
 			variable.Type = ty
 			variable.NeedsInference = false
 		} else {
-			return nil, fmt.Errorf("type is not allowed on field access")
+			return nil, fmt.Errorf("%s type is not allowed on field access", next.Pos)
 		}
 
 		next = p.lex.Peek()
@@ -1965,6 +2018,17 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			return nil, fmt.Errorf("expected closing parenthesis")
 		}
 		return expr, nil
+	case token.UNTYPED_NULLPTR:
+		p.lex.Skip()
+		nullptr := new(ast.Node)
+		nullptr.Kind = ast.KIND_NULLPTR_EXPR
+		nullptr.Node = &ast.NullPtrExpr{
+			Type: &ast.ExprType{
+				Kind: ast.EXPR_TYPE_BASIC,
+				T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+			},
+		}
+		return nullptr, nil
 	default:
 		if tok.Kind.IsUntyped() {
 			p.lex.Skip()

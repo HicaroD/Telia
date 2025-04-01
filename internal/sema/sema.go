@@ -31,7 +31,11 @@ func New(collector *diagnostics.Collector) *sema {
 	return s
 }
 
-func (s *sema) Check(program *ast.Program) error {
+func (s *sema) Check(program *ast.Program, runtime *ast.Package) error {
+	err := s.checkPackage(runtime)
+	if err != nil {
+		return err
+	}
 	return s.checkPackage(program.Root)
 }
 
@@ -90,6 +94,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 			return fmt.Errorf("error: expected package name to be 'main'\n")
 		}
 		if !requiresMainMethod && file.PkgName != pkg.Loc.Name {
+			fmt.Println(file.PkgName)
 			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Loc.Name)
 		}
 
@@ -160,6 +165,20 @@ func (sema *sema) checkFnDecl(
 			return err
 		}
 	}
+
+	for _, param := range function.Params.Fields {
+		switch param.Type.Kind {
+		case ast.EXPR_TYPE_ID:
+			idTy := param.Type.T.(*ast.IdType)
+			revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
+			if err != nil {
+				return err
+			}
+			param.Type = revealedTy
+			fmt.Println("found id type:", param.Type.T)
+		}
+	}
+
 	err := sema.checkBlock(
 		function.Block,
 		function.RetType,
@@ -167,7 +186,65 @@ func (sema *sema) checkFnDecl(
 		declScope,
 		fromImportPackage,
 	)
+
+	if !function.RetType.IsVoid() {
+		fnReturns := sema.checkNonVoidFunctionReturns(function.Block)
+		if !fnReturns {
+			return fmt.Errorf(
+				"%s non-void function '%s' must always return a value",
+				function.Name.Pos,
+				function.Name.Name(),
+			)
+		}
+	}
+
+	if function.RetType.Kind == ast.EXPR_TYPE_ID {
+		idTy := function.RetType.T.(*ast.IdType)
+		revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
+		if err != nil {
+			return err
+		}
+		function.RetType = revealedTy
+	}
+
 	return err
+}
+
+func (sema *sema) checkNonVoidFunctionReturns(block *ast.BlockStmt) bool {
+	var hasReturn bool
+	for _, stmt := range block.Statements {
+		switch stmt.Kind {
+		case ast.KIND_COND_STMT:
+			cond := stmt.Node.(*ast.CondStmt)
+			ifStmt := cond.IfStmt
+			ifReturns := sema.checkNonVoidFunctionReturns(ifStmt.Block)
+
+			elseStmt := cond.ElseStmt
+			var elseReturns bool
+
+			if elseStmt != nil {
+				elseReturns = sema.checkNonVoidFunctionReturns(elseStmt.Block)
+			}
+
+			if elseStmt == nil && !ifReturns {
+				return false
+			}
+
+			if !ifReturns && !elseReturns {
+				return false
+			}
+
+			for _, elifStmt := range cond.ElifStmts {
+				elifReturns := sema.checkNonVoidFunctionReturns(elifStmt.Block)
+				if !elifReturns {
+					return false
+				}
+			}
+		case ast.KIND_RETURN_STMT:
+			hasReturn = true
+		}
+	}
+	return hasReturn
 }
 
 var VALID_CALLING_CONVENTIONS []string = []string{
@@ -244,19 +321,64 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 
 	symbols := make(map[string]bool, len(proto.Params.Fields))
 	for _, param := range proto.Params.Fields {
+		// Id
 		if _, found := symbols[param.Name.Name()]; found {
 			// TODO(errors): add proper error here + tests
 			return fmt.Errorf(
-				"redeclaration of '%s' parameter on '%s' prototype at extern declaration '%s'\n",
+				"%s redeclaration of '%s' parameter of '%s' prototype on extern declaration '%s'",
+				param.Name.Pos,
 				param.Name.Name(),
 				proto.Name.Name(),
 				extern.Name.Name(),
 			)
 		}
 		symbols[param.Name.Name()] = true
+
+		// Type
+		if param.Type.Kind == ast.EXPR_TYPE_ID {
+			idTy := param.Type.T.(*ast.IdType)
+			revealedTy, err := sema.checkIdType(idTy, extern.Scope)
+			if err != nil {
+				return err
+			}
+			param.Type = revealedTy
+		}
+	}
+
+	if proto.RetType.Kind == ast.EXPR_TYPE_ID {
+		idTy := proto.RetType.T.(*ast.IdType)
+		revealedTy, err := sema.checkIdType(idTy, extern.Scope)
+		if err != nil {
+			return err
+		}
+		proto.RetType = revealedTy
 	}
 
 	return nil
+}
+
+func (sema *sema) checkIdType(idTy *ast.IdType, declScope *ast.Scope) (*ast.ExprType, error) {
+	idTyName := idTy.Name.Name()
+
+	symbol, err := declScope.LookupAcrossScopes(idTyName)
+	if err != nil {
+		if err == ast.ErrSymbolNotFoundOnScope {
+			return nil, fmt.Errorf("'%s' type not found on scope\n", idTyName)
+		}
+	}
+
+	switch symbol.Kind {
+	case ast.KIND_TYPE_ALIAS_DECL:
+		alias := symbol.Node.(*ast.TypeAlias)
+		return alias.Type, nil
+	case ast.KIND_STRUCT_DECL:
+		stTy := new(ast.ExprType)
+		stTy.Kind = ast.EXPR_TYPE_STRUCT
+		stTy.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
+		return stTy, nil
+	default:
+		panic(fmt.Sprintf("unknown id type: %s\n", symbol.Kind))
+	}
 }
 
 func (sema *sema) checkBlock(
@@ -290,11 +412,22 @@ func (sema *sema) promoteUntyped(stmt *ast.Node) error {
 	varDecl := stmt.Node.(*ast.VarStmt)
 	variables := varDecl.Names
 	for _, variable := range variables {
-		varId := variable.Node.(*ast.VarIdStmt)
-		if !varId.Type.IsUntyped() {
+		var varTy *ast.ExprType
+		switch variable.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			varId := variable.Node.(*ast.VarIdStmt)
+			varTy = varId.Type
+		case ast.KIND_FIELD_ACCESS:
+			fieldAccess := variable.Node.(*ast.FieldAccess)
+			varTy = fieldAccess.AccessedField.Type
+		default:
+			panic(fmt.Sprintf("unimplemented %s", variable))
+		}
+
+		if !varTy.IsUntyped() {
 			continue
 		}
-		err := varId.Type.Promote()
+		err := varTy.Promote()
 		if err != nil {
 			return err
 		}
@@ -665,8 +798,9 @@ func (sema *sema) checkVarExpr(
 	var err error
 
 	if variable.Kind == ast.KIND_VAR_ID_STMT {
+		varId := variable.Node.(*ast.VarIdStmt)
 		_, err = sema.checkNormalVarExpr(
-			variable.Node.(*ast.VarIdStmt),
+			varId,
 			expr,
 			referenceScope,
 			declScope,
@@ -675,6 +809,7 @@ func (sema *sema) checkVarExpr(
 	} else {
 		_, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
 	}
+
 	return err
 }
 
@@ -1182,6 +1317,15 @@ func (s *sema) inferExprTypeWithContext(
 			fromImportPackage,
 			isArg,
 		)
+	case ast.KIND_NULLPTR_EXPR:
+		return s.inferNullptrExprTypeWithContext(
+			expr.Node.(*ast.NullPtrExpr),
+			expectedType,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
 	default:
 		panic(fmt.Sprintf("infer expr type with context - unimplemented expr: %v\n", expr))
 	}
@@ -1335,7 +1479,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 	}
 	pointeeType := ty.T.(*ast.PointerType)
 	deref.Type = pointeeType.Type
-	return pointeeType.Type, false, nil
+	return pointeeType.Type, !pointeeType.Type.IsUntyped(), nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1365,7 +1509,7 @@ func (s *sema) inferBinaryExprType(
 
 	valid := false
 	for _, validType := range validation.ValidTypes {
-		if commonType.Equals(validType) {
+		if validType.Kind == commonType.Kind {
 			valid = true
 			break
 		}
@@ -1452,9 +1596,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 			return nil, nil, ctx, err
 		}
 
-		if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
-			return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-		}
+		// if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
+		// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+		// }
 
 		if lhsHasContext && !rhsHasContext {
 			rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhs, referenceScope, declScope, fromImportPackage, false)
@@ -1477,9 +1621,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		}
 	}
 
-	if !lhs.Equals(rhs) {
-		return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-	}
+	// if !lhs.Equals(rhs) {
+	// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
+	// }
 	return lhs, rhs, ctx, nil
 }
 
@@ -1685,7 +1829,8 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 	}
 	if !field.Type.Equals(expectedType) {
 		return nil, fmt.Errorf(
-			"type mismatch on struct field access, expected %s, got %s\n",
+			"%s type mismatch on struct field access, expected %s, got %s\n",
+			fieldAccess.Left.Name.Pos,
 			expectedType.T,
 			field.Type.T,
 		)
@@ -1723,6 +1868,21 @@ func (s *sema) inferPtrExprWithContext(
 		return nil, fmt.Errorf("pointer type mismatch: expected %s, got %s\n", expectedType.T, t.T)
 	}
 	return t, err
+}
+
+func (s *sema) inferNullptrExprTypeWithContext(
+	nullptr *ast.NullPtrExpr,
+	expectedType *ast.ExprType,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	fromImportPackage bool,
+	isArg bool,
+) (*ast.ExprType, error) {
+	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) {
+		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
+	}
+	nullptr.Type = expectedType
+	return nullptr.Type, nil
 }
 
 func (s *sema) inferBasicExprTypeWithContext(
@@ -1880,6 +2040,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 			fromImportPackage,
 			isArg,
 		)
+	case ast.KIND_NULLPTR_EXPR:
+		return nil, false, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
 		return nil, false, nil
@@ -1915,6 +2077,18 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 	case token.UNTYPED_BOOL:
 		actualBasicType.Kind = token.BOOL_TYPE
 		return literal.Type, true, nil
+	case token.UNTYPED_NULLPTR:
+		nullptr := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_POINTER,
+			T: &ast.PointerType{
+				Type: &ast.ExprType{
+					Kind: ast.EXPR_TYPE_BASIC,
+					T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+				},
+			},
+		}
+		literal.Type = nullptr
+		return literal.Type, false, nil
 	default:
 		// TODO(errors)
 		log.Fatalf("unimplemented literal expression: %s\n", actualBasicType.Kind)

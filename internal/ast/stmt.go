@@ -56,6 +56,7 @@ type FnCall struct {
 	Args     []*Node
 	Variadic bool
 	AtOp     *AtOperator
+	IsProto  bool
 
 	// Codegen
 	BackendType any

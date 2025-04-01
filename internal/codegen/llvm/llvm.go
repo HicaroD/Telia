@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/config"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 	"tinygo.org/x/go-llvm"
 )
@@ -23,8 +23,8 @@ var (
 
 // B stands for (B)ackend
 var (
-	B_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
-	B_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
+	B_LIT_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
+	B_LIT_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
 
 	B_VOID_TYPE   = context.VoidType()
 	B_BOOL_TYPE   = context.Int1Type()
@@ -40,10 +40,11 @@ type codegen struct {
 
 	loc     *ast.Loc
 	program *ast.Program
+	runtime *ast.Package
 	pkg     *ast.Package
 }
 
-func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
+func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
 	module := context.NewModule(loc.Dir)
 
 	defaultTargetTriple := llvm.DefaultTargetTriple()
@@ -53,10 +54,12 @@ func NewCG(loc *ast.Loc, program *ast.Program) *codegen {
 		loc:     loc,
 		program: program,
 		module:  module,
+		runtime: runtime,
 	}
 }
 
 func (c *codegen) Generate(buildType config.BuildType) error {
+	c.generatePackage(c.runtime)
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
 	return err
@@ -445,7 +448,16 @@ func (c *codegen) emitVarReassignWithValue(
 
 func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	args := c.emitCallArgs(call)
-	fn := c.module.NamedFunction(call.Name.Name())
+
+	var name string
+	if call.IsProto {
+		name = call.Proto.Name.Name()
+	} else {
+		name = call.Name.Name()
+	}
+
+	fmt.Println(name)
+	fn := c.module.NamedFunction(name)
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
@@ -504,6 +516,11 @@ func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Type, 
 	return ty, ptr, hasFloat
 }
 
+func (c *codegen) emitNullPtrExpr(nullPtr *ast.NullPtrExpr) (llvm.Type, llvm.Value, bool) {
+	ty := c.emitType(nullPtr.Type)
+	return ty, llvm.ConstNull(ty), false
+}
+
 func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bool) {
 	var t llvm.Type
 	var p llvm.Value
@@ -535,7 +552,7 @@ func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bo
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
 	for _, proto := range external.Prototypes {
-		c.emitPrototype(proto.Attributes, proto)
+		c.emitPrototype(external.Attributes, proto)
 	}
 }
 
@@ -546,19 +563,19 @@ func (c *codegen) emitPrototype(externAttributes *ast.Attributes, prototype *ast
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if externAttributes != nil {
-		protoValue.SetFunctionCallConv(
-			c.getCallingConvention(externAttributes.DefaultCallingConvention),
-		)
+		defaultCc := c.getCallingConvention(externAttributes.DefaultCallingConvention)
+		protoValue.SetFunctionCallConv(defaultCc)
 	}
+
 	if prototype.Attributes == nil {
 		return
 	}
-
 	if prototype.Attributes.DefaultCallingConvention != "" {
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 	if prototype.Attributes.LinkName != "" {
-		protoValue.SetName(externAttributes.LinkName)
+		prototype.SetName(prototype.Attributes.LinkName)
+		protoValue.SetName(prototype.Attributes.LinkName)
 	}
 }
 
@@ -627,6 +644,8 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 			panic("unimplemented untyped float")
 		case token.UNTYPED_STRING:
 			panic("unimplemented untyped string")
+		case token.UNTYPED_NULLPTR:
+			panic("unimplemented untyped nullptr")
 		default:
 			panic(fmt.Sprintf("unimplemented basic type: %v\n", ty.Kind))
 		}
@@ -643,7 +662,7 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 		ptrTy := c.emitType(ptr.Type)
 		return c.emitPtrType(ptrTy)
 	default:
-		panic(fmt.Sprintf("unimplemented type: %v\n", ty.Kind))
+		panic(fmt.Sprintf("unimplemented type: %v\n", ty.T))
 	}
 }
 
@@ -706,6 +725,7 @@ var NO_PRELOAD = []ast.NodeKind{
 	ast.KIND_BINARY_EXPR,
 	ast.KIND_UNARY_EXPR,
 	ast.KIND_TUPLE_LITERAL_EXPR,
+	ast.KIND_NULLPTR_EXPR,
 }
 
 func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
@@ -744,6 +764,8 @@ func (c *codegen) emitExpr(expr *ast.Node) (llvm.Type, llvm.Value, bool) {
 		return c.emitDerefPtrExpr(expr.Node.(*ast.DerefPointerExpr))
 	case ast.KIND_ADDRESS_OF_EXPR:
 		return c.emitPtrExpr(expr.Node.(*ast.AddressOfExpr))
+	case ast.KIND_NULLPTR_EXPR:
+		return c.emitNullPtrExpr(expr.Node.(*ast.NullPtrExpr))
 	case ast.KIND_VARG_EXPR:
 		panic("unimplemented var args")
 	default:
@@ -858,6 +880,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
 	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	ty := c.emitType(deref.Type)
+	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{v})
 	l := builder.CreateLoad(ty, v, "")
 	return ty, l, hasFloat
 }
@@ -887,7 +910,7 @@ func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Type, llvm.Value, bo
 	case token.MINUS:
 		return ty, builder.CreateNeg(e, ""), hasFloat
 	case token.NOT:
-		return ty, builder.CreateICmp(llvm.IntEQ, B_FALSE, e, ""), hasFloat
+		return ty, builder.CreateICmp(llvm.IntEQ, B_LIT_FALSE, e, ""), hasFloat
 	default:
 		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
 	}
@@ -1127,6 +1150,16 @@ func (c *codegen) emitWhileLoop(
 	builder.SetInsertPointAtEnd(endBlock)
 }
 
+func (c *codegen) emitRuntimeCall(name string, args []llvm.Value) {
+	fn := c.module.NamedFunction(name)
+	if fn.IsNil() {
+		panic("function is nil when generating function call")
+	}
+
+	ty := fn.GlobalValueType()
+	builder.CreateCall(ty, fn, args, "")
+}
+
 func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {
 	if ty.IsFloat() {
 		b := ty.T.(*ast.BasicType)
@@ -1187,8 +1220,8 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] OPT COMMAND: %s\n", cmd)
+		if config.DEV {
+			fmt.Printf("[DEV] OPT COMMAND: %s\n", cmd)
 		}
 		return err
 	}
@@ -1205,14 +1238,14 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
-		if config.DEBUG_MODE {
-			fmt.Printf("[DEBUG MODE] CLANG COMMAND: %s\n", cmd)
+		if config.DEV {
+			fmt.Printf("[DEV] CLANG COMMAND: %s\n", cmd)
 		}
 		return err
 	}
 
-	if config.DEBUG_MODE {
-		fmt.Printf("[DEBUG MODE] keeping '%s' build directory\n", dir)
+	if config.DEV {
+		fmt.Printf("[DEV] keeping '%s' build directory\n", dir)
 	} else {
 		err = os.RemoveAll(dir)
 		if err != nil {

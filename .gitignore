@@ -21,3 +21,6 @@ telia
 
 # Go workspace file
 go.work
+
+# Env
+config/env

@@ -2,7 +2,12 @@ package ast
 
 import (
 	"fmt"
+
 	"github.com/HicaroD/Telia/internal/lexer/token"
+)
+
+var (
+	RAWPTR_TYPE = NewBasicType(token.RAWPTR_TYPE)
 )
 
 type ExprTypeKind int
@@ -133,6 +138,13 @@ func NewBasicType(kind token.Kind) *ExprType {
 	return ty
 }
 
+func NewPointerType(ty *ExprType) *ExprType {
+	t := new(ExprType)
+	t.Kind = EXPR_TYPE_POINTER
+	t.T = &PointerType{Type: ty}
+	return t
+}
+
 func (left *BasicType) Equals(right *BasicType) bool {
 	if left.Kind.IsUntyped() || right.Kind.IsUntyped() {
 		return left.IsCompatibleWith(right)
@@ -231,6 +243,9 @@ type OperatorValidation struct {
 }
 
 type OperatorTable map[token.Kind]OperatorValidation
+
+// Useful for dealing with recursive pointer type during semantic analysis
+var POINTER_TYPE = &ExprType{Kind: EXPR_TYPE_POINTER, T: new(PointerType)}
 
 var UnaryOperators = OperatorTable{
 	token.MINUS: {
@@ -355,15 +370,11 @@ var BinaryOperators = OperatorTable{
 		Handler: handleNumericType,
 	},
 	token.OR: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.AND: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 	token.LESS: {
@@ -473,8 +484,12 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
+			NewBasicType(token.F64_TYPE),
+			// pointer
+			POINTER_TYPE,
+			NewBasicType(token.RAWPTR_TYPE),
 		},
-		ResultType: NewBasicType(token.BOOL_TYPE),
+		Handler: handleEqualityComparison,
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
@@ -494,9 +509,32 @@ var BinaryOperators = OperatorTable{
 			NewBasicType(token.FLOAT_TYPE),
 			NewBasicType(token.F32_TYPE),
 			NewBasicType(token.F64_TYPE),
+			// pointers
+			POINTER_TYPE,
+			NewBasicType(token.RAWPTR_TYPE),
 		},
-		ResultType: NewBasicType(token.BOOL_TYPE),
+		Handler: handleEqualityComparison,
 	},
+}
+
+func handleEqualityComparison(operands []*ExprType) (*ExprType, error) {
+	leftType := operands[0]
+	rightType := operands[1]
+
+	boolTy := NewBasicType(token.BOOL_TYPE)
+
+	if leftType.IsPointer() && rightType.IsPointer() {
+		if leftType.Equals(rightType) {
+			return boolTy, nil
+		}
+		return nil, fmt.Errorf("type mismatch: cannot compare %s with %s", leftType.T, rightType.T)
+	}
+
+	if !leftType.IsPointer() && !rightType.IsPointer() {
+		return boolTy, nil
+	}
+
+	return nil, fmt.Errorf("type mismatch: cannot compare pointer and non-pointer type")
 }
 
 func handleNumericUnary(operands []*ExprType) (*ExprType, error) {

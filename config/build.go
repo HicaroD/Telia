@@ -1,7 +1,5 @@
 package config
 
-var DEBUG_MODE bool = true
-
 type BuildType int
 
 const (

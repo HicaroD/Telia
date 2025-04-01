@@ -38,6 +38,7 @@ const (
 	STMT_END // statement node end delimiter
 
 	KIND_VOID_EXPR
+	KIND_NULLPTR_EXPR
 	KIND_VARG_EXPR
 	KIND_LITERAL_EXPR
 	KIND_ID_EXPR
@@ -131,6 +132,8 @@ func (n *Node) String() string {
 		return "KIND_NAMESPACE_ACCESS"
 	case KIND_VOID_EXPR:
 		return "KIND_VOID_EXPR"
+	case KIND_NULLPTR_EXPR:
+		return "KIND_NULLPTR_EXPR"
 	case KIND_VARG_EXPR:
 		return "KIND_VARG_EXPR"
 	case KIND_LITERAL_EXPR:
