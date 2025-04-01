@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"C" // without this line, Go toolchain does not work. It is a bug in the Golang compiler
+	"fmt"
+)
 
 func fib(n uint) uint {
 	if n == 0 {

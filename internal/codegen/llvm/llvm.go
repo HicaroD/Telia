@@ -23,8 +23,8 @@ var (
 
 // B stands for (B)ackend
 var (
-	B_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
-	B_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
+	B_LIT_FALSE = llvm.ConstInt(B_BOOL_TYPE, 0, false)
+	B_LIT_TRUE  = llvm.ConstInt(B_BOOL_TYPE, 1, false)
 
 	B_VOID_TYPE   = context.VoidType()
 	B_BOOL_TYPE   = context.Int1Type()
@@ -448,7 +448,16 @@ func (c *codegen) emitVarReassignWithValue(
 
 func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	args := c.emitCallArgs(call)
-	fn := c.module.NamedFunction(call.Name.Name())
+
+	var name string
+	if call.IsProto {
+		name = call.Proto.Name.Name()
+	} else {
+		name = call.Name.Name()
+	}
+
+	fmt.Println(name)
+	fn := c.module.NamedFunction(name)
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
@@ -543,7 +552,7 @@ func (c *codegen) emitPtrExpr(ptr *ast.AddressOfExpr) (llvm.Type, llvm.Value, bo
 
 func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
 	for _, proto := range external.Prototypes {
-		c.emitPrototype(proto.Attributes, proto)
+		c.emitPrototype(external.Attributes, proto)
 	}
 }
 
@@ -554,19 +563,19 @@ func (c *codegen) emitPrototype(externAttributes *ast.Attributes, prototype *ast
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
 	if externAttributes != nil {
-		protoValue.SetFunctionCallConv(
-			c.getCallingConvention(externAttributes.DefaultCallingConvention),
-		)
+		defaultCc := c.getCallingConvention(externAttributes.DefaultCallingConvention)
+		protoValue.SetFunctionCallConv(defaultCc)
 	}
+
 	if prototype.Attributes == nil {
 		return
 	}
-
 	if prototype.Attributes.DefaultCallingConvention != "" {
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 	if prototype.Attributes.LinkName != "" {
-		protoValue.SetName(externAttributes.LinkName)
+		prototype.SetName(prototype.Attributes.LinkName)
+		protoValue.SetName(prototype.Attributes.LinkName)
 	}
 }
 
@@ -901,7 +910,7 @@ func (c *codegen) emitUnaryExpr(unary *ast.UnaryExpr) (llvm.Type, llvm.Value, bo
 	case token.MINUS:
 		return ty, builder.CreateNeg(e, ""), hasFloat
 	case token.NOT:
-		return ty, builder.CreateICmp(llvm.IntEQ, B_FALSE, e, ""), hasFloat
+		return ty, builder.CreateICmp(llvm.IntEQ, B_LIT_FALSE, e, ""), hasFloat
 	default:
 		panic(fmt.Sprintf("unimplemented unary operator: %s", unary.Op))
 	}

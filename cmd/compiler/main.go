@@ -15,6 +15,32 @@ import (
 // NOTE: this variable is set to 1 during build
 var DevMode string
 
+var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.
+Telia offers robust features for building high-performance applications with simplicity and flexibility.
+
+Usage:
+  telia <command> [arguments]
+
+Available Commands:
+  build [path] [-release] [-debug]   Builds the program
+      [path]        Path to the directory or file (defaults to current directory)
+      -release      Build in release mode
+      -debug        Build in debug mode
+
+  env                               Show environment information
+
+  help                              Show this help message
+
+Examples:
+  telia build                        Build the program in the current directory
+  telia build path/to/project        Build the program in the specified directory
+  telia build myfile.t -debug        Build the program in debug mode (or just omit the flag)
+  telia build myfile.t -release      Build the program in release mode
+  telia env                          Display environment details
+
+For more information about Telia, visit: https://github.com/HicaroD/Telia
+`
+
 func main() {
 	err := SetupAll()
 	if err != nil {

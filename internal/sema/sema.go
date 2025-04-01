@@ -412,11 +412,22 @@ func (sema *sema) promoteUntyped(stmt *ast.Node) error {
 	varDecl := stmt.Node.(*ast.VarStmt)
 	variables := varDecl.Names
 	for _, variable := range variables {
-		varId := variable.Node.(*ast.VarIdStmt)
-		if !varId.Type.IsUntyped() {
+		var varTy *ast.ExprType
+		switch variable.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			varId := variable.Node.(*ast.VarIdStmt)
+			varTy = varId.Type
+		case ast.KIND_FIELD_ACCESS:
+			fieldAccess := variable.Node.(*ast.FieldAccess)
+			varTy = fieldAccess.AccessedField.Type
+		default:
+			panic(fmt.Sprintf("unimplemented %s", variable))
+		}
+
+		if !varTy.IsUntyped() {
 			continue
 		}
-		err := varId.Type.Promote()
+		err := varTy.Promote()
 		if err != nil {
 			return err
 		}
@@ -1818,7 +1829,8 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 	}
 	if !field.Type.Equals(expectedType) {
 		return nil, fmt.Errorf(
-			"type mismatch on struct field access, expected %s, got %s\n",
+			"%s type mismatch on struct field access, expected %s, got %s\n",
+			fieldAccess.Left.Name.Pos,
 			expectedType.T,
 			field.Type.T,
 		)

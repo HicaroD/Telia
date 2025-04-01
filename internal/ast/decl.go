@@ -72,6 +72,10 @@ type Proto struct {
 
 func (proto *Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
 
+func (proto *Proto) SetName(name string) {
+	proto.Name.Lexeme = []byte(name)
+}
+
 type PkgDecl struct {
 	Name *token.Token
 }
