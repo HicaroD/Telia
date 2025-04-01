@@ -492,8 +492,15 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	newline, ok := p.expect(token.NEWLINE)
+	var err error
+	var prototypes []*ast.Proto
+
+	tk, ok := p.expect(token.NEWLINE)
 	if !ok {
+		// struct something {}
+		if tk.Kind == token.CLOSE_CURLY {
+			goto AfterFields
+		}
 		pos := openCurly.Pos
 		expectedOpenCurly := diagnostics.Diag{
 			Message: fmt.Sprintf(
@@ -501,15 +508,13 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 				pos.Filename,
 				pos.Line,
 				pos.Column,
-				newline.Kind,
+				tk.Kind,
 			),
 		}
 		p.collector.ReportAndSave(expectedOpenCurly)
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
-	var err error
-	var prototypes []*ast.Proto
 	for {
 		p.skipNewLines()
 
@@ -533,6 +538,8 @@ func (p *Parser) parseExternDecl(attributes *ast.Attributes) (*ast.Node, error) 
 		prototypes = append(prototypes, proto)
 	}
 	externDecl.Prototypes = prototypes
+
+AfterFields:
 
 	closeCurly, ok := p.expect(token.CLOSE_CURLY)
 	if !ok {
@@ -1278,6 +1285,20 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 	}
 	p.lex.Skip()
 	return tok, true
+}
+
+func (p *Parser) expectOneOf(kinds []token.Kind) (*token.Token, bool) {
+	var found *token.Token
+	var ok bool
+
+	for _, expected := range kinds {
+		found, ok = p.expect(expected)
+		if ok {
+			break
+		}
+	}
+
+	return found, ok
 }
 
 func (p *Parser) parseExprType() (*ast.ExprType, error) {

@@ -101,7 +101,7 @@ func main() {
 func SetupAll() error {
 	config.SetDevMode(DevMode == "1")
 	if config.DEV {
-		fmt.Println("[DEV MODE] initialized")
+		fmt.Println("[DEV] initialized")
 	}
 
 	err := config.SetupConfigDir()
