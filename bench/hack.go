@@ -1,3 +1,0 @@
-package bench
-
-import "C"
