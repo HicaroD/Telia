@@ -446,7 +446,8 @@ func (c *codegen) emitVarReassignWithValue(
 func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	args := c.emitCallArgs(call)
 
-	fn := c.module.NamedFunction(call.Name.Name())
+	name := c.getFnCallName(call)
+	fn := c.module.NamedFunction(name)
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
@@ -460,6 +461,21 @@ func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 
 	ty := fn.GlobalValueType()
 	return ty, builder.CreateCall(ty, fn, args, ""), hasFloat
+}
+
+func (c *codegen) getFnCallName(fnCall *ast.FnCall) string {
+	var attrs ast.Attributes
+
+	if fnCall.Proto != nil {
+		attrs = fnCall.Proto.Attributes
+	} else {
+		attrs = fnCall.Decl.Attributes
+	}
+
+	if attrs.LinkName != "" {
+		return attrs.LinkName
+	}
+	return fnCall.Name.Name()
 }
 
 func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Type, llvm.Value, bool) {
