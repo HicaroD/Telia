@@ -92,6 +92,7 @@ func (c *codegen) emitDeclarations(file *ast.File) {
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
+			fmt.Println(node.Node.(*ast.FnDecl).Name.Name())
 			c.emitFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.emitExternDecl(node.Node.(*ast.ExternDecl))
@@ -505,14 +506,44 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm
 		panic("struct is nil")
 	}
 
-	obj := builder.CreateAlloca(st, "")
+	values := make([]llvm.Value, len(lit.Values))
 	for _, field := range lit.Values {
-		_, e, _ := c.emitExprWithLoadIfNeeded(field.Value)
-		allocatedField := builder.CreateStructGEP(st, obj, field.Index, "")
-		builder.CreateStore(e, allocatedField)
+		_, val, _ := c.emitExpr(field.Value)
+		values[field.Index] = val
 	}
 
-	return st, obj, false
+	stConst := llvm.ConstNamedStruct(st, values)
+
+	globalConst := llvm.AddGlobal(c.module, st, "")
+	globalConst.SetInitializer(stConst)
+	globalConst.SetLinkage(llvm.PrivateLinkage)
+	globalConst.SetGlobalConstant(true)
+	globalConst.SetUnnamedAddr(true)
+
+	structAlloca := builder.CreateAlloca(st, "")
+	sizeOf := c.emitSizeOf(st)
+	c.emitStructMemcpy(structAlloca, globalConst, sizeOf)
+	return st, structAlloca, false
+}
+
+func (c *codegen) emitSizeOf(structType llvm.Type) llvm.Value {
+	nullPtr := llvm.ConstNull(llvm.PointerType(structType, 0))
+	gep := llvm.ConstGEP(structType, nullPtr, []llvm.Value{
+		llvm.ConstInt(context.Int32Type(), 1, false),
+	})
+	size := builder.CreatePtrToInt(gep, context.Int64Type(), "")
+	return size
+}
+
+func (c *codegen) emitStructMemcpy(dest, src, size llvm.Value) {
+	c.emitRuntimeCall("llvm.memcpy.p0.p0.i64",
+		[]llvm.Value{
+			dest, // destination (ptr)
+			src,  // source (ptr)
+			size, // size in bytes
+			llvm.ConstInt(context.Int1Type(), 0, false), // isVolatile
+		},
+	)
 }
 
 func (c *codegen) emitFieldAccessExpr(fieldAccess *ast.FieldAccess) (llvm.Type, llvm.Value, bool) {
@@ -1152,7 +1183,7 @@ func (c *codegen) emitWhileLoop(
 func (c *codegen) emitRuntimeCall(name string, args []llvm.Value) {
 	fn := c.module.NamedFunction(name)
 	if fn.IsNil() {
-		panic("function is nil when generating function call")
+		panic("runtime function is nil")
 	}
 
 	ty := fn.GlobalValueType()

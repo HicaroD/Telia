@@ -12,6 +12,6 @@ fn main() {
     name: "Hicaro",
     age: 21,
   }
-  io::puts(user.name)
+  io::println(user.name)
   return
 }
