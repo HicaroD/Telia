@@ -159,11 +159,9 @@ func (sema *sema) checkFnDecl(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) error {
-	if function.Attributes != nil {
-		err := sema.checkFnAttributes(function.Attributes)
-		if err != nil {
-			return err
-		}
+	err := sema.checkFnAttributes(function.Attributes)
+	if err != nil {
+		return err
 	}
 
 	for _, param := range function.Params.Fields {
@@ -179,7 +177,7 @@ func (sema *sema) checkFnDecl(
 		}
 	}
 
-	err := sema.checkBlock(
+	err = sema.checkBlock(
 		function.Block,
 		function.RetType,
 		function.Scope,
@@ -251,7 +249,7 @@ var VALID_CALLING_CONVENTIONS []string = []string{
 	"c", "fast", "cold",
 }
 
-func (sema *sema) checkExternAttributes(attributes *ast.Attributes) error {
+func (sema *sema) checkExternAttributes(attributes ast.Attributes) error {
 	if attributes.Linkage != "" {
 		return fmt.Errorf("'linkage' is not a valid attribute for extern declaration\n")
 	}
@@ -272,10 +270,8 @@ func (sema *sema) checkExternAttributes(attributes *ast.Attributes) error {
 }
 
 func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
-	if extern.Attributes != nil {
-		if err := sema.checkExternAttributes(extern.Attributes); err != nil {
-			return err
-		}
+	if err := sema.checkExternAttributes(extern.Attributes); err != nil {
+		return err
 	}
 
 	for _, proto := range extern.Prototypes {
@@ -292,7 +288,7 @@ var VALID_FUNCTION_LINKAGES []string = []string{
 	"external", "internal", "weak", "link_once",
 }
 
-func (sema *sema) checkFnAttributes(attributes *ast.Attributes) error {
+func (sema *sema) checkFnAttributes(attributes ast.Attributes) error {
 	linkageFound := false
 
 	if attributes.Linkage != "" {
@@ -312,11 +308,9 @@ func (sema *sema) checkFnAttributes(attributes *ast.Attributes) error {
 }
 
 func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto) error {
-	if proto.Attributes != nil {
-		err := sema.checkFnAttributes(proto.Attributes)
-		if err != nil {
-			return err
-		}
+	err := sema.checkFnAttributes(proto.Attributes)
+	if err != nil {
+		return err
 	}
 
 	symbols := make(map[string]bool, len(proto.Params.Fields))

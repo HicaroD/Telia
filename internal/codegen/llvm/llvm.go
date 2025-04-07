@@ -120,11 +120,9 @@ func (c *codegen) emitFnSignature(fnDecl *ast.FnDecl) {
 	functionType := llvm.FunctionType(returnType, paramsTypes, fnDecl.Params.IsVariadic)
 	functionValue := llvm.AddFunction(c.module, fnDecl.Name.Name(), functionType)
 
-	if fnDecl.Attributes != nil {
-		functionValue.SetFunctionCallConv(
-			c.getCallingConvention(fnDecl.Attributes.DefaultCallingConvention),
-		)
-	}
+	functionValue.SetFunctionCallConv(
+		c.getCallingConvention(fnDecl.Attributes.DefaultCallingConvention),
+	)
 }
 
 func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
@@ -442,22 +440,13 @@ func (c *codegen) emitVarReassignWithValue(
 	default:
 		panic(fmt.Sprintf("unimplemented symbol on generateVarReassign: %v\n", name.Node))
 	}
-
 	builder.CreateStore(value, variable.Ptr)
 }
 
 func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	args := c.emitCallArgs(call)
 
-	var name string
-	if call.IsProto {
-		name = call.Proto.Name.Name()
-	} else {
-		name = call.Name.Name()
-	}
-
-	fmt.Println(name)
-	fn := c.module.NamedFunction(name)
+	fn := c.module.NamedFunction(call.Name.Name())
 	if fn.IsNil() {
 		panic("function is nil when generating function call")
 	}
@@ -556,25 +545,19 @@ func (c *codegen) emitExternDecl(external *ast.ExternDecl) {
 	}
 }
 
-func (c *codegen) emitPrototype(externAttributes *ast.Attributes, prototype *ast.Proto) {
+func (c *codegen) emitPrototype(externAttributes ast.Attributes, prototype *ast.Proto) {
 	returnTy := c.emitType(prototype.RetType)
 	paramsTypes := c.getFieldListTypes(prototype.Params)
 	ty := llvm.FunctionType(returnTy, paramsTypes, prototype.Params.IsVariadic)
 	protoValue := llvm.AddFunction(c.module, prototype.Name.Name(), ty)
 
-	if externAttributes != nil {
-		defaultCc := c.getCallingConvention(externAttributes.DefaultCallingConvention)
-		protoValue.SetFunctionCallConv(defaultCc)
-	}
+	defaultCc := c.getCallingConvention(externAttributes.DefaultCallingConvention)
+	protoValue.SetFunctionCallConv(defaultCc)
 
-	if prototype.Attributes == nil {
-		return
-	}
 	if prototype.Attributes.DefaultCallingConvention != "" {
 		protoValue.SetLinkage(c.getFunctionLinkage(prototype.Attributes.Linkage))
 	}
 	if prototype.Attributes.LinkName != "" {
-		prototype.SetName(prototype.Attributes.LinkName)
 		protoValue.SetName(prototype.Attributes.LinkName)
 	}
 }
@@ -1203,7 +1186,7 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	switch buildType {
 	case config.RELEASE:
 		optLevel = "-O3"
-		compilerFlags += "-Wl,-s"
+		compilerFlags += "-Wl,-s" // no debug symbols
 	case config.DEBUG:
 		optLevel = "-O0"
 	default:

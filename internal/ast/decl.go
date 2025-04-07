@@ -7,7 +7,7 @@ import (
 )
 
 type StructDecl struct {
-	Attributes *Attributes
+	Attributes Attributes
 	Name       *token.Token
 	Fields     []*StructField
 }
@@ -33,7 +33,7 @@ type StructField struct {
 
 type FnDecl struct {
 	Scope      *Scope
-	Attributes *Attributes
+	Attributes Attributes
 	Name       *token.Token
 	Params     *Params
 	RetType    *ExprType
@@ -53,7 +53,7 @@ func (fnDecl *FnDecl) String() string {
 
 type ExternDecl struct {
 	Scope       *Scope
-	Attributes  *Attributes
+	Attributes  Attributes
 	Name        *token.Token
 	Prototypes  []*Proto
 	BackendType any // LLVM: *values.Extern
@@ -64,17 +64,13 @@ func (extern *ExternDecl) String() string {
 }
 
 type Proto struct {
-	Attributes *Attributes
+	Attributes Attributes
 	Name       *token.Token
 	Params     *Params
 	RetType    *ExprType
 }
 
 func (proto *Proto) String() string { return fmt.Sprintf("PROTO: %s", proto.Name) }
-
-func (proto *Proto) SetName(name string) {
-	proto.Name.Lexeme = []byte(name)
-}
 
 type PkgDecl struct {
 	Name *token.Token
