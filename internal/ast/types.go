@@ -38,6 +38,12 @@ func (t *ExprType) Equals(other *ExprType) bool {
 		return t.T.(*PointerType).Equals(other.T.(*PointerType))
 	case EXPR_TYPE_TUPLE:
 		return t.T.(*TupleType).Equals(other.T.(*TupleType))
+	case EXPR_TYPE_ID:
+		leftId := t.T.(*IdType)
+		rightId := other.T.(*IdType)
+		return leftId.Name.Name() == rightId.Name.Name()
+	case EXPR_TYPE_STRUCT:
+		return t.T.(*StructType).Equals(other.T.(*StructType))
 	default:
 		return false
 	}
@@ -113,6 +119,14 @@ func (ty *ExprType) IsFloat() bool {
 
 func (ty *ExprType) IsPointer() bool {
 	return ty.Kind == EXPR_TYPE_POINTER
+}
+
+func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
+	if !ty.IsPointer() {
+		return false
+	}
+	ptr := ty.T.(*PointerType)
+	return ptr.Type.Kind == pointeeTy
 }
 
 func (ty *ExprType) IsUntyped() bool {
@@ -232,6 +246,10 @@ func (tt TupleType) String() string {
 
 type StructType struct {
 	Decl *StructDecl
+}
+
+func (st *StructType) Equals(other *StructType) bool {
+	return st.Decl.Name == other.Decl.Name
 }
 
 // Operator validation

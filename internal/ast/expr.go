@@ -72,7 +72,9 @@ type FieldAccess struct {
 
 	// Codegen
 	AccessedField *StructField
+	Param         bool
 	StructVar     *VarIdStmt
+	StructParam   *Param
 	Decl          *StructDecl
 	BackendType   any
 }

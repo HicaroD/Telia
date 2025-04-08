@@ -92,7 +92,6 @@ func (c *codegen) emitDeclarations(file *ast.File) {
 	for _, node := range file.Body {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
-			fmt.Println(node.Node.(*ast.FnDecl).Name.Name())
 			c.emitFnSignature(node.Node.(*ast.FnDecl))
 		case ast.KIND_EXTERN_DECL:
 			c.emitExternDecl(node.Node.(*ast.ExternDecl))
@@ -390,7 +389,14 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, ll
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
-		obj := fieldAccess.StructVar.BackendType.(*Variable)
+		var obj *Variable
+
+		if fieldAccess.Param {
+			obj = fieldAccess.StructParam.BackendType.(*Variable)
+		} else {
+			obj = fieldAccess.StructVar.BackendType.(*Variable)
+		}
+
 		gep := builder.CreateStructGEP(
 			st,
 			obj.Ptr,

@@ -94,7 +94,6 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 			return fmt.Errorf("error: expected package name to be 'main'\n")
 		}
 		if !requiresMainMethod && file.PkgName != pkg.Loc.Name {
-			fmt.Println(file.PkgName)
 			return fmt.Errorf("error: expected package name to be '%s'\n", pkg.Loc.Name)
 		}
 
@@ -889,28 +888,66 @@ func (sema *sema) getAccessedField(
 		return nil, nil, err
 	}
 
-	if sym.Kind != ast.KIND_VAR_ID_STMT {
-		return nil, nil, fmt.Errorf("expected identifier to be a variable for field accessing")
+	var ty *ast.ExprType
+
+	switch sym.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		normalVar := sym.Node.(*ast.VarIdStmt)
+		fieldAccess.StructVar = normalVar
+		ty = normalVar.Type
+	case ast.KIND_PARAM:
+		parameter := sym.Node.(*ast.Param)
+		fieldAccess.Param = true
+		fieldAccess.StructParam = parameter
+		ty = parameter.Type
 	}
 
-	variable := sym.Node.(*ast.VarIdStmt)
-	if variable.Type.Kind != ast.EXPR_TYPE_STRUCT {
-		return nil, nil, fmt.Errorf("expected variable type to be a struct")
+	var structDecl *ast.StructDecl
+
+	switch ty.Kind {
+	case ast.EXPR_TYPE_STRUCT:
+		structDecl = ty.T.(*ast.StructType).Decl
+	case ast.EXPR_TYPE_POINTER:
+		if !ty.PointerTo(ast.EXPR_TYPE_ID) {
+			return nil, nil, fmt.Errorf(
+				"expected id type, not %s",
+				ty.T,
+			)
+		}
+
+		ptr := ty.T.(*ast.PointerType)
+		id := ptr.Type.T.(*ast.IdType)
+		sym, err := referenceScope.LookupAcrossScopes(id.Name.Name())
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if sym.Kind != ast.KIND_STRUCT_DECL {
+			return nil, nil, fmt.Errorf(
+				"expected pointee type to be a struct, not %s",
+				ty.T,
+			)
+		}
+		structDecl = sym.Node.(*ast.StructDecl)
+	default:
+		return nil, nil, fmt.Errorf(
+			"expected type to be struct or pointer to struct, but got %s",
+			ty.T,
+		)
 	}
-	st := variable.Type.T.(*ast.StructType).Decl
-	fieldAccess.StructVar = variable
-	fieldAccess.Decl = st
+
+	fieldAccess.Decl = structDecl
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
 		id := fieldAccess.Right.Node.(*ast.IdExpr)
-		stField, found := st.FindAttribute(id.Name.Name())
+		stField, found := structDecl.FindAttribute(id.Name.Name())
 		// TODO(errors)
 		if !found {
 			return nil, nil, fmt.Errorf(
 				"attribute '%s' not found on '%s' struct\n",
 				id.Name.Name(),
-				st.Name.Name(),
+				structDecl.Name.Name(),
 			)
 		}
 		fieldAccess.AccessedField = stField
@@ -1398,7 +1435,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 			if err != nil {
 				return nil, err
 			}
-			expectedType = ty
+			return ty, nil
 		}
 		return expectedType, err
 	case ast.EXPR_TYPE_POINTER:
@@ -1409,6 +1446,11 @@ func (sema *sema) inferIdExprTypeWithContext(
 				idTy.T,
 			)
 		}
+		return expectedType, nil
+	case ast.EXPR_TYPE_STRUCT:
+		st := idTy.T.(*ast.StructType)
+		expectedType.Kind = ast.EXPR_TYPE_STRUCT
+		expectedType.T = st
 		return expectedType, nil
 	default:
 		// TODO(errors)
