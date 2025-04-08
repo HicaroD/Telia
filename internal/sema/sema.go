@@ -172,7 +172,6 @@ func (sema *sema) checkFnDecl(
 				return err
 			}
 			param.Type = revealedTy
-			fmt.Println("found id type:", param.Type.T)
 		}
 	}
 
@@ -498,6 +497,16 @@ func (sema *sema) checkStmt(
 		deferStmt := stmt.Node.(*ast.DeferStmt)
 		err := sema.checkStmt(
 			deferStmt.Stmt,
+			referenceScope,
+			declScope,
+			returnTy,
+			fromImportPackage,
+		)
+		return err
+	case ast.KIND_ASSIGNMENT_STMT:
+		assignment := stmt.Node.(*ast.AssignmentStmt)
+		err := sema.checkAssignment(
+			assignment,
 			referenceScope,
 			declScope,
 			returnTy,
@@ -2079,7 +2088,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 	case ast.KIND_NULLPTR_EXPR:
 		return nil, false, nil
 	default:
-		log.Fatalf("unimplemented expression: %s\n", expr.Kind)
+		log.Fatalf("unimplemented expression: %s\n", expr.Node)
 		return nil, false, nil
 	}
 }
@@ -2521,4 +2530,106 @@ func (sema *sema) checkWhileLoop(
 	}
 	err = sema.checkBlock(whileLoop.Block, returnTy, referenceScope, declScope, fromImportPackage)
 	return err
+}
+
+func (s *sema) checkAssignment(
+	assignment *ast.AssignmentStmt,
+	referenceScope *ast.Scope,
+	declScope *ast.Scope,
+	returnTy *ast.ExprType,
+	fromImportPackage bool,
+) error {
+	for _, target := range assignment.Targets {
+		// TODO: check if target is actually assignable
+		var err error
+
+		switch target.Kind {
+		case ast.KIND_VAR_ID_STMT:
+			err = s.checkNormalVariable(
+				target.Node.(*ast.VarIdStmt),
+				assignment.Decl,
+				referenceScope,
+			)
+		case ast.KIND_FIELD_ACCESS:
+			_, _, err = s.checkFieldAccessVariable(
+				target.Node.(*ast.FieldAccess),
+				referenceScope,
+				declScope,
+				fromImportPackage,
+			)
+		default:
+			id := target.Node.(*ast.IdExpr)
+			fmt.Println(id)
+			panic(fmt.Sprintf("unimplemented %d", target.Kind))
+		}
+
+		if err != nil {
+			return err
+		}
+	}
+
+	t := 0
+	for _, expr := range assignment.Values {
+		switch expr.Kind {
+		case ast.KIND_TUPLE_LITERAL_EXPR:
+			innerTupleExpr := expr.Node.(*ast.TupleExpr)
+			for _, innerExpr := range innerTupleExpr.Exprs {
+				err := s.checkVarExpr(
+					assignment.Targets[t],
+					innerExpr,
+					referenceScope,
+					declScope,
+					fromImportPackage,
+				)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		case ast.KIND_FN_CALL:
+			fnCall := expr.Node.(*ast.FnCall)
+			fnRetType, err := s.checkFnCall(
+				fnCall,
+				referenceScope,
+				declScope,
+				fromImportPackage,
+				false,
+			)
+			if err != nil {
+				return err
+			}
+
+			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnRetType.T.(*ast.TupleType)
+				affectedVariables := assignment.Targets[t : t+len(tupleType.Types)]
+				s.checkTupleTypeAssignedToVariable(
+					affectedVariables,
+					tupleType,
+					referenceScope,
+					fromImportPackage,
+				)
+				t += len(affectedVariables)
+			} else {
+				err := s.checkVarExpr(assignment.Targets[t], expr, referenceScope, declScope, fromImportPackage)
+				if err != nil {
+					return err
+				}
+				t++
+			}
+		default:
+			err := s.checkVarExpr(
+				assignment.Targets[t],
+				expr,
+				referenceScope,
+				declScope,
+				fromImportPackage,
+			)
+			if err != nil {
+				return err
+			}
+			t++
+		}
+	}
+
+	return nil
 }

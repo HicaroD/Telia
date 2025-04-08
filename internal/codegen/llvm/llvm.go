@@ -191,6 +191,8 @@ func (c *codegen) emitStmt(
 		c.emitForLoop(stmt.Node.(*ast.ForLoop), function)
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.emitWhileLoop(stmt.Node.(*ast.WhileLoop), function)
+	case ast.KIND_ASSIGNMENT_STMT:
+		c.emitAssignment(stmt.Node.(*ast.AssignmentStmt))
 	case ast.KIND_DEFER_STMT:
 		break
 	default:
@@ -237,8 +239,13 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 	}
 }
 
+func (c *codegen) emitAssignment(variable *ast.AssignmentStmt) {
+	// TODO
+}
+
 func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.TupleExpr) {
 	t := 0
+
 	for _, expr := range tuple.Exprs {
 		switch expr.Kind {
 		case ast.KIND_TUPLE_LITERAL_EXPR:
@@ -270,14 +277,14 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 	}
 }
 
-func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
+func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) int {
 	_, genFnCall, _ := c.emitFnCall(fnCall)
 
 	if len(variables) == 1 {
 		c.emitVariableWithValue(variables[0], genFnCall, isDecl)
 	} else {
 		for i, currentVar := range variables {
-			value := builder.CreateExtractValue(genFnCall, i, ".arg")
+			value := builder.CreateExtractValue(genFnCall, i, "")
 			c.emitVariableWithValue(currentVar, value, isDecl)
 		}
 	}

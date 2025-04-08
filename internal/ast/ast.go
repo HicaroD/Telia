@@ -19,6 +19,7 @@ const (
 
 	STMT_START // statement node start delimiter
 	KIND_BLOCK_STMT
+	KIND_ASSIGNMENT_STMT
 	KIND_VAR_ID_STMT
 	KIND_VAR_STMT
 	KIND_RETURN_STMT
@@ -106,6 +107,8 @@ func (n *Node) String() string {
 		return "KIND_STRUCT_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
+	case KIND_ASSIGNMENT_STMT:
+		return "KIND_ASSIGNMENT_STMT"
 	case KIND_VAR_ID_STMT:
 		return "KIND_VAR_ID_STMT"
 	case KIND_VAR_STMT:

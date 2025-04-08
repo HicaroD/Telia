@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1396,13 +1395,13 @@ func (p *Parser) parseStmt(
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-	case token.ID, token.STAR:
-		endsWithNewLine = true
-		idStmt, err := p.ParseIdStmt(parentScope)
-		if err != nil {
-			return nil, err
-		}
-		n = idStmt
+	// case token.ID, token.STAR:
+	// 	endsWithNewLine = true
+	// 	idStmt, err := p.ParseIdStmt(parentScope)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	n = idStmt
 	case token.IF:
 		condStmt, err := p.parseCondStmt(parentScope)
 		if err != nil {
@@ -1432,8 +1431,11 @@ func (p *Parser) parseStmt(
 		}
 		n = deferStmt
 	default:
-		log.Fatalf("unimplemented: %s\n", tok.Kind)
-		return nil, nil
+		assignment, err := p.parseAssignment(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = assignment
 	}
 
 	if endsWithNewLine {
@@ -1523,6 +1525,85 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		return namespaceAccessing, err
 	default:
 		return p.parseVar(parentScope)
+	}
+}
+
+func (p *Parser) parseAssignment(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs := make([]*ast.Node, 0)
+
+Targets:
+	for {
+		target, err := p.parseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+
+		if target.Kind == ast.KIND_ID_EXPR {
+			id := target.Node.(*ast.IdExpr)
+
+			varId := new(ast.VarIdStmt)
+			varId.Name = id.Name
+			varId.NeedsInference = true
+
+			target.Kind = ast.KIND_VAR_ID_STMT
+			target.Node = varId
+		}
+		lhs = append(lhs, target)
+
+		next := p.lex.Peek()
+		switch next.Kind {
+		case token.COLON_EQUAL, token.EQUAL, token.NEWLINE, token.EOF:
+			break Targets
+		case token.COMMA:
+			p.lex.Skip() // ,
+			continue
+		}
+
+		ty, err := p.parseExprType()
+		if err != nil {
+			return nil, err
+		}
+
+		if target.Kind == ast.KIND_VAR_ID_STMT {
+			varId := target.Node.(*ast.VarIdStmt)
+			varId.Type = ty
+			varId.NeedsInference = false
+		}
+
+	}
+
+	next := p.lex.Peek()
+	switch next.Kind {
+	case token.NEWLINE:
+		// TODO(errors)
+		if len(lhs) != 1 {
+			return nil, fmt.Errorf("invalid multiple expression usage")
+		}
+		return lhs[0], nil
+	case token.COLON_EQUAL, token.EQUAL:
+		p.lex.Skip() // := or =
+
+		rhs, err := p.parseExprList(
+			[]token.Kind{token.NEWLINE, token.AT, token.OPEN_CURLY, token.EOF},
+			parentScope,
+		)
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_ASSIGNMENT_STMT
+
+		assignment := new(ast.AssignmentStmt)
+		assignment.Decl = next.Kind == token.COLON_EQUAL
+		assignment.Targets = lhs
+		assignment.Values = rhs
+
+		n.Node = assignment
+		return n, nil
+	default:
+		return nil, fmt.Errorf("expected assignment or new line, not end of file")
 	}
 }
 
@@ -2061,7 +2142,6 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 
 	peeked1 := p.lex.PeekN(1)
 	peeked2 := p.lex.PeekN(2)
-
 	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
 	}
