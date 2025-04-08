@@ -143,7 +143,6 @@ func (c *codegen) emitFnBody(fnDecl *ast.FnDecl) {
 		}
 		field := fnDecl.Params.Fields[i]
 		field.BackendType = variable
-
 	}
 
 	stoppedOnReturn := c.emitBlock(fn, fnDecl.Block)
@@ -389,19 +388,29 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, ll
 
 	switch fieldAccess.Right.Kind {
 	case ast.KIND_ID_EXPR:
+		var objTy *ast.ExprType
 		var obj *Variable
 
 		if fieldAccess.Param {
+			fmt.Println(fieldAccess.StructParam.Type.T)
+			objTy = fieldAccess.StructParam.Type
 			obj = fieldAccess.StructParam.BackendType.(*Variable)
 		} else {
+			objTy = fieldAccess.StructVar.Type
 			obj = fieldAccess.StructVar.BackendType.(*Variable)
 		}
 
+		// NOTE: it only allows a single pointer deref
+		ptr := obj.Ptr
+		if objTy.IsPointer() {
+			ty := c.emitType(objTy)
+			ptr = builder.CreateLoad(ty, ptr, "")
+		}
 		gep := builder.CreateStructGEP(
 			st,
-			obj.Ptr,
+			ptr,
 			fieldAccess.AccessedField.Index,
-			".field",
+			"",
 		)
 		return c.emitType(fTy), gep
 	default:
