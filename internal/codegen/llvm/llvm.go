@@ -788,7 +788,6 @@ func (c *codegen) emitCallArgs(call *ast.FnCall) []llvm.Value {
 }
 
 var NO_PRELOAD = []ast.NodeKind{
-	ast.KIND_DEREF_POINTER_EXPR,
 	ast.KIND_ADDRESS_OF_EXPR,
 	ast.KIND_LITERAL_EXPR,
 	ast.KIND_FN_CALL,
@@ -949,8 +948,7 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
 	ty, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
-	l := builder.CreateLoad(ty, v, "")
-	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{l})
+	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{v})
 	return ty, v, hasFloat
 }
 
