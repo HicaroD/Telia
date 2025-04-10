@@ -1568,8 +1568,19 @@ Targets:
 			varId := target.Node.(*ast.VarIdStmt)
 			varId.Type = ty
 			varId.NeedsInference = false
+		} else {
+			// TODO(errors)
+			return nil, fmt.Errorf("type specification not allowed for expression type %s", target.Kind)
 		}
 
+		next = p.lex.Peek()
+		switch next.Kind {
+		case token.COLON_EQUAL, token.EQUAL, token.NEWLINE, token.EOF:
+			break Targets
+		case token.COMMA:
+			p.lex.Skip() // ,
+			continue
+		}
 	}
 
 	next := p.lex.Peek()

@@ -128,7 +128,7 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			if !foundMain {
 				foundMain = fnDecl.Name.Name() == "main"
 			}
-			err := s.checkFnDecl(fnDecl, s.pkg.Scope, false)
+			err := s.checkFnDecl(fnDecl, s.pkg.Scope, false, false)
 			if err != nil {
 				return false, err
 			}
@@ -156,7 +156,7 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 func (sema *sema) checkFnDecl(
 	function *ast.FnDecl,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	err := sema.checkFnAttributes(function.Attributes)
 	if err != nil {
@@ -181,6 +181,7 @@ func (sema *sema) checkFnDecl(
 		function.Scope,
 		declScope,
 		fromImportPackage,
+		isArg,
 	)
 
 	if !function.RetType.IsVoid() {
@@ -378,10 +379,17 @@ func (sema *sema) checkBlock(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	for _, statement := range block.Statements {
-		err := sema.checkStmt(statement, referenceScope, declScope, returnTy, fromImportPackage)
+		err := sema.checkStmt(
+			statement,
+			referenceScope,
+			declScope,
+			returnTy,
+			fromImportPackage,
+			isArg,
+		)
 		if err != nil {
 			return err
 		}
@@ -432,7 +440,7 @@ func (sema *sema) checkStmt(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	switch stmt.Kind {
 	case ast.KIND_FN_CALL:
@@ -445,7 +453,13 @@ func (sema *sema) checkStmt(
 		)
 		return err
 	case ast.KIND_VAR_STMT:
-		err := sema.checkVar(stmt.Node.(*ast.VarStmt), referenceScope, declScope, fromImportPackage)
+		err := sema.checkVar(
+			stmt.Node.(*ast.VarStmt),
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
 		return err
 	case ast.KIND_COND_STMT:
 		err := sema.checkCondStmt(
@@ -454,6 +468,7 @@ func (sema *sema) checkStmt(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	case ast.KIND_RETURN_STMT:
@@ -482,6 +497,7 @@ func (sema *sema) checkStmt(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	case ast.KIND_WHILE_LOOP_STMT:
@@ -491,6 +507,7 @@ func (sema *sema) checkStmt(
 			declScope,
 			returnTy,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	case ast.KIND_DEFER_STMT:
@@ -501,6 +518,7 @@ func (sema *sema) checkStmt(
 			declScope,
 			returnTy,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	case ast.KIND_ASSIGNMENT_STMT:
@@ -511,6 +529,7 @@ func (sema *sema) checkStmt(
 			declScope,
 			returnTy,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	default:
@@ -522,13 +541,13 @@ func (sema *sema) checkVar(
 	variable *ast.VarStmt,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	for _, currentVar := range variable.Names {
 		var err error
 
 		if currentVar.Kind == ast.KIND_VAR_ID_STMT {
-			err = sema.checkNormalVariable(
+			err = sema.checkNormalVarDecl(
 				currentVar.Node.(*ast.VarIdStmt),
 				variable.IsDecl,
 				referenceScope,
@@ -551,6 +570,7 @@ func (sema *sema) checkVar(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		return err
 	case ast.KIND_FN_CALL:
@@ -579,7 +599,7 @@ func (sema *sema) checkVar(
 			if len(variable.Names) != 1 {
 				return fmt.Errorf("more variables than expressions\n")
 			}
-			err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope, fromImportPackage)
+			err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope, fromImportPackage, isArg)
 			if err != nil {
 				return err
 			}
@@ -595,6 +615,7 @@ func (sema *sema) checkVar(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		if err != nil {
 			return err
@@ -604,7 +625,7 @@ func (sema *sema) checkVar(
 	return nil
 }
 
-func (sema *sema) checkNormalVariable(
+func (sema *sema) checkNormalVarDecl(
 	currentVar *ast.VarIdStmt,
 	isDecl bool,
 	referenceScope *ast.Scope,
@@ -636,7 +657,7 @@ func (sema *sema) checkNormalVariable(
 			return err
 		}
 
-		var symbolTy *ast.ExprType
+		// var symbolTy *ast.ExprType
 
 		switch symbol.Kind {
 		case ast.KIND_PARAM:
@@ -644,29 +665,29 @@ func (sema *sema) checkNormalVariable(
 			if currentVar.Type != nil && !currentVar.Type.Equals(param.Type) {
 				return fmt.Errorf("type mismatch on parameter reassignment, expected %v, got %v\n", param.Type, currentVar.Type)
 			}
-			symbolTy = param.Type
+			// symbolTy = param.Type
 			currentVar.Type = param.Type
 			currentVar.NeedsInference = false
-		case ast.KIND_VAR_ID_STMT:
-			variable := symbol.Node.(*ast.VarIdStmt)
-			// NOTE: WHAT IF VARIABLE TYPE IS NIL?
-			symbolTy = variable.Type
+			// case ast.KIND_VAR_ID_STMT:
+			// 	variable := symbol.Node.(*ast.VarIdStmt)
+			// 	// NOTE: WHAT IF VARIABLE TYPE IS NIL?
+			// 	symbolTy = variable.Type
 		}
 
-		if currentVar.Pointer {
-			numberOfDerefs := currentVar.NumberOfPointerReceivers
-			for numberOfDerefs > 0 {
-				// TODO(errors)
-				if !symbolTy.IsPointer() {
-					return fmt.Errorf("cannot dereference non-pointer variable: %s\n", currentVar.Name.Name())
-				}
-				ptrTy := symbolTy.T.(*ast.PointerType)
-				symbolTy = ptrTy.Type
-				numberOfDerefs--
-			}
-			currentVar.NeedsInference = false
-			currentVar.Type = symbolTy
-		}
+		// if currentVar.Pointer {
+		// 	numberOfDerefs := currentVar.NumberOfPointerReceivers
+		// 	for numberOfDerefs > 0 {
+		// 		// TODO(errors)
+		// 		if !symbolTy.IsPointer() {
+		// 			return fmt.Errorf("cannot dereference non-pointer variable: %s\n", currentVar.Name.Name())
+		// 		}
+		// 		ptrTy := symbolTy.T.(*ast.PointerType)
+		// 		symbolTy = ptrTy.Type
+		// 		numberOfDerefs--
+		// 	}
+		// 	currentVar.NeedsInference = false
+		// 	currentVar.Type = symbolTy
+		// }
 		currentVar.N = symbol
 	}
 	return nil
@@ -677,7 +698,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(
 	tuple *ast.TupleExpr,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	numExprs, err := sema.countExprsOnTuple(tuple, referenceScope, declScope, fromImportPackage)
 	if err != nil {
@@ -701,6 +722,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(
 					referenceScope,
 					declScope,
 					fromImportPackage,
+					isArg,
 				)
 				if err != nil {
 					return err
@@ -731,7 +753,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(
 				)
 				t += len(affectedVariables)
 			} else {
-				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage)
+				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage, isArg)
 				if err != nil {
 					return err
 				}
@@ -744,6 +766,7 @@ func (sema *sema) checkTupleExprAssignedToVariable(
 				referenceScope,
 				declScope,
 				fromImportPackage,
+				isArg,
 			)
 			if err != nil {
 				return err
@@ -795,11 +818,12 @@ func (sema *sema) checkVarExpr(
 	variable *ast.Node,
 	expr *ast.Node,
 	referenceScope, declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	var err error
 
-	if variable.Kind == ast.KIND_VAR_ID_STMT {
+	switch variable.Kind {
+	case ast.KIND_VAR_ID_STMT:
 		varId := variable.Node.(*ast.VarIdStmt)
 		_, err = sema.checkNormalVarExpr(
 			varId,
@@ -808,11 +832,65 @@ func (sema *sema) checkVarExpr(
 			declScope,
 			fromImportPackage,
 		)
-	} else {
-		_, err = sema.checkFieldAccessExpr(variable.Node.(*ast.FieldAccess), expr, referenceScope, declScope, fromImportPackage)
+	case ast.KIND_FIELD_ACCESS:
+		_, err = sema.checkFieldAccessExpr(
+			variable.Node.(*ast.FieldAccess),
+			expr,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+		)
+	case ast.KIND_DEREF_POINTER_EXPR:
+		_, err = sema.checkDerefPointerVar(
+			variable.Node.(*ast.DerefPointerExpr),
+			expr,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		)
+	default:
+		panic(fmt.Sprintf("unimplemented %s", variable.Kind))
 	}
 
 	return err
+}
+
+func (s *sema) checkDerefPointerVar(
+	deref *ast.DerefPointerExpr,
+	expr *ast.Node,
+	referenceScope, declScope *ast.Scope,
+	fromImportPackage, isArg bool,
+) (*ast.ExprType, error) {
+	var err error
+
+	varTy, _, err := s.inferDerefPtrExprTypeWithoutContext(
+		deref,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ty, err := s.inferExprTypeWithContext(
+		expr,
+		varTy,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !ty.Equals(varTy) {
+		return nil, fmt.Errorf("variable type mismatch, expected %s, got %s", varTy.T, ty.T)
+	}
+
+	return ty, nil
 }
 
 func (sema *sema) checkNormalVarExpr(
@@ -1033,7 +1111,7 @@ func checkVarDeclFrom(input, filename string) (*ast.VarIdStmt, error) {
 	parent := ast.NewScope(nil)
 	referenceScope := ast.NewScope(parent)
 	declScope := ast.NewScope(parent)
-	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), referenceScope, declScope, false)
+	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), referenceScope, declScope, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1046,7 +1124,7 @@ func (sema *sema) checkCondStmt(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	err := sema.checkIfExpr(condStmt.IfStmt.Expr, referenceScope, declScope, fromImportPackage)
 	// TODO(errors)
@@ -1060,6 +1138,7 @@ func (sema *sema) checkCondStmt(
 		condStmt.IfStmt.Scope,
 		condStmt.IfStmt.Scope,
 		fromImportPackage,
+		isArg,
 	)
 	// TODO(errors)
 	if err != nil {
@@ -1083,6 +1162,7 @@ func (sema *sema) checkCondStmt(
 			condStmt.ElifStmts[i].Scope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		// TODO(errors)
 		if err != nil {
@@ -1097,6 +1177,7 @@ func (sema *sema) checkCondStmt(
 			condStmt.ElseStmt.Scope,
 			declScope,
 			fromImportPackage,
+			isArg,
 		)
 		// TODO(errors)
 		if err != nil {
@@ -1497,8 +1578,8 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 			pointeeType.Type.T,
 		)
 	}
-	deref.Type = pointeeType.Type
-	return ty, nil
+	deref.Type = ty
+	return pointeeType.Type, nil
 }
 
 func (s *sema) inferDerefPtrExprTypeWithoutContext(
@@ -1523,7 +1604,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 		return nil, false, fmt.Errorf("cannot dereference non-pointer type: %s\n", ty.T)
 	}
 	pointeeType := ty.T.(*ast.PointerType)
-	deref.Type = pointeeType.Type
+	deref.Type = ty
 	return pointeeType.Type, !pointeeType.Type.IsUntyped(), nil
 }
 
@@ -2496,9 +2577,16 @@ func (sema *sema) checkForLoop(
 	returnTy *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
-	err := sema.checkStmt(forLoop.Init, referenceScope, declScope, returnTy, fromImportPackage)
+	err := sema.checkStmt(
+		forLoop.Init,
+		referenceScope,
+		declScope,
+		returnTy,
+		fromImportPackage,
+		isArg,
+	)
 	if err != nil {
 		return err
 	}
@@ -2508,12 +2596,26 @@ func (sema *sema) checkForLoop(
 		return err
 	}
 
-	err = sema.checkStmt(forLoop.Update, referenceScope, declScope, returnTy, fromImportPackage)
+	err = sema.checkStmt(
+		forLoop.Update,
+		referenceScope,
+		declScope,
+		returnTy,
+		fromImportPackage,
+		isArg,
+	)
 	if err != nil {
 		return err
 	}
 
-	err = sema.checkBlock(forLoop.Block, returnTy, referenceScope, declScope, fromImportPackage)
+	err = sema.checkBlock(
+		forLoop.Block,
+		returnTy,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
 	return err
 }
 
@@ -2522,13 +2624,20 @@ func (sema *sema) checkWhileLoop(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	err := sema.checkIfExpr(whileLoop.Cond, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
 	}
-	err = sema.checkBlock(whileLoop.Block, returnTy, referenceScope, declScope, fromImportPackage)
+	err = sema.checkBlock(
+		whileLoop.Block,
+		returnTy,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		isArg,
+	)
 	return err
 }
 
@@ -2537,15 +2646,18 @@ func (s *sema) checkAssignment(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
-	fromImportPackage bool,
+	fromImportPackage, isArg bool,
 ) error {
 	for _, target := range assignment.Targets {
-		// TODO: check if target is actually assignable
-		var err error
+		// TODO(errors)
+		if !s.isAssignable(target) {
+			return fmt.Errorf("target of type %s is not assignable", target.Kind)
+		}
 
+		var err error
 		switch target.Kind {
 		case ast.KIND_VAR_ID_STMT:
-			err = s.checkNormalVariable(
+			err = s.checkNormalVarDecl(
 				target.Node.(*ast.VarIdStmt),
 				assignment.Decl,
 				referenceScope,
@@ -2557,9 +2669,14 @@ func (s *sema) checkAssignment(
 				declScope,
 				fromImportPackage,
 			)
+		case ast.KIND_DEREF_POINTER_EXPR:
+			// TODO(errors)
+			if assignment.Decl {
+				return fmt.Errorf(
+					"not allowed to create new variable with pointer dereference operator",
+				)
+			}
 		default:
-			id := target.Node.(*ast.IdExpr)
-			fmt.Println(id)
 			panic(fmt.Sprintf("unimplemented %d", target.Kind))
 		}
 
@@ -2569,23 +2686,9 @@ func (s *sema) checkAssignment(
 	}
 
 	t := 0
+
 	for _, expr := range assignment.Values {
 		switch expr.Kind {
-		case ast.KIND_TUPLE_LITERAL_EXPR:
-			innerTupleExpr := expr.Node.(*ast.TupleExpr)
-			for _, innerExpr := range innerTupleExpr.Exprs {
-				err := s.checkVarExpr(
-					assignment.Targets[t],
-					innerExpr,
-					referenceScope,
-					declScope,
-					fromImportPackage,
-				)
-				if err != nil {
-					return err
-				}
-				t++
-			}
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
 			fnRetType, err := s.checkFnCall(
@@ -2610,7 +2713,7 @@ func (s *sema) checkAssignment(
 				)
 				t += len(affectedVariables)
 			} else {
-				err := s.checkVarExpr(assignment.Targets[t], expr, referenceScope, declScope, fromImportPackage)
+				err := s.checkVarExpr(assignment.Targets[t], expr, referenceScope, declScope, fromImportPackage, isArg)
 				if err != nil {
 					return err
 				}
@@ -2623,13 +2726,24 @@ func (s *sema) checkAssignment(
 				referenceScope,
 				declScope,
 				fromImportPackage,
+				isArg,
 			)
 			if err != nil {
 				return err
 			}
+
 			t++
 		}
 	}
 
 	return nil
+}
+
+func (s *sema) isAssignable(lhs *ast.Node) bool {
+	switch lhs.Kind {
+	case ast.KIND_VAR_ID_STMT, ast.KIND_FIELD_ACCESS, ast.KIND_DEREF_POINTER_EXPR:
+		return true
+	default:
+		return false
+	}
 }

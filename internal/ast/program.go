@@ -29,7 +29,6 @@ func LocFromPath(fullPath string) (*Loc, error) {
 	info, err := os.Stat(fullPath)
 	// TODO(errors)
 	if err != nil {
-		// fmt.Println(fullPath)
 		return nil, err
 	}
 

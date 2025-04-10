@@ -234,13 +234,30 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 			variable.Names[0],
 			variable.Expr,
 			variable.IsDecl,
-			variable.Pointer,
 		)
 	}
 }
 
 func (c *codegen) emitAssignment(variable *ast.AssignmentStmt) {
-	// TODO
+	t := 0
+	for _, value := range variable.Values {
+		switch value.Kind {
+		case ast.KIND_FN_CALL:
+			fnCall := value.Node.(*ast.FnCall)
+			if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Targets[t : t+len(tupleType.Types)]
+				c.emitFnCallForTuple(affectedVariables, fnCall, variable.Decl)
+				t += len(affectedVariables)
+			} else {
+				c.emitVariable(variable.Targets[t], value, variable.Decl)
+				t++
+			}
+		default:
+			c.emitVariable(variable.Targets[t], value, variable.Decl)
+			t++
+		}
+	}
 }
 
 func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.TupleExpr) {
@@ -255,7 +272,6 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 					variable.Names[t],
 					innerExpr,
 					variable.IsDecl,
-					variable.Pointer,
 				)
 				t++
 			}
@@ -267,17 +283,17 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 				t += len(affectedVariables)
 			} else {
-				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl)
 				t++
 			}
 		default:
-			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl)
 			t++
 		}
 	}
 }
 
-func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) int {
+func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, isDecl bool) {
 	_, genFnCall, _ := c.emitFnCall(fnCall)
 
 	if len(variables) == 1 {
@@ -290,11 +306,11 @@ func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, 
 	}
 }
 
-func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl, pointerReceiver bool) {
+func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
 	if isDecl {
 		c.emitVarDecl(name, expr)
 	} else {
-		c.emitVarReassign(name, expr, pointerReceiver)
+		c.emitVarReassign(name, expr)
 	}
 }
 
@@ -337,9 +353,8 @@ func (c *codegen) emitVarDecl(
 func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
-	pointerReceiver bool,
 ) {
-	var vT *ast.ExprType
+	// var vT *ast.ExprType
 	var p llvm.Value
 
 	switch name.Kind {
@@ -352,11 +367,11 @@ func (c *codegen) emitVarReassign(
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
 			v = variable.BackendType.(*Variable)
-			vT = variable.Type
+			// vT = variable.Type
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v = param.BackendType.(*Variable)
-			vT = param.Type
+			// vT = param.Type
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
@@ -365,9 +380,13 @@ func (c *codegen) emitVarReassign(
 	case ast.KIND_FIELD_ACCESS:
 		f := name.Node.(*ast.FieldAccess)
 		_, p = c.getStructFieldPtr(f)
-		vT = f.AccessedField.Type
+		// vT = f.AccessedField.Type
+	case ast.KIND_DEREF_POINTER_EXPR:
+		// deref := name.Node.(*ast.DerefPointerExpr)
+		// vT = deref.Type
+		_, p, _ = c.emitExpr(name)
 	default:
-		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
+		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name)
 	}
 
 	if p.IsNil() {
@@ -375,14 +394,14 @@ func (c *codegen) emitVarReassign(
 	}
 
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
-	if pointerReceiver {
-		for vT.IsPointer() {
-			ptrTy := c.emitType(vT)
-			p = builder.CreateLoad(ptrTy, p, "")
-			pointeeType := vT.T.(*ast.PointerType)
-			vT = pointeeType.Type
-		}
-	}
+	// if vT.IsPointer() {
+	// 	for vT.IsPointer() {
+	// 		ptrTy := c.emitType(vT)
+	// 		p = builder.CreateLoad(ptrTy, p, "")
+	// 		pointeeType := vT.T.(*ast.PointerType)
+	// 		vT = pointeeType.Type
+	// 	}
+	// }
 	builder.CreateStore(e, p)
 }
 
@@ -399,7 +418,6 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, ll
 		var obj *Variable
 
 		if fieldAccess.Param {
-			fmt.Println(fieldAccess.StructParam.Type.T)
 			objTy = fieldAccess.StructParam.Type
 			obj = fieldAccess.StructParam.BackendType.(*Variable)
 		} else {
@@ -932,8 +950,9 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
 	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	ty := c.emitType(deref.Type)
-	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{v})
 	l := builder.CreateLoad(ty, v, "")
+	fmt.Println(deref.Expr, v, l)
+	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{l})
 	return ty, l, hasFloat
 }
 
