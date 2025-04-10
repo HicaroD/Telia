@@ -191,17 +191,13 @@ func (k Kind) IsBasicType() bool {
 	return k > BASIC_TYPE_START && k < BASIC_TYPE_END
 }
 
-func (k Kind) IsUntyped() bool {
+func (k Kind) IsLiteral() bool {
 	switch k {
 	case BOOL_TYPE, STRING_TYPE, INT_TYPE, FLOAT_TYPE, UNTYPED_NULLPTR:
 		return true
 	default:
 		return false
 	}
-}
-
-func (k Kind) IsLiteral() bool {
-	return k > UNTYPED_START && k < UNTYPED_END
 }
 
 func (k Kind) IsNumeric() bool {

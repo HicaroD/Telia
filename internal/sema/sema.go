@@ -391,45 +391,6 @@ func (sema *sema) checkBlock(
 		}
 	}
 
-	for _, statement := range block.Statements {
-		if statement.Kind != ast.KIND_ASSIGNMENT_STMT {
-			continue
-		}
-
-		err := sema.promoteUntyped(statement.Node.(*ast.AssignmentStmt))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (sema *sema) promoteUntyped(assignment *ast.AssignmentStmt) error {
-	variables := assignment.Targets
-	for _, variable := range variables {
-		var varTy *ast.ExprType
-
-		switch variable.Kind {
-		case ast.KIND_VAR_ID_STMT:
-			varId := variable.Node.(*ast.VarIdStmt)
-			varTy = varId.Type
-		case ast.KIND_FIELD_ACCESS:
-			fieldAccess := variable.Node.(*ast.FieldAccess)
-			varTy = fieldAccess.AccessedField.Type
-		default:
-			panic(fmt.Sprintf("unimplemented %s", variable))
-		}
-
-		if !varTy.IsUntyped() {
-			continue
-		}
-
-		err := varTy.Promote()
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -1585,7 +1546,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 
 	pointeeType := ty.T.(*ast.PointerType)
 	deref.Type = pointeeType.Type
-	return pointeeType.Type, !pointeeType.Type.IsUntyped(), nil
+	return pointeeType.Type, !pointeeType.Type.IsLiteral(), nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1665,71 +1626,66 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	var ctx bool
 	var err error
 
-	if expectedType != nil {
-		lhs, err = s.inferExprTypeWithContext(
-			binary.Left,
-			expectedType,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			false,
-		)
-		if err != nil {
-			return nil, nil, ctx, err
-		}
-
-		rhs, err = s.inferExprTypeWithContext(
-			binary.Right,
-			expectedType,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			false,
-		)
-		if err != nil {
-			return nil, nil, ctx, err
-		}
-	} else {
-		var lhsHasContext, rhsHasContext bool
-
-		lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(binary.Left, referenceScope, declScope, fromImportPackage, false)
-		if err != nil {
-			return nil, nil, ctx, err
-		}
-
-		rhs, rhsHasContext, err = s.inferExprTypeWithoutContext(binary.Right, referenceScope, declScope, fromImportPackage, false)
-		if err != nil {
-			return nil, nil, ctx, err
-		}
-
-		// if lhsHasContext && rhsHasContext && !lhs.Equals(rhs) {
-		// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-		// }
-
-		if lhsHasContext && !rhsHasContext {
-			rhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Right, lhs, referenceScope, declScope, fromImportPackage, false)
-			// TODO(errors)
-			if err != nil {
-				return nil, nil, ctx, err
-			}
-			rhs = rhsTypeWithContext
-			ctx = true
-		}
-
-		if !lhsHasContext && rhsHasContext {
-			lhsTypeWithContext, err := s.inferExprTypeWithContext(binary.Left, rhs, referenceScope, declScope, fromImportPackage, false)
-			// TODO(errors)
-			if err != nil {
-				return nil, nil, false, err
-			}
-			lhs = lhsTypeWithContext
-			ctx = true
-		}
+	var lhsHasContext, rhsHasContext bool
+	lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(
+		binary.Left,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		false,
+	)
+	if err != nil {
+		return nil, nil, ctx, err
 	}
 
-	// if !lhs.Equals(rhs) {
-	// 	return nil, nil, ctx, fmt.Errorf("invalid operands: %s and %s\n", lhs.T, rhs.T)
-	// }
+	rhs, rhsHasContext, err = s.inferExprTypeWithoutContext(
+		binary.Right,
+		referenceScope,
+		declScope,
+		fromImportPackage,
+		false,
+	)
+	if err != nil {
+		return nil, nil, ctx, err
+	}
+
+	if lhsHasContext && !rhsHasContext {
+		rhsTypeWithContext, err := s.inferExprTypeWithContext(
+			binary.Right,
+			lhs,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			false,
+		)
+		// TODO(errors)
+		if err != nil {
+			return nil, nil, ctx, err
+		}
+		rhs = rhsTypeWithContext
+		ctx = true
+	}
+
+	if !lhsHasContext && rhsHasContext {
+		lhsTypeWithContext, err := s.inferExprTypeWithContext(
+			binary.Left,
+			rhs,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			false,
+		)
+		// TODO(errors)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		lhs = lhsTypeWithContext
+		ctx = true
+	}
+
+	if !lhs.Equals(rhs) {
+		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
+	}
 	return lhs, rhs, ctx, nil
 }
 
@@ -1995,7 +1951,7 @@ func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
-	if actual.IsUntyped() {
+	if actual.Kind.IsLiteral() && expected.Kind.IsLiteral() {
 		if !actual.IsCompatibleWith(expected) {
 			return nil, fmt.Errorf("cannot use %s as %s\n", actual, expected)
 		}
@@ -2197,7 +2153,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	switch variable.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		ty := variable.Node.(*ast.VarIdStmt).Type
-		return ty, !ty.IsUntyped(), nil
+		return ty, !ty.IsLiteral(), nil
 	case ast.KIND_PARAM:
 		return variable.Node.(*ast.Param).Type, true, nil
 	default:
@@ -2361,7 +2317,7 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 	if err != nil {
 		return nil, false, err
 	}
-	return exprTy, !exprTy.IsUntyped(), nil
+	return exprTy, !exprTy.IsLiteral(), nil
 }
 
 func (sema *sema) validateInteger(value []byte) error {

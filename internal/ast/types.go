@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -47,6 +46,14 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	default:
 		return false
 	}
+}
+
+func (t *ExprType) IsLiteral() bool {
+	if t.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	b := t.T.(*BasicType)
+	return b.Kind.IsLiteral()
 }
 
 func (ty *ExprType) Promote() error {
@@ -130,18 +137,6 @@ func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
 	return ptr.Type.Kind == pointeeTy
 }
 
-func (ty *ExprType) IsUntyped() bool {
-	if ty.Kind == EXPR_TYPE_BASIC {
-		basic := ty.T.(*BasicType)
-		return basic.IsUntyped()
-	}
-	if ty.Kind == EXPR_TYPE_POINTER {
-		ptr := ty.T.(*PointerType)
-		return ptr.Type.IsUntyped()
-	}
-	return false
-}
-
 type BasicType struct {
 	Kind token.Kind
 }
@@ -161,7 +156,7 @@ func NewPointerType(ty *ExprType) *ExprType {
 }
 
 func (left *BasicType) Equals(right *BasicType) bool {
-	if left.Kind.IsUntyped() || right.Kind.IsUntyped() {
+	if left.Kind.IsLiteral() || right.Kind.IsLiteral() {
 		return left.IsCompatibleWith(right)
 	}
 	return left.Kind == right.Kind
@@ -174,7 +169,7 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 	if left.Kind.IsFloat() && right.Kind.IsFloat() {
 		return true
 	}
-	if left.Kind.IsStringLiteral() && right.Kind.IsStringType() {
+	if left.Kind == token.STRING_TYPE && right.Kind == token.STRING_TYPE {
 		return true
 	}
 	if left.Kind == token.BOOL_TYPE && right.Kind == token.BOOL_TYPE {
@@ -182,10 +177,6 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 	}
 
 	return false
-}
-
-func (b *BasicType) IsUntyped() bool {
-	return b.Kind.IsUntyped()
 }
 
 func (basicType BasicType) String() string {
