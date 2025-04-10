@@ -389,7 +389,7 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			return attributes, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.UNTYPED_STRING)
+		attributeValue, ok := p.expect(token.STRING_TYPE)
 		if !ok {
 			return attributes, fmt.Errorf("expected string literal")
 		}
@@ -668,7 +668,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		hasImportAlias = true
 	}
 
-	useStr, ok := p.expect(token.UNTYPED_STRING)
+	useStr, ok := p.expect(token.STRING_TYPE)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())

@@ -353,14 +353,14 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 		lex.nextChar()
 	}
 
-	tok.Kind = token.UNTYPED_STRING
+	tok.Kind = token.STRING_TYPE
 	tok.Lexeme = str
 	return tok
 }
 
 func (lex *Lexer) getNumberLit(tok *token.Token) {
 	var dotFound, dotRepeated bool
-	numberType := token.UNTYPED_INT
+	numberType := token.INT_TYPE
 
 	number := lex.readWhile(
 		func(chr byte) bool {
@@ -369,7 +369,7 @@ func (lex *Lexer) getNumberLit(tok *token.Token) {
 					dotRepeated = true
 					return false
 				}
-				numberType = token.UNTYPED_FLOAT
+				numberType = token.FLOAT_TYPE
 				dotFound = true
 				return true
 			}

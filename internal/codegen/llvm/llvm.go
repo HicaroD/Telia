@@ -692,14 +692,14 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 			return c.emitPtrType(u8Type)
 		case token.RAWPTR_TYPE:
 			return B_RAWPTR_TYPE
-		case token.UNTYPED_BOOL:
-			panic("unimplemented untyped bool")
-		case token.UNTYPED_INT:
-			panic("unimplemented untyped int")
-		case token.UNTYPED_FLOAT:
-			panic("unimplemented untyped float")
-		case token.UNTYPED_STRING:
-			panic("unimplemented untyped string")
+		// case token.UNTYPED_BOOL:
+		// 	panic("unimplemented untyped bool")
+		// case token.UNTYPED_INT:
+		// 	panic("unimplemented untyped int")
+		// case token.UNTYPED_FLOAT:
+		// 	panic("unimplemented untyped float")
+		// case token.UNTYPED_STRING:
+		// 	panic("unimplemented untyped string")
 		case token.UNTYPED_NULLPTR:
 			panic("unimplemented untyped nullptr")
 		default:

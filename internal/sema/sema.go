@@ -2165,24 +2165,6 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 
 	actualBasicType := literal.Type.T.(*ast.BasicType)
 	switch actualBasicType.Kind {
-	case token.UNTYPED_STRING:
-		actualBasicType.Kind = token.UNTYPED_STRING
-		return literal.Type, false, nil
-	case token.UNTYPED_INT:
-		err := sema.validateInteger(literal.Value)
-		if err != nil {
-			return nil, false, err
-		}
-		return literal.Type, false, nil
-	case token.UNTYPED_FLOAT:
-		err := sema.validateFloat(literal.Value)
-		if err != nil {
-			return nil, false, err
-		}
-		return literal.Type, false, nil
-	case token.UNTYPED_BOOL:
-		actualBasicType.Kind = token.BOOL_TYPE
-		return literal.Type, true, nil
 	case token.UNTYPED_NULLPTR:
 		nullptr := &ast.ExprType{
 			Kind: ast.EXPR_TYPE_POINTER,
@@ -2195,11 +2177,8 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 		}
 		literal.Type = nullptr
 		return literal.Type, false, nil
-	default:
-		// TODO(errors)
-		log.Fatalf("unimplemented literal expression: %s\n", actualBasicType.Kind)
-		return nil, false, nil
 	}
+	return literal.Type, false, nil
 }
 
 func (sema *sema) inferIdExprTypeWithoutContext(

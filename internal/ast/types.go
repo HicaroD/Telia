@@ -171,16 +171,13 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 	if left.Kind.IsInteger() && right.Kind.IsInteger() {
 		return true
 	}
-
 	if left.Kind.IsFloat() && right.Kind.IsFloat() {
 		return true
 	}
-
 	if left.Kind.IsStringLiteral() && right.Kind.IsStringType() {
 		return true
 	}
-
-	if left.Kind == token.UNTYPED_BOOL && right.Kind == token.BOOL_TYPE {
+	if left.Kind == token.BOOL_TYPE && right.Kind == token.BOOL_TYPE {
 		return true
 	}
 
@@ -291,10 +288,7 @@ var UnaryOperators = OperatorTable{
 		Handler:    handleNumericUnary,
 	},
 	token.NOT: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-			NewBasicType(token.UNTYPED_BOOL),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 }
