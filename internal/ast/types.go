@@ -21,8 +21,9 @@ const (
 )
 
 type ExprType struct {
-	Kind ExprTypeKind
-	T    any
+	Kind     ExprTypeKind
+	T        any
+	Explicit bool
 }
 
 func (t *ExprType) Equals(other *ExprType) bool {
@@ -48,13 +49,13 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 }
 
-func (t *ExprType) IsLiteral() bool {
-	if t.Kind != EXPR_TYPE_BASIC {
-		return false
-	}
-	b := t.T.(*BasicType)
-	return b.Kind.IsLiteral()
-}
+// func (t *ExprType) IsLiteral() bool {
+// 	if t.Kind != EXPR_TYPE_BASIC {
+// 		return false
+// 	}
+// 	b := t.T.(*BasicType)
+// 	return b.Kind.IsLiteral()
+// }
 
 func (ty *ExprType) Promote() error {
 	switch ty.Kind {
@@ -138,7 +139,8 @@ func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
 }
 
 type BasicType struct {
-	Kind token.Kind
+	Kind     token.Kind
+	Explicit bool
 }
 
 func NewBasicType(kind token.Kind) *ExprType {
@@ -156,9 +158,6 @@ func NewPointerType(ty *ExprType) *ExprType {
 }
 
 func (left *BasicType) Equals(right *BasicType) bool {
-	if left.Kind.IsLiteral() || right.Kind.IsLiteral() {
-		return left.IsCompatibleWith(right)
-	}
 	return left.Kind == right.Kind
 }
 
@@ -192,7 +191,8 @@ func (idType IdType) String() string {
 }
 
 type PointerType struct {
-	Type *ExprType
+	Type     *ExprType
+	Explicit bool
 }
 
 func (p *PointerType) Equals(other *PointerType) bool {

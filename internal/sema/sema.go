@@ -521,17 +521,6 @@ func (sema *sema) checkVar(
 	}
 
 	switch variable.Expr.Kind {
-	// case ast.KIND_TUPLE_LITERAL_EXPR:
-	// 	tuple := variable.Expr.Node.(*ast.TupleExpr)
-	// 	err := sema.checkTupleExprAssignedToVariable(
-	// 		variable,
-	// 		tuple,
-	// 		referenceScope,
-	// 		declScope,
-	// 		fromImportPackage,
-	// 		isArg,
-	// 	)
-	// 	return err
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(
@@ -629,90 +618,6 @@ func (sema *sema) checkNormalVarDecl(
 	}
 	return nil
 }
-
-// func (sema *sema) checkTupleExprAssignedToVariable(
-// 	variable *ast.VarStmt,
-// 	tuple *ast.TupleExpr,
-// 	referenceScope *ast.Scope,
-// 	declScope *ast.Scope,
-// 	fromImportPackage, isArg bool,
-// ) error {
-// 	numExprs, err := sema.countExprsOnTuple(tuple, referenceScope, declScope, fromImportPackage)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	// TODO(errors)
-// 	if len(variable.Names) != numExprs {
-// 		return fmt.Errorf("%d != %d", len(variable.Names), numExprs)
-// 	}
-//
-// 	t := 0
-// 	for _, expr := range tuple.Exprs {
-// 		switch expr.Kind {
-// 		case ast.KIND_TUPLE_LITERAL_EXPR:
-// 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
-// 			for _, innerExpr := range innerTupleExpr.Exprs {
-// 				err := sema.checkVarExpr(
-// 					variable.Names[t],
-// 					innerExpr,
-// 					referenceScope,
-// 					declScope,
-// 					fromImportPackage,
-// 					isArg,
-// 				)
-// 				if err != nil {
-// 					return err
-// 				}
-// 				t++
-// 			}
-// 		case ast.KIND_FN_CALL:
-// 			fnCall := expr.Node.(*ast.FnCall)
-// 			fnRetType, err := sema.checkFnCall(
-// 				fnCall,
-// 				referenceScope,
-// 				declScope,
-// 				fromImportPackage,
-// 				false,
-// 			)
-// 			if err != nil {
-// 				return err
-// 			}
-//
-// 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
-// 				tupleType := fnRetType.T.(*ast.TupleType)
-// 				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
-// 				sema.checkTupleTypeAssignedToVariable(
-// 					affectedVariables,
-// 					tupleType,
-// 					referenceScope,
-// 					fromImportPackage,
-// 				)
-// 				t += len(affectedVariables)
-// 			} else {
-// 				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage, isArg)
-// 				if err != nil {
-// 					return err
-// 				}
-// 				t++
-// 			}
-// 		default:
-// 			err := sema.checkVarExpr(
-// 				variable.Names[t],
-// 				expr,
-// 				referenceScope,
-// 				declScope,
-// 				fromImportPackage,
-// 				isArg,
-// 			)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			t++
-// 		}
-// 	}
-// 	return nil
-// }
 
 func (sema *sema) checkTupleTypeAssignedToVariable(
 	variables []*ast.Node,
@@ -980,53 +885,6 @@ func (sema *sema) getAccessedField(
 		return nil, nil, fmt.Errorf("other field access type was found during sema")
 	}
 }
-
-// func (sema *sema) countExprsOnTuple(
-// 	tuple *ast.TupleExpr,
-// 	referenceScope *ast.Scope,
-// 	declScope *ast.Scope,
-// 	fromImportPackage bool,
-// ) (int, error) {
-// 	counter := 0
-// 	for _, expr := range tuple.Exprs {
-// 		switch expr.Kind {
-// 		case ast.KIND_TUPLE_LITERAL_EXPR:
-// 			varTuple := expr.Node.(*ast.TupleExpr)
-// 			innerTupleExprs, err := sema.countExprsOnTuple(
-// 				varTuple,
-// 				referenceScope,
-// 				declScope,
-// 				fromImportPackage,
-// 			)
-// 			if err != nil {
-// 				return -1, err
-// 			}
-// 			counter += innerTupleExprs
-// 		case ast.KIND_FN_CALL:
-// 			fnCall := expr.Node.(*ast.FnCall)
-// 			fnRetType, err := sema.checkFnCall(
-// 				fnCall,
-// 				referenceScope,
-// 				declScope,
-// 				fromImportPackage,
-// 				false,
-// 			)
-// 			if err != nil {
-// 				return -1, err
-// 			}
-// 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
-// 				fnTuple := fnRetType.T.(*ast.TupleType)
-// 				counter += len(fnTuple.Types)
-// 			} else {
-// 				counter++
-// 			}
-// 		default:
-// 			counter++
-// 		}
-// 	}
-//
-// 	return counter, nil
-// }
 
 // Useful for testing
 func checkVarDeclFrom(input, filename string) (*ast.VarIdStmt, error) {
@@ -1546,7 +1404,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 
 	pointeeType := ty.T.(*ast.PointerType)
 	deref.Type = pointeeType.Type
-	return pointeeType.Type, !pointeeType.Type.IsLiteral(), nil
+	return pointeeType.Type, !pointeeType.Type.Explicit, nil
 }
 
 func (s *sema) inferBinaryExprType(
@@ -1951,10 +1809,12 @@ func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
-	if actual.Kind.IsLiteral() && expected.Kind.IsLiteral() {
+	if !actual.Explicit || !expected.Explicit {
 		if !actual.IsCompatibleWith(expected) {
 			return nil, fmt.Errorf("cannot use %s as %s\n", actual, expected)
 		}
+
+		// TODO: deal with overflow for numeric types
 		actual.Kind = expected.Kind
 		return actual, nil
 	}
@@ -2065,13 +1925,6 @@ func (sema *sema) inferExprTypeWithoutContext(
 			declScope,
 			fromImportPackage,
 		)
-	// case ast.KIND_TUPLE_LITERAL_EXPR:
-	// 	return sema.inferTupleExprTypeWithoutContext(
-	// 		expr.Node.(*ast.TupleExpr),
-	// 		referenceScope,
-	// 		declScope,
-	// 		fromImportPackage,
-	// 	)
 	case ast.KIND_STRUCT_EXPR:
 		return sema.inferStructLiteralExprWithoutContext(
 			expr.Node.(*ast.StructLiteralExpr),
@@ -2153,7 +2006,7 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	switch variable.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		ty := variable.Node.(*ast.VarIdStmt).Type
-		return ty, !ty.IsLiteral(), nil
+		return ty, ty.Explicit, nil
 	case ast.KIND_PARAM:
 		return variable.Node.(*ast.Param).Type, true, nil
 	default:
@@ -2317,7 +2170,7 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 	if err != nil {
 		return nil, false, err
 	}
-	return exprTy, !exprTy.IsLiteral(), nil
+	return exprTy, exprTy.Explicit, nil
 }
 
 func (sema *sema) validateInteger(value []byte) error {

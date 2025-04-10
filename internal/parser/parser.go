@@ -1233,6 +1233,7 @@ func (p *Parser) parseFnParams(
 
 func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 	ty := new(ast.ExprType)
+	ty.Explicit = true
 
 	if (isPrototype && p.lex.NextIs(token.NEWLINE)) ||
 		p.lex.NextIs(token.OPEN_CURLY) {
@@ -1258,6 +1259,7 @@ func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	returnType.Explicit = true
 	return returnType, nil
 }
 
@@ -1286,6 +1288,7 @@ func (p *Parser) expectOneOf(kinds []token.Kind) (*token.Token, bool) {
 
 func (p *Parser) parseExprType() (*ast.ExprType, error) {
 	t := new(ast.ExprType)
+	t.Explicit = true
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
@@ -1297,7 +1300,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		}
 
 		t.Kind = ast.EXPR_TYPE_POINTER
-		t.T = &ast.PointerType{Type: ty}
+		t.T = &ast.PointerType{Type: ty, Explicit: true}
 	case token.ID:
 		p.lex.Skip()
 		t.Kind = ast.EXPR_TYPE_ID
@@ -1313,7 +1316,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
 			t.Kind = ast.EXPR_TYPE_BASIC
-			t.T = &ast.BasicType{Kind: tok.Kind}
+			t.T = &ast.BasicType{Kind: tok.Kind, Explicit: true}
 			return t, nil
 		}
 		return nil, fmt.Errorf("%s: expected type, not %s", tok.Pos, tok.Name())
@@ -1337,6 +1340,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 		if err != nil {
 			return nil, err
 		}
+		ty.Explicit = true
 		types = append(types, ty)
 
 		if p.lex.NextIs(token.COMMA) {
@@ -2106,7 +2110,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		}
 		return nullptr, nil
 	default:
-		if tok.Kind.IsLiteral() {
+		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
 
 			n.Kind = ast.KIND_LITERAL_EXPR
