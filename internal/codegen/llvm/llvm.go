@@ -948,12 +948,10 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 }
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
-	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
-	ty := c.emitType(deref.Type)
+	ty, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	l := builder.CreateLoad(ty, v, "")
-	fmt.Println(deref.Expr, v, l)
 	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{l})
-	return ty, l, hasFloat
+	return ty, v, hasFloat
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {
@@ -1021,6 +1019,10 @@ func (c *codegen) emitIntBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Valu
 		return builder.CreateAdd(lhs, rhs, "")
 	case token.SLASH:
 		return builder.CreateExactSDiv(lhs, rhs, "")
+	case token.AND:
+		return builder.CreateAnd(lhs, rhs, "")
+	case token.OR:
+		return builder.CreateOr(lhs, rhs, "")
 	default:
 		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
 	}
@@ -1059,6 +1061,10 @@ func (c *codegen) emitFloatBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Va
 		return builder.CreateFAdd(lhs, rhs, "")
 	case token.SLASH:
 		return builder.CreateFDiv(lhs, rhs, "")
+	case token.AND:
+		return builder.CreateAnd(lhs, rhs, "")
+	case token.OR:
+		return builder.CreateOr(lhs, rhs, "")
 	default:
 		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
 	}

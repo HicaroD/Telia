@@ -562,17 +562,17 @@ func (sema *sema) checkVar(
 	}
 
 	switch variable.Expr.Kind {
-	case ast.KIND_TUPLE_LITERAL_EXPR:
-		tuple := variable.Expr.Node.(*ast.TupleExpr)
-		err := sema.checkTupleExprAssignedToVariable(
-			variable,
-			tuple,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			isArg,
-		)
-		return err
+	// case ast.KIND_TUPLE_LITERAL_EXPR:
+	// 	tuple := variable.Expr.Node.(*ast.TupleExpr)
+	// 	err := sema.checkTupleExprAssignedToVariable(
+	// 		variable,
+	// 		tuple,
+	// 		referenceScope,
+	// 		declScope,
+	// 		fromImportPackage,
+	// 		isArg,
+	// 	)
+	// 	return err
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(
@@ -656,126 +656,104 @@ func (sema *sema) checkNormalVarDecl(
 			}
 			return err
 		}
-
-		// var symbolTy *ast.ExprType
-
-		switch symbol.Kind {
-		case ast.KIND_PARAM:
-			param := symbol.Node.(*ast.Param)
-			if currentVar.Type != nil && !currentVar.Type.Equals(param.Type) {
-				return fmt.Errorf("type mismatch on parameter reassignment, expected %v, got %v\n", param.Type, currentVar.Type)
-			}
-			// symbolTy = param.Type
-			currentVar.Type = param.Type
-			currentVar.NeedsInference = false
-			// case ast.KIND_VAR_ID_STMT:
-			// 	variable := symbol.Node.(*ast.VarIdStmt)
-			// 	// NOTE: WHAT IF VARIABLE TYPE IS NIL?
-			// 	symbolTy = variable.Type
+		if currentVar.Type != nil {
+			return fmt.Errorf("impossible to define type for variable '%s' since you're reassigning", currentVar.Name.Name())
 		}
 
-		// if currentVar.Pointer {
-		// 	numberOfDerefs := currentVar.NumberOfPointerReceivers
-		// 	for numberOfDerefs > 0 {
-		// 		// TODO(errors)
-		// 		if !symbolTy.IsPointer() {
-		// 			return fmt.Errorf("cannot dereference non-pointer variable: %s\n", currentVar.Name.Name())
-		// 		}
-		// 		ptrTy := symbolTy.T.(*ast.PointerType)
-		// 		symbolTy = ptrTy.Type
-		// 		numberOfDerefs--
-		// 	}
-		// 	currentVar.NeedsInference = false
-		// 	currentVar.Type = symbolTy
-		// }
+		if symbol.Kind == ast.KIND_PARAM {
+			param := symbol.Node.(*ast.Param)
+			if param.Attributes.Const {
+				return fmt.Errorf("impossible to reassign constant parameter '%s'", param.Name.Name())
+			}
+		}
 		currentVar.N = symbol
 	}
 	return nil
 }
 
-func (sema *sema) checkTupleExprAssignedToVariable(
-	variable *ast.VarStmt,
-	tuple *ast.TupleExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage, isArg bool,
-) error {
-	numExprs, err := sema.countExprsOnTuple(tuple, referenceScope, declScope, fromImportPackage)
-	if err != nil {
-		return err
-	}
-
-	// TODO(errors)
-	if len(variable.Names) != numExprs {
-		return fmt.Errorf("%d != %d", len(variable.Names), numExprs)
-	}
-
-	t := 0
-	for _, expr := range tuple.Exprs {
-		switch expr.Kind {
-		case ast.KIND_TUPLE_LITERAL_EXPR:
-			innerTupleExpr := expr.Node.(*ast.TupleExpr)
-			for _, innerExpr := range innerTupleExpr.Exprs {
-				err := sema.checkVarExpr(
-					variable.Names[t],
-					innerExpr,
-					referenceScope,
-					declScope,
-					fromImportPackage,
-					isArg,
-				)
-				if err != nil {
-					return err
-				}
-				t++
-			}
-		case ast.KIND_FN_CALL:
-			fnCall := expr.Node.(*ast.FnCall)
-			fnRetType, err := sema.checkFnCall(
-				fnCall,
-				referenceScope,
-				declScope,
-				fromImportPackage,
-				false,
-			)
-			if err != nil {
-				return err
-			}
-
-			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
-				tupleType := fnRetType.T.(*ast.TupleType)
-				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
-				sema.checkTupleTypeAssignedToVariable(
-					affectedVariables,
-					tupleType,
-					referenceScope,
-					fromImportPackage,
-				)
-				t += len(affectedVariables)
-			} else {
-				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage, isArg)
-				if err != nil {
-					return err
-				}
-				t++
-			}
-		default:
-			err := sema.checkVarExpr(
-				variable.Names[t],
-				expr,
-				referenceScope,
-				declScope,
-				fromImportPackage,
-				isArg,
-			)
-			if err != nil {
-				return err
-			}
-			t++
-		}
-	}
-	return nil
-}
+// func (sema *sema) checkTupleExprAssignedToVariable(
+// 	variable *ast.VarStmt,
+// 	tuple *ast.TupleExpr,
+// 	referenceScope *ast.Scope,
+// 	declScope *ast.Scope,
+// 	fromImportPackage, isArg bool,
+// ) error {
+// 	numExprs, err := sema.countExprsOnTuple(tuple, referenceScope, declScope, fromImportPackage)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	// TODO(errors)
+// 	if len(variable.Names) != numExprs {
+// 		return fmt.Errorf("%d != %d", len(variable.Names), numExprs)
+// 	}
+//
+// 	t := 0
+// 	for _, expr := range tuple.Exprs {
+// 		switch expr.Kind {
+// 		case ast.KIND_TUPLE_LITERAL_EXPR:
+// 			innerTupleExpr := expr.Node.(*ast.TupleExpr)
+// 			for _, innerExpr := range innerTupleExpr.Exprs {
+// 				err := sema.checkVarExpr(
+// 					variable.Names[t],
+// 					innerExpr,
+// 					referenceScope,
+// 					declScope,
+// 					fromImportPackage,
+// 					isArg,
+// 				)
+// 				if err != nil {
+// 					return err
+// 				}
+// 				t++
+// 			}
+// 		case ast.KIND_FN_CALL:
+// 			fnCall := expr.Node.(*ast.FnCall)
+// 			fnRetType, err := sema.checkFnCall(
+// 				fnCall,
+// 				referenceScope,
+// 				declScope,
+// 				fromImportPackage,
+// 				false,
+// 			)
+// 			if err != nil {
+// 				return err
+// 			}
+//
+// 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+// 				tupleType := fnRetType.T.(*ast.TupleType)
+// 				affectedVariables := variable.Names[t : t+len(tupleType.Types)]
+// 				sema.checkTupleTypeAssignedToVariable(
+// 					affectedVariables,
+// 					tupleType,
+// 					referenceScope,
+// 					fromImportPackage,
+// 				)
+// 				t += len(affectedVariables)
+// 			} else {
+// 				err := sema.checkVarExpr(variable.Names[t], expr, referenceScope, declScope, fromImportPackage, isArg)
+// 				if err != nil {
+// 					return err
+// 				}
+// 				t++
+// 			}
+// 		default:
+// 			err := sema.checkVarExpr(
+// 				variable.Names[t],
+// 				expr,
+// 				referenceScope,
+// 				declScope,
+// 				fromImportPackage,
+// 				isArg,
+// 			)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			t++
+// 		}
+// 	}
+// 	return nil
+// }
 
 func (sema *sema) checkTupleTypeAssignedToVariable(
 	variables []*ast.Node,
@@ -1044,52 +1022,52 @@ func (sema *sema) getAccessedField(
 	}
 }
 
-func (sema *sema) countExprsOnTuple(
-	tuple *ast.TupleExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-) (int, error) {
-	counter := 0
-	for _, expr := range tuple.Exprs {
-		switch expr.Kind {
-		case ast.KIND_TUPLE_LITERAL_EXPR:
-			varTuple := expr.Node.(*ast.TupleExpr)
-			innerTupleExprs, err := sema.countExprsOnTuple(
-				varTuple,
-				referenceScope,
-				declScope,
-				fromImportPackage,
-			)
-			if err != nil {
-				return -1, err
-			}
-			counter += innerTupleExprs
-		case ast.KIND_FN_CALL:
-			fnCall := expr.Node.(*ast.FnCall)
-			fnRetType, err := sema.checkFnCall(
-				fnCall,
-				referenceScope,
-				declScope,
-				fromImportPackage,
-				false,
-			)
-			if err != nil {
-				return -1, err
-			}
-			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
-				fnTuple := fnRetType.T.(*ast.TupleType)
-				counter += len(fnTuple.Types)
-			} else {
-				counter++
-			}
-		default:
-			counter++
-		}
-	}
-
-	return counter, nil
-}
+// func (sema *sema) countExprsOnTuple(
+// 	tuple *ast.TupleExpr,
+// 	referenceScope *ast.Scope,
+// 	declScope *ast.Scope,
+// 	fromImportPackage bool,
+// ) (int, error) {
+// 	counter := 0
+// 	for _, expr := range tuple.Exprs {
+// 		switch expr.Kind {
+// 		case ast.KIND_TUPLE_LITERAL_EXPR:
+// 			varTuple := expr.Node.(*ast.TupleExpr)
+// 			innerTupleExprs, err := sema.countExprsOnTuple(
+// 				varTuple,
+// 				referenceScope,
+// 				declScope,
+// 				fromImportPackage,
+// 			)
+// 			if err != nil {
+// 				return -1, err
+// 			}
+// 			counter += innerTupleExprs
+// 		case ast.KIND_FN_CALL:
+// 			fnCall := expr.Node.(*ast.FnCall)
+// 			fnRetType, err := sema.checkFnCall(
+// 				fnCall,
+// 				referenceScope,
+// 				declScope,
+// 				fromImportPackage,
+// 				false,
+// 			)
+// 			if err != nil {
+// 				return -1, err
+// 			}
+// 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+// 				fnTuple := fnRetType.T.(*ast.TupleType)
+// 				counter += len(fnTuple.Types)
+// 			} else {
+// 				counter++
+// 			}
+// 		default:
+// 			counter++
+// 		}
+// 	}
+//
+// 	return counter, nil
+// }
 
 // Useful for testing
 func checkVarDeclFrom(input, filename string) (*ast.VarIdStmt, error) {
@@ -1557,6 +1535,7 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 	isArg bool,
 ) (*ast.ExprType, error) {
 	innerExpr := deref.Expr
+
 	ty, _, err := s.inferExprTypeWithoutContext(
 		innerExpr,
 		referenceScope,
@@ -1570,6 +1549,7 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 	if !ty.IsPointer() {
 		return nil, fmt.Errorf("cannot dereference non-pointer expression: %s\n", ty.T)
 	}
+
 	pointeeType := ty.T.(*ast.PointerType)
 	if !pointeeType.Type.Equals(expectedType) {
 		return nil, fmt.Errorf(
@@ -1578,7 +1558,7 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 			pointeeType.Type.T,
 		)
 	}
-	deref.Type = ty
+	deref.Type = pointeeType.Type
 	return pointeeType.Type, nil
 }
 
@@ -1590,6 +1570,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 	isArg bool,
 ) (*ast.ExprType, bool, error) {
 	innerExpr := deref.Expr
+
 	ty, _, err := s.inferExprTypeWithoutContext(
 		innerExpr,
 		referenceScope,
@@ -1603,8 +1584,9 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 	if !ty.IsPointer() {
 		return nil, false, fmt.Errorf("cannot dereference non-pointer type: %s\n", ty.T)
 	}
+
 	pointeeType := ty.T.(*ast.PointerType)
-	deref.Type = ty
+	deref.Type = pointeeType.Type
 	return pointeeType.Type, !pointeeType.Type.IsUntyped(), nil
 }
 
@@ -2129,13 +2111,13 @@ func (sema *sema) inferExprTypeWithoutContext(
 			declScope,
 			fromImportPackage,
 		)
-	case ast.KIND_TUPLE_LITERAL_EXPR:
-		return sema.inferTupleExprTypeWithoutContext(
-			expr.Node.(*ast.TupleExpr),
-			referenceScope,
-			declScope,
-			fromImportPackage,
-		)
+	// case ast.KIND_TUPLE_LITERAL_EXPR:
+	// 	return sema.inferTupleExprTypeWithoutContext(
+	// 		expr.Node.(*ast.TupleExpr),
+	// 		referenceScope,
+	// 		declScope,
+	// 		fromImportPackage,
+	// 	)
 	case ast.KIND_STRUCT_EXPR:
 		return sema.inferStructLiteralExprWithoutContext(
 			expr.Node.(*ast.StructLiteralExpr),
@@ -2676,6 +2658,35 @@ func (s *sema) checkAssignment(
 					"not allowed to create new variable with pointer dereference operator",
 				)
 			}
+			innerDeref := s.getBehindDeref(target.Node.(*ast.DerefPointerExpr))
+
+			switch innerDeref.Kind {
+			case ast.KIND_ID_EXPR:
+				id := innerDeref.Node.(*ast.IdExpr)
+
+				symbol, err := referenceScope.LookupAcrossScopes(id.Name.Name())
+				if err != nil {
+					return err
+				}
+
+				switch symbol.Kind {
+				case ast.KIND_PARAM:
+					param := symbol.Node.(*ast.Param)
+					// TODO(errors)
+					if param.Attributes.Const {
+						return fmt.Errorf(
+							"not allowed to reassign '%s' since it is declared as a constant parameter",
+							param.Name.Name(),
+						)
+					}
+				}
+			default:
+				// TODO(errors)
+				return fmt.Errorf(
+					"not allowed to use dereference operator for expresion of type %s",
+					innerDeref.Kind,
+				)
+			}
 		default:
 			panic(fmt.Sprintf("unimplemented %d", target.Kind))
 		}
@@ -2686,7 +2697,6 @@ func (s *sema) checkAssignment(
 	}
 
 	t := 0
-
 	for _, expr := range assignment.Values {
 		switch expr.Kind {
 		case ast.KIND_FN_CALL:
@@ -2737,6 +2747,15 @@ func (s *sema) checkAssignment(
 	}
 
 	return nil
+}
+
+func (s *sema) getBehindDeref(deref *ast.DerefPointerExpr) *ast.Node {
+	e := deref.Expr
+	for e.Kind == ast.KIND_DEREF_POINTER_EXPR {
+		innerDeref := e.Node.(*ast.DerefPointerExpr)
+		e = innerDeref.Expr
+	}
+	return e
 }
 
 func (s *sema) isAssignable(lhs *ast.Node) bool {

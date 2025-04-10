@@ -13,7 +13,7 @@ fn main() {
   d := &c
 
   pass_by_pointer(**d)
-  if a == 20 {
+  if a == 10 {
     io::println("a is 20")
   }
 }
