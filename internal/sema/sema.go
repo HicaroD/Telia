@@ -213,29 +213,25 @@ func (sema *sema) checkNonVoidFunctionReturns(block *ast.BlockStmt) bool {
 		switch stmt.Kind {
 		case ast.KIND_COND_STMT:
 			cond := stmt.Node.(*ast.CondStmt)
-			ifStmt := cond.IfStmt
-			ifReturns := sema.checkNonVoidFunctionReturns(ifStmt.Block)
 
-			elseStmt := cond.ElseStmt
-			var elseReturns bool
+			ifReturns := sema.checkNonVoidFunctionReturns(cond.IfStmt.Block)
 
-			if elseStmt != nil {
-				elseReturns = sema.checkNonVoidFunctionReturns(elseStmt.Block)
+			elseReturns := false
+			if cond.ElseStmt != nil {
+				elseReturns = sema.checkNonVoidFunctionReturns(cond.ElseStmt.Block)
 			}
 
-			if elseStmt == nil && !ifReturns {
-				return false
-			}
-
-			if !ifReturns && !elseReturns {
-				return false
-			}
-
-			for _, elifStmt := range cond.ElifStmts {
-				elifReturns := sema.checkNonVoidFunctionReturns(elifStmt.Block)
+			allElifReturns := true
+			for _, elif := range cond.ElifStmts {
+				elifReturns := sema.checkNonVoidFunctionReturns(elif.Block)
 				if !elifReturns {
-					return false
+					allElifReturns = false
+					break
 				}
+			}
+
+			if ifReturns && (cond.ElseStmt != nil && elseReturns) && allElifReturns {
+				hasReturn = true
 			}
 		case ast.KIND_RETURN_STMT:
 			hasReturn = true
@@ -396,7 +392,11 @@ func (sema *sema) checkBlock(
 	}
 
 	for _, statement := range block.Statements {
-		err := sema.promoteUntyped(statement)
+		if statement.Kind != ast.KIND_ASSIGNMENT_STMT {
+			continue
+		}
+
+		err := sema.promoteUntyped(statement.Node.(*ast.AssignmentStmt))
 		if err != nil {
 			return err
 		}
@@ -405,14 +405,11 @@ func (sema *sema) checkBlock(
 	return nil
 }
 
-func (sema *sema) promoteUntyped(stmt *ast.Node) error {
-	if stmt.Kind != ast.KIND_VAR_STMT {
-		return nil
-	}
-	varDecl := stmt.Node.(*ast.VarStmt)
-	variables := varDecl.Names
+func (sema *sema) promoteUntyped(assignment *ast.AssignmentStmt) error {
+	variables := assignment.Targets
 	for _, variable := range variables {
 		var varTy *ast.ExprType
+
 		switch variable.Kind {
 		case ast.KIND_VAR_ID_STMT:
 			varId := variable.Node.(*ast.VarIdStmt)
@@ -427,6 +424,7 @@ func (sema *sema) promoteUntyped(stmt *ast.Node) error {
 		if !varTy.IsUntyped() {
 			continue
 		}
+
 		err := varTy.Promote()
 		if err != nil {
 			return err

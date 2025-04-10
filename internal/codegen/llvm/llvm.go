@@ -354,7 +354,6 @@ func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
 ) {
-	// var vT *ast.ExprType
 	var p llvm.Value
 
 	switch name.Kind {
@@ -367,11 +366,9 @@ func (c *codegen) emitVarReassign(
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
 			v = variable.BackendType.(*Variable)
-			// vT = variable.Type
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v = param.BackendType.(*Variable)
-			// vT = param.Type
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
@@ -380,10 +377,7 @@ func (c *codegen) emitVarReassign(
 	case ast.KIND_FIELD_ACCESS:
 		f := name.Node.(*ast.FieldAccess)
 		_, p = c.getStructFieldPtr(f)
-		// vT = f.AccessedField.Type
 	case ast.KIND_DEREF_POINTER_EXPR:
-		// deref := name.Node.(*ast.DerefPointerExpr)
-		// vT = deref.Type
 		_, p, _ = c.emitExpr(name)
 	default:
 		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name)
@@ -394,14 +388,6 @@ func (c *codegen) emitVarReassign(
 	}
 
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
-	// if vT.IsPointer() {
-	// 	for vT.IsPointer() {
-	// 		ptrTy := c.emitType(vT)
-	// 		p = builder.CreateLoad(ptrTy, p, "")
-	// 		pointeeType := vT.T.(*ast.PointerType)
-	// 		vT = pointeeType.Type
-	// 	}
-	// }
 	builder.CreateStore(e, p)
 }
 

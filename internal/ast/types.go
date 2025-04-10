@@ -70,7 +70,8 @@ func (ty *ExprType) Promote() error {
 				return err
 			}
 		}
-		// Add more cases for other types, such as structs or aliases, if necessary.
+	default:
+		panic(fmt.Sprintf("unimplemented %s", ty.T))
 	}
 	return nil
 }

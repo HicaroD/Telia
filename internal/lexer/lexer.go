@@ -321,6 +321,8 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 				escape = '\\'
 			case '"':
 				escape = '"'
+			case '0':
+				escape = 0
 			default:
 				// TODO(errors)
 				log.Fatalf("invalid escape sequence: %b", escape)
