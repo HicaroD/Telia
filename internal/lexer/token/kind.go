@@ -2,6 +2,7 @@ package token
 
 import (
 	"log"
+	"slices"
 )
 
 type Kind int
@@ -166,6 +167,17 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"cstring": CSTRING_TYPE,
 }
 
+var BUILTIN_FN_NAMES []string = []string{
+	"sizeof",
+}
+
+func IsAnyBuiltin(name string) bool {
+	if slices.Contains(BUILTIN_FN_NAMES, name) {
+		return true
+	}
+	return false
+}
+
 func (k Kind) BitSize() int {
 	switch k {
 	case VOID_TYPE:
@@ -190,15 +202,6 @@ func (k Kind) BitSize() int {
 func (k Kind) IsBasicType() bool {
 	return k > BASIC_TYPE_START && k < BASIC_TYPE_END
 }
-
-// func (k Kind) IsLiteral() bool {
-// 	// switch k {
-// 	// case BOOL_TYPE, STRING_TYPE, INT_TYPE, FLOAT_TYPE, UNTYPED_NULLPTR:
-// 	// 	return true
-// 	// default:
-// 	// 	return false
-// 	// }
-// }
 
 func (k Kind) IsNumeric() bool {
 	return k > NUMERIC_TYPE_START && k < NUMERIC_TYPE_END

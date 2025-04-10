@@ -490,19 +490,18 @@ func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	return ty, builder.CreateCall(ty, fn, args, ""), hasFloat
 }
 
-func (c *codegen) getFnCallName(fnCall *ast.FnCall) string {
+func (c *codegen) getFnCallName(call *ast.FnCall) string {
 	var attrs ast.Attributes
-
-	if fnCall.Proto != nil {
-		attrs = fnCall.Proto.Attributes
+	if call.Proto != nil {
+		attrs = call.Proto.Attributes
 	} else {
-		attrs = fnCall.Decl.Attributes
+		attrs = call.Decl.Attributes
 	}
 
 	if attrs.LinkName != "" {
 		return attrs.LinkName
 	}
-	return fnCall.Name.Name()
+	return call.Name.Name()
 }
 
 func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Type, llvm.Value, bool) {
@@ -547,21 +546,21 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm
 	globalConst.SetUnnamedAddr(true)
 
 	structAlloca := builder.CreateAlloca(st, "")
-	sizeOf := c.emitSizeOf(st)
-	c.emitStructMemcpy(structAlloca, globalConst, sizeOf)
+	sizeOf := c.emitSizeOfType(st)
+	c.emitMemcpy(structAlloca, globalConst, sizeOf)
 	return st, structAlloca, false
 }
 
-func (c *codegen) emitSizeOf(structType llvm.Type) llvm.Value {
-	nullPtr := llvm.ConstNull(llvm.PointerType(structType, 0))
-	gep := llvm.ConstGEP(structType, nullPtr, []llvm.Value{
+func (c *codegen) emitSizeOfType(ty llvm.Type) llvm.Value {
+	nullPtr := llvm.ConstNull(llvm.PointerType(ty, 0))
+	gep := llvm.ConstGEP(ty, nullPtr, []llvm.Value{
 		llvm.ConstInt(context.Int32Type(), 1, false),
 	})
 	size := builder.CreatePtrToInt(gep, context.Int64Type(), "")
 	return size
 }
 
-func (c *codegen) emitStructMemcpy(dest, src, size llvm.Value) {
+func (c *codegen) emitMemcpy(dest, src, size llvm.Value) {
 	c.emitRuntimeCall("llvm.memcpy.p0.p0.i64",
 		[]llvm.Value{
 			dest, // destination (ptr)

@@ -158,6 +158,10 @@ func (sema *sema) checkFnDecl(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
+	if token.IsAnyBuiltin(function.Name.Name()) {
+		return fmt.Errorf("impossible to redefine builtin '%s'", function.Name.Name())
+	}
+
 	err := sema.checkFnAttributes(function.Attributes)
 	if err != nil {
 		return err
@@ -579,6 +583,10 @@ func (sema *sema) checkNormalVarDecl(
 	referenceScope *ast.Scope,
 ) error {
 	if isDecl {
+		if token.IsAnyBuiltin(currentVar.Name.Name()) {
+			return fmt.Errorf("impossible to redefine builtin '%s'", currentVar.Name.Name())
+		}
+
 		_, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
 		if err == nil {
 			return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
