@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -526,19 +527,10 @@ func handleEqualityComparison(operands []*ExprType) (*ExprType, error) {
 	rightType := operands[1]
 
 	boolTy := NewBasicType(token.BOOL_TYPE)
-
-	if leftType.IsPointer() && rightType.IsPointer() {
-		if leftType.Equals(rightType) {
-			return boolTy, nil
-		}
+	if !leftType.Equals(rightType) {
 		return nil, fmt.Errorf("type mismatch: cannot compare %s with %s", leftType.T, rightType.T)
 	}
-
-	if !leftType.IsPointer() && !rightType.IsPointer() {
-		return boolTy, nil
-	}
-
-	return nil, fmt.Errorf("type mismatch: cannot compare pointer and non-pointer type")
+	return boolTy, nil
 }
 
 func handleNumericUnary(operands []*ExprType) (*ExprType, error) {

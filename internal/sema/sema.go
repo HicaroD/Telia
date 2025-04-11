@@ -1442,7 +1442,7 @@ func (s *sema) inferBinaryExprType(
 
 	valid := false
 	for _, validType := range validation.ValidTypes {
-		if validType.Kind == commonType.Kind {
+		if validType.Equals(commonType) {
 			valid = true
 			break
 		}
@@ -1451,8 +1451,8 @@ func (s *sema) inferBinaryExprType(
 		return nil, false, fmt.Errorf(
 			"invalid operand types for %s: %s and %s\n",
 			binary.Op,
-			lhs,
-			rhs,
+			lhs.T,
+			rhs.T,
 		)
 	}
 
@@ -1601,7 +1601,7 @@ func (sema *sema) inferUnaryExprType(
 	if !valid {
 		return nil, false, fmt.Errorf(
 			"invalid operand type %s for operator %s\n",
-			operandType,
+			operandType.T,
 			unary.Op,
 		)
 	}
