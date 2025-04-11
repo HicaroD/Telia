@@ -22,8 +22,9 @@ const (
 )
 
 type ExprType struct {
-	Kind ExprTypeKind
-	T    any
+	Kind     ExprTypeKind
+	T        any
+	Explicit bool
 }
 
 func (t *ExprType) Equals(other *ExprType) bool {
@@ -49,6 +50,14 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 }
 
+// func (t *ExprType) IsLiteral() bool {
+// 	if t.Kind != EXPR_TYPE_BASIC {
+// 		return false
+// 	}
+// 	b := t.T.(*BasicType)
+// 	return b.Kind.IsLiteral()
+// }
+
 func (ty *ExprType) Promote() error {
 	switch ty.Kind {
 	case EXPR_TYPE_BASIC:
@@ -70,7 +79,8 @@ func (ty *ExprType) Promote() error {
 				return err
 			}
 		}
-		// Add more cases for other types, such as structs or aliases, if necessary.
+	default:
+		panic(fmt.Sprintf("unimplemented %s", ty.T))
 	}
 	return nil
 }
@@ -129,20 +139,9 @@ func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
 	return ptr.Type.Kind == pointeeTy
 }
 
-func (ty *ExprType) IsUntyped() bool {
-	if ty.Kind == EXPR_TYPE_BASIC {
-		basic := ty.T.(*BasicType)
-		return basic.IsUntyped()
-	}
-	if ty.Kind == EXPR_TYPE_POINTER {
-		ptr := ty.T.(*PointerType)
-		return ptr.Type.IsUntyped()
-	}
-	return false
-}
-
 type BasicType struct {
-	Kind token.Kind
+	Kind     token.Kind
+	Explicit bool
 }
 
 func NewBasicType(kind token.Kind) *ExprType {
@@ -160,9 +159,6 @@ func NewPointerType(ty *ExprType) *ExprType {
 }
 
 func (left *BasicType) Equals(right *BasicType) bool {
-	if left.Kind.IsUntyped() || right.Kind.IsUntyped() {
-		return left.IsCompatibleWith(right)
-	}
 	return left.Kind == right.Kind
 }
 
@@ -170,24 +166,17 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 	if left.Kind.IsInteger() && right.Kind.IsInteger() {
 		return true
 	}
-
 	if left.Kind.IsFloat() && right.Kind.IsFloat() {
 		return true
 	}
-
-	if left.Kind.IsStringLiteral() && right.Kind.IsStringType() {
+	if left.Kind == token.STRING_TYPE && right.Kind == token.STRING_TYPE {
 		return true
 	}
-
-	if left.Kind == token.UNTYPED_BOOL && right.Kind == token.BOOL_TYPE {
+	if left.Kind == token.BOOL_TYPE && right.Kind == token.BOOL_TYPE {
 		return true
 	}
 
 	return false
-}
-
-func (b *BasicType) IsUntyped() bool {
-	return b.Kind.IsUntyped()
 }
 
 func (basicType BasicType) String() string {
@@ -203,7 +192,8 @@ func (idType IdType) String() string {
 }
 
 type PointerType struct {
-	Type *ExprType
+	Type     *ExprType
+	Explicit bool
 }
 
 func (p *PointerType) Equals(other *PointerType) bool {
@@ -290,10 +280,7 @@ var UnaryOperators = OperatorTable{
 		Handler:    handleNumericUnary,
 	},
 	token.NOT: {
-		ValidTypes: []*ExprType{
-			NewBasicType(token.BOOL_TYPE),
-			NewBasicType(token.UNTYPED_BOOL),
-		},
+		ValidTypes: []*ExprType{NewBasicType(token.BOOL_TYPE)},
 		ResultType: NewBasicType(token.BOOL_TYPE),
 	},
 }
@@ -540,19 +527,10 @@ func handleEqualityComparison(operands []*ExprType) (*ExprType, error) {
 	rightType := operands[1]
 
 	boolTy := NewBasicType(token.BOOL_TYPE)
-
-	if leftType.IsPointer() && rightType.IsPointer() {
-		if leftType.Equals(rightType) {
-			return boolTy, nil
-		}
+	if !leftType.Equals(rightType) {
 		return nil, fmt.Errorf("type mismatch: cannot compare %s with %s", leftType.T, rightType.T)
 	}
-
-	if !leftType.IsPointer() && !rightType.IsPointer() {
-		return boolTy, nil
-	}
-
-	return nil, fmt.Errorf("type mismatch: cannot compare pointer and non-pointer type")
+	return boolTy, nil
 }
 
 func handleNumericUnary(operands []*ExprType) (*ExprType, error) {
