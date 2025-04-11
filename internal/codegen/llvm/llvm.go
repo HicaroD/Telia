@@ -786,7 +786,7 @@ func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Valu
 	ty, val, hasFloat := c.emitExpr(expr)
 
 	noPreload := slices.Contains(NO_PRELOAD, expr.Kind)
-	if noPreload {
+	if noPreload || val.Type().TypeKind() != llvm.PointerTypeKind {
 		return ty, val, hasFloat
 	}
 
