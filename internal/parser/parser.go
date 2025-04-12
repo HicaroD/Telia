@@ -282,7 +282,7 @@ peekAgain:
 	case token.EOF:
 		eof = true
 		return nil, eof, nil
-	case token.SHARP:
+	case token.AT:
 		attrs, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
@@ -364,12 +364,12 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 
 func (p *Parser) parseAttributes() (ast.Attributes, error) {
 	attributes := ast.Attributes{}
-	if !p.lex.NextIs(token.SHARP) {
+	if !p.lex.NextIs(token.AT) {
 		return attributes, nil
 	}
 
 	for {
-		_, ok := p.expect(token.SHARP)
+		_, ok := p.expect(token.AT)
 		if !ok {
 			return attributes, fmt.Errorf("expected '#'")
 		}
@@ -432,7 +432,7 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			return attributes, fmt.Errorf("%s expected new line after the end of attribute", nl.Pos)
 		}
 
-		if !p.lex.NextIs(token.SHARP) {
+		if !p.lex.NextIs(token.AT) {
 			break
 		}
 	}
