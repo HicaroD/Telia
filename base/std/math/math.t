@@ -1,6 +1,6 @@
 package math
 
-#[default_cc="c"]
+@[default_cc="c"]
 extern {
   fn cos(x f64) f64
   fn sin(x f64) f64

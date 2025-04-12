@@ -12,7 +12,7 @@ import (
 	"github.com/HicaroD/Telia/internal/sema"
 )
 
-// NOTE: this variable is set to 1 during build
+// NOTE: this variable is set during build
 var DevMode string
 
 var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.
