@@ -13,7 +13,7 @@ import (
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/lexer/token"
-	"tinygo.org/x/go-llvm"
+	"github.com/HicaroD/Telia/third/go-llvm"
 )
 
 var (
@@ -1276,7 +1276,9 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 		optimizedIrFilepath,
 		irFilepath,
 	}
-	cmd := exec.Command("opt", optCommand...)
+
+	// NOTE: I should not set "opt" path directly here
+	cmd := exec.Command("/usr/lib/llvm18/bin/opt", optCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -1294,7 +1296,7 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 		optimizedIrFilepath,
 		"-lm", // math library
 	}
-	cmd = exec.Command("clang-18", clangCommand...)
+	cmd = exec.Command("/usr/lib/llvm18/bin/clang-18", clangCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
