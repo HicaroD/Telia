@@ -160,7 +160,6 @@ func (p *Parser) ParseFileAsProgram(
 		return nil, nil, err
 	}
 
-	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 	// TODO: add builtins to universe scope
 	packageScope := ast.NewScope(universe)
