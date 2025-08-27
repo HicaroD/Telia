@@ -58,7 +58,7 @@ func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
 	}
 }
 
-func (c *codegen) Generate(buildType config.BuildType) error {
+func (c *codegen) Generate(buildType config.BuildOptimizationType) error {
 	c.generatePackage(c.runtime)
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
@@ -1228,7 +1228,7 @@ func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {
 	return false, -1
 }
 
-func (c *codegen) generateExe(buildType config.BuildType) error {
+func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 	dir, err := os.MkdirTemp("", "build")
 	if err != nil {
 		return err
@@ -1261,10 +1261,10 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	optLevel := ""
 	compilerFlags := ""
 	switch buildType {
-	case config.RELEASE:
+	case config.BUILD_OPT_RELEASE:
 		optLevel = "-O3"
 		compilerFlags += "-Wl,-s" // no debug symbols
-	case config.DEBUG:
+	case config.BUILD_OPT_DEBUG:
 		optLevel = "-O0"
 	default:
 		panic("invalid build type: " + buildType.String())
