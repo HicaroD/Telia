@@ -1,7 +1,7 @@
 package llvm
 
 import (
-	"tinygo.org/x/go-llvm"
+	"github.com/HicaroD/Telia/third/go-llvm"
 )
 
 type LLVMValue interface {

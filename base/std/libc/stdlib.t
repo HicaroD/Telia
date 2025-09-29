@@ -1,6 +1,6 @@
 package libc
 
-#[default_cc="c"]
+@[default_cc="c"]
 extern {
   fn malloc(size c_size_t) rawptr
   fn calloc(num c_size_t, size c_size_t) rawptr

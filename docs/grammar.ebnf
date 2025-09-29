@@ -15,7 +15,7 @@ StructDecl     = "struct" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
 TypeDecl       = "type" ID "=" Type NEWLINE ;
 FnDecl         = "fn" ID Parameters [ Type ] Block ;
 
-Attributes     = "#[" Attribute ( "," Attribute )* "]" NEWLINE ;
+Attributes     = "@[" Attribute ( "," Attribute )* "]" NEWLINE ;
 Attribute      = ID "=" STRING ;
 
 Prototype      = "fn" ID Parameters [ Type ] NEWLINE ;

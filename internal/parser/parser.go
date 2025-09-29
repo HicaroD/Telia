@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -161,7 +160,6 @@ func (p *Parser) ParseFileAsProgram(
 		return nil, nil, err
 	}
 
-	// Universe scope has a nil parent
 	universe := ast.NewScope(nil)
 	// TODO: add builtins to universe scope
 	packageScope := ast.NewScope(universe)
@@ -283,7 +281,7 @@ peekAgain:
 	case token.EOF:
 		eof = true
 		return nil, eof, nil
-	case token.SHARP:
+	case token.AT:
 		attrs, err = p.parseAttributes()
 		if err != nil {
 			return nil, eof, err
@@ -365,12 +363,12 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 
 func (p *Parser) parseAttributes() (ast.Attributes, error) {
 	attributes := ast.Attributes{}
-	if !p.lex.NextIs(token.SHARP) {
+	if !p.lex.NextIs(token.AT) {
 		return attributes, nil
 	}
 
 	for {
-		_, ok := p.expect(token.SHARP)
+		_, ok := p.expect(token.AT)
 		if !ok {
 			return attributes, fmt.Errorf("expected '#'")
 		}
@@ -390,7 +388,7 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			return attributes, fmt.Errorf("expected '='")
 		}
 
-		attributeValue, ok := p.expect(token.UNTYPED_STRING)
+		attributeValue, ok := p.expect(token.STRING_TYPE)
 		if !ok {
 			return attributes, fmt.Errorf("expected string literal")
 		}
@@ -433,7 +431,7 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			return attributes, fmt.Errorf("%s expected new line after the end of attribute", nl.Pos)
 		}
 
-		if !p.lex.NextIs(token.SHARP) {
+		if !p.lex.NextIs(token.AT) {
 			break
 		}
 	}
@@ -669,7 +667,7 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		hasImportAlias = true
 	}
 
-	useStr, ok := p.expect(token.UNTYPED_STRING)
+	useStr, ok := p.expect(token.STRING_TYPE)
 	// TODO(errors)
 	if !ok {
 		return nil, fmt.Errorf("error: expected import string, not %s\n", useStr.Kind.String())
@@ -1234,6 +1232,7 @@ func (p *Parser) parseFnParams(
 
 func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 	ty := new(ast.ExprType)
+	ty.Explicit = true
 
 	if (isPrototype && p.lex.NextIs(token.NEWLINE)) ||
 		p.lex.NextIs(token.OPEN_CURLY) {
@@ -1259,6 +1258,7 @@ func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
+	returnType.Explicit = true
 	return returnType, nil
 }
 
@@ -1287,6 +1287,7 @@ func (p *Parser) expectOneOf(kinds []token.Kind) (*token.Token, bool) {
 
 func (p *Parser) parseExprType() (*ast.ExprType, error) {
 	t := new(ast.ExprType)
+	t.Explicit = true
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
@@ -1298,7 +1299,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		}
 
 		t.Kind = ast.EXPR_TYPE_POINTER
-		t.T = &ast.PointerType{Type: ty}
+		t.T = &ast.PointerType{Type: ty, Explicit: true}
 	case token.ID:
 		p.lex.Skip()
 		t.Kind = ast.EXPR_TYPE_ID
@@ -1314,7 +1315,7 @@ func (p *Parser) parseExprType() (*ast.ExprType, error) {
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
 			t.Kind = ast.EXPR_TYPE_BASIC
-			t.T = &ast.BasicType{Kind: tok.Kind}
+			t.T = &ast.BasicType{Kind: tok.Kind, Explicit: true}
 			return t, nil
 		}
 		return nil, fmt.Errorf("%s: expected type, not %s", tok.Pos, tok.Name())
@@ -1338,6 +1339,7 @@ func (p *Parser) parseTupleExpr() (*ast.TupleType, error) {
 		if err != nil {
 			return nil, err
 		}
+		ty.Explicit = true
 		types = append(types, ty)
 
 		if p.lex.NextIs(token.COMMA) {
@@ -1396,13 +1398,13 @@ func (p *Parser) parseStmt(
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-	case token.ID, token.STAR:
-		endsWithNewLine = true
-		idStmt, err := p.ParseIdStmt(parentScope)
-		if err != nil {
-			return nil, err
-		}
-		n = idStmt
+	// case token.ID, token.STAR:
+	// 	endsWithNewLine = true
+	// 	idStmt, err := p.ParseIdStmt(parentScope)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	n = idStmt
 	case token.IF:
 		condStmt, err := p.parseCondStmt(parentScope)
 		if err != nil {
@@ -1432,8 +1434,11 @@ func (p *Parser) parseStmt(
 		}
 		n = deferStmt
 	default:
-		log.Fatalf("unimplemented: %s\n", tok.Kind)
-		return nil, nil
+		assignment, err := p.parseAssignment(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = assignment
 	}
 
 	if endsWithNewLine {
@@ -1523,6 +1528,96 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		return namespaceAccessing, err
 	default:
 		return p.parseVar(parentScope)
+	}
+}
+
+func (p *Parser) parseAssignment(parentScope *ast.Scope) (*ast.Node, error) {
+	lhs := make([]*ast.Node, 0)
+
+Targets:
+	for {
+		target, err := p.parseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+
+		if target.Kind == ast.KIND_ID_EXPR {
+			id := target.Node.(*ast.IdExpr)
+
+			varId := new(ast.VarIdStmt)
+			varId.Name = id.Name
+			varId.NeedsInference = true
+
+			target.Kind = ast.KIND_VAR_ID_STMT
+			target.Node = varId
+		}
+		lhs = append(lhs, target)
+
+		next := p.lex.Peek()
+		switch next.Kind {
+		case token.COLON_EQUAL, token.EQUAL, token.NEWLINE, token.EOF:
+			break Targets
+		case token.COMMA:
+			p.lex.Skip() // ,
+			continue
+		}
+
+		ty, err := p.parseExprType()
+		if err != nil {
+			return nil, err
+		}
+
+		if target.Kind == ast.KIND_VAR_ID_STMT {
+			varId := target.Node.(*ast.VarIdStmt)
+			varId.Type = ty
+			varId.NeedsInference = false
+		} else {
+			// TODO(errors)
+			return nil, fmt.Errorf("type specification not allowed for expression type %s", target.Kind)
+		}
+
+		next = p.lex.Peek()
+		switch next.Kind {
+		case token.COLON_EQUAL, token.EQUAL, token.NEWLINE, token.EOF:
+			break Targets
+		case token.COMMA:
+			p.lex.Skip() // ,
+			continue
+		}
+	}
+
+	next := p.lex.Peek()
+	switch next.Kind {
+	case token.NEWLINE:
+		// TODO(errors)
+		if len(lhs) != 1 {
+			return nil, fmt.Errorf("invalid multiple expression usage")
+		}
+		return lhs[0], nil
+	case token.COLON_EQUAL, token.EQUAL:
+		p.lex.Skip() // := or =
+
+		rhs, err := p.parseExprList(
+			[]token.Kind{token.NEWLINE, token.AT, token.OPEN_CURLY, token.EOF},
+			parentScope,
+		)
+		// TODO(errors)
+		if err != nil {
+			return nil, err
+		}
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_ASSIGNMENT_STMT
+
+		assignment := new(ast.AssignmentStmt)
+		assignment.Decl = next.Kind == token.COLON_EQUAL
+		assignment.Targets = lhs
+		assignment.Values = rhs
+
+		n.Node = assignment
+		return n, nil
+	default:
+		return nil, fmt.Errorf("expected assignment or new line, not end of file")
 	}
 }
 
@@ -2014,7 +2109,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 		}
 		return nullptr, nil
 	default:
-		if tok.Kind.IsUntyped() {
+		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
 
 			n.Kind = ast.KIND_LITERAL_EXPR
@@ -2061,7 +2156,6 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 
 	peeked1 := p.lex.PeekN(1)
 	peeked2 := p.lex.PeekN(2)
-
 	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/HicaroD/Telia/internal/sema"
 )
 
-// NOTE: this variable is set to 1 during build
+// NOTE: this variable is set during build
 var DevMode string
 
 var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.
@@ -60,17 +60,13 @@ func main() {
 		config.ENVS.ShowAll()
 		return
 	case COMMAND_BUILD:
-		var program *ast.Program
-		var runtime *ast.Package
-		var err error
-
 		collector := diagnostics.New()
 
+		buildType := BUILD_TYPE_FILE
 		if args.Loc.IsPackage {
-			program, runtime, err = buildPackage(args.ArgLoc, args.Loc, collector)
-		} else {
-			program, runtime, err = buildFile(args.ArgLoc, args.Loc, collector)
+			buildType = BUILD_TYPE_PACKAGE
 		}
+		program, runtime, err := buildAll(args.ArgLoc, args.Loc, collector, buildType)
 
 		// TODO(errors)
 		if err != nil {
@@ -90,7 +86,7 @@ func main() {
 
 		// TODO: properly set directory
 		codegen := llvm.NewCG(args.Loc, program, runtime)
-		err = codegen.Generate(args.BuildType)
+		err = codegen.Generate(args.BuildOptType)
 		// TODO(errors)
 		if err != nil {
 			log.Fatal(err)
@@ -117,22 +113,39 @@ func SetupAll() error {
 	return nil
 }
 
-func buildPackage(
-	argLoc string,
-	loc *ast.Loc,
-	collector *diagnostics.Collector,
-) (*ast.Program, *ast.Package, error) {
-	p := parser.New(collector)
-	program, runtime, err := p.ParsePackageAsProgram(argLoc, loc)
-	return program, runtime, err
+type BuildType int
+
+const (
+	BUILD_TYPE_FILE BuildType = iota
+	BUILD_TYPE_PACKAGE
+)
+
+func (bt BuildType) String() string {
+	switch bt {
+	case BUILD_TYPE_FILE:
+		return "file"
+	case BUILD_TYPE_PACKAGE:
+		return "package"
+	}
+	return "unknown"
 }
 
-func buildFile(
+func buildAll(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
+	ty BuildType,
 ) (*ast.Program, *ast.Package, error) {
-	p := parser.New(collector)
-	program, runtime, err := p.ParseFileAsProgram(argLoc, loc, collector)
-	return program, runtime, err
+	switch ty {
+	case BUILD_TYPE_PACKAGE:
+		p := parser.New(collector)
+		program, runtime, err := p.ParsePackageAsProgram(argLoc, loc)
+		return program, runtime, err
+	case BUILD_TYPE_FILE:
+		p := parser.New(collector)
+		program, runtime, err := p.ParseFileAsProgram(argLoc, loc, collector)
+		return program, runtime, err
+	default:
+		return nil, nil, fmt.Errorf("unknown build type: %s", ty)
+	}
 }

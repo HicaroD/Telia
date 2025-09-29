@@ -1,17 +1,17 @@
 package config
 
-type BuildType int
+type BuildOptimizationType int
 
 const (
-	RELEASE BuildType = iota
-	DEBUG
+	BUILD_OPT_RELEASE BuildOptimizationType = iota
+	BUILD_OPT_DEBUG
 )
 
-func (bt BuildType) String() string {
+func (bt BuildOptimizationType) String() string {
 	switch bt {
-	case RELEASE:
+	case BUILD_OPT_RELEASE:
 		return "release"
-	case DEBUG:
+	case BUILD_OPT_DEBUG:
 		return "debug"
 	}
 	return "unknown"

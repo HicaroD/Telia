@@ -18,6 +18,12 @@ func (block BlockStmt) String() string {
 	return fmt.Sprintf("\n'{' %s\n%s\n'}' %s", block.OpenCurly, block.Statements, block.CloseCurly)
 }
 
+type AssignmentStmt struct {
+	Decl    bool
+	Targets []*Node
+	Values  []*Node
+}
+
 type VarIdStmt struct {
 	Name                     *token.Token
 	Type                     *ExprType

@@ -18,10 +18,10 @@ const (
 )
 
 type CliResult struct {
-	Command   Command
-	BuildType config.BuildType
-	ArgLoc    string
-	Loc       *ast.Loc
+	Command      Command
+	BuildOptType config.BuildOptimizationType
+	ArgLoc       string
+	Loc          *ast.Loc
 }
 
 func cli() (CliResult, error) {
@@ -59,7 +59,7 @@ func cli() (CliResult, error) {
 		result.Loc = loc
 
 		releaseBuildSet, debugBuildSet := false, false
-		result.BuildType = config.DEBUG
+		result.BuildOptType = config.BUILD_OPT_DEBUG
 
 		// TODO: check for unknown flags, the user might mispell the command
 		for _, arg := range args[1:] {
@@ -69,13 +69,13 @@ func cli() (CliResult, error) {
 					return result, fmt.Errorf("duplicate -release flag")
 				}
 				releaseBuildSet = true
-				result.BuildType = config.RELEASE
+				result.BuildOptType = config.BUILD_OPT_RELEASE
 			case "-debug":
 				if debugBuildSet {
 					return result, fmt.Errorf("duplicate -debug flag")
 				}
 				debugBuildSet = true
-				result.BuildType = config.DEBUG
+				result.BuildOptType = config.BUILD_OPT_DEBUG
 			}
 		}
 		// TODO(errors)

@@ -13,7 +13,7 @@ import (
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/lexer/token"
-	"tinygo.org/x/go-llvm"
+	"github.com/HicaroD/Telia/third/go-llvm"
 )
 
 var (
@@ -58,7 +58,7 @@ func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
 	}
 }
 
-func (c *codegen) Generate(buildType config.BuildType) error {
+func (c *codegen) Generate(buildType config.BuildOptimizationType) error {
 	c.generatePackage(c.runtime)
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
@@ -191,6 +191,8 @@ func (c *codegen) emitStmt(
 		c.emitForLoop(stmt.Node.(*ast.ForLoop), function)
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.emitWhileLoop(stmt.Node.(*ast.WhileLoop), function)
+	case ast.KIND_ASSIGNMENT_STMT:
+		c.emitAssignment(stmt.Node.(*ast.AssignmentStmt))
 	case ast.KIND_DEFER_STMT:
 		break
 	default:
@@ -232,13 +234,35 @@ func (c *codegen) emitVar(variable *ast.VarStmt) {
 			variable.Names[0],
 			variable.Expr,
 			variable.IsDecl,
-			variable.Pointer,
 		)
+	}
+}
+
+func (c *codegen) emitAssignment(variable *ast.AssignmentStmt) {
+	t := 0
+	for _, value := range variable.Values {
+		switch value.Kind {
+		case ast.KIND_FN_CALL:
+			fnCall := value.Node.(*ast.FnCall)
+			if fnCall.Decl.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+				tupleType := fnCall.Decl.RetType.T.(*ast.TupleType)
+				affectedVariables := variable.Targets[t : t+len(tupleType.Types)]
+				c.emitFnCallForTuple(affectedVariables, fnCall, variable.Decl)
+				t += len(affectedVariables)
+			} else {
+				c.emitVariable(variable.Targets[t], value, variable.Decl)
+				t++
+			}
+		default:
+			c.emitVariable(variable.Targets[t], value, variable.Decl)
+			t++
+		}
 	}
 }
 
 func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.TupleExpr) {
 	t := 0
+
 	for _, expr := range tuple.Exprs {
 		switch expr.Kind {
 		case ast.KIND_TUPLE_LITERAL_EXPR:
@@ -248,7 +272,6 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 					variable.Names[t],
 					innerExpr,
 					variable.IsDecl,
-					variable.Pointer,
 				)
 				t++
 			}
@@ -260,11 +283,11 @@ func (c *codegen) emitTupleLiteralAsVarValue(variable *ast.VarStmt, tuple *ast.T
 				c.emitFnCallForTuple(affectedVariables, fnCall, variable.IsDecl)
 				t += len(affectedVariables)
 			} else {
-				c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
+				c.emitVariable(variable.Names[t], expr, variable.IsDecl)
 				t++
 			}
 		default:
-			c.emitVariable(variable.Names[t], expr, variable.IsDecl, variable.Pointer)
+			c.emitVariable(variable.Names[t], expr, variable.IsDecl)
 			t++
 		}
 	}
@@ -277,17 +300,17 @@ func (c *codegen) emitFnCallForTuple(variables []*ast.Node, fnCall *ast.FnCall, 
 		c.emitVariableWithValue(variables[0], genFnCall, isDecl)
 	} else {
 		for i, currentVar := range variables {
-			value := builder.CreateExtractValue(genFnCall, i, ".arg")
+			value := builder.CreateExtractValue(genFnCall, i, "")
 			c.emitVariableWithValue(currentVar, value, isDecl)
 		}
 	}
 }
 
-func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl, pointerReceiver bool) {
+func (c *codegen) emitVariable(name *ast.Node, expr *ast.Node, isDecl bool) {
 	if isDecl {
 		c.emitVarDecl(name, expr)
 	} else {
-		c.emitVarReassign(name, expr, pointerReceiver)
+		c.emitVarReassign(name, expr)
 	}
 }
 
@@ -330,9 +353,7 @@ func (c *codegen) emitVarDecl(
 func (c *codegen) emitVarReassign(
 	name *ast.Node,
 	expr *ast.Node,
-	pointerReceiver bool,
 ) {
-	var vT *ast.ExprType
 	var p llvm.Value
 
 	switch name.Kind {
@@ -345,11 +366,9 @@ func (c *codegen) emitVarReassign(
 		case ast.KIND_VAR_ID_STMT:
 			variable := varId.N.Node.(*ast.VarIdStmt)
 			v = variable.BackendType.(*Variable)
-			vT = variable.Type
 		case ast.KIND_PARAM:
 			param := varId.N.Node.(*ast.Param)
 			v = param.BackendType.(*Variable)
-			vT = param.Type
 		default:
 			panic(fmt.Sprintf("unimplemented kind of name expression: %v\n", varId.N))
 		}
@@ -358,9 +377,10 @@ func (c *codegen) emitVarReassign(
 	case ast.KIND_FIELD_ACCESS:
 		f := name.Node.(*ast.FieldAccess)
 		_, p = c.getStructFieldPtr(f)
-		vT = f.AccessedField.Type
+	case ast.KIND_DEREF_POINTER_EXPR:
+		_, p, _ = c.emitExpr(name)
 	default:
-		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name.Kind)
+		log.Fatalf("invalid symbol on generateVarReassign: %v\n", name)
 	}
 
 	if p.IsNil() {
@@ -368,14 +388,6 @@ func (c *codegen) emitVarReassign(
 	}
 
 	_, e, _ := c.emitExprWithLoadIfNeeded(expr)
-	if pointerReceiver {
-		for vT.IsPointer() {
-			ptrTy := c.emitType(vT)
-			p = builder.CreateLoad(ptrTy, p, "")
-			pointeeType := vT.T.(*ast.PointerType)
-			vT = pointeeType.Type
-		}
-	}
 	builder.CreateStore(e, p)
 }
 
@@ -392,7 +404,6 @@ func (c *codegen) getStructFieldPtr(fieldAccess *ast.FieldAccess) (llvm.Type, ll
 		var obj *Variable
 
 		if fieldAccess.Param {
-			fmt.Println(fieldAccess.StructParam.Type.T)
 			objTy = fieldAccess.StructParam.Type
 			obj = fieldAccess.StructParam.BackendType.(*Variable)
 		} else {
@@ -479,19 +490,18 @@ func (c *codegen) emitFnCall(call *ast.FnCall) (llvm.Type, llvm.Value, bool) {
 	return ty, builder.CreateCall(ty, fn, args, ""), hasFloat
 }
 
-func (c *codegen) getFnCallName(fnCall *ast.FnCall) string {
+func (c *codegen) getFnCallName(call *ast.FnCall) string {
 	var attrs ast.Attributes
-
-	if fnCall.Proto != nil {
-		attrs = fnCall.Proto.Attributes
+	if call.Proto != nil {
+		attrs = call.Proto.Attributes
 	} else {
-		attrs = fnCall.Decl.Attributes
+		attrs = call.Decl.Attributes
 	}
 
 	if attrs.LinkName != "" {
 		return attrs.LinkName
 	}
-	return fnCall.Name.Name()
+	return call.Name.Name()
 }
 
 func (c *codegen) emitTupleExpr(tuple *ast.TupleExpr) (llvm.Type, llvm.Value, bool) {
@@ -536,21 +546,21 @@ func (c *codegen) emitStructLiteral(lit *ast.StructLiteralExpr) (llvm.Type, llvm
 	globalConst.SetUnnamedAddr(true)
 
 	structAlloca := builder.CreateAlloca(st, "")
-	sizeOf := c.emitSizeOf(st)
-	c.emitStructMemcpy(structAlloca, globalConst, sizeOf)
+	sizeOf := c.emitSizeOfType(st)
+	c.emitMemcpy(structAlloca, globalConst, sizeOf)
 	return st, structAlloca, false
 }
 
-func (c *codegen) emitSizeOf(structType llvm.Type) llvm.Value {
-	nullPtr := llvm.ConstNull(llvm.PointerType(structType, 0))
-	gep := llvm.ConstGEP(structType, nullPtr, []llvm.Value{
+func (c *codegen) emitSizeOfType(ty llvm.Type) llvm.Value {
+	nullPtr := llvm.ConstNull(llvm.PointerType(ty, 0))
+	gep := llvm.ConstGEP(ty, nullPtr, []llvm.Value{
 		llvm.ConstInt(context.Int32Type(), 1, false),
 	})
 	size := builder.CreatePtrToInt(gep, context.Int64Type(), "")
 	return size
 }
 
-func (c *codegen) emitStructMemcpy(dest, src, size llvm.Value) {
+func (c *codegen) emitMemcpy(dest, src, size llvm.Value) {
 	c.emitRuntimeCall("llvm.memcpy.p0.p0.i64",
 		[]llvm.Value{
 			dest, // destination (ptr)
@@ -681,14 +691,14 @@ func (c *codegen) emitType(ty *ast.ExprType) llvm.Type {
 			return c.emitPtrType(u8Type)
 		case token.RAWPTR_TYPE:
 			return B_RAWPTR_TYPE
-		case token.UNTYPED_BOOL:
-			panic("unimplemented untyped bool")
-		case token.UNTYPED_INT:
-			panic("unimplemented untyped int")
-		case token.UNTYPED_FLOAT:
-			panic("unimplemented untyped float")
-		case token.UNTYPED_STRING:
-			panic("unimplemented untyped string")
+		// case token.UNTYPED_BOOL:
+		// 	panic("unimplemented untyped bool")
+		// case token.UNTYPED_INT:
+		// 	panic("unimplemented untyped int")
+		// case token.UNTYPED_FLOAT:
+		// 	panic("unimplemented untyped float")
+		// case token.UNTYPED_STRING:
+		// 	panic("unimplemented untyped string")
 		case token.UNTYPED_NULLPTR:
 			panic("unimplemented untyped nullptr")
 		default:
@@ -763,7 +773,6 @@ func (c *codegen) emitCallArgs(call *ast.FnCall) []llvm.Value {
 }
 
 var NO_PRELOAD = []ast.NodeKind{
-	ast.KIND_DEREF_POINTER_EXPR,
 	ast.KIND_ADDRESS_OF_EXPR,
 	ast.KIND_LITERAL_EXPR,
 	ast.KIND_FN_CALL,
@@ -777,7 +786,7 @@ func (c *codegen) emitExprWithLoadIfNeeded(expr *ast.Node) (llvm.Type, llvm.Valu
 	ty, val, hasFloat := c.emitExpr(expr)
 
 	noPreload := slices.Contains(NO_PRELOAD, expr.Kind)
-	if noPreload {
+	if noPreload || val.Type().TypeKind() != llvm.PointerTypeKind {
 		return ty, val, hasFloat
 	}
 
@@ -923,11 +932,9 @@ func (c *codegen) emitIdExpr(id *ast.IdExpr) (llvm.Type, llvm.Value, bool) {
 }
 
 func (c *codegen) emitDerefPtrExpr(deref *ast.DerefPointerExpr) (llvm.Type, llvm.Value, bool) {
-	_, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
-	ty := c.emitType(deref.Type)
+	ty, v, hasFloat := c.emitExprWithLoadIfNeeded(deref.Expr)
 	c.emitRuntimeCall("_check_nil_pointer_deref", []llvm.Value{v})
-	l := builder.CreateLoad(ty, v, "")
-	return ty, l, hasFloat
+	return ty, v, hasFloat
 }
 
 func (c *codegen) emitBinExpr(bin *ast.BinExpr) (llvm.Type, llvm.Value, bool) {
@@ -995,6 +1002,10 @@ func (c *codegen) emitIntBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Valu
 		return builder.CreateAdd(lhs, rhs, "")
 	case token.SLASH:
 		return builder.CreateExactSDiv(lhs, rhs, "")
+	case token.AND:
+		return builder.CreateAnd(lhs, rhs, "")
+	case token.OR:
+		return builder.CreateOr(lhs, rhs, "")
 	default:
 		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
 	}
@@ -1033,6 +1044,10 @@ func (c *codegen) emitFloatBinExpr(lhs llvm.Value, binOp token.Kind, rhs llvm.Va
 		return builder.CreateFAdd(lhs, rhs, "")
 	case token.SLASH:
 		return builder.CreateFDiv(lhs, rhs, "")
+	case token.AND:
+		return builder.CreateAnd(lhs, rhs, "")
+	case token.OR:
+		return builder.CreateOr(lhs, rhs, "")
 	default:
 		panic(fmt.Sprintf("unsupported binary operator: %v", binOp))
 	}
@@ -1213,7 +1228,7 @@ func (c *codegen) checkFloatTypeForBitSize(ty *ast.ExprType) (bool, int) {
 	return false, -1
 }
 
-func (c *codegen) generateExe(buildType config.BuildType) error {
+func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 	dir, err := os.MkdirTemp("", "build")
 	if err != nil {
 		return err
@@ -1246,10 +1261,10 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 	optLevel := ""
 	compilerFlags := ""
 	switch buildType {
-	case config.RELEASE:
+	case config.BUILD_OPT_RELEASE:
 		optLevel = "-O3"
 		compilerFlags += "-Wl,-s" // no debug symbols
-	case config.DEBUG:
+	case config.BUILD_OPT_DEBUG:
 		optLevel = "-O0"
 	default:
 		panic("invalid build type: " + buildType.String())
@@ -1261,7 +1276,9 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 		optimizedIrFilepath,
 		irFilepath,
 	}
-	cmd := exec.Command("opt", optCommand...)
+
+	// NOTE: I should not set "opt" path directly here
+	cmd := exec.Command("/usr/lib/llvm18/bin/opt", optCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -1279,7 +1296,7 @@ func (c *codegen) generateExe(buildType config.BuildType) error {
 		optimizedIrFilepath,
 		"-lm", // math library
 	}
-	cmd = exec.Command("clang-18", clangCommand...)
+	cmd = exec.Command("/usr/lib/llvm18/bin/clang-18", clangCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
