@@ -5,13 +5,10 @@ import (
 	"log"
 	"reflect"
 	"slices"
-	"strconv"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
-	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
-	"github.com/HicaroD/Telia/internal/parser"
 )
 
 type sema struct {
@@ -255,13 +252,7 @@ func (sema *sema) checkExternAttributes(attributes ast.Attributes) error {
 
 	// TODO: check linkage
 
-	ccFound := false
-	for _, cc := range VALID_CALLING_CONVENTIONS {
-		if cc == attributes.DefaultCallingConvention {
-			ccFound = true
-			break
-		}
-	}
+	ccFound := slices.Contains(VALID_CALLING_CONVENTIONS, attributes.DefaultCallingConvention)
 	if !ccFound {
 		return fmt.Errorf("invalid calling convention: '%s'\n", attributes.DefaultCallingConvention)
 	}
@@ -291,11 +282,8 @@ func (sema *sema) checkFnAttributes(attributes ast.Attributes) error {
 	linkageFound := false
 
 	if attributes.Linkage != "" {
-		for _, l := range VALID_FUNCTION_LINKAGES {
-			if l == attributes.Linkage {
-				linkageFound = true
-				break
-			}
+		if slices.Contains(VALID_FUNCTION_LINKAGES, attributes.Linkage) {
+			linkageFound = true
 		}
 
 		if !linkageFound {
@@ -370,7 +358,7 @@ func (sema *sema) checkIdType(idTy *ast.IdType, declScope *ast.Scope) (*ast.Expr
 		stTy.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
 		return stTy, nil
 	default:
-		panic(fmt.Sprintf("unknown id type: %s\n", symbol.Kind))
+		panic(fmt.Sprintf("unknown id type: %v\n", symbol.Kind))
 	}
 }
 
@@ -490,13 +478,12 @@ func (sema *sema) checkStmt(
 			assignment,
 			referenceScope,
 			declScope,
-			returnTy,
 			fromImportPackage,
 			isArg,
 		)
 		return err
 	default:
-		return fmt.Errorf("error: unimplemented statement on sema: %s\n", stmt.Kind)
+		return fmt.Errorf("error: unimplemented statement on sema: %v\n", stmt.Kind)
 	}
 }
 
@@ -516,7 +503,7 @@ func (sema *sema) checkVar(
 				referenceScope,
 			)
 		} else {
-			_, _, err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope, declScope, fromImportPackage)
+			_, _, err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope)
 		}
 
 		if err != nil {
@@ -543,7 +530,6 @@ func (sema *sema) checkVar(
 				variable.Names,
 				fnRetType.T.(*ast.TupleType),
 				referenceScope,
-				fromImportPackage,
 			)
 			return err
 		} else {
@@ -631,7 +617,6 @@ func (sema *sema) checkTupleTypeAssignedToVariable(
 	variables []*ast.Node,
 	tupleTy *ast.TupleType,
 	referenceScope *ast.Scope,
-	fromImportPackage bool,
 ) error {
 	if len(variables) != len(tupleTy.Types) {
 		return fmt.Errorf("expected %d variables, but got %d", len(tupleTy.Types), len(variables))
@@ -646,17 +631,17 @@ func (sema *sema) checkTupleTypeAssignedToVariable(
 				currentVar.Type = ty
 			} else if !currentVar.Type.Equals(ty) {
 				// TODO(errors)
-				return fmt.Errorf("type mismatch: expected %s, got %s\n", ty, currentVar.Type)
+				return fmt.Errorf("type mismatch: expected %v, got %v\n", ty, currentVar.Type)
 			}
 		} else {
 			currentVar := n.Node.(*ast.FieldAccess)
-			_, field, err := sema.getAccessedField(currentVar, referenceScope, fromImportPackage)
+			_, field, err := sema.getAccessedField(currentVar, referenceScope)
 			if err != nil {
 				return err
 			}
 			// TODO(errors)
 			if !field.Type.Equals(ty) {
-				return fmt.Errorf("type mismatch: expected %s, got %s\n", ty, field.Type)
+				return fmt.Errorf("type mismatch: expected %v, got %v\n", ty, field.Type)
 			}
 		}
 	}
@@ -700,7 +685,7 @@ func (sema *sema) checkVarExpr(
 			isArg,
 		)
 	default:
-		panic(fmt.Sprintf("unimplemented %s", variable.Kind))
+		panic(fmt.Sprintf("unimplemented %v", variable.Kind))
 	}
 
 	return err
@@ -753,7 +738,7 @@ func (sema *sema) checkNormalVarExpr(
 		// TODO(errors): need a test for it
 		if variable.Type != nil {
 			return nil, fmt.Errorf(
-				"needs inference, but variable already has a type: %s",
+				"needs inference, but variable already has a type: %v",
 				variable.Type,
 			)
 		}
@@ -787,7 +772,7 @@ func (sema *sema) checkFieldAccessExpr(
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	_, field, err := sema.getAccessedField(variable, referenceScope, fromImportPackage)
+	_, field, err := sema.getAccessedField(variable, referenceScope)
 	if err != nil {
 		return nil, err
 	}
@@ -806,7 +791,7 @@ func (sema *sema) checkFieldAccessExpr(
 	// NOTE: I don't this check is necessary
 	if !field.Type.Equals(exprTy) {
 		return nil, fmt.Errorf(
-			"type mismatch on variable decl, expected %s, got %s",
+			"type mismatch on variable decl, expected %v, got %v",
 			field.Type,
 			exprTy,
 		)
@@ -817,7 +802,7 @@ func (sema *sema) checkFieldAccessExpr(
 func (sema *sema) getAccessedField(
 	fieldAccess *ast.FieldAccess,
 	referenceScope *ast.Scope,
-	fromImportPackage bool,
+	// fromImportPackage bool,
 ) (*ast.IdExpr, *ast.StructField, error) {
 	id := fieldAccess.Left.Name.Name()
 	sym, err := referenceScope.LookupCurrentScope(id)
@@ -892,34 +877,6 @@ func (sema *sema) getAccessedField(
 	default:
 		return nil, nil, fmt.Errorf("other field access type was found during sema")
 	}
-}
-
-// Useful for testing
-func checkVarDeclFrom(input, filename string) (*ast.VarIdStmt, error) {
-	collector := diagnostics.New()
-
-	src := []byte(input)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	par := parser.NewWithLex(lex, collector)
-
-	tmpScope := ast.NewScope(nil)
-	varStmt, err := par.ParseIdStmt(tmpScope)
-	if err != nil {
-		return nil, err
-	}
-
-	sema := New(collector)
-	parent := ast.NewScope(nil)
-	referenceScope := ast.NewScope(parent)
-	declScope := ast.NewScope(parent)
-	err = sema.checkVar(varStmt.Node.(*ast.VarStmt), referenceScope, declScope, false, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return varStmt.Node.(*ast.VarIdStmt), nil
 }
 
 func (sema *sema) checkCondStmt(
@@ -1191,7 +1148,6 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_FN_CALL:
 		return s.inferFnCallExprTypeWithContext(
 			expr.Node.(*ast.FnCall),
-			expectedType,
 			referenceScope,
 			declScope,
 			fromImportPackage,
@@ -1220,8 +1176,6 @@ func (s *sema) inferExprTypeWithContext(
 			expr.Node.(*ast.FieldAccess),
 			expectedType,
 			referenceScope,
-			declScope,
-			fromImportPackage,
 		)
 	case ast.KIND_DEREF_POINTER_EXPR:
 		return s.inferDerefPtrExprTypeWithContext(
@@ -1245,10 +1199,10 @@ func (s *sema) inferExprTypeWithContext(
 		return s.inferNullptrExprTypeWithContext(
 			expr.Node.(*ast.NullPtrExpr),
 			expectedType,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			isArg,
+			// referenceScope,
+			// declScope,
+			// fromImportPackage,
+			// isArg,
 		)
 	default:
 		panic(fmt.Sprintf("infer expr type with context - unimplemented expr: %v\n", expr))
@@ -1301,7 +1255,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 		idTy = symbol.Node.(*ast.Param).Type
 	default:
 		// TODO(errors)
-		return nil, fmt.Errorf("expected to be a variable or parameter, but got %s", symbol.Kind)
+		return nil, fmt.Errorf("expected to be a variable or parameter, but got %v", symbol.Kind)
 	}
 
 	switch idTy.Kind {
@@ -1424,7 +1378,6 @@ func (s *sema) inferBinaryExprType(
 ) (*ast.ExprType, bool, error) {
 	lhs, rhs, ctx, err := s.ensureBinaryOperatorsAreTheSame(
 		binary,
-		expectedType,
 		referenceScope,
 		declScope,
 		fromImportPackage,
@@ -1483,7 +1436,6 @@ func (s *sema) inferBinaryExprType(
 
 func (s *sema) ensureBinaryOperatorsAreTheSame(
 	binary *ast.BinExpr,
-	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
@@ -1590,13 +1542,7 @@ func (sema *sema) inferUnaryExprType(
 		return nil, false, fmt.Errorf("invalid unary operator: %s\n", unary.Op)
 	}
 
-	valid := false
-	for _, validType := range validation.ValidTypes {
-		if operandType.Equals(validType) {
-			valid = true
-			break
-		}
-	}
+	valid := slices.ContainsFunc(validation.ValidTypes, operandType.Equals)
 
 	if !valid {
 		return nil, false, fmt.Errorf(
@@ -1613,7 +1559,7 @@ func (sema *sema) inferUnaryExprType(
 
 	if expectedType != nil && resultType.Kind != expectedType.Kind {
 		return nil, false, fmt.Errorf(
-			"type mismatch: expected %s, got %s\n",
+			"type mismatch: expected %v, got %v\n",
 			expectedType,
 			resultType,
 		)
@@ -1624,7 +1570,6 @@ func (sema *sema) inferUnaryExprType(
 
 func (sema *sema) inferFnCallExprTypeWithContext(
 	fnCall *ast.FnCall,
-	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
@@ -1637,7 +1582,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 func (sema *sema) inferVoidExprTypeWithContext(expectedType *ast.ExprType) (*ast.ExprType, error) {
 	// TODO(errors)
 	if !expectedType.IsVoid() {
-		return nil, fmt.Errorf("expected return type to be '%s'", expectedType)
+		return nil, fmt.Errorf("expected return type to be '%v'", expectedType)
 	}
 	return expectedType, nil
 }
@@ -1651,7 +1596,7 @@ func (sema *sema) inferTupleExprTypeWithContext(
 ) (*ast.ExprType, error) {
 	// TODO(errors)
 	if expectedType.Kind != ast.EXPR_TYPE_TUPLE {
-		return nil, fmt.Errorf("expected to be %s, got tuple\n", expectedType)
+		return nil, fmt.Errorf("expected to be %v, got tuple\n", expectedType)
 	}
 	expectedTuple := expectedType.T.(*ast.TupleType)
 
@@ -1743,14 +1688,10 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 	fieldAccess *ast.FieldAccess,
 	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	_, field, err := s.checkFieldAccessVariable(
 		fieldAccess,
 		referenceScope,
-		declScope,
-		fromImportPackage,
 	)
 	if err != nil {
 		return nil, err
@@ -1801,10 +1742,10 @@ func (s *sema) inferPtrExprWithContext(
 func (s *sema) inferNullptrExprTypeWithContext(
 	nullptr *ast.NullPtrExpr,
 	expectedType *ast.ExprType,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-	isArg bool,
+	// referenceScope *ast.Scope,
+	// declScope *ast.Scope,
+	// fromImportPackage bool,
+	// isArg bool,
 ) (*ast.ExprType, error) {
 	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
@@ -1832,64 +1773,6 @@ func (s *sema) inferBasicExprTypeWithContext(
 	return actual, nil
 }
 
-// Useful for testing
-func inferExprTypeWithoutContext(
-	input, filename string,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-) (*ast.Node, *ast.ExprType, error) {
-	collector := diagnostics.New()
-
-	expr, err := parser.ParseExprFrom(input, filename)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	analyzer := New(collector)
-	exprType, _, err := analyzer.inferExprTypeWithoutContext(
-		expr,
-		referenceScope,
-		declScope,
-		fromImportPackage,
-		false,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	return expr, exprType, nil
-}
-
-// Useful for testing
-func inferExprTypeWithContext(
-	input, filename string,
-	ty *ast.ExprType,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-) (*ast.ExprType, error) {
-	collector := diagnostics.New()
-
-	expr, err := parser.ParseExprFrom(input, filename)
-	if err != nil {
-		return nil, err
-	}
-
-	analyzer := New(collector)
-	exprType, err := analyzer.inferExprTypeWithContext(
-		expr,
-		ty,
-		referenceScope,
-		declScope,
-		fromImportPackage,
-		false,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return exprType, nil
-}
-
 func (sema *sema) inferExprTypeWithoutContext(
 	expr *ast.Node,
 	referenceScope *ast.Scope,
@@ -1899,7 +1782,7 @@ func (sema *sema) inferExprTypeWithoutContext(
 ) (*ast.ExprType, bool, error) {
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
-		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr), referenceScope)
+		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)
 	case ast.KIND_UNARY_EXPR:
@@ -1944,8 +1827,6 @@ func (sema *sema) inferExprTypeWithoutContext(
 		return sema.inferStructFieldAccessExprWithoutContext(
 			expr.Node.(*ast.FieldAccess),
 			referenceScope,
-			declScope,
-			fromImportPackage,
 		)
 	case ast.KIND_DEREF_POINTER_EXPR:
 		return sema.inferDerefPtrExprTypeWithoutContext(
@@ -1973,7 +1854,6 @@ func (sema *sema) inferExprTypeWithoutContext(
 
 func (sema *sema) inferLiteralExprTypeWithoutContext(
 	literal *ast.LiteralExpr,
-	scope *ast.Scope,
 ) (*ast.ExprType, bool, error) {
 	// TODO(errors)
 	if literal.Type.Kind != ast.EXPR_TYPE_BASIC {
@@ -2049,34 +1929,6 @@ func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
 	return ty, true, err
 }
 
-func (sema *sema) inferTupleExprTypeWithoutContext(
-	tuple *ast.TupleExpr,
-	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
-) (*ast.ExprType, bool, error) {
-	tupleTy := new(ast.ExprType)
-	tupleTy.Kind = ast.EXPR_TYPE_TUPLE
-
-	types := make([]*ast.ExprType, 0)
-	for _, expr := range tuple.Exprs {
-		innerTy, _, err := sema.inferExprTypeWithoutContext(
-			expr,
-			referenceScope,
-			declScope,
-			fromImportPackage,
-			false,
-		)
-		if err != nil {
-			return nil, false, err
-		}
-		types = append(types, innerTy)
-	}
-
-	tupleTy.T = &ast.TupleType{Types: types}
-	return tupleTy, false, nil
-}
-
 func (sema *sema) inferStructLiteralExprWithoutContext(
 	stLit *ast.StructLiteralExpr,
 	referenceScope *ast.Scope,
@@ -2106,14 +1958,11 @@ func (sema *sema) inferStructLiteralExprWithoutContext(
 
 func (sema *sema) inferStructFieldAccessExprWithoutContext(
 	fieldAccess *ast.FieldAccess,
-	referenceScope, declScope *ast.Scope,
-	fromImportPackage bool,
+	referenceScope *ast.Scope,
 ) (*ast.ExprType, bool, error) {
 	_, field, err := sema.checkFieldAccessVariable(
 		fieldAccess,
 		referenceScope,
-		declScope,
-		fromImportPackage,
 	)
 	if err != nil {
 		return nil, false, err
@@ -2155,7 +2004,6 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 		_, field, err := sema.getAccessedField(
 			ptr.Expr.Node.(*ast.FieldAccess),
 			referenceScope,
-			fromImportPackage,
 		)
 		if err != nil {
 			return nil, false, err
@@ -2179,28 +2027,6 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 		return nil, false, err
 	}
 	return exprTy, exprTy.Explicit, nil
-}
-
-func (sema *sema) validateInteger(value []byte) error {
-	base := 10
-	intSize := strconv.IntSize
-
-	_, err := strconv.ParseUint(string(value), base, intSize)
-	if err != nil {
-		return fmt.Errorf("can't parse integer literal: %s", value)
-	}
-
-	return nil
-}
-
-func (sema *sema) validateFloat(value []byte) error {
-	// TODO: properly set the bit size here
-	bitSize := 64
-	_, err := strconv.ParseFloat(string(value), bitSize)
-	if err != nil {
-		return fmt.Errorf("can't parse integer literal: %s", value)
-	}
-	return nil
 }
 
 func (sema *sema) checkNamespaceAccess(
@@ -2265,10 +2091,8 @@ func (sema *sema) checkNamespaceAccess(
 func (sema *sema) checkFieldAccessVariable(
 	fieldAccess *ast.FieldAccess,
 	referenceScope *ast.Scope,
-	declScope *ast.Scope,
-	fromImportPackage bool,
 ) (*ast.IdExpr, *ast.StructField, error) {
-	id, field, err := sema.getAccessedField(fieldAccess, referenceScope, fromImportPackage)
+	id, field, err := sema.getAccessedField(fieldAccess, referenceScope)
 	return id, field, err
 }
 
@@ -2305,7 +2129,7 @@ func (sema *sema) checkImportAccess(
 		)
 		return ty, err
 	default:
-		return nil, fmt.Errorf("unimplemented symbol to import: %s\n", node.Kind)
+		return nil, fmt.Errorf("unimplemented symbol to import: %v\n", node.Kind)
 	}
 }
 
@@ -2333,7 +2157,7 @@ func (sema *sema) checkPrototypeCall(
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	if symbol.Kind != ast.KIND_PROTO {
-		return nil, fmt.Errorf("expected prototype function, not %s\n", symbol.Kind)
+		return nil, fmt.Errorf("expected prototype function, not %v\n", symbol.Kind)
 	}
 
 	prototype := symbol.Node.(*ast.Proto)
@@ -2421,13 +2245,12 @@ func (s *sema) checkAssignment(
 	assignment *ast.AssignmentStmt,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
-	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) error {
 	for _, target := range assignment.Targets {
 		// TODO(errors)
 		if !s.isAssignable(target) {
-			return fmt.Errorf("target of type %s is not assignable", target.Kind)
+			return fmt.Errorf("target of type %v is not assignable", target.Kind)
 		}
 
 		var err error
@@ -2442,8 +2265,6 @@ func (s *sema) checkAssignment(
 			_, _, err = s.checkFieldAccessVariable(
 				target.Node.(*ast.FieldAccess),
 				referenceScope,
-				declScope,
-				fromImportPackage,
 			)
 		case ast.KIND_DEREF_POINTER_EXPR:
 			// TODO(errors)
@@ -2477,7 +2298,7 @@ func (s *sema) checkAssignment(
 			default:
 				// TODO(errors)
 				return fmt.Errorf(
-					"not allowed to use dereference operator for expresion of type %s",
+					"not allowed to use dereference operator for expresion of type %v",
 					innerDeref.Kind,
 				)
 			}
@@ -2513,7 +2334,6 @@ func (s *sema) checkAssignment(
 					affectedVariables,
 					tupleType,
 					referenceScope,
-					fromImportPackage,
 				)
 				t += len(affectedVariables)
 			} else {
