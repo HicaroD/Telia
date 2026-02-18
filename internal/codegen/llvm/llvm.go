@@ -65,6 +65,7 @@ type codegen struct {
 	program *ast.Program
 	runtime *ast.Package
 	pkg     *ast.Package
+	exePath string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
@@ -88,6 +89,10 @@ func (c *codegen) Generate(buildType config.BuildOptimizationType) error {
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
 	return err
+}
+
+func (c *codegen) ExePath() string {
+	return c.exePath
 }
 
 func (c *codegen) generatePackage(pkg *ast.Package) {
@@ -1313,11 +1318,12 @@ func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 		return err
 	}
 
+	executablePath := filepath.Join(dir, filenameNoExt)
 	clangCommand := []string{
 		compilerFlags,
 		optLevel,
 		"-o",
-		filenameNoExt,
+		executablePath,
 		optimizedIrFilepath,
 		"-lm", // math library
 	}
@@ -1330,6 +1336,8 @@ func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 		}
 		return err
 	}
+
+	c.exePath = executablePath
 
 	if config.DEV {
 		fmt.Printf("[DEV] keeping '%s' build directory\n", dir)

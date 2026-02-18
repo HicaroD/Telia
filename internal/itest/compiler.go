@@ -1,0 +1,157 @@
+package itest
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+
+	"github.com/HicaroD/Telia/config"
+	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/codegen/llvm"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/parser"
+	"github.com/HicaroD/Telia/internal/sema"
+)
+
+var initialized bool
+
+func init() {
+	config.SetDevMode(true)
+	err := config.SetupConfigDir()
+	if err != nil {
+		panic(fmt.Sprintf("failed to setup config dir: %v", err))
+	}
+	err = config.SetupEnvFile()
+	if err != nil {
+		panic(fmt.Sprintf("failed to setup env file: %v", err))
+	}
+	initialized = true
+}
+
+func CompileSource(src string) (string, *diagnostics.Collector) {
+	return compileSource(src, config.BUILD_OPT_DEBUG)
+}
+
+func CompileSourceRelease(src string) (string, *diagnostics.Collector) {
+	return compileSource(src, config.BUILD_OPT_RELEASE)
+}
+
+func compileSource(src string, buildType config.BuildOptimizationType) (string, *diagnostics.Collector) {
+	collector := diagnostics.New()
+
+	tmpFile, err := os.CreateTemp("", "test_*.t")
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to create temp file: %v", err)})
+		return "", collector
+	}
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(src)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to write temp file: %v", err)})
+		return "", collector
+	}
+	tmpFile.Close()
+
+	output, diags := CompileFileWithBuildType(tmpFile.Name(), buildType)
+	return output, diags
+}
+
+func CompileFile(path string) (string, *diagnostics.Collector) {
+	return CompileFileWithBuildType(path, config.BUILD_OPT_DEBUG)
+}
+
+func CompileFileWithBuildType(path string, buildType config.BuildOptimizationType) (string, *diagnostics.Collector) {
+	collector := diagnostics.New()
+
+	loc, err := ast.LocFromPath(path)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		return "", collector
+	}
+
+	p := parser.New(collector)
+	program, runtime, err := p.ParseFileAsProgram(path, loc, collector)
+	if err != nil {
+		return "", collector
+	}
+
+	checker := sema.New(collector)
+	err = checker.Check(program, runtime)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
+		return "", collector
+	}
+
+	codegen := llvm.NewCG(loc, program, runtime)
+	err = codegen.Generate(buildType)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("codegen failed: %v", err)})
+		return "", collector
+	}
+
+	exePath := codegen.ExePath()
+	output, err := RunBinary(exePath)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)})
+		return "", collector
+	}
+
+	return output, collector
+}
+
+func RunBinary(path string) (string, error) {
+	cmd := exec.Command(path)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return string(exitErr.Stderr), exitErr
+		}
+		return "", err
+	}
+	return string(output), nil
+}
+
+func CompileToBinary(src string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "test_*.t")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(src)
+	if err != nil {
+		return "", err
+	}
+	tmpFile.Close()
+
+	return CompileFileToBinary(tmpFile.Name())
+}
+
+func CompileFileToBinary(path string) (string, error) {
+	loc, err := ast.LocFromPath(path)
+	if err != nil {
+		return "", err
+	}
+
+	collector := diagnostics.New()
+	p := parser.New(collector)
+	program, runtime, err := p.ParseFileAsProgram(path, loc, collector)
+	if err != nil {
+		return "", err
+	}
+
+	checker := sema.New(collector)
+	err = checker.Check(program, runtime)
+	if err != nil {
+		return "", err
+	}
+
+	codegen := llvm.NewCG(loc, program, runtime)
+	err = codegen.Generate(config.BUILD_OPT_DEBUG)
+	if err != nil {
+		return "", err
+	}
+
+	return codegen.ExePath(), nil
+}
