@@ -40,7 +40,17 @@ func New(collector *diagnostics.Collector) *Parser {
 
 // Useful for testing
 func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
-	return &Parser{lex: lex, collector: collector}
+	universe := ast.NewScope(nil)
+	pkgScope := ast.NewScope(universe)
+	pkg := &ast.Package{
+		Scope:  pkgScope,
+		IsRoot: true,
+	}
+	return &Parser{
+		lex:       lex,
+		collector: collector,
+		pkg:       pkg,
+	}
 }
 
 func (p *Parser) ParsePackageAsProgram(
@@ -362,6 +372,27 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 		return nil, err
 	}
 	return exprAst, nil
+}
+
+// ParseDeclFrom parses a single top-level declaration without package resolution
+// Useful for testing parsing of fn, extern, struct, etc.
+func ParseDeclFrom(src, filename string) (*ast.Node, error) {
+	collector := diagnostics.New()
+	loc := &ast.Loc{Name: filename}
+	lex := lexer.New(loc, []byte(src), collector)
+	p := NewWithLex(lex, collector)
+
+	file := &ast.File{
+		PkgNameDefined: false,
+		Imports:        make(map[string]*ast.UseDecl),
+		IsFirstNode:    true,
+	}
+	pkg := &ast.Package{Scope: ast.NewScope(nil)}
+	p.file = file
+	p.pkg = pkg
+
+	node, _, err := p.next(file)
+	return node, err
 }
 
 func (p *Parser) parseAttributes() (ast.Attributes, error) {
@@ -1086,7 +1117,7 @@ func (p *Parser) parseFnParams(
 
 				attributeName, ok := p.expect(token.ID)
 				if !ok {
-					return nil, fmt.Errorf("expected parameter attribute name, not %s\n")
+					return nil, fmt.Errorf("expected parameter attribute name, got %s\n", p.lex.Peek().Kind)
 				}
 
 				switch attributeName.Name() {
@@ -1576,7 +1607,7 @@ Targets:
 			varId.NeedsInference = false
 		} else {
 			// TODO(errors)
-			return nil, fmt.Errorf("type specification not allowed for expression type %s", target.Kind)
+			return nil, fmt.Errorf("type specification not allowed for expression type %v", target.Kind)
 		}
 
 		next = p.lex.Peek()
