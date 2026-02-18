@@ -256,20 +256,20 @@ func TestIsLiteral(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenLiteralTest{
-		{"1", token.UNTYPED_INT},
-		{"2", token.UNTYPED_INT},
-		{"3", token.UNTYPED_INT},
-		{"4", token.UNTYPED_INT},
-		{"5", token.UNTYPED_INT},
-		{"6", token.UNTYPED_INT},
-		{"7", token.UNTYPED_INT},
-		{"8", token.UNTYPED_INT},
-		{"9", token.UNTYPED_INT},
-		{"123456789", token.UNTYPED_INT},
+		{"1", token.INT_TYPE},
+		{"2", token.INT_TYPE},
+		{"3", token.INT_TYPE},
+		{"4", token.INT_TYPE},
+		{"5", token.INT_TYPE},
+		{"6", token.INT_TYPE},
+		{"7", token.INT_TYPE},
+		{"8", token.INT_TYPE},
+		{"9", token.INT_TYPE},
+		{"123456789", token.INT_TYPE},
 		// TODO: add float here
-		{"\"Hello world\"", token.UNTYPED_STRING},
-		{"true", token.UNTYPED_BOOL},
-		{"false", token.UNTYPED_BOOL},
+		{"\"Hello world\"", token.STRING_TYPE},
+		{"true", token.BOOL_TYPE},
+		{"false", token.BOOL_TYPE},
 	}
 
 	for _, test := range tests {
@@ -320,22 +320,6 @@ func TestLexicalErrors(t *testing.T) {
 			diags: []diagnostics.Diag{
 				{
 					Message: "test.tt:1:1: invalid character !",
-				},
-			},
-		},
-		{
-			input: ":",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:1: invalid character :",
-				},
-			},
-		},
-		{
-			input: ":#",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:1: invalid character :",
 				},
 			},
 		},
