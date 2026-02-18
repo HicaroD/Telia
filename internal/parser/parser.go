@@ -53,6 +53,33 @@ func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	}
 }
 
+func (p *Parser) NextForTest(file *ast.File) (*ast.Node, bool, error) {
+	return p.next(file)
+}
+
+func (p *Parser) ParseFileForTest(loc *ast.Loc) (*ast.File, error) {
+	file := &ast.File{
+		Loc:              loc,
+		PkgNameDefined:   false,
+		Imports:          make(map[string]*ast.UseDecl),
+		IsFirstNode:      true,
+		AnyDeclNodeFound: false,
+	}
+
+	p.file = file
+
+	err := p.parseFileDecls(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, nil
+}
+
+func (p *Parser) GetPkg() *ast.Package {
+	return p.pkg
+}
+
 func (p *Parser) ParsePackageAsProgram(
 	argLoc string,
 	loc *ast.Loc,
@@ -1432,13 +1459,13 @@ func (p *Parser) parseStmt(
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		returnStmt.Value = returnValue
-	// case token.ID, token.STAR:
-	// 	endsWithNewLine = true
-	// 	idStmt, err := p.ParseIdStmt(parentScope)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	n = idStmt
+	case token.ID, token.STAR:
+		endsWithNewLine = true
+		idStmt, err := p.ParseIdStmt(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = idStmt
 	case token.IF:
 		condStmt, err := p.parseCondStmt(parentScope)
 		if err != nil {
@@ -1467,6 +1494,14 @@ func (p *Parser) parseStmt(
 			return nil, err
 		}
 		n = deferStmt
+	case token.OPEN_CURLY:
+		blockScope := ast.NewScope(parentScope)
+		blockStmt, err := p.parseBlock(blockScope)
+		if err != nil {
+			return nil, err
+		}
+		n.Kind = ast.KIND_BLOCK_STMT
+		n.Node = blockStmt
 	default:
 		assignment, err := p.parseAssignment(parentScope)
 		if err != nil {
@@ -1560,6 +1595,8 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.COLON_COLON:
 		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccessing, err
+	case token.DOT:
+		return p.parseFieldAccess()
 	default:
 		return p.parseVar(parentScope)
 	}

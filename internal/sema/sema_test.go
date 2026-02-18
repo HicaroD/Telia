@@ -1,583 +1,642 @@
 package sema
 
 import (
-	"fmt"
-	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
-	"github.com/HicaroD/Telia/internal/lexer/token"
 	"github.com/HicaroD/Telia/internal/parser"
 )
 
-type varTest struct {
-	input    string
-	ty       ast.ExprType
-	inferred bool
-}
+func parseAndCheck(t *testing.T, src string) *diagnostics.Collector {
+	collector := diagnostics.New()
 
-func TestVarDeclForInference(t *testing.T) {
-	filename := "test.tt"
-	tests := []varTest{
-		{
-			input:    `name := "Hicaro";`,
-			ty:       &ast.PointerType{Type: &ast.BasicType{Kind: token.U8_TYPE}},
-			inferred: true,
-		},
-		{
-			input:    "age := 18;",
-			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
-			inferred: true,
-		},
-		{
-			input:    "score := -18;",
-			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
-			inferred: true,
-		},
-		{
-			input:    "age := 1 + 1;",
-			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
-			inferred: true,
-		},
-		{
-			input:    "age := 1 - 1;",
-			ty:       &ast.BasicType{Kind: token.UNTYPED_INT},
-			inferred: true,
-		},
-		{
-			input:    "can_vote := true;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "can_vote := false;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "can_vote := false;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_greater := 2 > 1;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_greater_or_eq := 2 >= 1;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_lesser := 2 < 1;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_lesser_or_eq := 2 <= 1;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_eq := 2 == 1;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_true := true and true;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_true := true or true;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		{
-			input:    "is_not_true := not true;",
-			ty:       &ast.BasicType{Kind: token.BOOL_TYPE},
-			inferred: true,
-		},
-		// TODO: test variable decl with explicit type annotation
+	loc := &ast.Loc{Name: "test.t"}
+	lex := lexer.New(loc, []byte(src), collector)
+	p := parser.NewWithLex(lex, collector)
+
+	file, err := p.ParseFileForTest(loc)
+	if err != nil {
+		diag := diagnostics.Diag{Message: "parse error: " + err.Error()}
+		collector.ReportAndSave(diag)
+		return collector
 	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestVarDeclForInference('%s')", test.input), func(t *testing.T) {
-			varStmt, err := checkVarDeclFrom(test.input, filename)
-			if err != nil {
-				t.Fatal(err)
-			}
+	pkg := p.GetPkg()
+	pkg.Loc = loc
+	pkg.Files = []*ast.File{file}
 
-			variable, ok := varStmt.(*ast.VarStmt)
-			if !ok {
-				t.Fatalf("unable to cast %s to *ast.VarStmt", reflect.TypeOf(varStmt))
-			}
+	prog := &ast.Program{Root: pkg}
 
-			if !(variable.NeedsInference && test.inferred) {
-				t.Fatalf(
-					"inference error, expected %v, but got %v",
-					test.inferred,
-					variable.NeedsInference,
-				)
-			}
-			if !reflect.DeepEqual(variable.Type, test.ty) {
-				t.Fatalf("type mismatch, expect %s, but got %s", test.ty, variable.Type)
+	sema := New(collector)
+	err = sema.Check(prog, nil)
+	if err != nil {
+		diag := diagnostics.Diag{Message: err.Error()}
+		collector.ReportAndSave(diag)
+	}
+
+	return collector
+}
+
+func parseNextDecl(p *parser.Parser, file *ast.File) (*ast.Node, bool, error) {
+	return p.NextForTest(file)
+}
+
+func containsDiag(diags []diagnostics.Diag, substr string) bool {
+	for _, d := range diags {
+		if strings.Contains(d.Message, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestTypeInference(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		hasError bool
+	}{
+		{
+			name:     "int literal inference",
+			src:      "package main\n\nfn main() {\n  a := 1\n}",
+			hasError: false,
+		},
+		{
+			name:     "float literal inference",
+			src:      "package main\n\nfn main() {\n  a := 1.5\n}",
+			hasError: false,
+		},
+		{
+			name:     "bool literal inference",
+			src:      "package main\n\nfn main() {\n  a := true\n}",
+			hasError: false,
+		},
+		{
+			name:     "string literal inference",
+			src:      "package main\n\nfn main() {\n  a := \"hello\"\n}",
+			hasError: false,
+		},
+		{
+			name:     "binary expr int inference",
+			src:      "package main\n\nfn main() {\n  a := 1 + 2\n}",
+			hasError: false,
+		},
+		{
+			name:     "unary minus int inference",
+			src:      "package main\n\nfn main() {\n  a := -5\n}",
+			hasError: false,
+		},
+		{
+			name:     "comparison inference",
+			src:      "package main\n\nfn main() {\n  a := 1 > 2\n}",
+			hasError: false,
+		},
+		{
+			name:     "logical and inference",
+			src:      "package main\n\nfn main() {\n  a := true and false\n}",
+			hasError: false,
+		},
+		{
+			name:     "logical or inference",
+			src:      "package main\n\nfn main() {\n  a := true or false\n}",
+			hasError: false,
+		},
+		{
+			name:     "not inference",
+			src:      "package main\n\nfn main() {\n  a := not true\n}",
+			hasError: false,
+		},
+		{
+			name:     "variable reference inference",
+			src:      "package main\n\nfn main() {\n  a := 1\n  b := a\n}",
+			hasError: false,
+		},
+		{
+			name:     "function call inference",
+			src:      "package main\n\nfn foo() int {\n  return 1\n}\nfn main() {\n  a := foo()\n}",
+			hasError: false,
+		},
+		{
+			name:     "explicit type annotation",
+			src:      "package main\n\nfn main() {\n  a i32 := 1\n}",
+			hasError: false,
+		},
+		{
+			name:     "explicit type annotation mismatch",
+			src:      "package main\n\nfn main() {\n  a i32 := 1.5\n}",
+			hasError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			hasError := len(collector.Diags) > 0
+			if hasError != tt.hasError {
+				t.Errorf("expected hasError=%v, got=%v. Diags: %v", tt.hasError, hasError, collector.Diags)
 			}
 		})
 	}
 }
 
-type exprInferenceTest struct {
-	scope *ast.Scope
-	tests []struct {
-		input string
-		ty    ast.ExprType
-		value ast.Expr
-	}
-}
-
-func TestExprInferenceWithoutContext(t *testing.T) {
-	filename := "test.tt"
-	tests := []exprInferenceTest{
+func TestTypeChecking(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
 		{
-			scope: &ast.Scope{
-				Parent: nil,
-				Nodes: map[string]ast.Node{
-					"a": &ast.VarStmt{
-						Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
-						Type: &ast.BasicType{Kind: token.I8_TYPE},
-						Value: ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							Value: []byte("1"),
-						},
-						NeedsInference: false,
-					},
-				},
-			},
-			tests: []struct {
-				input string
-				ty    ast.ExprType
-				value ast.Expr
-			}{
-				{
-					input: "true",
-					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
-					value: &ast.LiteralExpr{
-						Value: []byte("1"),
-						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
-					},
-				},
-				{
-					input: "false",
-					ty:    &ast.BasicType{Kind: token.BOOL_TYPE},
-					value: &ast.LiteralExpr{
-						Value: []byte("0"),
-						Type:  &ast.BasicType{Kind: token.BOOL_TYPE},
-					},
-				},
-				{
-					input: "1",
-					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.LiteralExpr{
-						Value: []byte("1"),
-						Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-					},
-				},
-				{
-					input: "1 + 1",
-					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.BinExpr{
-						Left: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-						},
-						Op: token.PLUS,
-						Right: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-						},
-					},
-				},
-				{
-					input: "-1",
-					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.UnaryExpr{
-						Op: token.MINUS,
-						Value: &ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-							Value: []byte("1"),
-						},
-					},
-				},
-				{
-					input: "-1 + 1",
-					ty:    &ast.BasicType{Kind: token.UNTYPED_INT},
-					value: &ast.BinExpr{
-						Left: &ast.UnaryExpr{
-							Op: token.MINUS,
-							Value: &ast.LiteralExpr{
-								Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-								Value: []byte("1"),
-							},
-						},
-						Op: token.PLUS,
-						Right: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-						},
-					},
-				},
-				{
-					input: "a + 1",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.IdExpr{
-							Name: token.New(
-								[]byte("a"),
-								token.ID,
-								token.NewPosition(filename, 1, 1),
-							),
-						},
-						Op: token.PLUS,
-						Right: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-						},
-					},
-				},
-				{
-					input: "1 + a",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-						},
-						Op: token.PLUS,
-						Right: &ast.IdExpr{
-							Name: token.New(
-								[]byte("a"),
-								token.ID,
-								token.NewPosition(filename, 5, 1),
-							),
-						},
-					},
-				},
-				{
-					input: "1 + 2 + a",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.BinExpr{
-							Left: &ast.LiteralExpr{
-								Value: []byte("1"),
-								Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							},
-							Op: token.PLUS,
-							Right: &ast.LiteralExpr{
-								Value: []byte("2"),
-								Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							},
-						},
-						Op: token.PLUS,
-						Right: &ast.IdExpr{
-							Name: token.New(
-								[]byte("a"),
-								token.ID,
-								token.NewPosition(filename, 9, 1),
-							),
-						},
-					},
-				},
-				{
-					input: "1 + a + 3",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.BinExpr{
-							Left: &ast.LiteralExpr{
-								Value: []byte("1"),
-								Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							},
-							Op: token.PLUS,
-							Right: &ast.IdExpr{
-								Name: token.New(
-									[]byte("a"),
-									token.ID,
-									token.NewPosition(filename, 5, 1),
-								),
-							},
-						},
-						Op: token.PLUS,
-						Right: &ast.LiteralExpr{
-							Value: []byte("3"),
-							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-						},
-					},
-				},
-			},
+			name:      "binary expr type mismatch",
+			src:       "package main\n\nfn main() {\n  a := 1 + 1.5\n}",
+			errSubstr: "invalid operands types",
+		},
+		{
+			name:      "int plus string error",
+			src:       "package main\n\nfn main() {\n  a := 1 + \"hello\"\n}",
+			errSubstr: "invalid operands types",
+		},
+		{
+			name:      "bool plus int error",
+			src:       "package main\n\nfn main() {\n  a := true + 1\n}",
+			errSubstr: "invalid operands types",
+		},
+		{
+			name:      "division type mismatch",
+			src:       "package main\n\nfn main() {\n  a := 1 / true\n}",
+			errSubstr: "invalid operands types",
 		},
 	}
-	for _, test := range tests {
-		for _, unit := range test.tests {
-			t.Run(
-				fmt.Sprintf("TestExprInferenceWithoutContext('%s')", unit.input),
-				func(t *testing.T) {
-					actualExpr, actualExprTy, err := inferExprTypeWithoutContext(
-						unit.input,
-						filename,
-						test.scope,
-					)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !reflect.DeepEqual(actualExpr, unit.value) {
-						t.Fatalf("\nexpected expr: %s\ngot expr: %s\n", unit.value, actualExpr)
-					}
-					if !reflect.DeepEqual(actualExprTy, unit.ty) {
-						t.Fatalf("\nexpected ty: %s\ngot ty: %s\n", unit.ty, actualExprTy)
-					}
-				},
-			)
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
 	}
 }
 
-// TODO: test for mismatched types errors
-
-func TestExprInferenceWithContext(t *testing.T) {
-	filename := "test.tt"
-	tests := []exprInferenceTest{
+func TestFunctionCalls(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
 		{
-			scope: &ast.Scope{
-				Parent: nil,
-				Nodes: map[string]ast.Node{
-					"a": &ast.VarStmt{
-						Name: token.New([]byte("a"), token.ID, token.NewPosition(filename, 1, 1)),
-						Type: &ast.BasicType{Kind: token.I8_TYPE},
-						Value: ast.LiteralExpr{
-							Type:  &ast.BasicType{Kind: token.I8_TYPE},
-							Value: []byte("1"),
-						},
-						NeedsInference: false,
-					},
-				},
-			},
-			tests: []struct {
-				input string
-				ty    ast.ExprType
-				value ast.Expr
-			}{
-				{
-					input: "a + 1",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.IdExpr{
-							Name: token.New(
-								[]byte("a"),
-								token.ID,
-								token.NewPosition(filename, 1, 1),
-							),
-						},
-						Op: token.PLUS,
-						Right: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-						},
-					},
-				},
-				{
-					input: "1 + a",
-					ty:    &ast.BasicType{Kind: token.I8_TYPE},
-					value: &ast.BinExpr{
-						Left: &ast.LiteralExpr{
-							Value: []byte("1"),
-							Type:  &ast.BasicType{Kind: token.UNTYPED_INT},
-						},
-						Op: token.PLUS,
-						Right: &ast.IdExpr{
-							Name: token.New(
-								[]byte("a"),
-								token.ID,
-								token.NewPosition(filename, 1, 1),
-							),
-						},
-					},
-				},
-			},
+			name:      "valid function call",
+			src:       "package main\n\nfn foo() {}\nfn main() {\n  foo()\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "function call with args",
+			src:       "package main\n\nfn foo(a i32) {}\nfn main() {\n  foo(1)\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "too few arguments",
+			src:       "package main\n\nfn foo(a i32, b i32) {}\nfn main() {\n  foo(1)\n}",
+			errSubstr: "not enough arguments",
+		},
+		{
+			name:      "too many arguments",
+			src:       "package main\n\nfn foo(a i32) {}\nfn main() {\n  foo(1, 2)\n}",
+			errSubstr: "not enough arguments",
+		},
+		{
+			name:      "wrong argument type",
+			src:       "package main\n\nfn foo(a i32) {}\nfn main() {\n  foo(\"hello\")\n}",
+			errSubstr: "cannot use",
+		},
+		{
+			name:      "call non-function",
+			src:       "package main\n\nfn main() {\n  a := 1\n  a()\n}",
+			errSubstr: "not callable",
+		},
+		{
+			name:      "undefined function",
+			src:       "package main\n\nfn main() {\n  foo()\n}",
+			errSubstr: "not defined on scope",
+		},
+		{
+			name:      "function with return value",
+			src:       "package main\n\nfn foo() int {\n  return 1\n}\nfn main() {\n  a := foo()\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "nested function calls",
+			src:       "package main\n\nfn foo() int {\n  return 1\n}\nfn bar() int {\n  return foo()\n}\nfn main() {\n  a := bar()\n}",
+			errSubstr: "",
 		},
 	}
-	for _, test := range tests {
-		for _, unit := range test.tests {
-			t.Run(
-				fmt.Sprintf("TestExprInferenceWithContext('%s')", unit.input),
-				func(t *testing.T) {
-					actualExprTy, err := inferExprTypeWithContext(
-						unit.input,
-						filename,
-						unit.ty,
-						test.scope,
-					)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !reflect.DeepEqual(actualExprTy, unit.ty) {
-						t.Fatalf("\nexpected: %s\ngot: %s\n", unit.ty, actualExprTy)
-					}
-				},
-			)
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
 	}
 }
 
-type semanticErrorTest struct {
-	input string
-	diags []diagnostics.Diag
+func TestScopeResolution(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "variable in scope",
+			src:       "package main\n\nfn main() {\n  a := 1\n  b := a\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "undefined variable",
+			src:       "package main\n\nfn main() {\n  a := b\n}",
+			errSubstr: "symbol not found",
+		},
+		{
+			name:      "shadowing allowed",
+			src:       "package main\n\nfn main() {\n  a := 1\n  {\n    a := 2\n  }\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "function shadows variable",
+			src:       "package main\n\nfn foo() int {\n  return 1\n}\nfn main() {\n  a := foo\n}",
+			errSubstr: "not a variable",
+		},
+		{
+			name:      "nested scope variable",
+			src:       "package main\n\nfn main() {\n  {\n    a := 1\n  }\n  b := a\n}",
+			errSubstr: "symbol not found",
+		},
+		{
+			name:      "use outer scope variable",
+			src:       "package main\n\nfn main() {\n  a := 1\n  {\n    b := a\n  }\n}",
+			errSubstr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
+	}
+}
+
+func TestDuplicateDetection(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "duplicate parameters",
+			src:       "package main\n\nfn foo(a i32, a i32) {}\nfn main() {}",
+			errSubstr: "already declared",
+		},
+		{
+			name:      "no duplicate parameters",
+			src:       "package main\n\nfn foo(a i32, b i32) {}\nfn main() {}",
+			errSubstr: "",
+		},
+		{
+			name:      "duplicate extern prototypes",
+			src:       "package main\nextern libc {\n  fn puts()\n}\nextern libc {\n  fn puts()\n}\nfn main() {}",
+			errSubstr: "already declared",
+		},
+		{
+			name:      "duplicate extern declarations",
+			src:       "package main\nextern libc {}\nextern libc {}",
+			errSubstr: "already declared",
+		},
+		{
+			name:      "duplicate function",
+			src:       "package main\n\nfn foo() {}\nfn foo() {}",
+			errSubstr: "already declared",
+		},
+		{
+			name:      "duplicate variable in block",
+			src:       "package main\n\nfn main() {\n  a := 1\n  a := 2\n}",
+			errSubstr: "already declared",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
+	}
 }
 
 func TestSemanticErrors(t *testing.T) {
-	filename := "test.tt"
-
-	tests := []semanticErrorTest{
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
 		{
-			input: "extern libc { fn puts(); fn puts(); }",
-			diags: []diagnostics.Diag{
-				{
-					// TODO: show the first declaration and the other
-					Message: "test.tt:1:29: prototype 'puts' already declared on extern 'libc'",
-				},
-			},
+			name:      "extern function not found",
+			src:       "package main\nextern libc {}\nfn main() {\n  libc::puts()\n}",
+			errSubstr: "invalid calling convention",
 		},
 		{
-			input: "extern libc { }\nextern libc { }",
-			diags: []diagnostics.Diag{
-				{
-					// TODO: show the first declaration and the other
-					Message: "test.tt:2:8: extern 'libc' already declared on scope",
-				},
-			},
+			name:      "extern not defined",
+			src:       "package main\n\nfn main() {\n  libc::printf()\n}",
+			errSubstr: "symbol not found",
 		},
 		{
-			input: "extern libc {}\nfn main() { libc.puts(); }",
-			diags: []diagnostics.Diag{
-				{
-					// TODO: show the first declaration and the other
-					Message: "test.tt:2:18: function 'puts' not declared on extern 'libc'",
-				},
-			},
+			name:      "multiple variable declaration",
+			src:       "package main\n\nfn main() {\n  a, b := 10, 20\n}",
+			errSubstr: "",
 		},
 		{
-			input: "fn do_nothing(a int, a int) {}",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:22: parameter 'a' already declared on function 'do_nothing'",
-				},
-			},
+			name:      "multiple assignment",
+			src:       "package main\n\nfn main() {\n  a := 1\n  b := 2\n  a, b = 10, 10\n}",
+			errSubstr: "",
 		},
 		{
-			input: "fn foo(a int, b int) {}\nfn main() { foo(); }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:2:13: not enough arguments in call to 'foo'",
-				},
-			},
+			name:      "multiple assignment undeclared left",
+			src:       "package main\n\nfn main() {\n  a := 1\n  a, b = 10, 10\n}",
+			errSubstr: "not declared",
 		},
 		{
-			input: "fn foo(a int) {}\nfn main() { foo(\"hello\"); }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "can't use *u8 on argument of type int",
-				},
-			},
+			name:      "multiple assignment no new vars",
+			src:       "package main\n\nfn main() {\n  a := 1\n  b := 2\n  a, b := 10, 10\n}\n",
+			errSubstr: "already declared",
 		},
 		{
-			input: "fn main() { foo(); }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:13: function 'foo' not defined on scope",
-				},
-			},
+			name:      "struct field access",
+			src:       "package main\n\nstruct Point {\n  x i32\n  y i32\n}\nfn main() {\n  p := Point.{x: 1, y: 2}\n  q := p.x\n}\n",
+			errSubstr: "",
 		},
 		{
-			input: "fn main() { a := 1; a(); }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:21: 'a' is not callable",
-				},
-			},
+			name:      "struct field access undefined",
+			src:       "package main\n\nstruct Point {\n  x i32\n}\nfn main() {\n  p := Point.{x: 1}\n  q := p.z\n}\n",
+			errSubstr: "not found",
 		},
 		{
-			input: "fn main() { libc.printf(); }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:13: 'libc' not defined on scope",
-				},
-			},
-		},
-		// Multiple variables
-		{
-			input: "fn main() { a, b := 10, 10; }",
-			diags: nil, // no errors
+			name:      "return type mismatch",
+			src:       "package main\n\nfn foo() i32 {\n  return 1.5\n}\n",
+			errSubstr: "cannot use",
 		},
 		{
-			input: "fn main() { a := 1; b := 2; a, b = 10, 10; }",
-			diags: nil, // no errors
+			name:      "return from void function",
+			src:       "package main\n\nfn foo() {\n  return 1\n}\n",
+			errSubstr: "cannot use",
 		},
 		{
-			input: "fn main() { a := 1; a, b = 10, 10; }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:24: 'b' not declared",
-				},
-			},
-		},
-		{
-			input: "fn main() { b := 1; a, b = 10, 10; }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:21: 'a' not declared",
-				},
-			},
-		},
-		{
-			input: "fn main() { a := 1; b := 2; a, b := 10, 10; }",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:29: no new variables declared",
-				},
-			},
+			name:      "missing return value",
+			src:       "package main\n\nfn foo() i32 {}\n",
+			errSubstr: "must always return",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("TestSemanticErrors('%s')", test.input), func(t *testing.T) {
-			collector := diagnostics.New()
-
-			src := []byte(test.input)
-			lex := lexer.New(filename, src, collector)
-			parser := parser.New(collector)
-
-			program, err := parser.ParseFileAsProgram(lex)
-			if err != nil {
-				t.Fatal(err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
 			}
+		})
+	}
+}
 
-			sema := New(collector)
-			_ = sema.Check(program)
+func TestControlFlow(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "if statement",
+			src:       "package main\n\nfn main() {\n  if true {}\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "if else",
+			src:       "package main\n\nfn main() {\n  if true {} else {}\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "if elif else",
+			src:       "package main\n\nfn main() {\n  if true {} elif false {} else {}\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "if condition type error",
+			src:       "package main\n\nfn main() {\n  if 1 {}\n}",
+			errSubstr: "type",
+		},
+		{
+			name:      "for loop",
+			src:       "package main\n\nfn main() {\n  for i := 0; i < 10; i = i + 1 {}\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "while loop",
+			src:       "package main\n\nfn main() {\n  while true {}\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "for loop condition type error",
+			src:       "package main\n\nfn main() {\n  for i := 0; i; i = i + 1 {}\n}",
+			errSubstr: "type",
+		},
+	}
 
-			if len(collector.Diags) != len(test.diags) {
-				t.Fatalf(
-					"expected to have %d diag(s), but got %d\n\ngot: %s\nexp: %s\n",
-					len(test.diags),
-					len(sema.collector.Diags),
-					sema.collector.Diags,
-					test.diags,
-				)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
 			}
+		})
+	}
+}
 
-			if !reflect.DeepEqual(collector.Diags, test.diags) {
-				t.Fatalf("\nexp: %v\ngot: %v\n", test.diags, collector.Diags)
+func TestStructDecl(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "simple struct",
+			src:       "package main\n\nstruct Point {\n  x i32\n  y i32\n}\nfn main() {}",
+			errSubstr: "",
+		},
+		{
+			name:      "duplicate struct fields",
+			src:       "package main\n\nstruct Point {\n  x i32\n  x i32\n}\nfn main() {}",
+			errSubstr: "duplicate",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
+	}
+}
+
+func TestMainFunction(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "has main function",
+			src:       "package main\n\nfn main() {}",
+			errSubstr: "",
+		},
+		{
+			name:      "no main function",
+			src:       "package main\n\nfn foo() {}",
+			errSubstr: "main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
+	}
+}
+
+func TestVariadicFunctions(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "variadic function call",
+			src:       "package main\n\nfn foo(args ...i32) {}\nfn main() {\n  foo(1, 2, 3)\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "variadic function no args",
+			src:       "package main\n\nfn foo(args ...i32) {}\nfn main() {\n  foo()\n}",
+			errSubstr: "",
+		},
+		{
+			name:      "variadic wrong type",
+			src:       "package main\n\nfn foo(args ...i32) {}\nfn main() {\n  foo(\"hello\")\n}\n",
+			errSubstr: "cannot use",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
+			}
+		})
+	}
+}
+
+func TestPointerOperations(t *testing.T) {
+	tests := []struct {
+		name      string
+		src       string
+		errSubstr string
+	}{
+		{
+			name:      "pointer dereference",
+			src:       "package main\n\nfn main() {\n  a := 1\n  p := &a\n  b := *p\n}\n",
+			errSubstr: "",
+		},
+		{
+			name:      "pointer type mismatch",
+			src:       "package main\n\nfn main() {\n  a := 1\n  p := &a\n  b := *p + 1.5\n}\n",
+			errSubstr: "cannot use",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			collector := parseAndCheck(t, tt.src)
+			if tt.errSubstr == "" {
+				if len(collector.Diags) > 0 {
+					t.Errorf("expected no error, got: %v", collector.Diags)
+				}
+			} else {
+				if !containsDiag(collector.Diags, tt.errSubstr) {
+					t.Errorf("expected error containing '%s', got: %v", tt.errSubstr, collector.Diags)
+				}
 			}
 		})
 	}
