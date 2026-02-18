@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +16,28 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 	"github.com/HicaroD/Telia/third/go-llvm"
 )
+
+func getLLVMOptPath() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "/opt/homebrew/opt/llvm@18/bin/opt"
+	case "linux":
+		return "/usr/lib/llvm18/bin/opt"
+	default:
+		return "/usr/lib/llvm18/bin/opt"
+	}
+}
+
+func getLLVMClangPath() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "/opt/homebrew/opt/llvm@18/bin/clang-18"
+	case "linux":
+		return "/usr/lib/llvm18/bin/clang-18"
+	default:
+		return "/usr/lib/llvm18/bin/clang-18"
+	}
+}
 
 var (
 	context llvm.Context = llvm.NewContext()
@@ -59,14 +82,16 @@ func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *codegen {
 }
 
 func (c *codegen) Generate(buildType config.BuildOptimizationType) error {
-	c.generatePackage(c.runtime)
+	if c.runtime != nil {
+		c.generatePackage(c.runtime)
+	}
 	c.generatePackage(c.program.Root)
 	err := c.generateExe(buildType)
 	return err
 }
 
 func (c *codegen) generatePackage(pkg *ast.Package) {
-	if pkg.Processed {
+	if pkg == nil || pkg.Processed {
 		return
 	}
 
@@ -1278,7 +1303,7 @@ func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 	}
 
 	// NOTE: I should not set "opt" path directly here
-	cmd := exec.Command("/usr/lib/llvm18/bin/opt", optCommand...)
+	cmd := exec.Command(getLLVMOptPath(), optCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {
@@ -1296,7 +1321,7 @@ func (c *codegen) generateExe(buildType config.BuildOptimizationType) error {
 		optimizedIrFilepath,
 		"-lm", // math library
 	}
-	cmd = exec.Command("/usr/lib/llvm18/bin/clang-18", clangCommand...)
+	cmd = exec.Command(getLLVMClangPath(), clangCommand...)
 	err = cmd.Run()
 	// TODO(errors)
 	if err != nil {

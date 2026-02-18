@@ -81,6 +81,9 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 }
 
 func (p *Parser) parseRuntimePackage() (*ast.Package, error) {
+	if config.ENVS.RUNTIME == "" {
+		return nil, nil
+	}
 	loc, err := ast.LocFromPath(config.ENVS.RUNTIME)
 	if err != nil {
 		return nil, err

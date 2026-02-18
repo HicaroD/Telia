@@ -1,9 +1,10 @@
 LLVM_GO_TAG=llvm18
 OUT=telia
 SRC=./cmd/compiler
-CGO_CFLAGS=$(shell llvm-config-18 --cflags)
-CGO_LDFLAGS=$(shell llvm-config-18 --ldflags)
-CGO_CXXFLAGS=$(shell llvm-config-18 --cxxflags)
+LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config
+CGO_CFLAGS=$(shell $(LLVM_CONFIG) --cflags)
+CGO_LDFLAGS=$(shell $(LLVM_CONFIG) --ldflags)
+CGO_CXXFLAGS=$(shell $(LLVM_CONFIG) --cxxflags)
 
 .PHONY: all
 all: build

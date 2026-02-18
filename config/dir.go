@@ -191,10 +191,9 @@ func MapEnvToStruct(data map[string]string, result any) error {
 					fieldValue.SetString(value)
 				}
 
-				if strings.HasSuffix(envTag, "PATH") {
+				if strings.HasSuffix(envTag, "PATH") && value != "" {
 					fullPath := value
 
-					// TODO: add support to different platforms, such as Windows
 					switch runtime.GOOS {
 					case "linux":
 						usr, _ := user.Current()
@@ -202,7 +201,16 @@ func MapEnvToStruct(data map[string]string, result any) error {
 
 						if value == "~" {
 							fullPath = homeDir
-						} else if value[:2] == "~/" {
+						} else if len(value) >= 2 && value[:2] == "~/" {
+							fullPath = filepath.Join(homeDir, value[2:])
+						}
+					case "darwin":
+						usr, _ := user.Current()
+						homeDir := usr.HomeDir
+
+						if value == "~" {
+							fullPath = homeDir
+						} else if len(value) >= 2 && value[:2] == "~/" {
 							fullPath = filepath.Join(homeDir, value[2:])
 						}
 					default:

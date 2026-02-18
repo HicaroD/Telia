@@ -29,14 +29,19 @@ func New(collector *diagnostics.Collector) *sema {
 }
 
 func (s *sema) Check(program *ast.Program, runtime *ast.Package) error {
-	err := s.checkPackage(runtime)
-	if err != nil {
-		return err
+	if runtime != nil {
+		err := s.checkPackage(runtime)
+		if err != nil {
+			return err
+		}
 	}
 	return s.checkPackage(program.Root)
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
+	if pkg == nil {
+		return nil
+	}
 	if pkg.Analyzed {
 		return nil
 	}
