@@ -1,4 +1,4 @@
-package sema_test
+package sema
 
 import (
 	"testing"
@@ -604,7 +604,7 @@ func TestParseNextDecl(t *testing.T) {
 
 	loc := &ast.Loc{Name: "test.t"}
 	lex := lexer.New(loc, []byte(src), collector)
-	p := parser.NewWithLex(lex, collector)
+	p := parser.NewForTest(lex, collector)
 
 	file := &ast.File{
 		PkgNameDefined: false,

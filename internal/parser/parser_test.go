@@ -8,8 +8,6 @@ import (
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
-	"github.com/HicaroD/Telia/internal/parser"
-	"github.com/HicaroD/Telia/tests/testutil"
 )
 
 func TestFnDecl(t *testing.T) {
@@ -158,8 +156,8 @@ func TestFnDecl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFnDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			node, err := p.ParseFnDecl(ast.Attributes{})
 			if err != nil {
@@ -205,8 +203,8 @@ func TestFnDeclWithBody(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestFnDeclWithBody('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc("test.tt"), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc("test.tt"), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			node, err := p.ParseFnDecl(ast.Attributes{})
 			if err != nil {
@@ -774,8 +772,8 @@ func TestVar(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			scope := ast.NewScope(nil)
 			node, err := p.ParseVar(scope)
@@ -825,8 +823,8 @@ func TestIfStmt(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestIfStmt('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			scope := ast.NewScope(nil)
 			node, err := p.ParseCondStmt(scope)
@@ -880,8 +878,8 @@ func TestReturnStmt(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestReturnStmt('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			scope := ast.NewScope(nil)
 			block := &ast.BlockStmt{Statements: []*ast.Node{}}
@@ -930,8 +928,8 @@ func TestStructDecl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestStructDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			node, err := p.ParseStruct(ast.Attributes{})
 			if err != nil {
@@ -985,8 +983,8 @@ func TestExternDecl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestExternDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			node, err := p.ParseExternDecl(ast.Attributes{})
 			if err != nil {
@@ -1137,8 +1135,8 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 			collector := diagnostics.New()
 
 			src := []byte(test.input)
-			lex := lexer.New(testutil.FakeLoc(filename), src, collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), src, collector)
+			p := NewForTest(lex, collector)
 
 			tmpScope := ast.NewScope(nil)
 			_, err := p.ParseBlock(tmpScope)
@@ -1199,8 +1197,8 @@ func TestBlockParsing(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestBlockParsing('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			scope := ast.NewScope(nil)
 			block, err := p.ParseBlock(scope)
@@ -1282,8 +1280,8 @@ func TestTypeParsing(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestTypeParsing('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc("test.tt"), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc("test.tt"), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			exprType, err := p.ParseExprType()
 			if err != nil {
@@ -1325,8 +1323,8 @@ func TestPkgUseDecl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("TestPkgUseDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
-			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := parser.NewWithLex(lex, collector)
+			lex := lexer.New(FakeLoc(filename), []byte(test.input), collector)
+			p := NewForTest(lex, collector)
 
 			var node *ast.Node
 			var err error

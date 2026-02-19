@@ -38,53 +38,6 @@ func New(collector *diagnostics.Collector) *Parser {
 	return parser
 }
 
-// Useful for testing
-func NewWithLex(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
-	universe := ast.NewScope(nil)
-	pkgScope := ast.NewScope(universe)
-	pkg := &ast.Package{
-		Scope:  pkgScope,
-		IsRoot: true,
-	}
-	return &Parser{
-		lex:       lex,
-		collector: collector,
-		pkg:       pkg,
-	}
-}
-
-func (p *Parser) NextForTest(file *ast.File) (*ast.Node, bool, error) {
-	return p.next(file)
-}
-
-func (p *Parser) ParseFileForTest(loc *ast.Loc) (*ast.File, error) {
-	file := &ast.File{
-		Loc:              loc,
-		PkgNameDefined:   false,
-		Imports:          make(map[string]*ast.UseDecl),
-		IsFirstNode:      true,
-		AnyDeclNodeFound: false,
-	}
-
-	p.file = file
-
-	err := p.parseFileDecls(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
-}
-
-func (p *Parser) GetPkg() *ast.Package {
-	return p.pkg
-}
-
-func (p *Parser) SetFileAndPkg(file *ast.File, pkg *ast.Package) {
-	p.file = file
-	p.pkg = pkg
-}
-
 func (p *Parser) ParseDecl() (*ast.Node, error) {
 	node, _, err := p.next(p.file)
 	return node, err

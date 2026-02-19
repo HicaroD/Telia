@@ -1,11 +1,10 @@
-package sema_test
+package sema
 
 import (
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/parser"
-	"github.com/HicaroD/Telia/internal/sema"
 )
 
 func parseAndCheck(src string) *diagnostics.Collector {
@@ -13,7 +12,7 @@ func parseAndCheck(src string) *diagnostics.Collector {
 
 	loc := &ast.Loc{Name: "test.t"}
 	lex := lexer.New(loc, []byte(src), collector)
-	p := parser.NewWithLex(lex, collector)
+	p := parser.NewForTest(lex, collector)
 
 	file, err := p.ParseFileForTest(loc)
 	if err != nil {
@@ -28,7 +27,7 @@ func parseAndCheck(src string) *diagnostics.Collector {
 
 	prog := &ast.Program{Root: pkg}
 
-	s := sema.New(collector)
+	s := New(collector)
 	err = s.Check(prog, nil)
 	if err != nil {
 		diag := diagnostics.Diag{Message: err.Error()}
