@@ -1,0 +1,42 @@
+name: Generate Agent Review Prompt
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  generate-prompt:
+    if: |
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '/generate-review-prompt')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Parse review ID from comment
+        id: parse
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          REVIEW_ID=$(echo "$COMMENT" | grep -oP '(?<=/generate-review-prompt\s)\d+' || echo "")
+          echo "review_id=$REVIEW_ID" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate and post prompt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          REVIEW_ID: ${{ steps.parse.outputs.review_id }}
+        run: python .github/scripts/generate_review_prompt.py
