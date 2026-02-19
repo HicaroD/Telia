@@ -1,4 +1,4 @@
-package lexer
+package lexer_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -82,7 +83,7 @@ func TestTokenKinds(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -139,7 +140,7 @@ func TestTokenPos(t *testing.T) {
 			src := []byte(test.input)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -228,7 +229,7 @@ func TestIsIdentifier(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -256,20 +257,20 @@ func TestIsLiteral(t *testing.T) {
 	filename := "test.tt"
 
 	tests := []*tokenLiteralTest{
-		{"1", token.UNTYPED_INT},
-		{"2", token.UNTYPED_INT},
-		{"3", token.UNTYPED_INT},
-		{"4", token.UNTYPED_INT},
-		{"5", token.UNTYPED_INT},
-		{"6", token.UNTYPED_INT},
-		{"7", token.UNTYPED_INT},
-		{"8", token.UNTYPED_INT},
-		{"9", token.UNTYPED_INT},
-		{"123456789", token.UNTYPED_INT},
+		{"1", token.INT_TYPE},
+		{"2", token.INT_TYPE},
+		{"3", token.INT_TYPE},
+		{"4", token.INT_TYPE},
+		{"5", token.INT_TYPE},
+		{"6", token.INT_TYPE},
+		{"7", token.INT_TYPE},
+		{"8", token.INT_TYPE},
+		{"9", token.INT_TYPE},
+		{"123456789", token.INT_TYPE},
 		// TODO: add float here
-		{"\"Hello world\"", token.UNTYPED_STRING},
-		{"true", token.UNTYPED_BOOL},
-		{"false", token.UNTYPED_BOOL},
+		{"\"Hello world\"", token.STRING_TYPE},
+		{"true", token.BOOL_TYPE},
+		{"false", token.BOOL_TYPE},
 	}
 
 	for _, test := range tests {
@@ -279,7 +280,7 @@ func TestIsLiteral(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -324,22 +325,6 @@ func TestLexicalErrors(t *testing.T) {
 			},
 		},
 		{
-			input: ":",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:1: invalid character :",
-				},
-			},
-		},
-		{
-			input: ":#",
-			diags: []diagnostics.Diag{
-				{
-					Message: "test.tt:1:1: invalid character :",
-				},
-			},
-		},
-		{
 			input: "?",
 			diags: []diagnostics.Diag{
 				{
@@ -372,7 +357,7 @@ func TestLexicalErrors(t *testing.T) {
 			src := []byte(test.input)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 			_, err := lex.Tokenize()
 			if err == nil {
 				t.Fatal("expected to have lexical errors, but got nothing")

@@ -19,7 +19,7 @@ build-dev:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -tags=$(LLVM_GO_TAG) ./...
 
 .PHONY: fmt
 fmt: fmt-code fmt-lines

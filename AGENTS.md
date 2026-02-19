@@ -9,3 +9,4 @@ It is written in Go and it uses LLVM as the back-end for the compiler.
 - Use subagents liberally to keep main context window clean
 - Offload research, exploration, and parallel analysis to subagents
 - Don't go further without asking for permission
+- Read Makefile for knowing how to interact with the project
