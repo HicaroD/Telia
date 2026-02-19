@@ -18,8 +18,9 @@ jobs:
 
       - name: Parse review ID from comment
         id: parse
+        env:
+          COMMENT: ${{ github.event.comment.body }}
         run: |
-          COMMENT="${{ github.event.comment.body }}"
           REVIEW_ID=$(echo "$COMMENT" | grep -oP '(?<=/generate-review-prompt\s)\d+' || echo "")
           echo "review_id=$REVIEW_ID" >> $GITHUB_OUTPUT
 
