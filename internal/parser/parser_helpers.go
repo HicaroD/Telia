@@ -15,6 +15,14 @@ func FakeLoc(filename string) *ast.Loc {
 	return &ast.Loc{Name: filename}
 }
 
+func newParserContext(src []byte, filename string) (*lexer.Lexer, *Parser, *diagnostics.Collector) {
+	collector := diagnostics.New()
+	loc := FakeLoc(filename)
+	lex := lexer.New(loc, src, collector)
+	p := NewForTest(lex, collector)
+	return lex, p, collector
+}
+
 func NewForTest(lex *lexer.Lexer, collector *diagnostics.Collector) *Parser {
 	universe := ast.NewScope(nil)
 	pkgScope := ast.NewScope(universe)
@@ -62,14 +70,7 @@ func (p *Parser) SetFileAndPkg(file *ast.File, pkg *ast.Package) {
 }
 
 func ParseExprFrom(expr, filename string) (*ast.Node, error) {
-	collector := diagnostics.New()
-
-	src := []byte(expr)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	p := NewForTest(lex, collector)
-
+	_, p, _ := newParserContext([]byte(expr), filename)
 	exprAst, err := p.ParseSingleExpr(nil)
 	if err != nil {
 		return nil, err
@@ -78,10 +79,7 @@ func ParseExprFrom(expr, filename string) (*ast.Node, error) {
 }
 
 func ParseDeclFrom(src, filename string) (*ast.Node, error) {
-	collector := diagnostics.New()
-	loc := &ast.Loc{Name: filename}
-	lex := lexer.New(loc, []byte(src), collector)
-	p := NewForTest(lex, collector)
+	_, p, _ := newParserContext([]byte(src), filename)
 
 	file := &ast.File{
 		PkgNameDefined: false,
@@ -97,13 +95,7 @@ func ParseDeclFrom(src, filename string) (*ast.Node, error) {
 }
 
 func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
-	collector := diagnostics.New()
-
-	src := []byte(input)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	p := NewForTest(lex, collector)
+	_, p, _ := newParserContext([]byte(input), filename)
 
 	tempScope := ast.NewScope(nil)
 	forLoop, err := p.ParseForLoop(tempScope)
@@ -111,13 +103,7 @@ func ParseForLoopFrom(input, filename string) (*ast.ForLoop, error) {
 }
 
 func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
-	collector := diagnostics.New()
-
-	src := []byte(input)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	p := NewForTest(lex, collector)
+	_, p, _ := newParserContext([]byte(input), filename)
 
 	tempScope := ast.NewScope(nil)
 	whileLoop, err := p.ParseWhileLoop(tempScope)
@@ -125,13 +111,7 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 }
 
 func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, error) {
-	collector := diagnostics.New()
-
-	src := []byte(input)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	p := NewForTest(lex, collector)
+	_, p, _ := newParserContext([]byte(input), filename)
 	p.pkg.Scope = scope
 
 	fnDecl, err := p.ParseFnDecl(ast.Attributes{})
@@ -143,13 +123,7 @@ func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, err
 }
 
 func parseVarFrom(filename, input string) (*ast.VarIdStmt, error) {
-	collector := diagnostics.New()
-
-	src := []byte(input)
-	loc := new(ast.Loc)
-	loc.Name = filename
-	lex := lexer.New(loc, src, collector)
-	p := NewForTest(lex, collector)
+	_, p, _ := newParserContext([]byte(input), filename)
 
 	tmpScope := ast.NewScope(nil)
 	stmt, err := p.ParseIdStmt(tmpScope)
