@@ -38,11 +38,6 @@ func New(collector *diagnostics.Collector) *Parser {
 	return parser
 }
 
-func (p *Parser) ParseDecl() (*ast.Node, error) {
-	node, _, err := p.next(p.file)
-	return node, err
-}
-
 func (p *Parser) ParsePackageAsProgram(
 	argLoc string,
 	loc *ast.Loc,
