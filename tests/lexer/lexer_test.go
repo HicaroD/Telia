@@ -1,4 +1,4 @@
-package lexer
+package lexer_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -82,7 +83,7 @@ func TestTokenKinds(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -139,7 +140,7 @@ func TestTokenPos(t *testing.T) {
 			src := []byte(test.input)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -228,7 +229,7 @@ func TestIsIdentifier(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
@@ -279,7 +280,7 @@ func TestIsLiteral(t *testing.T) {
 			src := []byte(test.lexeme)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 			tokenResult, err := lex.Tokenize()
 			if err != nil {
 				t.Errorf("unexpected error '%v'", err)
@@ -356,7 +357,7 @@ func TestLexicalErrors(t *testing.T) {
 			src := []byte(test.input)
 			loc := new(ast.Loc)
 			loc.Name = filename
-			lex := New(loc, src, collector)
+			lex := lexer.New(loc, src, collector)
 			_, err := lex.Tokenize()
 			if err == nil {
 				t.Fatal("expected to have lexical errors, but got nothing")

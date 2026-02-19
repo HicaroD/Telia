@@ -8,7 +8,8 @@ import (
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/lexer/token"
-	"github.com/HicaroD/Telia/internal/testutil"
+	"github.com/HicaroD/Telia/internal/parser"
+	"github.com/HicaroD/Telia/tests/testutil"
 )
 
 func TestFnDecl(t *testing.T) {
@@ -158,9 +159,9 @@ func TestFnDecl(t *testing.T) {
 		t.Run(fmt.Sprintf("TestFnDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
-			node, err := p.parseFnDecl(ast.Attributes{})
+			node, err := p.ParseFnDecl(ast.Attributes{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -205,9 +206,9 @@ func TestFnDeclWithBody(t *testing.T) {
 		t.Run(fmt.Sprintf("TestFnDeclWithBody('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc("test.tt"), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
-			node, err := p.parseFnDecl(ast.Attributes{})
+			node, err := p.ParseFnDecl(ast.Attributes{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -774,10 +775,10 @@ func TestVar(t *testing.T) {
 		t.Run(fmt.Sprintf("TestVar('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			scope := ast.NewScope(nil)
-			node, err := p.parseVar(scope)
+			node, err := p.ParseVar(scope)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -825,10 +826,10 @@ func TestIfStmt(t *testing.T) {
 		t.Run(fmt.Sprintf("TestIfStmt('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			scope := ast.NewScope(nil)
-			node, err := p.parseCondStmt(scope)
+			node, err := p.ParseCondStmt(scope)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -880,11 +881,11 @@ func TestReturnStmt(t *testing.T) {
 		t.Run(fmt.Sprintf("TestReturnStmt('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			scope := ast.NewScope(nil)
 			block := &ast.BlockStmt{Statements: []*ast.Node{}}
-			node, err := p.parseStmt(block, scope, false)
+			node, err := p.ParseStmt(block, scope, false)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -930,9 +931,9 @@ func TestStructDecl(t *testing.T) {
 		t.Run(fmt.Sprintf("TestStructDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
-			node, err := p.parseStruct(ast.Attributes{})
+			node, err := p.ParseStruct(ast.Attributes{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -985,9 +986,9 @@ func TestExternDecl(t *testing.T) {
 		t.Run(fmt.Sprintf("TestExternDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
-			node, err := p.parseExternDecl(ast.Attributes{})
+			node, err := p.ParseExternDecl(ast.Attributes{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1137,10 +1138,10 @@ func TestSyntaxErrorsOnBlock(t *testing.T) {
 
 			src := []byte(test.input)
 			lex := lexer.New(testutil.FakeLoc(filename), src, collector)
-			parser := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			tmpScope := ast.NewScope(nil)
-			_, err := parser.parseBlock(tmpScope)
+			_, err := p.ParseBlock(tmpScope)
 
 			if test.expectError && len(collector.Diags) == 0 && err == nil {
 				t.Fatalf("expected error but got none")
@@ -1199,10 +1200,10 @@ func TestBlockParsing(t *testing.T) {
 		t.Run(fmt.Sprintf("TestBlockParsing('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			scope := ast.NewScope(nil)
-			block, err := p.parseBlock(scope)
+			block, err := p.ParseBlock(scope)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1282,9 +1283,9 @@ func TestTypeParsing(t *testing.T) {
 		t.Run(fmt.Sprintf("TestTypeParsing('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc("test.tt"), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
-			exprType, err := p.parseExprType()
+			exprType, err := p.ParseExprType()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1325,13 +1326,13 @@ func TestPkgUseDecl(t *testing.T) {
 		t.Run(fmt.Sprintf("TestPkgUseDecl('%s')", test.input), func(t *testing.T) {
 			collector := diagnostics.New()
 			lex := lexer.New(testutil.FakeLoc(filename), []byte(test.input), collector)
-			p := NewWithLex(lex, collector)
+			p := parser.NewWithLex(lex, collector)
 
 			var node *ast.Node
 			var err error
 
 			if len(test.input) > 7 && test.input[:7] == "package" {
-				_, node, err = p.parsePkgDecl()
+				_, node, err = p.ParsePkgDecl()
 			} else {
 				t.Skip("parseUse requires config setup - skipping integration test")
 			}

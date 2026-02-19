@@ -1,4 +1,4 @@
-package itest
+package compiler
 
 import (
 	"fmt"
@@ -70,27 +70,12 @@ func CompileFileWithBuildType(path string, buildType config.BuildOptimizationTyp
 		return "", collector
 	}
 
-	p := parser.New(collector)
-	program, runtime, err := p.ParseFileAsProgram(path, loc, collector)
-	if err != nil {
-		return "", collector
-	}
-
-	checker := sema.New(collector)
-	err = checker.Check(program, runtime)
+	exePath, err := compilePipeline(loc, buildType, collector)
 	if err != nil {
 		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
 		return "", collector
 	}
 
-	codegen := llvm.NewCG(loc, program, runtime)
-	err = codegen.Generate(buildType)
-	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("codegen failed: %v", err)})
-		return "", collector
-	}
-
-	exePath := codegen.ExePath()
 	output, err := RunBinary(exePath)
 	if err != nil {
 		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)})
@@ -125,18 +110,22 @@ func CompileToBinary(src string) (string, error) {
 	}
 	tmpFile.Close()
 
-	return CompileFileToBinary(tmpFile.Name())
+	return compileFileToBinary(tmpFile.Name())
 }
 
-func CompileFileToBinary(path string) (string, error) {
+func compileFileToBinary(path string) (string, error) {
 	loc, err := ast.LocFromPath(path)
 	if err != nil {
 		return "", err
 	}
 
 	collector := diagnostics.New()
+	return compilePipeline(loc, config.BUILD_OPT_DEBUG, collector)
+}
+
+func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
 	p := parser.New(collector)
-	program, runtime, err := p.ParseFileAsProgram(path, loc, collector)
+	program, runtime, err := p.ParseFileAsProgram(loc.Path, loc, collector)
 	if err != nil {
 		return "", err
 	}
@@ -147,11 +136,11 @@ func CompileFileToBinary(path string) (string, error) {
 		return "", err
 	}
 
-	codegen := llvm.NewCG(loc, program, runtime)
-	err = codegen.Generate(config.BUILD_OPT_DEBUG)
+	cg := llvm.NewCG(loc, program, runtime)
+	err = cg.Generate(buildType)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("codegen failed: %v", err)
 	}
 
-	return codegen.ExePath(), nil
+	return cg.ExePath(), nil
 }

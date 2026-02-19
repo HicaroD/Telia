@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/HicaroD/Telia/internal/itest"
+	"github.com/HicaroD/Telia/tests/compiler"
 )
 
 func TestCompileHelloWorld(t *testing.T) {
-	output, diags := itest.CompileFile("testdata/hello_world.t")
+	output, diags := compiler.CompileFile("testdata/hello_world.t")
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
@@ -19,7 +19,7 @@ func TestCompileHelloWorld(t *testing.T) {
 }
 
 func TestCompileFibonacci(t *testing.T) {
-	output, diags := itest.CompileFile("testdata/fib.t")
+	output, diags := compiler.CompileFile("testdata/fib.t")
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
@@ -30,7 +30,7 @@ func TestCompileFibonacci(t *testing.T) {
 }
 
 func TestCompileCalculator(t *testing.T) {
-	output, diags := itest.CompileFile("testdata/calculator.t")
+	output, diags := compiler.CompileFile("testdata/calculator.t")
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
@@ -41,7 +41,7 @@ func TestCompileCalculator(t *testing.T) {
 }
 
 func TestUndefinedVariable(t *testing.T) {
-	_, diags := itest.CompileFile("testdata/errors/undefined_var.t")
+	_, diags := compiler.CompileFile("testdata/errors/undefined_var.t")
 	if len(diags.Diags) == 0 {
 		t.Fatalf("expected errors, got none")
 	}
@@ -58,7 +58,7 @@ func TestUndefinedVariable(t *testing.T) {
 }
 
 func TestTypeMismatch(t *testing.T) {
-	_, diags := itest.CompileFile("testdata/errors/type_mismatch.t")
+	_, diags := compiler.CompileFile("testdata/errors/type_mismatch.t")
 	if len(diags.Diags) == 0 {
 		t.Fatalf("expected errors, got none")
 	}
@@ -75,7 +75,7 @@ func TestTypeMismatch(t *testing.T) {
 }
 
 func TestBadSyntax(t *testing.T) {
-	_, diags := itest.CompileFile("testdata/errors/bad_syntax.t")
+	_, diags := compiler.CompileFile("testdata/errors/bad_syntax.t")
 	if len(diags.Diags) == 0 {
 		t.Fatalf("expected errors, got none")
 	}

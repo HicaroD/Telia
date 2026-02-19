@@ -1,7 +1,6 @@
-package sema
+package sema_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -9,49 +8,6 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer"
 	"github.com/HicaroD/Telia/internal/parser"
 )
-
-func parseAndCheck(t *testing.T, src string) *diagnostics.Collector {
-	collector := diagnostics.New()
-
-	loc := &ast.Loc{Name: "test.t"}
-	lex := lexer.New(loc, []byte(src), collector)
-	p := parser.NewWithLex(lex, collector)
-
-	file, err := p.ParseFileForTest(loc)
-	if err != nil {
-		diag := diagnostics.Diag{Message: "parse error: " + err.Error()}
-		collector.ReportAndSave(diag)
-		return collector
-	}
-
-	pkg := p.GetPkg()
-	pkg.Loc = loc
-	pkg.Files = []*ast.File{file}
-
-	prog := &ast.Program{Root: pkg}
-
-	sema := New(collector)
-	err = sema.Check(prog, nil)
-	if err != nil {
-		diag := diagnostics.Diag{Message: err.Error()}
-		collector.ReportAndSave(diag)
-	}
-
-	return collector
-}
-
-func parseNextDecl(p *parser.Parser, file *ast.File) (*ast.Node, bool, error) {
-	return p.NextForTest(file)
-}
-
-func containsDiag(diags []diagnostics.Diag, substr string) bool {
-	for _, d := range diags {
-		if strings.Contains(d.Message, substr) {
-			return true
-		}
-	}
-	return false
-}
 
 func TestTypeInference(t *testing.T) {
 	tests := []struct {
@@ -133,7 +89,7 @@ func TestTypeInference(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			hasError := len(collector.Diags) > 0
 			if hasError != tt.hasError {
 				t.Errorf("expected hasError=%v, got=%v. Diags: %v", tt.hasError, hasError, collector.Diags)
@@ -172,7 +128,7 @@ func TestTypeChecking(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -241,7 +197,7 @@ func TestFunctionCalls(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -295,7 +251,7 @@ func TestScopeResolution(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -349,7 +305,7 @@ func TestDuplicateDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -428,7 +384,7 @@ func TestSemanticErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -487,7 +443,7 @@ func TestControlFlow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -521,7 +477,7 @@ func TestStructDecl(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -555,7 +511,7 @@ func TestMainFunction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -594,7 +550,7 @@ func TestVariadicFunctions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -628,7 +584,7 @@ func TestPointerOperations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := parseAndCheck(t, tt.src)
+			collector := parseAndCheck(tt.src)
 			if tt.errSubstr == "" {
 				if len(collector.Diags) > 0 {
 					t.Errorf("expected no error, got: %v", collector.Diags)
@@ -639,5 +595,83 @@ func TestPointerOperations(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestParseNextDecl(t *testing.T) {
+	src := "package main\n\nfn foo() {}\nfn main() {}"
+	collector := diagnostics.New()
+
+	loc := &ast.Loc{Name: "test.t"}
+	lex := lexer.New(loc, []byte(src), collector)
+	p := parser.NewWithLex(lex, collector)
+
+	file := &ast.File{
+		PkgNameDefined: false,
+		Imports:        make(map[string]*ast.UseDecl),
+		IsFirstNode:    true,
+	}
+	pkg := &ast.Package{Scope: ast.NewScope(nil)}
+	p.SetFileAndPkg(file, pkg)
+
+	node, done, err := parseNextDecl(p, file)
+	if err != nil {
+		t.Fatalf("parseNextDecl error: %v", err)
+	}
+	if done {
+		t.Errorf("expected not done after package decl")
+	}
+	if node == nil {
+		t.Errorf("expected node, got nil")
+	}
+	if node.Kind != ast.KIND_PKG_DECL {
+		t.Errorf("expected KIND_PKG_DECL, got %v", node.Kind)
+	}
+
+	node, done, err = parseNextDecl(p, file)
+	if err != nil {
+		t.Fatalf("parseNextDecl error: %v", err)
+	}
+	if done {
+		t.Errorf("expected not done after first decl")
+	}
+	if node == nil {
+		t.Errorf("expected node, got nil")
+	}
+	if node.Kind != ast.KIND_FN_DECL {
+		t.Errorf("expected KIND_FN_DECL, got %v", node.Kind)
+	}
+	fnDecl := node.Node.(*ast.FnDecl)
+	if string(fnDecl.Name.Lexeme) != "foo" {
+		t.Errorf("expected 'foo', got %s", fnDecl.Name.Lexeme)
+	}
+
+	node, done, err = parseNextDecl(p, file)
+	if err != nil {
+		t.Fatalf("parseNextDecl error: %v", err)
+	}
+	if done {
+		t.Errorf("expected not done after second decl")
+	}
+	if node == nil {
+		t.Errorf("expected node, got nil")
+	}
+	if node.Kind != ast.KIND_FN_DECL {
+		t.Errorf("expected KIND_FN_DECL, got %v", node.Kind)
+	}
+	fnDecl = node.Node.(*ast.FnDecl)
+	if string(fnDecl.Name.Lexeme) != "main" {
+		t.Errorf("expected 'main', got %s", fnDecl.Name.Lexeme)
+	}
+
+	node, done, err = parseNextDecl(p, file)
+	if err != nil {
+		t.Fatalf("parseNextDecl error: %v", err)
+	}
+	if !done {
+		t.Errorf("expected done after all decls")
+	}
+	if node != nil {
+		t.Errorf("expected nil node, got %v", node)
 	}
 }
