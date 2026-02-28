@@ -141,7 +141,11 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 				return false, err
 			}
 		case ast.KIND_STRUCT_DECL:
-			continue
+			structDecl := node.Node.(*ast.StructDecl)
+			err := s.checkStructDecl(structDecl)
+			if err != nil {
+				return false, err
+			}
 		case ast.KIND_PKG_DECL:
 			continue
 		default:
@@ -153,6 +157,21 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 	}
 
 	return foundMain, nil
+}
+
+func (sema *sema) checkStructDecl(structDecl *ast.StructDecl) error {
+	// TODO: optimize it
+	// Depending on the number of fields, it might be better to use a slice or even bitmaps
+	// to store seen fields
+	seenFields := make(map[string]bool, len(structDecl.Fields))
+	for _, field := range structDecl.Fields {
+		fieldName := field.Name.Name()
+		if seenFields[fieldName] {
+			return fmt.Errorf("%s duplicate field '%s' in struct '%s'", field.Name.Pos, fieldName, structDecl.Name.Name())
+		}
+		seenFields[fieldName] = true
+	}
+	return nil
 }
 
 func (sema *sema) checkFnDecl(
@@ -244,6 +263,22 @@ func (sema *sema) checkNonVoidFunctionReturns(block *ast.BlockStmt) bool {
 		}
 	}
 	return hasReturn
+}
+
+func (sema *sema) checkBlockStmt(
+	block *ast.BlockStmt,
+	declScope *ast.Scope,
+	referenceScope *ast.Scope,
+	returnTy *ast.ExprType,
+	fromImportPackage, isArg bool,
+) error {
+	for _, stmt := range block.Statements {
+		err := sema.checkStmt(stmt, referenceScope, declScope, returnTy, fromImportPackage, isArg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var VALID_CALLING_CONVENTIONS []string = []string{
@@ -477,6 +512,10 @@ func (sema *sema) checkStmt(
 			isArg,
 		)
 		return err
+	case ast.KIND_BLOCK_STMT:
+		blockStmt := stmt.Node.(*ast.BlockStmt)
+		blockScope := ast.NewScope(declScope)
+		return sema.checkBlockStmt(blockStmt, blockScope, referenceScope, returnTy, fromImportPackage, isArg)
 	case ast.KIND_ASSIGNMENT_STMT:
 		assignment := stmt.Node.(*ast.AssignmentStmt)
 		err := sema.checkAssignment(
@@ -505,7 +544,7 @@ func (sema *sema) checkVar(
 			err = sema.checkNormalVarDecl(
 				currentVar.Node.(*ast.VarIdStmt),
 				variable.IsDecl,
-				referenceScope,
+				declScope,
 			)
 		} else {
 			_, _, err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope)
@@ -517,6 +556,18 @@ func (sema *sema) checkVar(
 	}
 
 	switch variable.Expr.Kind {
+	case ast.KIND_TUPLE_LITERAL_EXPR:
+		tuple := variable.Expr.Node.(*ast.TupleExpr)
+		if len(variable.Names) != len(tuple.Exprs) {
+			return fmt.Errorf("more variables than expressions\n")
+		}
+		for i, name := range variable.Names {
+			err := sema.checkVarExpr(name, tuple.Exprs[i], referenceScope, declScope, fromImportPackage, isArg)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(
@@ -810,7 +861,7 @@ func (sema *sema) getAccessedField(
 	// fromImportPackage bool,
 ) (*ast.IdExpr, *ast.StructField, error) {
 	id := fieldAccess.Left.Name.Name()
-	sym, err := referenceScope.LookupCurrentScope(id)
+	sym, err := referenceScope.LookupAcrossScopes(id)
 	if err != nil {
 		return nil, nil, err
 	}
