@@ -1499,7 +1499,7 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	case token.DOT:
 		return p.parseFieldAccess()
 	default:
-		return p.ParseVar(parentScope)
+		return p.ParseVar(parentScope, false)
 	}
 }
 
@@ -1593,7 +1593,7 @@ Targets:
 	}
 }
 
-func (p *Parser) ParseVar(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) ParseVar(parentScope *ast.Scope, fromForLoop bool) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
 	var isDecl, hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
 	var numberOfPointerReceivers int
@@ -1695,8 +1695,12 @@ VarDecl:
 		return nil, fmt.Errorf("impossible to define a type for any variable reassignment")
 	}
 
+	stopAt := []token.Kind{token.NEWLINE, token.AT, token.OPEN_CURLY, token.EOF}
+	if fromForLoop {
+		stopAt = append(stopAt, token.SEMICOLON)
+	}
 	expr, err := p.parseAnyExpr(
-		[]token.Kind{token.NEWLINE, token.AT, token.SEMICOLON, token.OPEN_CURLY},
+		stopAt,
 		parentScope,
 	)
 	if err != nil {
@@ -2341,7 +2345,7 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
-	init, err := parser.ParseVar(parentScope)
+	init, err := parser.ParseVar(parentScope, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2363,7 +2367,7 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected ';'")
 	}
 
-	update, err := parser.ParseVar(parentScope)
+	update, err := parser.ParseVar(parentScope, true)
 	if err != nil {
 		return nil, err
 	}

@@ -719,7 +719,7 @@ func TestVar(t *testing.T) {
 		check func(t *testing.T, node *ast.Node)
 	}{
 		{
-			input: "age := 10;",
+			input: "age := 10",
 			check: func(t *testing.T, node *ast.Node) {
 				if node.Kind != ast.KIND_VAR_STMT {
 					t.Errorf("expected KIND_VAR_STMT, got %v", node.Kind)
@@ -738,7 +738,7 @@ func TestVar(t *testing.T) {
 			},
 		},
 		{
-			input: "age = 10;",
+			input: "age = 10",
 			check: func(t *testing.T, node *ast.Node) {
 				varStmt := node.Node.(*ast.VarStmt)
 				if varStmt.IsDecl {
@@ -747,7 +747,7 @@ func TestVar(t *testing.T) {
 			},
 		},
 		{
-			input: "age u8 := 10;",
+			input: "age u8 := 10",
 			check: func(t *testing.T, node *ast.Node) {
 				varStmt := node.Node.(*ast.VarStmt)
 				if len(varStmt.Names) == 0 {
@@ -760,7 +760,7 @@ func TestVar(t *testing.T) {
 			},
 		},
 		{
-			input: "a, b := 10, 20;",
+			input: "a, b := 10, 20",
 			check: func(t *testing.T, node *ast.Node) {
 				if node.Kind != ast.KIND_VAR_STMT {
 					t.Errorf("expected KIND_VAR_STMT, got %v", node.Kind)
@@ -776,7 +776,7 @@ func TestVar(t *testing.T) {
 			p := NewForTest(lex, collector)
 
 			scope := ast.NewScope(nil)
-			node, err := p.ParseVar(scope)
+			node, err := p.ParseVar(scope, false)
 			if err != nil {
 				t.Fatal(err)
 			}
