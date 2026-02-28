@@ -160,7 +160,7 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 }
 
 func (sema *sema) checkStructDecl(structDecl *ast.StructDecl) error {
-	seenFields := make(map[string]bool)
+	seenFields := make(map[string]bool, len(structDecl.Fields))
 	for _, field := range structDecl.Fields {
 		fieldName := field.Name.Name()
 		if seenFields[fieldName] {
