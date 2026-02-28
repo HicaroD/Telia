@@ -31,10 +31,6 @@ func init() {
 }
 
 func CompileFile(path string) (string, *diagnostics.Collector) {
-	return CompileFileWithBuildType(path, config.BUILD_OPT_DEBUG)
-}
-
-func CompileFileWithBuildType(path string, buildType config.BuildOptimizationType) (string, *diagnostics.Collector) {
 	collector := diagnostics.New()
 
 	loc, err := ast.LocFromPath(path)
@@ -43,7 +39,7 @@ func CompileFileWithBuildType(path string, buildType config.BuildOptimizationTyp
 		return "", collector
 	}
 
-	exePath, err := compilePipeline(loc, buildType, collector)
+	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector)
 	if err != nil {
 		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
 		return "", collector
