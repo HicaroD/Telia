@@ -160,6 +160,9 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 }
 
 func (sema *sema) checkStructDecl(structDecl *ast.StructDecl) error {
+	// TODO: optimize it
+	// Depending on the number of fields, it might be better to use a slice or even bitmaps
+	// to store seen fields
 	seenFields := make(map[string]bool, len(structDecl.Fields))
 	for _, field := range structDecl.Fields {
 		fieldName := field.Name.Name()
