@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/HicaroD/Telia/config"
@@ -16,6 +15,10 @@ import (
 var initialized bool
 
 func init() {
+	defer func() {
+		initialized = true
+	}()
+
 	config.SetDevMode(true)
 	err := config.SetupConfigDir()
 	if err != nil {
@@ -25,36 +28,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to setup env file: %v", err))
 	}
-	initialized = true
-}
-
-func CompileSource(src string) (string, *diagnostics.Collector) {
-	return compileSource(src, config.BUILD_OPT_DEBUG)
-}
-
-func CompileSourceRelease(src string) (string, *diagnostics.Collector) {
-	return compileSource(src, config.BUILD_OPT_RELEASE)
-}
-
-func compileSource(src string, buildType config.BuildOptimizationType) (string, *diagnostics.Collector) {
-	collector := diagnostics.New()
-
-	tmpFile, err := os.CreateTemp("", "test_*.t")
-	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to create temp file: %v", err)})
-		return "", collector
-	}
-	defer os.Remove(tmpFile.Name())
-
-	_, err = tmpFile.WriteString(src)
-	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to write temp file: %v", err)})
-		return "", collector
-	}
-	tmpFile.Close()
-
-	output, diags := CompileFileWithBuildType(tmpFile.Name(), buildType)
-	return output, diags
 }
 
 func CompileFile(path string) (string, *diagnostics.Collector) {
@@ -95,32 +68,6 @@ func RunBinary(path string) (string, error) {
 		return "", err
 	}
 	return string(output), nil
-}
-
-func CompileToBinary(src string) (string, error) {
-	tmpFile, err := os.CreateTemp("", "test_*.t")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	_, err = tmpFile.WriteString(src)
-	if err != nil {
-		return "", err
-	}
-	tmpFile.Close()
-
-	return compileFileToBinary(tmpFile.Name())
-}
-
-func compileFileToBinary(path string) (string, error) {
-	loc, err := ast.LocFromPath(path)
-	if err != nil {
-		return "", err
-	}
-
-	collector := diagnostics.New()
-	return compilePipeline(loc, config.BUILD_OPT_DEBUG, collector)
 }
 
 func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
