@@ -6,7 +6,7 @@ import (
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/codegen/llvm"
+	ccodegen "github.com/HicaroD/Telia/internal/codegen/c"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
@@ -79,7 +79,7 @@ func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, colle
 		return "", err
 	}
 
-	cg := llvm.NewCG(loc, program, runtime)
+	cg := ccodegen.NewCG(loc, program, runtime)
 	err = cg.Generate(buildType)
 	if err != nil {
 		return "", fmt.Errorf("codegen failed: %v", err)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/codegen/llvm"
+	ccodegen "github.com/HicaroD/Telia/internal/codegen/c"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
@@ -80,12 +80,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		// TODO: define flag for setting the back-end
-		// Currently I only have one type of back-end, but, in the future, I
-		// could have more
-
-		// TODO: properly set directory
-		codegen := llvm.NewCG(args.Loc, program, runtime)
+		codegen := ccodegen.NewCG(args.Loc, program, runtime)
 		err = codegen.Generate(args.BuildOptType)
 		// TODO(errors)
 		if err != nil {

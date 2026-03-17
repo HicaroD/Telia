@@ -1,25 +1,20 @@
-LLVM_GO_TAG=llvm18
 OUT=telia
 SRC=./cmd/compiler
-LLVM_CONFIG=/opt/homebrew/opt/llvm@18/bin/llvm-config
-CGO_CFLAGS=$(shell $(LLVM_CONFIG) --cflags)
-CGO_LDFLAGS=$(shell $(LLVM_CONFIG) --ldflags)
-CGO_CXXFLAGS=$(shell $(LLVM_CONFIG) --cxxflags)
 
 .PHONY: all
 all: build
 
 .PHONY: build
 build:
-	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" CGO_CXXFLAGS="$(CGO_CXXFLAGS)" go build -tags=$(LLVM_GO_TAG) -o $(OUT) $(SRC)
+	go build -o $(OUT) $(SRC)
 
 .PHONY: build-dev
 build-dev:
-	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" CGO_CXXFLAGS="$(CGO_CXXFLAGS)" go build -tags=$(LLVM_GO_TAG) -ldflags="-X main.DevMode=1" -o $(OUT) $(SRC)
+	go build -ldflags="-X main.DevMode=1" -o $(OUT) $(SRC)
 
 .PHONY: test
 test:
-	go test -tags=$(LLVM_GO_TAG) ./...
+	go test ./...
 
 .PHONY: fmt
 fmt: fmt-code fmt-lines
