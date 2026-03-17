@@ -91,7 +91,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 	} else {
 		// Reassignment
 		if len(stmt.Names) == 1 {
-			target := c.emitExpr(stmt.Names[0])
+			target := c.emitVarTarget(stmt.Names[0])
 			val := c.emitExpr(stmt.Expr)
 			c.buf.WriteString(fmt.Sprintf("%s = %s;\n", target, val))
 		}
@@ -203,8 +203,32 @@ func (c *CCodegen) emitForUpdate(node *ast.Node) string {
 			val := c.emitExpr(stmt.Values[0])
 			return fmt.Sprintf("%s = %s", t, val)
 		}
+	case ast.KIND_VAR_STMT:
+		// The parser emits the for-loop update as a VarStmt (reassignment).
+		stmt := node.Node.(*ast.VarStmt)
+		if !stmt.IsDecl && len(stmt.Names) == 1 {
+			target := c.emitVarTarget(stmt.Names[0])
+			val := c.emitExpr(stmt.Expr)
+			return fmt.Sprintf("%s = %s", target, val)
+		}
 	}
 	return c.emitExpr(node)
+}
+
+// emitVarTarget resolves the C name for the left-hand side of a VarStmt reassignment.
+// VarStmt.Names entries are KIND_VAR_ID_STMT nodes, not expressions.
+func (c *CCodegen) emitVarTarget(node *ast.Node) string {
+	switch node.Kind {
+	case ast.KIND_VAR_ID_STMT:
+		varId := node.Node.(*ast.VarIdStmt)
+		if varId.BackendType != nil {
+			return varId.BackendType.(*CVariable).Name
+		}
+		return varId.Name.Name()
+	default:
+		// For field access or pointer deref targets, fall through to emitExpr.
+		return c.emitExpr(node)
+	}
 }
 
 // emitWhileLoop emits a while loop.

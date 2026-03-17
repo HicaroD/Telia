@@ -80,3 +80,36 @@ func TestBadSyntax(t *testing.T) {
 		t.Fatalf("expected errors, got none")
 	}
 }
+
+func TestForLoop(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/for_loop.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "10\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestWhileLoop(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/while_loop.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "1\n2\n3\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestCondStatement(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/cond.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "-1\n0\n1\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
