@@ -155,7 +155,7 @@ func (c *CCodegen) emitDeclarations(file *ast.File) {
 		case ast.KIND_FN_DECL:
 			c.emitFnForwardDecl(node.Node.(*ast.FnDecl))
 		case ast.KIND_STRUCT_DECL:
-			// handled in issue #71
+			c.emitStructDecl(node.Node.(*ast.StructDecl))
 		}
 	}
 }

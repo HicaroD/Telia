@@ -113,6 +113,21 @@ func (c *CCodegen) emitFnParams(fn *ast.FnDecl) string {
 	return strings.Join(parts, ", ")
 }
 
+// emitStructDecl emits a C typedef struct definition for a Telia struct declaration.
+// It must be emitted before any function forward declarations to avoid forward
+// reference errors in the generated C file.
+//
+//	typedef struct { field_type field_name; ... } StructName;
+func (c *CCodegen) emitStructDecl(st *ast.StructDecl) {
+	name := st.Name.Name()
+	c.buf.WriteString(fmt.Sprintf("typedef struct %s {\n", name))
+	for _, field := range st.Fields {
+		cType := emitCType(field.Type)
+		c.buf.WriteString(fmt.Sprintf("    %s %s;\n", cType, field.Name.Name()))
+	}
+	c.buf.WriteString(fmt.Sprintf("} %s;\n\n", name))
+}
+
 // emitFnBody emits the full C function definition including body.
 func (c *CCodegen) emitFnBody(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)

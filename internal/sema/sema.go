@@ -197,6 +197,17 @@ func (sema *sema) checkFnDecl(
 				return err
 			}
 			param.Type = revealedTy
+		case ast.EXPR_TYPE_POINTER:
+			// Resolve pointer-to-id types (e.g. *Point → *StructType{Point}).
+			ptrTy := param.Type.T.(*ast.PointerType)
+			if ptrTy.Type.Kind == ast.EXPR_TYPE_ID {
+				idTy := ptrTy.Type.T.(*ast.IdType)
+				revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
+				if err != nil {
+					return err
+				}
+				ptrTy.Type = revealedTy
+			}
 		}
 	}
 
@@ -886,27 +897,31 @@ func (sema *sema) getAccessedField(
 	case ast.EXPR_TYPE_STRUCT:
 		structDecl = ty.T.(*ast.StructType).Decl
 	case ast.EXPR_TYPE_POINTER:
-		if !ty.PointerTo(ast.EXPR_TYPE_ID) {
-			return nil, nil, fmt.Errorf(
-				"expected id type, not %s",
-				ty.T,
-			)
-		}
-
 		ptr := ty.T.(*ast.PointerType)
-		id := ptr.Type.T.(*ast.IdType)
-		sym, err := referenceScope.LookupAcrossScopes(id.Name.Name())
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if sym.Kind != ast.KIND_STRUCT_DECL {
+		switch ptr.Type.Kind {
+		case ast.EXPR_TYPE_ID:
+			// Unresolved pointer-to-id: look up the struct in scope.
+			id := ptr.Type.T.(*ast.IdType)
+			sym, err := referenceScope.LookupAcrossScopes(id.Name.Name())
+			if err != nil {
+				return nil, nil, err
+			}
+			if sym.Kind != ast.KIND_STRUCT_DECL {
+				return nil, nil, fmt.Errorf(
+					"expected pointee type to be a struct, not %s",
+					ty.T,
+				)
+			}
+			structDecl = sym.Node.(*ast.StructDecl)
+		case ast.EXPR_TYPE_STRUCT:
+			// Already-resolved pointer-to-struct (e.g. from checkFnDecl param resolution).
+			structDecl = ptr.Type.T.(*ast.StructType).Decl
+		default:
 			return nil, nil, fmt.Errorf(
-				"expected pointee type to be a struct, not %s",
+				"expected pointer to struct type, not %s",
 				ty.T,
 			)
 		}
-		structDecl = sym.Node.(*ast.StructDecl)
 	default:
 		return nil, nil, fmt.Errorf(
 			"expected type to be struct or pointer to struct, but got %s",

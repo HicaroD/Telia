@@ -113,3 +113,15 @@ func TestCondStatement(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, output)
 	}
 }
+
+func TestStructLiteralAndFieldAccess(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/struct_field_access.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// pt.x=3, pt.y=7, sum_fields(pt)=10, scale_x(&pt, 2)=6
+	expected := "3\n7\n10\n6\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}

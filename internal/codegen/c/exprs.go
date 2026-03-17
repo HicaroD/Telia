@@ -300,9 +300,16 @@ func (c *CCodegen) emitFieldAccess(fa *ast.FieldAccess) string {
 	fieldName := fa.AccessedField.Name.Name()
 
 	// Pointer receiver uses ->, value receiver uses .
-	if fa.Left != nil && fa.StructVar != nil {
+	if fa.StructVar != nil {
 		varId := fa.StructVar
-		if varId.Pointer || varId.NumberOfPointerReceivers > 0 {
+		isPointerVar := varId.Pointer ||
+			varId.NumberOfPointerReceivers > 0 ||
+			(varId.Type != nil && varId.Type.Kind == ast.EXPR_TYPE_POINTER)
+		if isPointerVar {
+			return fmt.Sprintf("%s->%s", recv, fieldName)
+		}
+	} else if fa.StructParam != nil {
+		if fa.StructParam.Type != nil && fa.StructParam.Type.Kind == ast.EXPR_TYPE_POINTER {
 			return fmt.Sprintf("%s->%s", recv, fieldName)
 		}
 	}
