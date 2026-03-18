@@ -126,6 +126,20 @@ func TestStructLiteralAndFieldAccess(t *testing.T) {
 	}
 }
 
+func TestDefer(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/defer.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// lifo(): LIFO order — third/second/first
+	// no_defer(): no output
+	// nested(1): inner defer runs at if-block fall-through; outer before return
+	expected := "third\nsecond\nfirst\ninner\nouter\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 func TestMultipleReturnValues(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/multi_ret.t")
 	if len(diags.Diags) > 0 {

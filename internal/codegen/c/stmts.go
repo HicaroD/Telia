@@ -7,22 +7,40 @@ import (
 )
 
 // emitBlock emits each statement in a block at the given indentation level.
-// Deferred statements are emitted in LIFO order before each return.
+//
+// Defer is block-scoped in Telia: deferred statements run before the return
+// of the block they appear in, not necessarily before the function return.
+// The DeferStack is flushed in two places:
+//  1. Immediately before any explicit return statement in this block.
+//  2. At the end of the block when there is no explicit return (fall-through),
+//     e.g. void functions and nested if-blocks. This is guarded by
+//     !block.FoundReturn to avoid double-emission.
 func (c *CCodegen) emitBlock(block *ast.BlockStmt, indent string) {
 	for _, stmt := range block.Statements {
 		// Before a return, flush the defer stack in reverse order.
 		if stmt.Kind == ast.KIND_RETURN_STMT {
-			for i := len(block.DeferStack) - 1; i >= 0; i-- {
-				d := block.DeferStack[i]
-				if !d.Skip {
-					c.buf.WriteString(indent)
-					c.emitStmtNode(d.Stmt, indent)
-					c.buf.WriteString(";\n")
-				}
-			}
+			c.flushDeferStack(block, indent)
 		}
 		c.buf.WriteString(indent)
 		c.emitStmtNode(stmt, indent)
+	}
+	// Flush for fall-through blocks (no explicit return): void functions and
+	// nested blocks such as if-bodies that end without a return statement.
+	if !block.FoundReturn {
+		c.flushDeferStack(block, indent)
+	}
+}
+
+// flushDeferStack emits all non-skipped deferred statements from block in LIFO
+// order at the given indentation level.
+func (c *CCodegen) flushDeferStack(block *ast.BlockStmt, indent string) {
+	for i := len(block.DeferStack) - 1; i >= 0; i-- {
+		d := block.DeferStack[i]
+		if !d.Skip {
+			c.buf.WriteString(indent)
+			c.emitStmtNode(d.Stmt, indent)
+			c.buf.WriteString(";\n")
+		}
 	}
 }
 
