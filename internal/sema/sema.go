@@ -59,14 +59,8 @@ func tupleKey(tt *ast.TupleType) string {
 	return strings.Join(parts, ",")
 }
 
-func (s *sema) Check(program *ast.Program, runtime *ast.Package) error {
+func (s *sema) Check(program *ast.Program) error {
 	s.program = program
-	if runtime != nil {
-		err := s.checkPackage(runtime)
-		if err != nil {
-			return err
-		}
-	}
 	return s.checkPackage(program.Root)
 }
 

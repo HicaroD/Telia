@@ -64,7 +64,6 @@ type PackageType int
 
 const (
 	PACKAGE_STD = iota
-	PACKAGE_RUNTIME
 	PACKAGE_USER
 )
 

@@ -28,7 +28,7 @@ func parseAndCheck(src string) *diagnostics.Collector {
 	prog := &ast.Program{Root: pkg}
 
 	s := New(collector)
-	err = s.Check(prog, nil)
+	err = s.Check(prog)
 	if err != nil {
 		diag := diagnostics.Diag{Message: err.Error()}
 		collector.ReportAndSave(diag)

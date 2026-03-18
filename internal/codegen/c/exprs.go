@@ -42,8 +42,8 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return fmt.Sprintf("(&(%s))", inner)
 
 	case ast.KIND_DEREF_POINTER_EXPR:
-		// Nil-check will be wired in issue #72; for now emit bare dereference.
 		inner := c.emitExpr(node.Node.(*ast.DerefPointerExpr).Expr)
+		c.buf.WriteString(fmt.Sprintf("_check_nil_pointer_deref((void *)(%s));\n", inner))
 		return fmt.Sprintf("(*(%s))", inner)
 
 	case ast.KIND_FIELD_ACCESS:

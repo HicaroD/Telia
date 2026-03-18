@@ -17,10 +17,11 @@ const preamble = `#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-`
-
-const runtimeHelpers = `static inline void _check_nil_pointer_deref(void *ptr) {
-    if (ptr == NULL) { fputs("runtime panic: nil pointer dereference\n", stderr); exit(1); }
+static inline void _check_nil_pointer_deref(void *ptr) {
+    if (ptr == NULL) {
+        fprintf(stderr, "runtime panic: null pointer deref\n");
+        exit(1);
+    }
 }
 
 `
@@ -29,17 +30,15 @@ type CCodegen struct {
 	buf        strings.Builder
 	loc        *ast.Loc
 	program    *ast.Program
-	runtime    *ast.Package
 	currentPkg *ast.Package
 	tmpCnt     int
 	exePath    string
 }
 
-func NewCG(loc *ast.Loc, program *ast.Program, runtime *ast.Package) *CCodegen {
+func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
 	return &CCodegen{
 		loc:     loc,
 		program: program,
-		runtime: runtime,
 	}
 }
 
@@ -61,12 +60,8 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	// Emit into buf
 	c.buf.Reset()
 	c.buf.WriteString(preamble)
-	c.buf.WriteString(runtimeHelpers)
 
 	// Reset processed flags so each Generate() call is clean
-	if c.runtime != nil {
-		resetProcessed(c.runtime)
-	}
 	resetProcessed(c.program.Root)
 
 	// Emit tuple typedef structs before any function declarations that
@@ -77,9 +72,6 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 
 	// Two-pass emission: declarations then bodies, DFS over import graph
-	if c.runtime != nil {
-		c.generatePackage(c.runtime)
-	}
 	c.generatePackage(c.program.Root)
 
 	// Write .c file

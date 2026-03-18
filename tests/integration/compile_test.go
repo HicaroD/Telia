@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -161,5 +162,39 @@ func TestFloatArithmetic(t *testing.T) {
 	expected := "2.0\n1.5\n3.0\n5.0\n2.25\nlt\nle\ngt\nge\neq\nne\n"
 	if output != expected {
 		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestPointerArithmetic(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/pointer_arith.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// *p = 100 mutates x; both *p and x print 100
+	expected := "100\n100\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestNilPointerPanic(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	stderr, err := compiler.RunBinary(exePath)
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	if !strings.Contains(stderr, "null pointer deref") {
+		t.Errorf("expected stderr to contain 'null pointer deref', got: %q", stderr)
 	}
 }
