@@ -125,3 +125,27 @@ func TestStructLiteralAndFieldAccess(t *testing.T) {
 		t.Errorf("expected %q, got %q", expected, output)
 	}
 }
+
+func TestMultipleReturnValues(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/multi_ret.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// get(3) → (1, 5); literal tuple (10, 20) with heterogeneous types (i32, i64)
+	expected := "1\n5\n10\n20\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestFloatArithmetic(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/floats.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// f32/f64 literals, arithmetic (+, -, *, /), and all 6 comparison operators
+	expected := "2.0\n1.5\n3.0\n5.0\n2.25\nlt\nle\ngt\nge\neq\nne\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}

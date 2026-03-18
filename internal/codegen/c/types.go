@@ -2,6 +2,7 @@ package c
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/lexer/token"
@@ -73,9 +74,24 @@ func emitCType(ty *ast.ExprType) string {
 		// This branch should never be reached.
 		panic("emitCType: type alias should have been resolved by sema")
 	case ast.EXPR_TYPE_TUPLE:
-		// Tuple typedefs are generated separately by emitTupleTypedef (issue #73).
-		panic("emitCType: tuple types must be handled by emitTupleTypedef")
+		return tupleTypedefName(ty)
 	default:
 		panic(fmt.Sprintf("emitCType: unhandled ExprType kind: %v", ty.Kind))
 	}
+}
+
+// tupleTypedefName returns the C typedef name for a tuple type.
+// The name is derived from the C types of each element, sanitized for use
+// as a C identifier, e.g. (i32, i64) → "_Tuple_int32_t_int64_t".
+// Must match the key used by sema.tupleKey for consistent deduplication.
+func tupleTypedefName(ty *ast.ExprType) string {
+	tt := ty.T.(*ast.TupleType)
+	parts := make([]string, len(tt.Types))
+	for i, elem := range tt.Types {
+		ctype := emitCType(elem)
+		// Sanitize: spaces and * are not valid in C identifiers.
+		safe := strings.NewReplacer(" ", "_", "*", "ptr").Replace(ctype)
+		parts[i] = safe
+	}
+	return "_Tuple_" + strings.Join(parts, "_")
 }

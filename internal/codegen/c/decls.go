@@ -93,6 +93,21 @@ func (c *CCodegen) emitProtoParams(proto *ast.Proto) string {
 	return strings.Join(parts, ", ")
 }
 
+// emitTupleTypedef emits the C typedef struct for one unique tuple shape.
+//
+//	typedef struct { int32_t _0; int64_t _1; } _Tuple_int32_t_int64_t;
+//
+// Callers are responsible for deduplication; this function always emits.
+func (c *CCodegen) emitTupleTypedef(ty *ast.ExprType) {
+	name := tupleTypedefName(ty)
+	tt := ty.T.(*ast.TupleType)
+	c.buf.WriteString("typedef struct {\n")
+	for i, elem := range tt.Types {
+		c.buf.WriteString(fmt.Sprintf("    %s _%d;\n", emitCType(elem), i))
+	}
+	c.buf.WriteString(fmt.Sprintf("} %s;\n\n", name))
+}
+
 // emitFnForwardDecl emits a C forward declaration for a Telia function.
 func (c *CCodegen) emitFnForwardDecl(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)

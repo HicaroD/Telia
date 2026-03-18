@@ -53,8 +53,7 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr))
 
 	case ast.KIND_TUPLE_LITERAL_EXPR:
-		// Handled in issue #73.
-		panic("emitExpr: tuple literal not yet implemented")
+		return c.emitTupleLiteral(node.Node.(*ast.TupleExpr))
 
 	case ast.KIND_VARG_EXPR:
 		// VarArgsExpr is only encountered inside emitFnCall args handling.
@@ -324,4 +323,20 @@ func (c *CCodegen) emitStructLiteral(sl *ast.StructLiteralExpr) string {
 		fields = append(fields, fmt.Sprintf(".%s = %s", fv.Name.Name(), val))
 	}
 	return fmt.Sprintf("(%s){%s}", sl.Name.Name(), strings.Join(fields, ", "))
+}
+
+// emitTupleLiteral emits a C compound literal for a tuple expression, e.g.:
+//
+//	(_Tuple_int32_t_int32_t){._0 = 1, ._1 = (2 + value)}
+func (c *CCodegen) emitTupleLiteral(te *ast.TupleExpr) string {
+	tupleType := &ast.ExprType{
+		Kind: ast.EXPR_TYPE_TUPLE,
+		T:    te.Type,
+	}
+	name := tupleTypedefName(tupleType)
+	parts := make([]string, len(te.Exprs))
+	for i, expr := range te.Exprs {
+		parts[i] = fmt.Sprintf("._%d = %s", i, c.emitExpr(expr))
+	}
+	return fmt.Sprintf("(%s){%s}", name, strings.Join(parts, ", "))
 }

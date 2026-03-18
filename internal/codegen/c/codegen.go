@@ -69,6 +69,13 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 	resetProcessed(c.program.Root)
 
+	// Emit tuple typedef structs before any function declarations that
+	// reference them. program.TupleTypes was populated and deduplicated by
+	// sema.Check(), so we emit exactly the right set, exactly once.
+	for _, ty := range c.program.TupleTypes {
+		c.emitTupleTypedef(ty)
+	}
+
 	// Two-pass emission: declarations then bodies, DFS over import graph
 	if c.runtime != nil {
 		c.generatePackage(c.runtime)

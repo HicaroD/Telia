@@ -80,13 +80,46 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			varId.BackendType = cVar
 			val := c.emitExpr(stmt.Expr)
 			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+		} else if stmt.Expr.Kind == ast.KIND_TUPLE_LITERAL_EXPR {
+			// Multi-variable declaration from a literal tuple: `a, b := 1, 2`.
+			// Sema split the expressions and set each VarIdStmt.Type directly;
+			// TupleExpr.Type is not set. Emit each variable from its paired expr.
+			te := stmt.Expr.Node.(*ast.TupleExpr)
+			for i, nameNode := range stmt.Names {
+				varId := nameNode.Node.(*ast.VarIdStmt)
+				cType := emitCType(varId.Type)
+				varId.BackendType = &CVariable{CType: cType, Name: varId.Name.Name()}
+				val := c.emitExpr(te.Exprs[i])
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+				if i < len(stmt.Names)-1 {
+					c.buf.WriteString(indent)
+				}
+			}
 		} else {
-			// Multi-variable declaration (tuple unpack) — deferred to #73.
-			// Emit each name as a separate declaration for now.
-			val := c.emitExpr(stmt.Expr)
+			// Multi-variable declaration from a tuple-returning function call:
+			// `a, b := fnCall()`. Emit:
+			//   _Tuple_X _t0 = fnCall();
+			//   T0 a = _t0._0;
+			//   T1 b = _t0._1;
+			elemTypes := make([]*ast.ExprType, len(stmt.Names))
+			for i, nameNode := range stmt.Names {
+				elemTypes[i] = nameNode.Node.(*ast.VarIdStmt).Type
+			}
+			tupleType := &ast.ExprType{
+				Kind: ast.EXPR_TYPE_TUPLE,
+				T:    &ast.TupleType{Types: elemTypes},
+			}
+			tupleName := tupleTypedefName(tupleType)
 			tmp := c.nextTmp()
-			// We don't know the tuple type yet — emit a comment placeholder.
-			c.buf.WriteString(fmt.Sprintf("/* tuple unpack: %s = %s */\n", tmp, val))
+			val := c.emitExpr(stmt.Expr)
+			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, val))
+			for i, nameNode := range stmt.Names {
+				varId := nameNode.Node.(*ast.VarIdStmt)
+				cType := emitCType(varId.Type)
+				varId.BackendType = &CVariable{CType: cType, Name: varId.Name.Name()}
+				c.buf.WriteString(indent)
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s._%d;\n", cType, varId.Name.Name(), tmp, i))
+			}
 		}
 	} else {
 		// Reassignment

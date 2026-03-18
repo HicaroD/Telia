@@ -5,6 +5,7 @@ import (
 	"log"
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
@@ -15,8 +16,9 @@ type sema struct {
 	mainPackageFound bool
 	collector        *diagnostics.Collector
 
-	pkg  *ast.Package
-	file *ast.File
+	pkg     *ast.Package
+	file    *ast.File
+	program *ast.Program // set by Check(); used by registerTupleType
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -28,7 +30,37 @@ func New(collector *diagnostics.Collector) *sema {
 	return s
 }
 
+// registerTupleType appends ty to program.TupleTypes if its shape has not
+// been seen before. The deduplication key is the tuple's structural signature
+// (element kinds joined with ","). This gives codegen a pre-computed,
+// deduplicated list of all typedef structs it must emit.
+func (s *sema) registerTupleType(ty *ast.ExprType) {
+	if s.program == nil {
+		return
+	}
+	tt := ty.T.(*ast.TupleType)
+	// Build a canonical key from the element kinds.
+	key := tupleKey(tt)
+	for _, existing := range s.program.TupleTypes {
+		if tupleKey(existing.T.(*ast.TupleType)) == key {
+			return // already registered
+		}
+	}
+	s.program.TupleTypes = append(s.program.TupleTypes, ty)
+}
+
+// tupleKey returns a stable string key for a TupleType, used for deduplication.
+// The key is the comma-joined list of each element's String() representation.
+func tupleKey(tt *ast.TupleType) string {
+	parts := make([]string, len(tt.Types))
+	for i, t := range tt.Types {
+		parts[i] = t.T.(fmt.Stringer).String()
+	}
+	return strings.Join(parts, ",")
+}
+
 func (s *sema) Check(program *ast.Program, runtime *ast.Package) error {
+	s.program = program
 	if runtime != nil {
 		err := s.checkPackage(runtime)
 		if err != nil {
@@ -238,6 +270,12 @@ func (sema *sema) checkFnDecl(
 			return err
 		}
 		function.RetType = revealedTy
+	}
+
+	// Register tuple return types so codegen can emit their typedef structs
+	// upfront without a separate discovery pass.
+	if function.RetType.Kind == ast.EXPR_TYPE_TUPLE {
+		sema.registerTupleType(function.RetType)
 	}
 
 	return err
@@ -1144,8 +1182,18 @@ func (sema *sema) checkFnCallArgs(
 	if params.IsVariadic {
 		variadicParam := params.Fields[params.Len]
 		for _, variadicArg := range variadicArgs {
-			if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage, true); err != nil {
-				return err
+			if variadicParam.Attributes.C {
+				// @c marks a C-style variadic (e.g. printf) — the callee accepts
+				// any type at the C ABI level. Still resolve the expression (so
+				// field accesses, identifiers, etc. are fully wired up) but skip
+				// the type constraint check against variadicParam.Type.
+				if _, _, err := sema.inferExprTypeWithoutContext(variadicArg, referenceScope, declScope, fromImportPackage, true); err != nil {
+					return err
+				}
+			} else {
+				if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage, true); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -1495,6 +1543,18 @@ func (s *sema) inferBinaryExprType(
 	}
 
 	if expectedType != nil && !resultType.Equals(expectedType) {
+		// If the result is a non-explicit basic type (untyped literal result) and
+		// the expected type is also basic, try the same compatibility+coercion path
+		// that single literals use in inferBasicExprTypeWithContext. This allows
+		// expressions like `a f64 := 1.5 + 0.5` or `a i32 := 1 + 2` to work.
+		if resultType.Kind == ast.EXPR_TYPE_BASIC && expectedType.Kind == ast.EXPR_TYPE_BASIC {
+			resultBasic := resultType.T.(*ast.BasicType)
+			expectedBasic := expectedType.T.(*ast.BasicType)
+			if !resultBasic.Explicit && resultBasic.IsCompatibleWith(expectedBasic) {
+				resultBasic.Kind = expectedBasic.Kind
+				return expectedType, ctx, nil
+			}
+		}
 		return nil, false, fmt.Errorf(
 			"type mismatch: expected %s, got %s\n",
 			expectedType.T,
@@ -1573,6 +1633,27 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	}
 
 	if !lhs.Equals(rhs) {
+		// Allow one side to be an untyped literal whose basic type is compatible
+		// with the other side's explicit type — e.g. `f32_var + 1.5` where lhs
+		// is F32_TYPE (explicit) and rhs comes from the literal `1.5` (FLOAT_TYPE,
+		// non-explicit). Only literals are safe to coerce in-place; coercing a
+		// named variable's type would corrupt the declaration's shared type node.
+		if lhs.Kind == ast.EXPR_TYPE_BASIC && rhs.Kind == ast.EXPR_TYPE_BASIC {
+			lhsBasic := lhs.T.(*ast.BasicType)
+			rhsBasic := rhs.T.(*ast.BasicType)
+			if lhsBasic.Explicit && !rhsBasic.Explicit &&
+				binary.Right.Kind == ast.KIND_LITERAL_EXPR &&
+				rhsBasic.IsCompatibleWith(lhsBasic) {
+				rhsBasic.Kind = lhsBasic.Kind
+				return lhs, rhs, ctx, nil
+			}
+			if rhsBasic.Explicit && !lhsBasic.Explicit &&
+				binary.Left.Kind == ast.KIND_LITERAL_EXPR &&
+				lhsBasic.IsCompatibleWith(rhsBasic) {
+				lhsBasic.Kind = rhsBasic.Kind
+				return lhs, rhs, ctx, nil
+			}
+		}
 		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
 	}
 	return lhs, rhs, ctx, nil
@@ -1702,6 +1783,8 @@ func (sema *sema) inferTupleExprTypeWithContext(
 	ty := &ast.TupleType{Types: types}
 	tupleTy.T = ty
 	tuple.Type = ty
+	// Register this tuple shape so codegen has the full set upfront.
+	sema.registerTupleType(tupleTy)
 	return tupleTy, nil
 }
 
