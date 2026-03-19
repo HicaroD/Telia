@@ -177,6 +177,18 @@ func TestPointerArithmetic(t *testing.T) {
 	}
 }
 
+func TestCompilePackage(t *testing.T) {
+	output, diags := compiler.CompilePackage("testdata/pkg_smoke")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	// greet::hello() prints first, then main's io::println
+	expected := "Hello from greet package!\nHello from main package!\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 func TestNilPointerPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
 	if len(diags.Diags) > 0 {

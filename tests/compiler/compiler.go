@@ -84,9 +84,55 @@ func CompileOnly(path string) (string, *diagnostics.Collector) {
 	return exePath, collector
 }
 
+func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
+	collector := diagnostics.New()
+
+	loc, err := ast.LocFromPath(dirPath)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		return "", collector
+	}
+
+	exePath, err := compilePackagePipeline(dirPath, loc, config.BUILD_OPT_DEBUG, collector)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
+		return "", collector
+	}
+
+	output, err := RunBinary(exePath)
+	if err != nil {
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)})
+		return "", collector
+	}
+
+	return output, collector
+}
+
 func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
 	p := parser.New(collector)
 	program, err := p.ParseFileAsProgram(loc.Path, loc, collector)
+	if err != nil {
+		return "", err
+	}
+
+	checker := sema.New(collector)
+	err = checker.Check(program)
+	if err != nil {
+		return "", err
+	}
+
+	cg := ccodegen.NewCG(loc, program)
+	err = cg.Generate(buildType)
+	if err != nil {
+		return "", fmt.Errorf("codegen failed: %v", err)
+	}
+
+	return cg.ExePath(), nil
+}
+
+func compilePackagePipeline(dirPath string, loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
+	p := parser.New(collector)
+	program, err := p.ParsePackageAsProgram(dirPath, loc)
 	if err != nil {
 		return "", err
 	}
