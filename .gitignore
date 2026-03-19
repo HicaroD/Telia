@@ -27,3 +27,6 @@ config/env
 
 # MacOS
 .DS_Store
+
+# OpenCode
+.opencode

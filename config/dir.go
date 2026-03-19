@@ -14,7 +14,6 @@ import (
 
 // TODO: properly map these paths to user
 var DEFAULT_ENV_FILE string = `T_STD=
-T_RUNTIME=
 `
 
 //go:embed env
@@ -25,8 +24,7 @@ var TELIA_CONFIG_DIR string
 var ENVS *Envs
 
 type Envs struct {
-	STD     string `env:"T_STD_PATH"`
-	RUNTIME string `env:"T_RUNTIME_PATH"`
+	STD string `env:"T_STD_PATH"`
 }
 
 func (e *Envs) ShowAll() {

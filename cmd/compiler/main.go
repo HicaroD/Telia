@@ -6,7 +6,7 @@ import (
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
-	"github.com/HicaroD/Telia/internal/codegen/llvm"
+	ccodegen "github.com/HicaroD/Telia/internal/codegen/c"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
@@ -66,7 +66,7 @@ func main() {
 		if args.Loc.IsPackage {
 			buildType = BUILD_TYPE_PACKAGE
 		}
-		program, runtime, err := buildAll(args.ArgLoc, args.Loc, collector, buildType)
+		program, err := buildAll(args.ArgLoc, args.Loc, collector, buildType)
 
 		// TODO(errors)
 		if err != nil {
@@ -74,18 +74,13 @@ func main() {
 		}
 
 		sema := sema.New(collector)
-		err = sema.Check(program, runtime)
+		err = sema.Check(program)
 		// TODO(errors)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// TODO: define flag for setting the back-end
-		// Currently I only have one type of back-end, but, in the future, I
-		// could have more
-
-		// TODO: properly set directory
-		codegen := llvm.NewCG(args.Loc, program, runtime)
+		codegen := ccodegen.NewCG(args.Loc, program)
 		err = codegen.Generate(args.BuildOptType)
 		// TODO(errors)
 		if err != nil {
@@ -135,17 +130,17 @@ func buildAll(
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
 	ty BuildType,
-) (*ast.Program, *ast.Package, error) {
+) (*ast.Program, error) {
 	switch ty {
 	case BUILD_TYPE_PACKAGE:
 		p := parser.New(collector)
-		program, runtime, err := p.ParsePackageAsProgram(argLoc, loc)
-		return program, runtime, err
+		program, err := p.ParsePackageAsProgram(argLoc, loc)
+		return program, err
 	case BUILD_TYPE_FILE:
 		p := parser.New(collector)
-		program, runtime, err := p.ParseFileAsProgram(argLoc, loc, collector)
-		return program, runtime, err
+		program, err := p.ParseFileAsProgram(argLoc, loc, collector)
+		return program, err
 	default:
-		return nil, nil, fmt.Errorf("unknown build type: %s", ty)
+		return nil, fmt.Errorf("unknown build type: %s", ty)
 	}
 }

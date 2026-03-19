@@ -22,8 +22,6 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
-
-	Runtime *ast.Package
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -41,18 +39,14 @@ func New(collector *diagnostics.Collector) *Parser {
 func (p *Parser) ParsePackageAsProgram(
 	argLoc string,
 	loc *ast.Loc,
-) (*ast.Program, *ast.Package, error) {
+) (*ast.Program, error) {
 	p.argLoc = argLoc
 	root, err := p.parsePackage(loc, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	runtime, err := p.parseRuntimePackage()
-	if err != nil {
-		return nil, nil, err
-	}
-	return &ast.Program{Root: root}, runtime, nil
+	return &ast.Program{Root: root}, nil
 }
 
 func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
@@ -75,23 +69,6 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	return pkg, nil
 }
 
-func (p *Parser) parseRuntimePackage() (*ast.Package, error) {
-	if config.ENVS.RUNTIME == "" {
-		return nil, nil
-	}
-	loc, err := ast.LocFromPath(config.ENVS.RUNTIME)
-	if err != nil {
-		return nil, err
-	}
-
-	runtimePkg, err := p.parsePackage(loc, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return runtimePkg, nil
-}
-
 func (p *Parser) addPackage(
 	pkgTy ast.PackageType,
 	path []string,
@@ -102,8 +79,6 @@ func (p *Parser) addPackage(
 	switch pkgTy {
 	case ast.PACKAGE_STD:
 		prefixPath = config.ENVS.STD
-	case ast.PACKAGE_RUNTIME:
-		prefixPath = config.ENVS.RUNTIME
 	case ast.PACKAGE_USER:
 		prefixPath = p.argLoc
 	default:
@@ -150,12 +125,12 @@ func (p *Parser) ParseFileAsProgram(
 	argLoc string,
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
-) (*ast.Program, *ast.Package, error) {
+) (*ast.Program, error) {
 	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	universe := ast.NewScope(nil)
@@ -170,18 +145,14 @@ func (p *Parser) ParseFileAsProgram(
 
 	file, err := p.parseFile(l, pkg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pkg.Files = []*ast.File{file}
 
 	p.pkg = pkg
 	program := &ast.Program{Root: pkg}
 
-	runtimePkg, err := p.parseRuntimePackage()
-	if err != nil {
-		return nil, nil, err
-	}
-	return program, runtimePkg, nil
+	return program, nil
 }
 
 func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error) {
@@ -666,8 +637,6 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		pkgType = ast.PACKAGE_STD
 	case "pkg":
 		pkgType = ast.PACKAGE_USER
-	case "runtime":
-		pkgType = ast.PACKAGE_RUNTIME
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")
@@ -1362,11 +1331,20 @@ func (p *Parser) ParseStmt(
 		returnStmt.Value = returnValue
 	case token.ID, token.STAR:
 		endsWithNewLine = true
-		idStmt, err := p.ParseIdStmt(parentScope)
-		if err != nil {
-			return nil, err
+		// Handle STAR with lookahead to distinguish dereference assignment from pointer receiver declaration
+		if tok.Kind == token.STAR {
+			stmt, err := p.parseStarStatement(parentScope)
+			if err != nil {
+				return nil, err
+			}
+			n = stmt
+		} else {
+			idStmt, err := p.ParseIdStmt(parentScope)
+			if err != nil {
+				return nil, err
+			}
+			n = idStmt
 		}
-		n = idStmt
 	case token.IF:
 		condStmt, err := p.ParseCondStmt(parentScope)
 		if err != nil {
@@ -1487,6 +1465,66 @@ func (p *Parser) ParseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	return block, nil
 }
 
+func (p *Parser) parseStarStatement(parentScope *ast.Scope) (*ast.Node, error) {
+	p.lex.Skip() // consume STAR
+
+	if !p.lex.NextIs(token.ID) {
+		return nil, fmt.Errorf("expected identifier after *, got %s", p.lex.Peek().Kind)
+	}
+	idTok := p.lex.Peek()
+	p.lex.Skip() // consume ID
+
+	next := p.lex.Peek()
+	switch next.Kind {
+	case token.EQUAL:
+		p.lex.Skip() // consume =
+		rhs, err := p.parseExprList(
+			[]token.Kind{token.NEWLINE, token.AT, token.OPEN_CURLY, token.EOF},
+			parentScope,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		target := p.createDerefExprFromId(idTok)
+
+		assignment := new(ast.AssignmentStmt)
+		assignment.Decl = false
+		assignment.Targets = []*ast.Node{target}
+		assignment.Values = rhs
+
+		n := new(ast.Node)
+		n.Kind = ast.KIND_ASSIGNMENT_STMT
+		n.Node = assignment
+		return n, nil
+
+	case token.COLON_EQUAL:
+		return nil, fmt.Errorf("cannot declare variable with dereference expression")
+
+	case token.COMMA, token.COLON, token.SEMICOLON, token.CLOSE_PAREN, token.NEWLINE, token.EOF:
+		return nil, fmt.Errorf("pointer receiver syntax not yet supported for statement-level declarations")
+
+	default:
+		return nil, fmt.Errorf("pointer receiver syntax not yet supported for statement-level declarations")
+	}
+}
+
+func (p *Parser) createDerefExprFromId(idTok *token.Token) *ast.Node {
+	idExpr := &ast.IdExpr{Name: idTok}
+
+	idNode := new(ast.Node)
+	idNode.Kind = ast.KIND_ID_EXPR
+	idNode.Node = idExpr
+
+	derefExpr := new(ast.DerefPointerExpr)
+	derefExpr.Expr = idNode
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_DEREF_POINTER_EXPR
+	n.Node = derefExpr
+	return n
+}
+
 func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
@@ -1595,7 +1633,7 @@ Targets:
 
 func (p *Parser) ParseVar(parentScope *ast.Scope, fromForLoop bool) (*ast.Node, error) {
 	variables := make([]*ast.Node, 0)
-	var isDecl, hasFieldAccess, hasAnyPointerReceiver, anyVariableDeclaredType bool
+	var isDecl, hasFieldAccess, hasAnyPointerReceiver bool
 	var numberOfPointerReceivers int
 
 VarDecl:
@@ -1658,7 +1696,6 @@ VarDecl:
 		if err != nil {
 			return nil, err
 		}
-		anyVariableDeclaredType = true
 
 		if !isFieldAccess {
 			variable := currentVar.Node.(*ast.VarIdStmt)
@@ -1689,10 +1726,6 @@ VarDecl:
 		if hasAnyPointerReceiver {
 			return nil, fmt.Errorf("impossible to set pointer receiver for variable declaration")
 		}
-	}
-
-	if !isDecl && anyVariableDeclaredType {
-		return nil, fmt.Errorf("impossible to define a type for any variable reassignment")
 	}
 
 	stopAt := []token.Kind{token.NEWLINE, token.AT, token.OPEN_CURLY, token.EOF}
