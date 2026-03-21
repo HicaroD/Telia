@@ -63,8 +63,12 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 		// Defer statements are emitted before returns; skip here.
 	case ast.KIND_FN_CALL:
 		call := node.Node.(*ast.FnCall)
-		c.buf.WriteString(c.emitFnCall(call))
-		c.buf.WriteString(";\n")
+		if call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_FAIL {
+			c.emitAtFailBareCall(call)
+		} else {
+			c.buf.WriteString(c.emitFnCall(call))
+			c.buf.WriteString(";\n")
+		}
 	case ast.KIND_NAMESPACE_ACCESS:
 		ns := node.Node.(*ast.NamespaceAccess)
 		c.buf.WriteString(c.emitNamespaceAccess(ns))
@@ -91,6 +95,28 @@ func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, _ string) {
 	c.buf.WriteString(fmt.Sprintf("return %s;\n", c.emitExpr(ret.Value)))
 }
 
+// emitAtFailBareCall emits a bare @fail function call (statement position).
+// For error-only functions: _Error _t0 = fn(); if (_t0.msg != NULL) { _panic(_t0.msg); }
+// For tuple functions:      _Tuple... _t0 = fn(); if (_t0._N.msg != NULL) { _panic(...); }
+func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
+	fullRetType := getFullFnRetType(call)
+	fnCallExpr := c.emitFnCall(call)
+	tmp := c.nextTmp()
+
+	if fullRetType == nil {
+		// Error-only: Decl/Proto not available or not a tuple.
+		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
+		c.buf.WriteString(fmt.Sprintf("if (%s.msg != NULL) { _panic(%s.msg); }\n", tmp, tmp))
+	} else {
+		// Tuple: store full result, check error field (last element).
+		tupleName := tupleTypedefName(fullRetType)
+		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
+		tt := fullRetType.T.(*ast.TupleType)
+		errIdx := len(tt.Types) - 1
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+	}
+}
+
 // emitVarStmt emits a variable declaration or reassignment.
 func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 	if stmt.IsDecl {
@@ -101,8 +127,33 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			cType := emitCType(varId.Type)
 			cVar := &CVariable{CType: cType, Name: varId.Name.Name()}
 			varId.BackendType = cVar
-			val := c.emitExpr(stmt.Expr)
-			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+
+			// @fail on a tuple-returning function: store full tuple in temp,
+			// check error field, panic if non-nil, then extract non-error fields.
+			if isAtFailTupleCall(stmt) {
+				fnCall := stmt.Expr.Node.(*ast.FnCall)
+				fullRetType := getFullFnRetType(fnCall)
+				tupleName := tupleTypedefName(fullRetType)
+				tmp := c.nextTmp()
+				fnCallExpr := c.emitExpr(stmt.Expr)
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
+
+				tt := fullRetType.T.(*ast.TupleType)
+				errIdx := len(tt.Types) - 1
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+
+				if len(tt.Types) > 2 {
+					for i := 0; i < errIdx; i++ {
+						elemType := emitCType(tt.Types[i])
+						c.buf.WriteString(fmt.Sprintf("%s %s_%d = %s._%d;\n", elemType, tmp, i, tmp, i))
+					}
+				} else {
+					c.buf.WriteString(fmt.Sprintf("%s %s = %s._0;\n", cType, varId.Name.Name(), tmp))
+				}
+			} else {
+				val := c.emitExpr(stmt.Expr)
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+			}
 		} else if stmt.Expr.Kind == ast.KIND_TUPLE_LITERAL_EXPR {
 			// Multi-variable declaration from a literal tuple: `a, b := 1, 2`.
 			// Sema split the expressions and set each VarIdStmt.Type directly;
@@ -294,4 +345,31 @@ func (c *CCodegen) emitWhileLoop(stmt *ast.WhileLoop, indent string) {
 	c.buf.WriteString(fmt.Sprintf("while (%s) {\n", cond))
 	c.emitBlock(stmt.Block, inner)
 	c.buf.WriteString(indent + "}\n")
+}
+
+// isAtFailTupleCall reports whether stmt is a single-var declaration from a
+// @fail call on a tuple-returning function.
+func isAtFailTupleCall(stmt *ast.VarStmt) bool {
+	if stmt.Expr == nil || stmt.Expr.Kind != ast.KIND_FN_CALL {
+		return false
+	}
+	call := stmt.Expr.Node.(*ast.FnCall)
+	return call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_FAIL &&
+		getFullFnRetType(call) != nil
+}
+
+// getFullFnRetType returns the function's declared return type (before sema
+// unwrapping).  It checks Decl first, then Proto. Returns nil if unavailable
+// or not a tuple type.
+func getFullFnRetType(call *ast.FnCall) *ast.ExprType {
+	var retType *ast.ExprType
+	if call.Decl != nil {
+		retType = call.Decl.RetType
+	} else if call.Proto != nil {
+		retType = call.Proto.RetType
+	}
+	if retType == nil || retType.Kind != ast.EXPR_TYPE_TUPLE {
+		return nil
+	}
+	return retType
 }

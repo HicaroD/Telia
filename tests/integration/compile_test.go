@@ -211,6 +211,72 @@ func TestErrorBasic(t *testing.T) {
 	}
 }
 
+func TestErrorFailTuple(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_fail_tuple.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "99\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorFailPanic(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_fail_panic.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	stderr, err := compiler.RunBinary(exePath)
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	if !strings.Contains(stderr, "it failed") {
+		t.Errorf("expected stderr to contain 'it failed', got: %q", stderr)
+	}
+}
+
+func TestErrorFailVoidPanic(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_fail_void.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	stderr, err := compiler.RunBinary(exePath)
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	if !strings.Contains(stderr, "boom") {
+		t.Errorf("expected stderr to contain 'boom', got: %q", stderr)
+	}
+}
+
+func TestErrorFailVoidOK(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_fail_void_ok.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "ok\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 func TestNilPointerPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
 	if len(diags.Diags) > 0 {

@@ -694,7 +694,7 @@ fn main() {
 			hasError: false,
 		},
 		{
-			name: "error nil comparison",
+			name: "error nil comparison !=",
 			src: `package main
 
 fn main() {
@@ -704,6 +704,95 @@ fn main() {
   }
 }`,
 			hasError: false,
+		},
+		{
+			name: "error nil comparison ==",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if e == nil {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison reversed (nil != err)",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if nil != e {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison reversed (nil == err)",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if nil == e {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on non-error function",
+			src: `package main
+
+fn greet() {
+}
+
+fn main() {
+  greet() @fail
+}`,
+			hasError: true,
+			errMsg:   "@fail requires error-returning function",
+		},
+		{
+			name: "@fail on error-only function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @fail
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on (i32, error) function",
+			src: `package main
+
+fn connect() (i32, error) {
+  return 42, nil
+}
+
+fn main() {
+  connect() @fail
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on error-only function with variable assignment",
+			src: `package main
+
+fn something() error {
+  return error("something")
+}
+
+fn main() {
+  a := something() @fail
+}`,
+			hasError: true,
+			errMsg:   "@fail on error-only function",
 		},
 	}
 

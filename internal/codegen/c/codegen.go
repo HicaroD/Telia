@@ -24,6 +24,11 @@ static inline void _check_nil_pointer_deref(void *ptr) {
     }
 }
 
+static inline void _panic(char *msg) {
+    fprintf(stderr, "runtime panic: %s\n", msg);
+    exit(1);
+}
+
 typedef struct { char *msg; } _Error;
 
 `

@@ -624,6 +624,13 @@ func (sema *sema) checkVar(
 			return err
 		}
 
+		// @fail unwraps the error from the tuple — only non-error elements
+		// are assigned to the variables. The error is checked at runtime.
+		if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL &&
+			fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			fnRetType = unwrapErrorFromTuple(fnRetType)
+		}
+
 		if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
 			err := sema.checkTupleTypeAssignedToVariable(
 				variable.Names,
@@ -631,6 +638,31 @@ func (sema *sema) checkVar(
 				referenceScope,
 			)
 			return err
+		} else if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
+			// @fail on error-only function: there is no non-error value to assign.
+			// Use the bare call form instead: fn() @fail (without variable assignment).
+			if fnRetType.IsError() {
+				pos := fnCall.Name.Pos
+				d := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: @fail on error-only function '%s' has no value to assign; use '%s() @fail' without variable assignment",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						fnCall.Name.Name(),
+						fnCall.Name.Name(),
+					),
+				}
+				sema.collector.ReportAndSave(d)
+				return diagnostics.COMPILER_ERROR_FOUND
+			}
+			// @fail on single-var with non-tuple, non-error type: set type
+			// directly. checkFnCall already validated the @fail annotation.
+			if len(variable.Names) != 1 {
+				return fmt.Errorf("more variables than expressions\n")
+			}
+			varId := variable.Names[0].Node.(*ast.VarIdStmt)
+			varId.Type = fnRetType
 		} else {
 			// TODO(errors)
 			if len(variable.Names) != 1 {
@@ -1120,23 +1152,48 @@ func (sema *sema) checkFnCall(
 
 	// NOTE: It happens when extern is declared without a name, it means prototypes
 	// can be accessed globally in the package scope
+	var retType *ast.ExprType
+
 	if symbol.Kind == ast.KIND_PROTO {
 		proto := symbol.Node.(*ast.Proto)
 		fnCall.Proto = proto
-		err := sema.checkFnCallArgs(
+		err = sema.checkFnCallArgs(
 			fnCall,
 			proto.Params,
 			referenceScope,
 			declScope,
 			fromImportPackage,
 		)
-		return proto.RetType, err
+		retType = proto.RetType
 	} else {
 		fnDecl := symbol.Node.(*ast.FnDecl)
 		fnCall.Decl = fnDecl
-		err := sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
-		return fnDecl.RetType, err
+		err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		retType = fnDecl.RetType
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
+		if !returnsError(retType) {
+			pos := fnCall.Name.Pos
+			d := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: @fail requires error-returning function, but '%s' does not return an error",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					fnCall.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(d)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+	}
+
+	return retType, nil
 }
 
 func (sema *sema) checkFnCallArgs(
@@ -1679,6 +1736,36 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
 	}
 	return lhs, rhs, ctx, nil
+}
+
+// returnsError reports whether retType is an error type directly or is a tuple
+// whose last element is an error type.
+func returnsError(retType *ast.ExprType) bool {
+	if retType.IsError() {
+		return true
+	}
+	if retType.Kind == ast.EXPR_TYPE_TUPLE {
+		tt := retType.T.(*ast.TupleType)
+		if len(tt.Types) > 0 {
+			return tt.Types[len(tt.Types)-1].IsError()
+		}
+	}
+	return false
+}
+
+// unwrapErrorFromTuple returns a new ExprType with the last element (error)
+// removed from the tuple. If the tuple has only one non-error element after
+// unwrapping, it returns a basic type instead of a 1-element tuple.
+func unwrapErrorFromTuple(ty *ast.ExprType) *ast.ExprType {
+	tt := ty.T.(*ast.TupleType)
+	nonErrTypes := tt.Types[:len(tt.Types)-1]
+	if len(nonErrTypes) == 1 {
+		return nonErrTypes[0]
+	}
+	return &ast.ExprType{
+		Kind: ast.EXPR_TYPE_TUPLE,
+		T:    &ast.TupleType{Types: nonErrTypes},
+	}
 }
 
 // basicKind returns the token kind for a basic type, or a negative value
