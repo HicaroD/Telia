@@ -63,6 +63,7 @@ const (
 
 	STRING_TYPE  // string
 	CSTRING_TYPE // cstring
+	ERROR_TYPE   // error
 
 	UNTYPED_START // untyped start delimiter
 	UNTYPED_NULLPTR
@@ -165,6 +166,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 
 	"string":  STRING_TYPE,
 	"cstring": CSTRING_TYPE,
+	"error":   ERROR_TYPE,
 }
 
 var BUILTIN_FN_NAMES []string = []string{
@@ -311,6 +313,8 @@ func (k Kind) String() string {
 		return "string"
 	case CSTRING_TYPE:
 		return "cstring"
+	case ERROR_TYPE:
+		return "error"
 	case VOID_TYPE:
 		return "void"
 	case OPEN_PAREN:

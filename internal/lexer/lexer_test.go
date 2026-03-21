@@ -38,6 +38,7 @@ func TestTokenKinds(t *testing.T) {
 
 		{"string", token.STRING_TYPE},
 		{"cstring", token.CSTRING_TYPE},
+		{"error", token.ERROR_TYPE},
 		{"int", token.INT_TYPE},
 		{"int", token.INT_TYPE},
 		{"i8", token.I8_TYPE},

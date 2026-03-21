@@ -6,6 +6,17 @@ import (
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
+var ErrorStructDecl = &StructDecl{
+	Name: &token.Token{Lexeme: []byte("_Error"), Kind: token.ID},
+	Fields: []*StructField{
+		{
+			Index: 0,
+			Name:  &token.Token{Lexeme: []byte("msg"), Kind: token.ID},
+			Type:  NewBasicType(token.STRING_TYPE),
+		},
+	},
+}
+
 var (
 	RAWPTR_TYPE = NewBasicType(token.RAWPTR_TYPE)
 )
@@ -107,6 +118,14 @@ func (ty *ExprType) IsVoid() bool {
 	}
 	basic := ty.T.(*BasicType)
 	return basic.Kind == token.VOID_TYPE
+}
+
+func (ty *ExprType) IsError() bool {
+	if ty.Kind != EXPR_TYPE_BASIC {
+		return false
+	}
+	basic := ty.T.(*BasicType)
+	return basic.Kind == token.ERROR_TYPE
 }
 
 func (ty *ExprType) IsInteger() bool {
@@ -493,6 +512,8 @@ var BinaryOperators = OperatorTable{
 			// pointer
 			POINTER_TYPE,
 			NewBasicType(token.RAWPTR_TYPE),
+			// error
+			NewBasicType(token.ERROR_TYPE),
 		},
 		Handler: handleEqualityComparison,
 	},
@@ -517,6 +538,8 @@ var BinaryOperators = OperatorTable{
 			// pointers
 			POINTER_TYPE,
 			NewBasicType(token.RAWPTR_TYPE),
+			// error
+			NewBasicType(token.ERROR_TYPE),
 		},
 		Handler: handleEqualityComparison,
 	},

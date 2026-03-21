@@ -1381,6 +1381,17 @@ func (p *Parser) ParseStmt(
 		}
 		n.Kind = ast.KIND_BLOCK_STMT
 		n.Node = blockStmt
+	case token.ERROR_TYPE:
+		endsWithNewLine = true
+		if p.lex.Peek1().Kind == token.OPEN_PAREN {
+			expr, err := p.parseErrorConstructorExpr()
+			if err != nil {
+				return nil, err
+			}
+			n = expr
+		} else {
+			return nil, fmt.Errorf("unexpected 'error' at statement level")
+		}
 	default:
 		assignment, err := p.parseAssignment(parentScope)
 		if err != nil {
@@ -2099,6 +2110,14 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 			},
 		}
 		return nullptr, nil
+	case token.ERROR_TYPE:
+		if p.lex.Peek1().Kind == token.OPEN_PAREN {
+			return p.parseErrorConstructorExpr()
+		}
+		return nil, fmt.Errorf(
+			"%s: 'error' can only be used as a type or with error() constructor",
+			tok.Pos,
+		)
 	default:
 		if tok.Kind.IsBasicType() {
 			p.lex.Skip()
@@ -2368,6 +2387,40 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	n := new(ast.Node)
 	n.Kind = ast.KIND_STRUCT_EXPR
 	n.Node = expr
+	return n, nil
+}
+
+func (p *Parser) parseErrorConstructorExpr() (*ast.Node, error) {
+	_, ok := p.expect(token.ERROR_TYPE)
+	if !ok {
+		return nil, fmt.Errorf("expected 'error'")
+	}
+
+	_, ok = p.expect(token.OPEN_PAREN)
+	if !ok {
+		return nil, fmt.Errorf("expected '(' after 'error'")
+	}
+
+	args, err := p.parseExprList([]token.Kind{token.CLOSE_PAREN}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(args) == 0 {
+		return nil, fmt.Errorf("error() requires one argument")
+	}
+
+	_, ok = p.expect(token.CLOSE_PAREN)
+	if !ok {
+		return nil, fmt.Errorf("expected ')' after error constructor argument")
+	}
+
+	n := new(ast.Node)
+	n.Kind = ast.KIND_LITERAL_EXPR
+	n.Node = &ast.LiteralExpr{
+		Type:  ast.NewBasicType(token.ERROR_TYPE),
+		Value: args[0].Node.(*ast.LiteralExpr).Value,
+	}
 	return n, nil
 }
 

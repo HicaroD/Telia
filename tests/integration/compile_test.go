@@ -189,6 +189,28 @@ func TestCompilePackage(t *testing.T) {
 	}
 }
 
+func TestErrorReturn(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_return.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "5\nok\n0\ndivision by zero\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorBasic(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_basic.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "oops\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 func TestNilPointerPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
 	if len(diags.Diags) > 0 {

@@ -1275,6 +1275,17 @@ func TestTypeParsing(t *testing.T) {
 				}
 			},
 		},
+		{
+			input: "error",
+			check: func(t *testing.T, exprType *ast.ExprType) {
+				if exprType.Kind != ast.EXPR_TYPE_BASIC {
+					t.Errorf("expected EXPR_TYPE_BASIC for error, got %v", exprType.Kind)
+				}
+				if exprType.T.(*ast.BasicType).Kind != token.ERROR_TYPE {
+					t.Errorf("expected ERROR_TYPE")
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -1290,6 +1301,28 @@ func TestTypeParsing(t *testing.T) {
 
 			test.check(t, exprType)
 		})
+	}
+}
+
+func TestErrorConstructor(t *testing.T) {
+	node, err := ParseExprFrom(`error("oops")`, "test.tt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if node.Kind != ast.KIND_LITERAL_EXPR {
+		t.Fatalf("expected KIND_LITERAL_EXPR, got %v", node.Kind)
+	}
+
+	lit := node.Node.(*ast.LiteralExpr)
+	if lit.Type.Kind != ast.EXPR_TYPE_BASIC {
+		t.Fatalf("expected EXPR_TYPE_BASIC, got %v", lit.Type.Kind)
+	}
+	if lit.Type.T.(*ast.BasicType).Kind != token.ERROR_TYPE {
+		t.Errorf("expected ERROR_TYPE, got %v", lit.Type.T.(*ast.BasicType).Kind)
+	}
+	if string(lit.Value) != "oops" {
+		t.Errorf("expected value 'oops', got '%s'", string(lit.Value))
 	}
 }
 

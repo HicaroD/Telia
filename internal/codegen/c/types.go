@@ -60,6 +60,8 @@ func emitCType(ty *ast.ExprType) string {
 			return "char *"
 		case token.RAWPTR_TYPE:
 			return "void *"
+		case token.ERROR_TYPE:
+			return "_Error"
 		default:
 			panic(fmt.Sprintf("emitCType: unhandled basic type kind: %v", b.Kind))
 		}

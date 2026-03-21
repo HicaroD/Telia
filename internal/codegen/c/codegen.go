@@ -24,15 +24,18 @@ static inline void _check_nil_pointer_deref(void *ptr) {
     }
 }
 
+typedef struct { char *msg; } _Error;
+
 `
 
 type CCodegen struct {
-	buf        strings.Builder
-	loc        *ast.Loc
-	program    *ast.Program
-	currentPkg *ast.Package
-	tmpCnt     int
-	exePath    string
+	buf          strings.Builder
+	loc          *ast.Loc
+	program      *ast.Program
+	currentPkg   *ast.Package
+	currentRetTy *ast.ExprType
+	tmpCnt       int
+	exePath      string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {

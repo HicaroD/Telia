@@ -83,6 +83,11 @@ func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, _ string) {
 		c.buf.WriteString("return;\n")
 		return
 	}
+	// Special case: return nil in error function -> return (_Error){NULL};
+	if ret.Value.Kind == ast.KIND_NULLPTR_EXPR && c.currentRetTy != nil && c.currentRetTy.IsError() {
+		c.buf.WriteString("return (_Error){NULL};\n")
+		return
+	}
 	c.buf.WriteString(fmt.Sprintf("return %s;\n", c.emitExpr(ret.Value)))
 }
 

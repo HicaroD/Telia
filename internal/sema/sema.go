@@ -954,11 +954,29 @@ func (sema *sema) getAccessedField(
 				ty.T,
 			)
 		}
-	default:
+	case ast.EXPR_TYPE_BASIC:
+		basic := ty.T.(*ast.BasicType)
+		if basic.Kind == token.ERROR_TYPE {
+			switch fieldAccess.Right.Kind {
+			case ast.KIND_ID_EXPR:
+				id := fieldAccess.Right.Node.(*ast.IdExpr)
+				if id.Name.Name() != "msg" {
+					return nil, nil, fmt.Errorf(
+						"field '%s' not found on 'error' type, only 'msg' is available",
+						id.Name.Name(),
+					)
+				}
+				fieldAccess.AccessedField = ast.ErrorStructDecl.Fields[0]
+				return id, ast.ErrorStructDecl.Fields[0], nil
+			default:
+				return nil, nil, fmt.Errorf("invalid field access on error type")
+			}
+		}
 		return nil, nil, fmt.Errorf(
 			"expected type to be struct or pointer to struct, but got %s",
 			ty.T,
 		)
+	default:
 	}
 
 	fieldAccess.Decl = structDecl
@@ -1332,6 +1350,10 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 	}
 	actualBasicType := literal.Type.T.(*ast.BasicType)
 
+	if actualBasicType.Kind == token.ERROR_TYPE {
+		actualBasicType.Explicit = true
+	}
+
 	switch expectedType.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		expectedBasicType := expectedType.T.(*ast.BasicType)
@@ -1498,6 +1520,11 @@ func (s *sema) inferBinaryExprType(
 	if err != nil {
 		return nil, false, err
 	}
+
+	if s.isErrorNilComparison(lhs, rhs) {
+		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
+	}
+
 	commonType := lhs // since they are the same
 
 	// TODO(errors)
@@ -1601,15 +1628,12 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 			fromImportPackage,
 			false,
 		)
-		// TODO(errors)
 		if err != nil {
 			return nil, nil, ctx, err
 		}
 		rhs = rhsTypeWithContext
 		ctx = true
-	}
-
-	if !lhsHasContext && rhsHasContext {
+	} else if !lhsHasContext && rhsHasContext {
 		lhsTypeWithContext, err := s.inferExprTypeWithContext(
 			binary.Left,
 			rhs,
@@ -1624,6 +1648,10 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		}
 		lhs = lhsTypeWithContext
 		ctx = true
+	}
+
+	if s.isErrorNilComparison(lhs, rhs) {
+		return lhs, rhs, ctx, nil
 	}
 
 	if !lhs.Equals(rhs) {
@@ -1651,6 +1679,35 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
 	}
 	return lhs, rhs, ctx, nil
+}
+
+// basicKind returns the token kind for a basic type, or a negative value
+// if the type is nil, has no inner type, or is not EXPR_TYPE_BASIC.
+// For EXPR_TYPE_POINTER, it looks through to the pointee's basic kind
+// (used to detect untyped nullptr in error-nil comparisons).
+func basicKind(ty *ast.ExprType) token.Kind {
+	if ty == nil || ty.T == nil {
+		return -1
+	}
+	if ty.Kind == ast.EXPR_TYPE_BASIC {
+		return ty.T.(*ast.BasicType).Kind
+	}
+	if ty.Kind == ast.EXPR_TYPE_POINTER {
+		ptr := ty.T.(*ast.PointerType)
+		if ptr.Type != nil && ptr.Type.Kind == ast.EXPR_TYPE_BASIC {
+			return ptr.Type.T.(*ast.BasicType).Kind
+		}
+	}
+	return -1
+}
+
+// isErrorNilComparison returns true when comparing an error value with nil.
+// Handles both orderings: err != nil and nil != err.
+func (s *sema) isErrorNilComparison(lhs, rhs *ast.ExprType) bool {
+	l := basicKind(lhs)
+	r := basicKind(rhs)
+	return (l == token.ERROR_TYPE && r == token.UNTYPED_NULLPTR) ||
+		(r == token.ERROR_TYPE && l == token.UNTYPED_NULLPTR)
 }
 
 func (sema *sema) inferUnaryExprType(
@@ -1895,7 +1952,7 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	// fromImportPackage bool,
 	// isArg bool,
 ) (*ast.ExprType, error) {
-	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) {
+	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
 	nullptr.Type = expectedType
@@ -1993,7 +2050,16 @@ func (sema *sema) inferExprTypeWithoutContext(
 			isArg,
 		)
 	case ast.KIND_NULLPTR_EXPR:
-		return nil, false, nil
+		nullptr := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_POINTER,
+			T: &ast.PointerType{
+				Type: &ast.ExprType{
+					Kind: ast.EXPR_TYPE_BASIC,
+					T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+				},
+			},
+		}
+		return nullptr, false, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Node)
 		return nil, false, nil
@@ -2022,6 +2088,10 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 		}
 		literal.Type = nullptr
 		return literal.Type, false, nil
+	case token.ERROR_TYPE:
+		basic := literal.Type.T.(*ast.BasicType)
+		basic.Explicit = true
+		return literal.Type, true, nil
 	}
 	return literal.Type, false, nil
 }

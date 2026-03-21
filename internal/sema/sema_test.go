@@ -675,3 +675,53 @@ func TestParseNextDecl(t *testing.T) {
 		t.Errorf("expected nil node, got %v", node)
 	}
 }
+
+func TestErrorHandling(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		hasError bool
+		errMsg   string
+	}{
+		{
+			name: "error constructor and field access",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  m := e.msg
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if e != nil {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := parseAndCheck(tt.src)
+			if tt.hasError {
+				if len(diags.Diags) == 0 {
+					t.Fatal("expected errors, got none")
+				}
+				if tt.errMsg != "" && !containsDiag(diags.Diags, tt.errMsg) {
+					t.Errorf("expected error containing %q, got %v", tt.errMsg, diags.Diags)
+				}
+			} else {
+				if len(diags.Diags) > 0 {
+					t.Errorf("unexpected errors: %v", diags.Diags)
+				}
+			}
+		})
+	}
+}
