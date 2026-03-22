@@ -41,6 +41,7 @@ type CCodegen struct {
 	currentRetTy *ast.ExprType
 	tmpCnt       int
 	exePath      string
+	outputPath   string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
@@ -48,6 +49,10 @@ func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
 		loc:     loc,
 		program: program,
 	}
+}
+
+func (c *CCodegen) SetOutputPath(path string) {
+	c.outputPath = path
 }
 
 func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
@@ -104,13 +109,52 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		return fmt.Errorf("unknown build type: %s", buildType)
 	}
 
-	// Compile
+	// Compile into temp dir
 	cmd := exec.Command(compiler, optFlag, "-o", exePath, cFilePath, "-lm")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("C compiler error:\n%s", string(out))
 	}
 
-	c.exePath = exePath
+	// Determine output path
+	var outputPath string
+	if c.outputPath != "" {
+		if filepath.IsAbs(c.outputPath) {
+			outputPath = c.outputPath
+		} else {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get working directory: %w", err)
+			}
+			outputPath = filepath.Join(cwd, c.outputPath)
+		}
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get working directory: %w", err)
+		}
+		outputPath = filepath.Join(cwd, filenameNoExt)
+	}
+
+	// Ensure output directory exists
+	outDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory %s: %w", outDir, err)
+	}
+
+	// Move executable to output path
+	if err := os.Rename(exePath, outputPath); err != nil {
+		// Cross-device rename fallback: copy then remove
+		data, readErr := os.ReadFile(exePath)
+		if readErr != nil {
+			return fmt.Errorf("failed to read compiled binary: %w", readErr)
+		}
+		if writeErr := os.WriteFile(outputPath, data, 0755); writeErr != nil {
+			return fmt.Errorf("failed to write binary to %s: %w", outputPath, writeErr)
+		}
+		os.Remove(exePath)
+	}
+
+	c.exePath = outputPath
 
 	if !config.DEV {
 		if err := os.RemoveAll(dir); err != nil {
