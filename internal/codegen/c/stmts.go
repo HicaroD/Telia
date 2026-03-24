@@ -65,6 +65,8 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 		call := node.Node.(*ast.FnCall)
 		if call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_FAIL {
 			c.emitAtFailBareCall(call)
+		} else if call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_CATCH {
+			c.emitAtCatchBareCall(call, indent)
 		} else {
 			c.buf.WriteString(c.emitFnCall(call))
 			c.buf.WriteString(";\n")
@@ -117,6 +119,50 @@ func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 	}
 }
 
+// emitAtCatchBareCall emits a bare @catch function call (statement position).
+// For error-only functions:
+//
+//	_Error _t0 = fn();
+//	if (_t0.msg != NULL) {
+//	    _Error err = _t0;
+//	    <handler block>
+//	}
+//
+// For tuple functions:
+//
+//	_Tuple... _t0 = fn();
+//	if (_t0._N.msg != NULL) {
+//	    _Error err = _t0._N;
+//	    <handler block>
+//	}
+func (c *CCodegen) emitAtCatchBareCall(call *ast.FnCall, indent string) {
+	catchOp := call.AtOp.Op.(*ast.CatchAtOperator)
+	errVarName := catchOp.ErrVarName.Name()
+	fullRetType := getFullFnRetType(call)
+	fnCallExpr := c.emitFnCall(call)
+	tmp := c.nextTmp()
+	inner := indent + "    "
+
+	if fullRetType == nil {
+		// Error-only function
+		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
+		c.buf.WriteString(fmt.Sprintf("if (%s.msg != NULL) {\n", tmp))
+		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s;\n", inner, errVarName, tmp))
+		c.emitBlock(catchOp.Block, inner)
+		c.buf.WriteString(indent + "}\n")
+	} else {
+		// Tuple function
+		tupleName := tupleTypedefName(fullRetType)
+		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
+		tt := fullRetType.T.(*ast.TupleType)
+		errIdx := len(tt.Types) - 1
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) {\n", tmp, errIdx))
+		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
+		c.emitBlock(catchOp.Block, inner)
+		c.buf.WriteString(indent + "}\n")
+	}
+}
+
 // emitVarStmt emits a variable declaration or reassignment.
 func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 	if stmt.IsDecl {
@@ -150,6 +196,40 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 				} else {
 					c.buf.WriteString(fmt.Sprintf("%s %s = %s._0;\n", cType, varId.Name.Name(), tmp))
 				}
+			} else if isAtCatchTupleCall(stmt) {
+				// @catch on a tuple-returning function: store full tuple in temp,
+				// check error field, branch to handler or extract non-error value.
+				// Declare the variable before the if/else so it's available after.
+				fnCall := stmt.Expr.Node.(*ast.FnCall)
+				catchOp := fnCall.AtOp.Op.(*ast.CatchAtOperator)
+				errVarName := catchOp.ErrVarName.Name()
+				fullRetType := getFullFnRetType(fnCall)
+				tupleName := tupleTypedefName(fullRetType)
+				tmp := c.nextTmp()
+				fnCallExpr := c.emitExpr(stmt.Expr)
+				inner := indent + "    "
+
+				// Declare variable upfront
+				c.buf.WriteString(fmt.Sprintf("%s %s;\n", cType, varId.Name.Name()))
+
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
+
+				tt := fullRetType.T.(*ast.TupleType)
+				errIdx := len(tt.Types) - 1
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) {\n", tmp, errIdx))
+				c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
+				c.emitBlock(catchOp.Block, inner)
+				c.buf.WriteString(indent + "} else {\n")
+
+				if len(tt.Types) > 2 {
+					for i := 0; i < errIdx; i++ {
+						elemType := emitCType(tt.Types[i])
+						c.buf.WriteString(fmt.Sprintf("%s%s %s_%d = %s._%d;\n", inner, elemType, tmp, i, tmp, i))
+					}
+				} else {
+					c.buf.WriteString(fmt.Sprintf("%s%s = %s._0;\n", inner, varId.Name.Name(), tmp))
+				}
+				c.buf.WriteString(indent + "}\n")
 			} else {
 				val := c.emitExpr(stmt.Expr)
 				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
@@ -355,6 +435,17 @@ func isAtFailTupleCall(stmt *ast.VarStmt) bool {
 	}
 	call := stmt.Expr.Node.(*ast.FnCall)
 	return call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_FAIL &&
+		getFullFnRetType(call) != nil
+}
+
+// isAtCatchTupleCall reports whether stmt is a single-var declaration from a
+// @catch call on a tuple-returning function.
+func isAtCatchTupleCall(stmt *ast.VarStmt) bool {
+	if stmt.Expr == nil || stmt.Expr.Kind != ast.KIND_FN_CALL {
+		return false
+	}
+	call := stmt.Expr.Node.(*ast.FnCall)
+	return call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_CATCH &&
 		getFullFnRetType(call) != nil
 }
 

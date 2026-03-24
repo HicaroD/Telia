@@ -794,6 +794,114 @@ fn main() {
 			hasError: true,
 			errMsg:   "@fail on error-only function",
 		},
+		{
+			name: "@catch on non-error function",
+			src: `package main
+
+fn greet() {
+}
+
+fn main() {
+  greet() @catch err {
+  }
+}`,
+			hasError: true,
+			errMsg:   "@catch requires error-returning function",
+		},
+		{
+			name: "@catch on error-only function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @catch err {
+    m := err.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch handler block is type-checked",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @catch err {
+    x := undefinedVar
+  }
+}`,
+			hasError: true,
+			errMsg:   "symbol not found on scope",
+		},
+		{
+			name: "@catch on (i32, error) tuple function",
+			src: `package main
+
+fn connect() (i32, error) {
+  return 42, nil
+}
+
+fn main() {
+  connect() @catch err {
+    m := err.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch handler return type must match enclosing function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() i32 {
+  failOnly() @catch err {
+    return "bad"
+  }
+  return 0
+}`,
+			hasError: true,
+			errMsg:   "cannot use string as i32",
+		},
+		{
+			name: "@catch handler with correct return type",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() i32 {
+  failOnly() @catch err {
+    return 1
+  }
+  return 0
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch on error-only function with variable assignment",
+			src: `package main
+
+fn something() error {
+  return error("something")
+}
+
+fn main() {
+  a := something() @catch err {
+  }
+}`,
+			hasError: true,
+			errMsg:   "@catch on error-only function",
+		},
 	}
 
 	for _, tt := range tests {

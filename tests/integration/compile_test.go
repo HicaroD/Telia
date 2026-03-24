@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"os/exec"
 	"strings"
 	"testing"
@@ -274,6 +275,71 @@ func TestErrorFailVoidOK(t *testing.T) {
 	expected := "ok\n"
 	if output != expected {
 		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorCatchVoid(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_catch_void.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	cmd := exec.Command(exePath)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	output := stdout.String() + stderr.String()
+	if !strings.Contains(output, "boom") {
+		t.Errorf("expected output to contain 'boom', got stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestErrorCatchTuple(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_catch_tuple.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "val: 42\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorCatchTupleFail(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_catch_tuple_fail.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	cmd := exec.Command(exePath)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	output := stdout.String() + stderr.String()
+	if !strings.Contains(output, "connection refused") {
+		t.Errorf("expected output to contain 'connection refused', got stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 

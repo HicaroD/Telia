@@ -482,6 +482,7 @@ func (sema *sema) checkStmt(
 			stmt.Node.(*ast.FnCall),
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			false,
 		)
@@ -491,6 +492,7 @@ func (sema *sema) checkStmt(
 			stmt.Node.(*ast.VarStmt),
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			isArg,
 		)
@@ -578,6 +580,7 @@ func (sema *sema) checkVar(
 	variable *ast.VarStmt,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) error {
 	for _, currentVar := range variable.Names {
@@ -617,6 +620,7 @@ func (sema *sema) checkVar(
 			fnCall,
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			false,
 		)
@@ -624,9 +628,10 @@ func (sema *sema) checkVar(
 			return err
 		}
 
-		// @fail unwraps the error from the tuple — only non-error elements
+		// @fail and @catch unwrap the error from the tuple — only non-error elements
 		// are assigned to the variables. The error is checked at runtime.
-		if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL &&
+		if fnCall.AtOp != nil &&
+			(fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL || fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH) &&
 			fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
 			fnRetType = unwrapErrorFromTuple(fnRetType)
 		}
@@ -638,19 +643,25 @@ func (sema *sema) checkVar(
 				referenceScope,
 			)
 			return err
-		} else if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
-			// @fail on error-only function: there is no non-error value to assign.
-			// Use the bare call form instead: fn() @fail (without variable assignment).
+		} else if fnCall.AtOp != nil && (fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL || fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH) {
+			// @fail/@catch on error-only function: there is no non-error value to assign.
+			// Use the bare call form instead: fn() @fail / fn() @catch err { ... }.
 			if fnRetType.IsError() {
 				pos := fnCall.Name.Pos
+				atName := "@fail"
+				if fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH {
+					atName = "@catch"
+				}
 				d := diagnostics.Diag{
 					Message: fmt.Sprintf(
-						"%s:%d:%d: @fail on error-only function '%s' has no value to assign; use '%s() @fail' without variable assignment",
+						"%s:%d:%d: %s on error-only function '%s' has no value to assign; use '%s() %s' without variable assignment",
 						pos.Filename,
 						pos.Line,
 						pos.Column,
+						atName,
 						fnCall.Name.Name(),
 						fnCall.Name.Name(),
+						atName,
 					),
 				}
 				sema.collector.ReportAndSave(d)
@@ -1105,6 +1116,7 @@ func (sema *sema) checkFnCall(
 	fnCall *ast.FnCall,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	returnTy *ast.ExprType,
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
@@ -1190,6 +1202,51 @@ func (sema *sema) checkFnCall(
 			}
 			sema.collector.ReportAndSave(d)
 			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+	}
+
+	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH {
+		if !returnsError(retType) {
+			pos := fnCall.Name.Pos
+			d := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: @catch requires error-returning function, but '%s' does not return an error",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					fnCall.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(d)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+
+		catchOp := fnCall.AtOp.Op.(*ast.CatchAtOperator)
+		catchScope := ast.NewScope(declScope)
+
+		errVarId := &ast.VarIdStmt{
+			Name: catchOp.ErrVarName,
+			Type: ast.NewBasicType(token.ERROR_TYPE),
+		}
+		errNode := &ast.Node{
+			Kind: ast.KIND_VAR_ID_STMT,
+			Node: errVarId,
+		}
+		errVarId.N = errNode
+
+		if err := catchScope.Insert(catchOp.ErrVarName.Name(), errNode); err != nil {
+			return nil, err
+		}
+
+		if err := sema.checkBlock(
+			catchOp.Block,
+			returnTy,
+			catchScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1865,7 +1922,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
-	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage, isArg)
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, nil, fromImportPackage, isArg)
 	return fnRetType, err
 }
 
@@ -2215,7 +2272,7 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, bool, error) {
-	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage, isArg)
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, nil, fromImportPackage, isArg)
 	return fnRetType, true, err
 }
 
@@ -2414,6 +2471,7 @@ func (sema *sema) checkImportAccess(
 			fnCall,
 			referenceScope,
 			declScope,
+			nil,
 			fromImportPackage,
 			false,
 		)
@@ -2625,6 +2683,7 @@ func (s *sema) checkAssignment(
 				fnCall,
 				referenceScope,
 				declScope,
+				nil,
 				fromImportPackage,
 				false,
 			)
