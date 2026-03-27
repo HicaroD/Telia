@@ -73,6 +73,8 @@ func (c *CCodegen) emitLiteral(lit *ast.LiteralExpr) string {
 		case token.STRING_TYPE, token.CSTRING_TYPE:
 			// The lexer stores the literal without surrounding quotes.
 			return fmt.Sprintf("%q", val)
+		case token.ERROR_TYPE:
+			return fmt.Sprintf("(_Error){%q}", val)
 		case token.BOOL_TYPE:
 			if val == "true" {
 				return "1"
@@ -123,10 +125,67 @@ func (c *CCodegen) emitIdExpr(id *ast.IdExpr) string {
 
 // emitBinExpr emits a binary expression with parentheses for safety.
 func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
+	// Special case: error != nil — C can't compare structs by value.
+	// Emit e.msg != NULL instead.
+	if isErrorNilComparison(bin) {
+		return c.emitErrorNilComparison(bin)
+	}
 	left := c.emitExpr(bin.Left)
 	right := c.emitExpr(bin.Right)
 	op := binOpToC(bin.Op)
 	return fmt.Sprintf("(%s %s %s)", left, op, right)
+}
+
+// isErrorNilComparison checks if a binary expression compares an error value with nil.
+func isErrorNilComparison(bin *ast.BinExpr) bool {
+	if bin.Op != token.EQUAL_EQUAL && bin.Op != token.BANG_EQUAL {
+		return false
+	}
+	leftNil := bin.Left.Kind == ast.KIND_NULLPTR_EXPR
+	rightNil := bin.Right.Kind == ast.KIND_NULLPTR_EXPR
+	if !leftNil && !rightNil {
+		return false
+	}
+	// Check if the non-nil side is error type (via field access on error, or variable)
+	errorSide := bin.Right
+	if rightNil {
+		errorSide = bin.Left
+	}
+	return isErrorExpr(errorSide)
+}
+
+// isErrorExpr returns true if the expression produces an error type.
+func isErrorExpr(node *ast.Node) bool {
+	switch node.Kind {
+	case ast.KIND_ID_EXPR:
+		id := node.Node.(*ast.IdExpr)
+		if id.N != nil {
+			if id.N.Kind == ast.KIND_VAR_ID_STMT {
+				varId := id.N.Node.(*ast.VarIdStmt)
+				return varId.Type != nil && varId.Type.IsError()
+			}
+			if id.N.Kind == ast.KIND_PARAM {
+				param := id.N.Node.(*ast.Param)
+				return param.Type != nil && param.Type.IsError()
+			}
+		}
+	case ast.KIND_LITERAL_EXPR:
+		lit := node.Node.(*ast.LiteralExpr)
+		return lit.Type != nil && lit.Type.IsError()
+	}
+	return false
+}
+
+// emitErrorNilComparison emits C code for error != nil / error == nil.
+// Since C can't compare structs by value, we compare the msg field with NULL.
+func (c *CCodegen) emitErrorNilComparison(bin *ast.BinExpr) string {
+	errorExpr := bin.Right
+	if bin.Left.Kind != ast.KIND_NULLPTR_EXPR {
+		errorExpr = bin.Left
+	}
+	val := c.emitExpr(errorExpr)
+	op := binOpToC(bin.Op)
+	return fmt.Sprintf("(%s.msg %s NULL)", val, op)
 }
 
 // binOpToC maps a Telia binary operator token to its C operator string.

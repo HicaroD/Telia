@@ -22,6 +22,7 @@ type CliResult struct {
 	BuildOptType config.BuildOptimizationType
 	ArgLoc       string
 	Loc          *ast.Loc
+	OutputPath   string
 }
 
 func cli() (CliResult, error) {
@@ -40,48 +41,60 @@ func cli() (CliResult, error) {
 	case "build":
 		result.Command = COMMAND_BUILD
 
-		fileOrDirPath := "."
-		if len(args) >= 2 {
-			fileOrDirPath = args[1]
-		}
-
-		_, err := os.Stat(fileOrDirPath)
-		// TODO(errors)
-		if err != nil {
-			log.Fatalf("No such file or directory: %s\n", fileOrDirPath)
-		}
-
-		loc, err := ast.LocFromPath(fileOrDirPath)
-		if err != nil {
-			return result, err
-		}
-		result.ArgLoc = fileOrDirPath
-		result.Loc = loc
-
 		releaseBuildSet, debugBuildSet := false, false
 		result.BuildOptType = config.BUILD_OPT_DEBUG
 
-		// TODO: check for unknown flags, the user might mispell the command
-		for _, arg := range args[1:] {
-			switch arg {
-			case "-release":
+		var sourcePath string
+
+		for i := 1; i < len(args); i++ {
+			arg := args[i]
+			switch {
+			case arg == "-release":
 				if releaseBuildSet {
 					return result, fmt.Errorf("duplicate -release flag")
 				}
 				releaseBuildSet = true
 				result.BuildOptType = config.BUILD_OPT_RELEASE
-			case "-debug":
+			case arg == "-debug":
 				if debugBuildSet {
 					return result, fmt.Errorf("duplicate -debug flag")
 				}
 				debugBuildSet = true
 				result.BuildOptType = config.BUILD_OPT_DEBUG
+			case arg == "-o":
+				i++
+				if i >= len(args) {
+					return result, fmt.Errorf("-o requires a path argument")
+				}
+				result.OutputPath = args[i]
+			default:
+				if sourcePath == "" {
+					sourcePath = arg
+				} else {
+					return result, fmt.Errorf("unexpected argument: %s", arg)
+				}
 			}
 		}
-		// TODO(errors)
+
 		if releaseBuildSet && debugBuildSet {
-			return result, fmt.Errorf("choose either -release or -build, not both")
+			return result, fmt.Errorf("choose either -release or -debug, not both")
 		}
+
+		if sourcePath == "" {
+			sourcePath = "."
+		}
+
+		_, err := os.Stat(sourcePath)
+		if err != nil {
+			log.Fatalf("No such file or directory: %s\n", sourcePath)
+		}
+
+		loc, err := ast.LocFromPath(sourcePath)
+		if err != nil {
+			return result, err
+		}
+		result.ArgLoc = sourcePath
+		result.Loc = loc
 	case "help":
 		fallthrough
 	default:

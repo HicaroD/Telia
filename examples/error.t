@@ -7,16 +7,19 @@ extern libc {
 }
 
 fn connect_to_db() (int, error) {
-    return 1, None
+    return 1, error("db connection failed")
+}
+
+fn safe_connect() error {
+    return nil
 }
 
 fn main() i32 {
-  db := connect_to_db() @catch err {
-    return err
-  }
+  // @fail on error-returning function: panics if error is non-nil
+  safe_connect() @fail
 
-  db := connect_to_db() @prop
-
-  db := connect_to_db() @panic
-  return 0;
+  // @fail on tuple-returning function: extracts non-error values
+  db := connect_to_db() @fail
+  libc::printf("%d\n", db)
+  return 0
 }

@@ -675,3 +675,281 @@ func TestParseNextDecl(t *testing.T) {
 		t.Errorf("expected nil node, got %v", node)
 	}
 }
+
+func TestErrorHandling(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		hasError bool
+		errMsg   string
+	}{
+		{
+			name: "error constructor and field access",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  m := e.msg
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison !=",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if e != nil {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison ==",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if e == nil {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison reversed (nil != err)",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if nil != e {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "error nil comparison reversed (nil == err)",
+			src: `package main
+
+fn main() {
+  e := error("oops")
+  if nil == e {
+    m := e.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on non-error function",
+			src: `package main
+
+fn greet() {
+}
+
+fn main() {
+  greet() @fail
+}`,
+			hasError: true,
+			errMsg:   "@fail requires error-returning function",
+		},
+		{
+			name: "@fail on error-only function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @fail
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on (i32, error) function",
+			src: `package main
+
+fn connect() (i32, error) {
+  return 42, nil
+}
+
+fn main() {
+  connect() @fail
+}`,
+			hasError: false,
+		},
+		{
+			name: "@fail on error-only function with variable assignment",
+			src: `package main
+
+fn something() error {
+  return error("something")
+}
+
+fn main() {
+  a := something() @fail
+}`,
+			hasError: true,
+			errMsg:   "@fail on error-only function",
+		},
+		{
+			name: "@catch on non-error function",
+			src: `package main
+
+fn greet() {
+}
+
+fn main() {
+  greet() @catch err {
+  }
+}`,
+			hasError: true,
+			errMsg:   "@catch requires error-returning function",
+		},
+		{
+			name: "@catch on error-only function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @catch err {
+    m := err.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch handler block is type-checked",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() {
+  failOnly() @catch err {
+    x := undefinedVar
+  }
+}`,
+			hasError: true,
+			errMsg:   "symbol not found on scope",
+		},
+		{
+			name: "@catch on (i32, error) tuple function",
+			src: `package main
+
+fn connect() (i32, error) {
+  return 42, nil
+}
+
+fn main() {
+  connect() @catch err {
+    m := err.msg
+  }
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch handler return type must match enclosing function",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() i32 {
+  failOnly() @catch err {
+    return "bad"
+  }
+  return 0
+}`,
+			hasError: true,
+			errMsg:   "cannot use string as i32",
+		},
+		{
+			name: "@catch handler with correct return type",
+			src: `package main
+
+fn failOnly() error {
+  return error("boom")
+}
+
+fn main() i32 {
+  failOnly() @catch err {
+    return 1
+  }
+  return 0
+}`,
+			hasError: false,
+		},
+		{
+			name: "@catch on error-only function with variable assignment",
+			src: `package main
+
+fn something() error {
+  return error("something")
+}
+
+fn main() {
+  a := something() @catch err {
+  }
+}`,
+			hasError: true,
+			errMsg:   "@catch on error-only function",
+		},
+		{
+			name: "error struct field exposes nested msg access",
+			src: `package main
+
+struct Result {
+  err error
+}
+
+fn main() {
+  result := Result.{err: error("oops")}
+  msg := result.err.msg
+}`,
+			hasError: false,
+		},
+		{
+			name: "error parameter accepts error values",
+			src: `package main
+
+fn print_error(err error) {
+  msg := err.msg
+}
+
+fn make_error() error {
+  return error("oops")
+}
+
+fn main() {
+  print_error(make_error())
+}`,
+			hasError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diags := parseAndCheck(tt.src)
+			if tt.hasError {
+				if len(diags.Diags) == 0 {
+					t.Fatal("expected errors, got none")
+				}
+				if tt.errMsg != "" && !containsDiag(diags.Diags, tt.errMsg) {
+					t.Errorf("expected error containing %q, got %v", tt.errMsg, diags.Diags)
+				}
+			} else {
+				if len(diags.Diags) > 0 {
+					t.Errorf("unexpected errors: %v", diags.Diags)
+				}
+			}
+		})
+	}
+}

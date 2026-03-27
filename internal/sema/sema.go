@@ -482,6 +482,7 @@ func (sema *sema) checkStmt(
 			stmt.Node.(*ast.FnCall),
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			false,
 		)
@@ -491,6 +492,7 @@ func (sema *sema) checkStmt(
 			stmt.Node.(*ast.VarStmt),
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			isArg,
 		)
@@ -578,6 +580,7 @@ func (sema *sema) checkVar(
 	variable *ast.VarStmt,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) error {
 	for _, currentVar := range variable.Names {
@@ -617,11 +620,20 @@ func (sema *sema) checkVar(
 			fnCall,
 			referenceScope,
 			declScope,
+			returnTy,
 			fromImportPackage,
 			false,
 		)
 		if err != nil {
 			return err
+		}
+
+		// @fail and @catch unwrap the error from the tuple — only non-error elements
+		// are assigned to the variables. The error is checked at runtime.
+		if fnCall.AtOp != nil &&
+			(fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL || fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH) &&
+			fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			fnRetType = unwrapErrorFromTuple(fnRetType)
 		}
 
 		if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
@@ -631,6 +643,37 @@ func (sema *sema) checkVar(
 				referenceScope,
 			)
 			return err
+		} else if fnCall.AtOp != nil && (fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL || fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH) {
+			// @fail/@catch on error-only function: there is no non-error value to assign.
+			// Use the bare call form instead: fn() @fail / fn() @catch err { ... }.
+			if fnRetType.IsError() {
+				pos := fnCall.Name.Pos
+				atName := "@fail"
+				if fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH {
+					atName = "@catch"
+				}
+				d := diagnostics.Diag{
+					Message: fmt.Sprintf(
+						"%s:%d:%d: %s on error-only function '%s' has no value to assign; use '%s() %s' without variable assignment",
+						pos.Filename,
+						pos.Line,
+						pos.Column,
+						atName,
+						fnCall.Name.Name(),
+						fnCall.Name.Name(),
+						atName,
+					),
+				}
+				sema.collector.ReportAndSave(d)
+				return diagnostics.COMPILER_ERROR_FOUND
+			}
+			// @fail on single-var with non-tuple, non-error type: set type
+			// directly. checkFnCall already validated the @fail annotation.
+			if len(variable.Names) != 1 {
+				return fmt.Errorf("more variables than expressions\n")
+			}
+			varId := variable.Names[0].Node.(*ast.VarIdStmt)
+			varId.Type = fnRetType
 		} else {
 			// TODO(errors)
 			if len(variable.Names) != 1 {
@@ -923,16 +966,67 @@ func (sema *sema) getAccessedField(
 		ty = parameter.Type
 	}
 
-	var structDecl *ast.StructDecl
+	return sema.resolveFieldAccess(fieldAccess, ty, referenceScope)
+}
 
+func (sema *sema) resolveFieldAccess(
+	fieldAccess *ast.FieldAccess,
+	receiverTy *ast.ExprType,
+	referenceScope *ast.Scope,
+) (*ast.IdExpr, *ast.StructField, error) {
+	fieldID, nestedAccess, err := immediateFieldAccess(fieldAccess)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	structDecl, field, err := sema.resolveFieldOnType(receiverTy, fieldID.Name.Name(), referenceScope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fieldAccess.Decl = structDecl
+	fieldAccess.AccessedField = field
+
+	if nestedAccess != nil {
+		return sema.resolveFieldAccess(nestedAccess, field.Type, referenceScope)
+	}
+
+	return fieldID, field, nil
+}
+
+func immediateFieldAccess(fieldAccess *ast.FieldAccess) (*ast.IdExpr, *ast.FieldAccess, error) {
+	switch fieldAccess.Right.Kind {
+	case ast.KIND_ID_EXPR:
+		return fieldAccess.Right.Node.(*ast.IdExpr), nil, nil
+	case ast.KIND_FIELD_ACCESS:
+		nested := fieldAccess.Right.Node.(*ast.FieldAccess)
+		return nested.Left, nested, nil
+	default:
+		return nil, nil, fmt.Errorf("other field access type was found during sema")
+	}
+}
+
+func (sema *sema) resolveFieldOnType(
+	ty *ast.ExprType,
+	fieldName string,
+	referenceScope *ast.Scope,
+) (*ast.StructDecl, *ast.StructField, error) {
 	switch ty.Kind {
 	case ast.EXPR_TYPE_STRUCT:
-		structDecl = ty.T.(*ast.StructType).Decl
+		structDecl := ty.T.(*ast.StructType).Decl
+		field, found := structDecl.FindAttribute(fieldName)
+		if !found {
+			return nil, nil, fmt.Errorf(
+				"attribute '%s' not found on '%s' struct\n",
+				fieldName,
+				structDecl.Name.Name(),
+			)
+		}
+		return structDecl, field, nil
 	case ast.EXPR_TYPE_POINTER:
 		ptr := ty.T.(*ast.PointerType)
 		switch ptr.Type.Kind {
 		case ast.EXPR_TYPE_ID:
-			// Unresolved pointer-to-id: look up the struct in scope.
 			id := ptr.Type.T.(*ast.IdType)
 			sym, err := referenceScope.LookupAcrossScopes(id.Name.Name())
 			if err != nil {
@@ -944,42 +1038,50 @@ func (sema *sema) getAccessedField(
 					ty.T,
 				)
 			}
-			structDecl = sym.Node.(*ast.StructDecl)
+			structDecl := sym.Node.(*ast.StructDecl)
+			field, found := structDecl.FindAttribute(fieldName)
+			if !found {
+				return nil, nil, fmt.Errorf(
+					"attribute '%s' not found on '%s' struct\n",
+					fieldName,
+					structDecl.Name.Name(),
+				)
+			}
+			return structDecl, field, nil
 		case ast.EXPR_TYPE_STRUCT:
-			// Already-resolved pointer-to-struct (e.g. from checkFnDecl param resolution).
-			structDecl = ptr.Type.T.(*ast.StructType).Decl
+			structDecl := ptr.Type.T.(*ast.StructType).Decl
+			field, found := structDecl.FindAttribute(fieldName)
+			if !found {
+				return nil, nil, fmt.Errorf(
+					"attribute '%s' not found on '%s' struct\n",
+					fieldName,
+					structDecl.Name.Name(),
+				)
+			}
+			return structDecl, field, nil
 		default:
 			return nil, nil, fmt.Errorf(
 				"expected pointer to struct type, not %s",
 				ty.T,
 			)
 		}
-	default:
-		return nil, nil, fmt.Errorf(
-			"expected type to be struct or pointer to struct, but got %s",
-			ty.T,
-		)
-	}
-
-	fieldAccess.Decl = structDecl
-
-	switch fieldAccess.Right.Kind {
-	case ast.KIND_ID_EXPR:
-		id := fieldAccess.Right.Node.(*ast.IdExpr)
-		stField, found := structDecl.FindAttribute(id.Name.Name())
-		// TODO(errors)
-		if !found {
-			return nil, nil, fmt.Errorf(
-				"attribute '%s' not found on '%s' struct\n",
-				id.Name.Name(),
-				structDecl.Name.Name(),
-			)
+	case ast.EXPR_TYPE_BASIC:
+		basic := ty.T.(*ast.BasicType)
+		if basic.Kind == token.ERROR_TYPE {
+			if fieldName != "msg" {
+				return nil, nil, fmt.Errorf(
+					"field '%s' not found on 'error' type, only 'msg' is available",
+					fieldName,
+				)
+			}
+			return ast.ErrorStructDecl, ast.ErrorStructDecl.Fields[0], nil
 		}
-		fieldAccess.AccessedField = stField
-		return id, stField, nil
-	default:
-		return nil, nil, fmt.Errorf("other field access type was found during sema")
 	}
+
+	return nil, nil, fmt.Errorf(
+		"expected type to be struct or pointer to struct, but got %s",
+		ty.T,
+	)
 }
 
 func (sema *sema) checkCondStmt(
@@ -1055,6 +1157,7 @@ func (sema *sema) checkFnCall(
 	fnCall *ast.FnCall,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
+	returnTy *ast.ExprType,
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
@@ -1102,23 +1205,93 @@ func (sema *sema) checkFnCall(
 
 	// NOTE: It happens when extern is declared without a name, it means prototypes
 	// can be accessed globally in the package scope
+	var retType *ast.ExprType
+
 	if symbol.Kind == ast.KIND_PROTO {
 		proto := symbol.Node.(*ast.Proto)
 		fnCall.Proto = proto
-		err := sema.checkFnCallArgs(
+		err = sema.checkFnCallArgs(
 			fnCall,
 			proto.Params,
 			referenceScope,
 			declScope,
 			fromImportPackage,
 		)
-		return proto.RetType, err
+		retType = proto.RetType
 	} else {
 		fnDecl := symbol.Node.(*ast.FnDecl)
 		fnCall.Decl = fnDecl
-		err := sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
-		return fnDecl.RetType, err
+		err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		retType = fnDecl.RetType
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
+		if !returnsError(retType) {
+			pos := fnCall.Name.Pos
+			d := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: @fail requires error-returning function, but '%s' does not return an error",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					fnCall.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(d)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+	}
+
+	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH {
+		if !returnsError(retType) {
+			pos := fnCall.Name.Pos
+			d := diagnostics.Diag{
+				Message: fmt.Sprintf(
+					"%s:%d:%d: @catch requires error-returning function, but '%s' does not return an error",
+					pos.Filename,
+					pos.Line,
+					pos.Column,
+					fnCall.Name.Name(),
+				),
+			}
+			sema.collector.ReportAndSave(d)
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+
+		catchOp := fnCall.AtOp.Op.(*ast.CatchAtOperator)
+		catchScope := ast.NewScope(declScope)
+
+		errVarId := &ast.VarIdStmt{
+			Name: catchOp.ErrVarName,
+			Type: ast.NewBasicType(token.ERROR_TYPE),
+		}
+		errNode := &ast.Node{
+			Kind: ast.KIND_VAR_ID_STMT,
+			Node: errVarId,
+		}
+		errVarId.N = errNode
+
+		if err := catchScope.Insert(catchOp.ErrVarName.Name(), errNode); err != nil {
+			return nil, err
+		}
+
+		if err := sema.checkBlock(
+			catchOp.Block,
+			returnTy,
+			catchScope,
+			declScope,
+			fromImportPackage,
+			isArg,
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	return retType, nil
 }
 
 func (sema *sema) checkFnCallArgs(
@@ -1332,6 +1505,10 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 	}
 	actualBasicType := literal.Type.T.(*ast.BasicType)
 
+	if actualBasicType.Kind == token.ERROR_TYPE {
+		actualBasicType.Explicit = true
+	}
+
 	switch expectedType.Kind {
 	case ast.EXPR_TYPE_BASIC:
 		expectedBasicType := expectedType.T.(*ast.BasicType)
@@ -1498,6 +1675,11 @@ func (s *sema) inferBinaryExprType(
 	if err != nil {
 		return nil, false, err
 	}
+
+	if s.isErrorNilComparison(lhs, rhs) {
+		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
+	}
+
 	commonType := lhs // since they are the same
 
 	// TODO(errors)
@@ -1601,15 +1783,12 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 			fromImportPackage,
 			false,
 		)
-		// TODO(errors)
 		if err != nil {
 			return nil, nil, ctx, err
 		}
 		rhs = rhsTypeWithContext
 		ctx = true
-	}
-
-	if !lhsHasContext && rhsHasContext {
+	} else if !lhsHasContext && rhsHasContext {
 		lhsTypeWithContext, err := s.inferExprTypeWithContext(
 			binary.Left,
 			rhs,
@@ -1624,6 +1803,10 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		}
 		lhs = lhsTypeWithContext
 		ctx = true
+	}
+
+	if s.isErrorNilComparison(lhs, rhs) {
+		return lhs, rhs, ctx, nil
 	}
 
 	if !lhs.Equals(rhs) {
@@ -1651,6 +1834,65 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
 	}
 	return lhs, rhs, ctx, nil
+}
+
+// returnsError reports whether retType is an error type directly or is a tuple
+// whose last element is an error type.
+func returnsError(retType *ast.ExprType) bool {
+	if retType.IsError() {
+		return true
+	}
+	if retType.Kind == ast.EXPR_TYPE_TUPLE {
+		tt := retType.T.(*ast.TupleType)
+		if len(tt.Types) > 0 {
+			return tt.Types[len(tt.Types)-1].IsError()
+		}
+	}
+	return false
+}
+
+// unwrapErrorFromTuple returns a new ExprType with the last element (error)
+// removed from the tuple. If the tuple has only one non-error element after
+// unwrapping, it returns a basic type instead of a 1-element tuple.
+func unwrapErrorFromTuple(ty *ast.ExprType) *ast.ExprType {
+	tt := ty.T.(*ast.TupleType)
+	nonErrTypes := tt.Types[:len(tt.Types)-1]
+	if len(nonErrTypes) == 1 {
+		return nonErrTypes[0]
+	}
+	return &ast.ExprType{
+		Kind: ast.EXPR_TYPE_TUPLE,
+		T:    &ast.TupleType{Types: nonErrTypes},
+	}
+}
+
+// basicKind returns the token kind for a basic type, or a negative value
+// if the type is nil, has no inner type, or is not EXPR_TYPE_BASIC.
+// For EXPR_TYPE_POINTER, it looks through to the pointee's basic kind
+// (used to detect untyped nullptr in error-nil comparisons).
+func basicKind(ty *ast.ExprType) token.Kind {
+	if ty == nil || ty.T == nil {
+		return -1
+	}
+	if ty.Kind == ast.EXPR_TYPE_BASIC {
+		return ty.T.(*ast.BasicType).Kind
+	}
+	if ty.Kind == ast.EXPR_TYPE_POINTER {
+		ptr := ty.T.(*ast.PointerType)
+		if ptr.Type != nil && ptr.Type.Kind == ast.EXPR_TYPE_BASIC {
+			return ptr.Type.T.(*ast.BasicType).Kind
+		}
+	}
+	return -1
+}
+
+// isErrorNilComparison returns true when comparing an error value with nil.
+// Handles both orderings: err != nil and nil != err.
+func (s *sema) isErrorNilComparison(lhs, rhs *ast.ExprType) bool {
+	l := basicKind(lhs)
+	r := basicKind(rhs)
+	return (l == token.ERROR_TYPE && r == token.UNTYPED_NULLPTR) ||
+		(r == token.ERROR_TYPE && l == token.UNTYPED_NULLPTR)
 }
 
 func (sema *sema) inferUnaryExprType(
@@ -1721,7 +1963,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
-	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage, isArg)
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, nil, fromImportPackage, isArg)
 	return fnRetType, err
 }
 
@@ -1895,7 +2137,7 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	// fromImportPackage bool,
 	// isArg bool,
 ) (*ast.ExprType, error) {
-	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) {
+	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
 	nullptr.Type = expectedType
@@ -1993,7 +2235,16 @@ func (sema *sema) inferExprTypeWithoutContext(
 			isArg,
 		)
 	case ast.KIND_NULLPTR_EXPR:
-		return nil, false, nil
+		nullptr := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_POINTER,
+			T: &ast.PointerType{
+				Type: &ast.ExprType{
+					Kind: ast.EXPR_TYPE_BASIC,
+					T:    &ast.BasicType{Kind: token.UNTYPED_NULLPTR},
+				},
+			},
+		}
+		return nullptr, false, nil
 	default:
 		log.Fatalf("unimplemented expression: %s\n", expr.Node)
 		return nil, false, nil
@@ -2022,6 +2273,10 @@ func (sema *sema) inferLiteralExprTypeWithoutContext(
 		}
 		literal.Type = nullptr
 		return literal.Type, false, nil
+	case token.ERROR_TYPE:
+		basic := literal.Type.T.(*ast.BasicType)
+		basic.Explicit = true
+		return literal.Type, true, nil
 	}
 	return literal.Type, false, nil
 }
@@ -2058,7 +2313,7 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, bool, error) {
-	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, fromImportPackage, isArg)
+	fnRetType, err := sema.checkFnCall(fnCall, referenceScope, declScope, nil, fromImportPackage, isArg)
 	return fnRetType, true, err
 }
 
@@ -2257,6 +2512,7 @@ func (sema *sema) checkImportAccess(
 			fnCall,
 			referenceScope,
 			declScope,
+			nil,
 			fromImportPackage,
 			false,
 		)
@@ -2468,6 +2724,7 @@ func (s *sema) checkAssignment(
 				fnCall,
 				referenceScope,
 				declScope,
+				nil,
 				fromImportPackage,
 				false,
 			)

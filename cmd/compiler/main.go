@@ -22,10 +22,11 @@ Usage:
   telia <command> [arguments]
 
 Available Commands:
-  build [path] [-release] [-debug]   Builds the program
+  build [path] [-release] [-debug] [-o <path>]   Builds the program
       [path]        Path to the directory or file (defaults to current directory)
       -release      Build in release mode
       -debug        Build in debug mode
+      -o <path>     Output executable path (default: source name in current directory)
 
   env                               Show environment information
 
@@ -36,6 +37,8 @@ Examples:
   telia build path/to/project        Build the program in the specified directory
   telia build myfile.t -debug        Build the program in debug mode (or just omit the flag)
   telia build myfile.t -release      Build the program in release mode
+  telia build myfile.t -o myapp      Build and output to 'myapp'
+  telia build myfile.t -o bin/myapp  Build and output to 'bin/myapp'
   telia env                          Display environment details
 
 For more information about Telia, visit: https://github.com/HicaroD/Telia
@@ -81,6 +84,9 @@ func main() {
 		}
 
 		codegen := ccodegen.NewCG(args.Loc, program)
+		if args.OutputPath != "" {
+			codegen.SetOutputPath(args.OutputPath)
+		}
 		err = codegen.Generate(args.BuildOptType)
 		// TODO(errors)
 		if err != nil {

@@ -149,6 +149,9 @@ func (c *CCodegen) emitFnBody(fn *ast.FnDecl) {
 	name := c.mangledName(fn)
 	params := c.emitFnParams(fn)
 	c.buf.WriteString(fmt.Sprintf("%s %s(%s) {\n", retType, name, params))
+	prevRetTy := c.currentRetTy
+	c.currentRetTy = fn.RetType
 	c.emitBlock(fn.Block, "    ")
+	c.currentRetTy = prevRetTy
 	c.buf.WriteString("}\n\n")
 }

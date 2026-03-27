@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"os/exec"
 	"strings"
 	"testing"
@@ -184,6 +185,181 @@ func TestCompilePackage(t *testing.T) {
 	}
 	// greet::hello() prints first, then main's io::println
 	expected := "Hello from greet package!\nHello from main package!\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorReturn(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_return.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "5\nok\n0\ndivision by zero\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorBasic(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_basic.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "oops\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorFailTuple(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_fail_tuple.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "99\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorFailPanic(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_fail_panic.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	stderr, err := compiler.RunBinary(exePath)
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	if !strings.Contains(stderr, "it failed") {
+		t.Errorf("expected stderr to contain 'it failed', got: %q", stderr)
+	}
+}
+
+func TestErrorFailVoidPanic(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_fail_void.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	stderr, err := compiler.RunBinary(exePath)
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	if !strings.Contains(stderr, "boom") {
+		t.Errorf("expected stderr to contain 'boom', got: %q", stderr)
+	}
+}
+
+func TestErrorFailVoidOK(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_fail_void_ok.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "ok\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorCatchVoid(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_catch_void.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	cmd := exec.Command(exePath)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	output := stdout.String() + stderr.String()
+	if !strings.Contains(output, "boom") {
+		t.Errorf("expected output to contain 'boom', got stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestErrorCatchTuple(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_catch_tuple.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "val: 42\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorCatchTupleFail(t *testing.T) {
+	exePath, diags := compiler.CompileOnly("testdata/error_catch_tuple_fail.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected compile errors: %v", diags.Diags)
+	}
+
+	cmd := exec.Command(exePath)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected non-zero exit code, got success")
+	}
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("expected *exec.ExitError, got: %v", err)
+	}
+	if exitErr.ExitCode() != 1 {
+		t.Errorf("expected exit code 1, got %d", exitErr.ExitCode())
+	}
+	output := stdout.String() + stderr.String()
+	if !strings.Contains(output, "connection refused") {
+		t.Errorf("expected output to contain 'connection refused', got stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+}
+
+func TestErrorStructField(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_struct_field.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "field broke\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorParam(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_param.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "param broke\n"
 	if output != expected {
 		t.Errorf("expected %q, got %q", expected, output)
 	}
