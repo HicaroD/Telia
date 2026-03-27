@@ -343,6 +343,28 @@ func TestErrorCatchTupleFail(t *testing.T) {
 	}
 }
 
+func TestErrorStructField(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_struct_field.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "field broke\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
+func TestErrorParam(t *testing.T) {
+	output, diags := compiler.CompileFile("testdata/error_param.t")
+	if len(diags.Diags) > 0 {
+		t.Fatalf("unexpected errors: %v", diags.Diags)
+	}
+	expected := "param broke\n"
+	if output != expected {
+		t.Errorf("expected %q, got %q", expected, output)
+	}
+}
+
 func TestNilPointerPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
 	if len(diags.Diags) > 0 {

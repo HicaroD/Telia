@@ -966,16 +966,67 @@ func (sema *sema) getAccessedField(
 		ty = parameter.Type
 	}
 
-	var structDecl *ast.StructDecl
+	return sema.resolveFieldAccess(fieldAccess, ty, referenceScope)
+}
 
+func (sema *sema) resolveFieldAccess(
+	fieldAccess *ast.FieldAccess,
+	receiverTy *ast.ExprType,
+	referenceScope *ast.Scope,
+) (*ast.IdExpr, *ast.StructField, error) {
+	fieldID, nestedAccess, err := immediateFieldAccess(fieldAccess)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	structDecl, field, err := sema.resolveFieldOnType(receiverTy, fieldID.Name.Name(), referenceScope)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fieldAccess.Decl = structDecl
+	fieldAccess.AccessedField = field
+
+	if nestedAccess != nil {
+		return sema.resolveFieldAccess(nestedAccess, field.Type, referenceScope)
+	}
+
+	return fieldID, field, nil
+}
+
+func immediateFieldAccess(fieldAccess *ast.FieldAccess) (*ast.IdExpr, *ast.FieldAccess, error) {
+	switch fieldAccess.Right.Kind {
+	case ast.KIND_ID_EXPR:
+		return fieldAccess.Right.Node.(*ast.IdExpr), nil, nil
+	case ast.KIND_FIELD_ACCESS:
+		nested := fieldAccess.Right.Node.(*ast.FieldAccess)
+		return nested.Left, nested, nil
+	default:
+		return nil, nil, fmt.Errorf("other field access type was found during sema")
+	}
+}
+
+func (sema *sema) resolveFieldOnType(
+	ty *ast.ExprType,
+	fieldName string,
+	referenceScope *ast.Scope,
+) (*ast.StructDecl, *ast.StructField, error) {
 	switch ty.Kind {
 	case ast.EXPR_TYPE_STRUCT:
-		structDecl = ty.T.(*ast.StructType).Decl
+		structDecl := ty.T.(*ast.StructType).Decl
+		field, found := structDecl.FindAttribute(fieldName)
+		if !found {
+			return nil, nil, fmt.Errorf(
+				"attribute '%s' not found on '%s' struct\n",
+				fieldName,
+				structDecl.Name.Name(),
+			)
+		}
+		return structDecl, field, nil
 	case ast.EXPR_TYPE_POINTER:
 		ptr := ty.T.(*ast.PointerType)
 		switch ptr.Type.Kind {
 		case ast.EXPR_TYPE_ID:
-			// Unresolved pointer-to-id: look up the struct in scope.
 			id := ptr.Type.T.(*ast.IdType)
 			sym, err := referenceScope.LookupAcrossScopes(id.Name.Name())
 			if err != nil {
@@ -987,10 +1038,27 @@ func (sema *sema) getAccessedField(
 					ty.T,
 				)
 			}
-			structDecl = sym.Node.(*ast.StructDecl)
+			structDecl := sym.Node.(*ast.StructDecl)
+			field, found := structDecl.FindAttribute(fieldName)
+			if !found {
+				return nil, nil, fmt.Errorf(
+					"attribute '%s' not found on '%s' struct\n",
+					fieldName,
+					structDecl.Name.Name(),
+				)
+			}
+			return structDecl, field, nil
 		case ast.EXPR_TYPE_STRUCT:
-			// Already-resolved pointer-to-struct (e.g. from checkFnDecl param resolution).
-			structDecl = ptr.Type.T.(*ast.StructType).Decl
+			structDecl := ptr.Type.T.(*ast.StructType).Decl
+			field, found := structDecl.FindAttribute(fieldName)
+			if !found {
+				return nil, nil, fmt.Errorf(
+					"attribute '%s' not found on '%s' struct\n",
+					fieldName,
+					structDecl.Name.Name(),
+				)
+			}
+			return structDecl, field, nil
 		default:
 			return nil, nil, fmt.Errorf(
 				"expected pointer to struct type, not %s",
@@ -1000,47 +1068,20 @@ func (sema *sema) getAccessedField(
 	case ast.EXPR_TYPE_BASIC:
 		basic := ty.T.(*ast.BasicType)
 		if basic.Kind == token.ERROR_TYPE {
-			switch fieldAccess.Right.Kind {
-			case ast.KIND_ID_EXPR:
-				id := fieldAccess.Right.Node.(*ast.IdExpr)
-				if id.Name.Name() != "msg" {
-					return nil, nil, fmt.Errorf(
-						"field '%s' not found on 'error' type, only 'msg' is available",
-						id.Name.Name(),
-					)
-				}
-				fieldAccess.AccessedField = ast.ErrorStructDecl.Fields[0]
-				return id, ast.ErrorStructDecl.Fields[0], nil
-			default:
-				return nil, nil, fmt.Errorf("invalid field access on error type")
+			if fieldName != "msg" {
+				return nil, nil, fmt.Errorf(
+					"field '%s' not found on 'error' type, only 'msg' is available",
+					fieldName,
+				)
 			}
+			return ast.ErrorStructDecl, ast.ErrorStructDecl.Fields[0], nil
 		}
-		return nil, nil, fmt.Errorf(
-			"expected type to be struct or pointer to struct, but got %s",
-			ty.T,
-		)
-	default:
 	}
 
-	fieldAccess.Decl = structDecl
-
-	switch fieldAccess.Right.Kind {
-	case ast.KIND_ID_EXPR:
-		id := fieldAccess.Right.Node.(*ast.IdExpr)
-		stField, found := structDecl.FindAttribute(id.Name.Name())
-		// TODO(errors)
-		if !found {
-			return nil, nil, fmt.Errorf(
-				"attribute '%s' not found on '%s' struct\n",
-				id.Name.Name(),
-				structDecl.Name.Name(),
-			)
-		}
-		fieldAccess.AccessedField = stField
-		return id, stField, nil
-	default:
-		return nil, nil, fmt.Errorf("other field access type was found during sema")
-	}
+	return nil, nil, fmt.Errorf(
+		"expected type to be struct or pointer to struct, but got %s",
+		ty.T,
+	)
 }
 
 func (sema *sema) checkCondStmt(

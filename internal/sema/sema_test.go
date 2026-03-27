@@ -902,6 +902,37 @@ fn main() {
 			hasError: true,
 			errMsg:   "@catch on error-only function",
 		},
+		{
+			name: "error struct field exposes nested msg access",
+			src: `package main
+
+struct Result {
+  err error
+}
+
+fn main() {
+  result := Result.{err: error("oops")}
+  msg := result.err.msg
+}`,
+			hasError: false,
+		},
+		{
+			name: "error parameter accepts error values",
+			src: `package main
+
+fn print_error(err error) {
+  msg := err.msg
+}
+
+fn make_error() error {
+  return error("oops")
+}
+
+fn main() {
+  print_error(make_error())
+}`,
+			hasError: false,
+		},
 	}
 
 	for _, tt := range tests {
