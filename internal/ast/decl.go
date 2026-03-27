@@ -115,8 +115,6 @@ type AtOperatorKind int
 const (
 	// @fail
 	AT_OPERATOR_FAIL AtOperatorKind = iota
-	// @prop
-	AT_OPERATOR_PROP
 	// @catch <name> {...}
 	AT_OPERATOR_CATCH
 )

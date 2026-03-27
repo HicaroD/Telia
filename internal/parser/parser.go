@@ -1907,9 +1907,6 @@ func (p *Parser) parseAtOperator(parentScope *ast.Scope) (*ast.AtOperator, error
 	op := new(ast.AtOperator)
 
 	switch name.Name() {
-	case "prop":
-		op.Kind = ast.AT_OPERATOR_PROP
-		op.Op = nil
 	case "fail":
 		op.Kind = ast.AT_OPERATOR_FAIL
 		op.Op = nil

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -1323,6 +1324,16 @@ func TestErrorConstructor(t *testing.T) {
 	}
 	if string(lit.Value) != "oops" {
 		t.Errorf("expected value 'oops', got '%s'", string(lit.Value))
+	}
+}
+
+func TestRemovedAtPropOperator(t *testing.T) {
+	_, err := ParseExprFrom(`foo() @prop`, "test.tt")
+	if err == nil {
+		t.Fatal("expected parse error for removed @prop operator")
+	}
+	if !strings.Contains(err.Error(), "invalid at operator 'prop'") {
+		t.Fatalf("expected invalid @prop parse error, got %v", err)
 	}
 }
 
