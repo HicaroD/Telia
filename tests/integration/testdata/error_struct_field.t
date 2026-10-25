@@ -1,4 +1,5 @@
 package main
+use "std::io"
 
 use libc "std::libc"
 
@@ -8,6 +9,7 @@ struct Result {
 
 fn main() i32 {
   result := Result.{err: error("field broke")}
-  libc::printf("%s\n", result.err.msg)
+  err := result.err
+  io::println(err.msg)
   return 0
 }

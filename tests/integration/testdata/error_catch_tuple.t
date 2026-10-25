@@ -1,4 +1,5 @@
 package main
+use "std::io"
 
 use libc "std::libc"
 
@@ -11,7 +12,8 @@ fn connect(fail bool) (i32, error) {
 
 fn main() i32 {
   val := connect(false) @catch err {
-    libc::printf("error: %s\n", err.msg)
+    libc::printf("error: ")
+    io::println(err.msg)
     return 1
   }
   libc::printf("val: %d\n", val)

@@ -6,36 +6,30 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 )
 
-// emitBlock emits each statement in a block at the given indentation level.
-//
-// Defer is block-scoped in Telia: deferred statements run before the return
-// of the block they appear in, not necessarily before the function return.
-// The DeferStack is flushed in two places:
-//  1. Immediately before any explicit return statement in this block.
-//  2. At the end of the block when there is no explicit return (fall-through),
-//     e.g. void functions and nested if-blocks. This is guarded by
-//     !block.FoundReturn to avoid double-emission.
+// Register defers as their statements are reached. A return exits all active
+// scopes; fall-through exits only this block.
 func (c *CCodegen) emitBlock(block *ast.BlockStmt, indent string) {
+	c.deferScopes = append(c.deferScopes, nil)
+	defer func() { c.deferScopes = c.deferScopes[:len(c.deferScopes)-1] }()
 	for _, stmt := range block.Statements {
-		// Before a return, flush the defer stack in reverse order.
-		if stmt.Kind == ast.KIND_RETURN_STMT {
-			c.flushDeferStack(block, indent)
+		if stmt.Kind == ast.KIND_DEFER_STMT {
+			i := len(c.deferScopes) - 1
+			c.deferScopes[i] = append(c.deferScopes[i], stmt.Node.(*ast.DeferStmt))
+			continue
 		}
 		c.buf.WriteString(indent)
 		c.emitStmtNode(stmt, indent)
+		if stmt.Kind == ast.KIND_RETURN_STMT {
+			return
+		}
 	}
-	// Flush for fall-through blocks (no explicit return): void functions and
-	// nested blocks such as if-bodies that end without a return statement.
-	if !block.FoundReturn {
-		c.flushDeferStack(block, indent)
-	}
+	c.flushDefers(c.deferScopes[len(c.deferScopes)-1], indent)
 }
 
-// flushDeferStack emits all non-skipped deferred statements from block in LIFO
-// order at the given indentation level.
-func (c *CCodegen) flushDeferStack(block *ast.BlockStmt, indent string) {
-	for i := len(block.DeferStack) - 1; i >= 0; i-- {
-		d := block.DeferStack[i]
+// flushDefers emits registered cleanup in LIFO order.
+func (c *CCodegen) flushDefers(defers []*ast.DeferStmt, indent string) {
+	for i := len(defers) - 1; i >= 0; i-- {
+		d := defers[i]
 		if !d.Skip {
 			c.buf.WriteString(indent)
 			c.emitStmtNode(d.Stmt, indent)
@@ -73,8 +67,7 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 		}
 	case ast.KIND_NAMESPACE_ACCESS:
 		ns := node.Node.(*ast.NamespaceAccess)
-		c.buf.WriteString(c.emitNamespaceAccess(ns))
-		c.buf.WriteString(";\n")
+		c.emitStmtNode(ns.Right, indent)
 	case ast.KIND_FIELD_ACCESS:
 		c.buf.WriteString(c.emitExpr(node))
 		c.buf.WriteString(";\n")
@@ -84,17 +77,26 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 }
 
 // emitReturn emits a return statement.
-func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, _ string) {
+func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, indent string) {
+	var value string
+	if ret.Value != nil && ret.Value.Kind != ast.KIND_VOID_EXPR {
+		value = c.emitExpr(ret.Value)
+		if ret.Value.Kind == ast.KIND_NULLPTR_EXPR && c.currentRetTy != nil && c.currentRetTy.IsError() {
+			value = "(_Error){0}"
+		}
+		// Copy the result before cleanup can mutate locals or release owners.
+		tmp := c.nextTmp()
+		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", emitCType(c.currentRetTy), tmp, value))
+		value = tmp
+	}
+	for i := len(c.deferScopes) - 1; i >= 0; i-- {
+		c.flushDefers(c.deferScopes[i], indent)
+	}
 	if ret.Value == nil || ret.Value.Kind == ast.KIND_VOID_EXPR {
 		c.buf.WriteString("return;\n")
 		return
 	}
-	// Special case: return nil in error function -> return (_Error){NULL};
-	if ret.Value.Kind == ast.KIND_NULLPTR_EXPR && c.currentRetTy != nil && c.currentRetTy.IsError() {
-		c.buf.WriteString("return (_Error){NULL};\n")
-		return
-	}
-	c.buf.WriteString(fmt.Sprintf("return %s;\n", c.emitExpr(ret.Value)))
+	c.buf.WriteString(fmt.Sprintf("return %s;\n", value))
 }
 
 // emitAtFailBareCall emits a bare @fail function call (statement position).
@@ -108,14 +110,14 @@ func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 	if fullRetType == nil {
 		// Error-only: Decl/Proto not available or not a tuple.
 		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
-		c.buf.WriteString(fmt.Sprintf("if (%s.msg != NULL) { _panic(%s.msg); }\n", tmp, tmp))
+		c.buf.WriteString(fmt.Sprintf("if (%s.msg.data != NULL) { _panic(%s.msg); }\n", tmp, tmp))
 	} else {
 		// Tuple: store full result, check error field (last element).
 		tupleName := tupleTypedefName(fullRetType)
 		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
 		tt := fullRetType.T.(*ast.TupleType)
 		errIdx := len(tt.Types) - 1
-		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
 	}
 }
 
@@ -146,7 +148,7 @@ func (c *CCodegen) emitAtCatchBareCall(call *ast.FnCall, indent string) {
 	if fullRetType == nil {
 		// Error-only function
 		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
-		c.buf.WriteString(fmt.Sprintf("if (%s.msg != NULL) {\n", tmp))
+		c.buf.WriteString(fmt.Sprintf("if (%s.msg.data != NULL) {\n", tmp))
 		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s;\n", inner, errVarName, tmp))
 		c.emitBlock(catchOp.Block, inner)
 		c.buf.WriteString(indent + "}\n")
@@ -156,7 +158,7 @@ func (c *CCodegen) emitAtCatchBareCall(call *ast.FnCall, indent string) {
 		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
 		tt := fullRetType.T.(*ast.TupleType)
 		errIdx := len(tt.Types) - 1
-		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) {\n", tmp, errIdx))
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) {\n", tmp, errIdx))
 		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
 		c.emitBlock(catchOp.Block, inner)
 		c.buf.WriteString(indent + "}\n")
@@ -171,7 +173,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 		if len(stmt.Names) == 1 {
 			varId := stmt.Names[0].Node.(*ast.VarIdStmt)
 			cType := emitCType(varId.Type)
-			cVar := &CVariable{CType: cType, Name: varId.Name.Name()}
+			cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
 			varId.BackendType = cVar
 
 			// @fail on a tuple-returning function: store full tuple in temp,
@@ -186,7 +188,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 
 				tt := fullRetType.T.(*ast.TupleType)
 				errIdx := len(tt.Types) - 1
-				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
 
 				if len(tt.Types) > 2 {
 					for i := 0; i < errIdx; i++ {
@@ -194,7 +196,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 						c.buf.WriteString(fmt.Sprintf("%s %s_%d = %s._%d;\n", elemType, tmp, i, tmp, i))
 					}
 				} else {
-					c.buf.WriteString(fmt.Sprintf("%s %s = %s._0;\n", cType, varId.Name.Name(), tmp))
+					c.buf.WriteString(fmt.Sprintf("%s %s = %s._0;\n", cType, cVar.Name, tmp))
 				}
 			} else if isAtCatchTupleCall(stmt) {
 				// @catch on a tuple-returning function: store full tuple in temp,
@@ -210,13 +212,13 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 				inner := indent + "    "
 
 				// Declare variable upfront
-				c.buf.WriteString(fmt.Sprintf("%s %s;\n", cType, varId.Name.Name()))
+				c.buf.WriteString(fmt.Sprintf("%s %s = {0};\n", cType, cVar.Name))
 
 				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
 
 				tt := fullRetType.T.(*ast.TupleType)
 				errIdx := len(tt.Types) - 1
-				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg != NULL) {\n", tmp, errIdx))
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) {\n", tmp, errIdx))
 				c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
 				c.emitBlock(catchOp.Block, inner)
 				c.buf.WriteString(indent + "} else {\n")
@@ -227,12 +229,12 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 						c.buf.WriteString(fmt.Sprintf("%s%s %s_%d = %s._%d;\n", inner, elemType, tmp, i, tmp, i))
 					}
 				} else {
-					c.buf.WriteString(fmt.Sprintf("%s%s = %s._0;\n", inner, varId.Name.Name(), tmp))
+					c.buf.WriteString(fmt.Sprintf("%s%s = %s._0;\n", inner, cVar.Name, tmp))
 				}
 				c.buf.WriteString(indent + "}\n")
 			} else {
 				val := c.emitExpr(stmt.Expr)
-				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, cVar.Name, val))
 			}
 		} else if stmt.Expr.Kind == ast.KIND_TUPLE_LITERAL_EXPR {
 			// Multi-variable declaration from a literal tuple: `a, b := 1, 2`.
@@ -242,9 +244,10 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			for i, nameNode := range stmt.Names {
 				varId := nameNode.Node.(*ast.VarIdStmt)
 				cType := emitCType(varId.Type)
-				varId.BackendType = &CVariable{CType: cType, Name: varId.Name.Name()}
+				cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
+				varId.BackendType = cVar
 				val := c.emitExpr(te.Exprs[i])
-				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, cVar.Name, val))
 				if i < len(stmt.Names)-1 {
 					c.buf.WriteString(indent)
 				}
@@ -270,9 +273,10 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			for i, nameNode := range stmt.Names {
 				varId := nameNode.Node.(*ast.VarIdStmt)
 				cType := emitCType(varId.Type)
-				varId.BackendType = &CVariable{CType: cType, Name: varId.Name.Name()}
+				cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
+				varId.BackendType = cVar
 				c.buf.WriteString(indent)
-				c.buf.WriteString(fmt.Sprintf("%s %s = %s._%d;\n", cType, varId.Name.Name(), tmp, i))
+				c.buf.WriteString(fmt.Sprintf("%s %s = %s._%d;\n", cType, cVar.Name, tmp, i))
 			}
 		}
 	} else {
@@ -291,10 +295,10 @@ func (c *CCodegen) emitAssignment(stmt *ast.AssignmentStmt, indent string) {
 		for i, target := range stmt.Targets {
 			varId := target.Node.(*ast.VarIdStmt)
 			cType := emitCType(varId.Type)
-			cVar := &CVariable{CType: cType, Name: varId.Name.Name()}
+			cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
 			varId.BackendType = cVar
 			val := c.emitExpr(stmt.Values[i])
-			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, varId.Name.Name(), val))
+			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", cType, cVar.Name, val))
 			if i < len(stmt.Targets)-1 {
 				c.buf.WriteString(indent)
 			}
@@ -361,10 +365,10 @@ func (c *CCodegen) emitForInit(node *ast.Node) string {
 		if stmt.IsDecl && len(stmt.Names) == 1 {
 			varId := stmt.Names[0].Node.(*ast.VarIdStmt)
 			cType := emitCType(varId.Type)
-			cVar := &CVariable{CType: cType, Name: varId.Name.Name()}
+			cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
 			varId.BackendType = cVar
 			val := c.emitExpr(stmt.Expr)
-			return fmt.Sprintf("%s %s = %s", cType, varId.Name.Name(), val)
+			return fmt.Sprintf("%s %s = %s", cType, cVar.Name, val)
 		}
 	case ast.KIND_ASSIGNMENT_STMT:
 		stmt := node.Node.(*ast.AssignmentStmt)
@@ -408,6 +412,9 @@ func (c *CCodegen) emitVarTarget(node *ast.Node) string {
 	switch node.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		varId := node.Node.(*ast.VarIdStmt)
+		if varId.N != nil && varId.N.Node != varId && varId.N.Kind == ast.KIND_VAR_ID_STMT {
+			return c.emitVarTarget(varId.N)
+		}
 		if varId.BackendType != nil {
 			return varId.BackendType.(*CVariable).Name
 		}

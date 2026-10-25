@@ -265,6 +265,22 @@ func TestScopeResolution(t *testing.T) {
 	}
 }
 
+func TestCVariadicRejectsBorrowedString(t *testing.T) {
+	collector := parseAndCheck(`package main
+@[default_cc="c"]
+extern {
+  fn printf(format cstring, args @c ...int) int
+}
+fn main() {
+  text := "hello"
+  printf("%s", text)
+}
+`)
+	if !containsDiag(collector.Diags, "explicit C string conversion") {
+		t.Fatalf("expected explicit C string conversion diagnostic, got %v", collector.Diags)
+	}
+}
+
 func TestDuplicateDetection(t *testing.T) {
 	tests := []struct {
 		name      string

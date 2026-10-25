@@ -1234,7 +1234,17 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 	case token.ID:
 		p.lex.Skip()
 		t.Kind = ast.EXPR_TYPE_ID
-		t.T = &ast.IdType{Name: tok}
+		idType := &ast.IdType{Name: tok}
+		if p.lex.Peek().Kind == token.COLON_COLON {
+			p.lex.Skip()
+			name, ok := p.expect(token.ID)
+			if !ok {
+				return nil, fmt.Errorf("expected type name after namespace")
+			}
+			idType.Namespace = tok
+			idType.Name = name
+		}
+		t.T = idType
 	case token.OPEN_PAREN:
 		tupleType, err := p.parseTupleExpr()
 		if err != nil {

@@ -18,31 +18,32 @@ func isLLVMIntrinsic(name string) bool {
 // Re-declaring known libc symbols causes duplicate-declaration compile errors;
 // LLVM intrinsics (llvm.*) are not valid C identifiers and must not be emitted.
 var knownLibcSymbols = map[string]bool{
-	"printf":  true,
-	"fprintf": true,
-	"sprintf": true,
-	"scanf":   true,
-	"puts":    true,
-	"fputs":   true,
-	"fgets":   true,
-	"fopen":   true,
-	"fclose":  true,
-	"fread":   true,
-	"fwrite":  true,
-	"malloc":  true,
-	"calloc":  true,
-	"realloc": true,
-	"free":    true,
-	"exit":    true,
-	"abort":   true,
-	"memcpy":  true,
-	"memmove": true,
-	"memset":  true,
-	"strlen":  true,
-	"strcmp":  true,
-	"strcpy":  true,
-	"strcat":  true,
-	"strdup":  true,
+	"_telia_println": true,
+	"printf":         true,
+	"fprintf":        true,
+	"sprintf":        true,
+	"scanf":          true,
+	"puts":           true,
+	"fputs":          true,
+	"fgets":          true,
+	"fopen":          true,
+	"fclose":         true,
+	"fread":          true,
+	"fwrite":         true,
+	"malloc":         true,
+	"calloc":         true,
+	"realloc":        true,
+	"free":           true,
+	"exit":           true,
+	"abort":          true,
+	"memcpy":         true,
+	"memmove":        true,
+	"memset":         true,
+	"strlen":         true,
+	"strcmp":         true,
+	"strcpy":         true,
+	"strcat":         true,
+	"strdup":         true,
 }
 
 // emitExternDecl emits C forward declarations for all prototypes in an extern block.
@@ -121,9 +122,9 @@ func (c *CCodegen) emitFnParams(fn *ast.FnDecl) string {
 	var parts []string
 	for _, param := range fn.Params.Fields {
 		cType := emitCType(param.Type)
-		cVar := &CVariable{CType: cType, Name: param.Name.Name()}
+		cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + param.Name.Name()}
 		param.BackendType = cVar
-		parts = append(parts, fmt.Sprintf("%s %s", cType, param.Name.Name()))
+		parts = append(parts, fmt.Sprintf("%s %s", cType, cVar.Name))
 	}
 	return strings.Join(parts, ", ")
 }

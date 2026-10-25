@@ -16,9 +16,10 @@ type sema struct {
 	mainPackageFound bool
 	collector        *diagnostics.Collector
 
-	pkg     *ast.Package
-	file    *ast.File
-	program *ast.Program // set by Check(); used by registerTupleType
+	pkg               *ast.Package
+	file              *ast.File
+	program           *ast.Program // set by Check(); used by registerTupleType
+	currentReturnType *ast.ExprType
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -205,6 +206,9 @@ func (sema *sema) checkFnDecl(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
+	previousReturnType := sema.currentReturnType
+	sema.currentReturnType = function.RetType
+	defer func() { sema.currentReturnType = previousReturnType }()
 	if token.IsAnyBuiltin(function.Name.Name()) {
 		return fmt.Errorf("impossible to redefine builtin '%s'", function.Name.Name())
 	}
@@ -423,6 +427,13 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 
 func (sema *sema) checkIdType(idTy *ast.IdType, declScope *ast.Scope) (*ast.ExprType, error) {
 	idTyName := idTy.Name.Name()
+	if idTy.Namespace != nil {
+		imp, ok := sema.file.Imports[idTy.Namespace.Name()]
+		if !ok {
+			return nil, fmt.Errorf("unknown type namespace %s", idTy.Namespace.Name())
+		}
+		declScope = imp.Package.Scope
+	}
 
 	symbol, err := declScope.LookupAcrossScopes(idTyName)
 	if err != nil {
@@ -559,8 +570,8 @@ func (sema *sema) checkStmt(
 		return err
 	case ast.KIND_BLOCK_STMT:
 		blockStmt := stmt.Node.(*ast.BlockStmt)
-		blockScope := ast.NewScope(declScope)
-		return sema.checkBlockStmt(blockStmt, blockScope, referenceScope, returnTy, fromImportPackage, isArg)
+		blockScope := ast.NewScope(referenceScope)
+		return sema.checkBlock(blockStmt, returnTy, blockScope, declScope, fromImportPackage, isArg)
 	case ast.KIND_ASSIGNMENT_STMT:
 		assignment := stmt.Node.(*ast.AssignmentStmt)
 		err := sema.checkAssignment(
@@ -590,7 +601,7 @@ func (sema *sema) checkVar(
 			err = sema.checkNormalVarDecl(
 				currentVar.Node.(*ast.VarIdStmt),
 				variable.IsDecl,
-				declScope,
+				referenceScope,
 			)
 		} else {
 			_, _, err = sema.checkFieldAccessVariable(currentVar.Node.(*ast.FieldAccess), referenceScope)
@@ -601,6 +612,24 @@ func (sema *sema) checkVar(
 		}
 	}
 
+	// Resolve qualified calls before applying tuple/error assignment rules.
+	// The backend uses the resolved declaration, so the namespace is no longer needed.
+	var qualifiedRetType *ast.ExprType
+	if variable.Expr.Kind == ast.KIND_NAMESPACE_ACCESS {
+		ns := variable.Expr.Node.(*ast.NamespaceAccess)
+		terminal := ns.Right
+		for terminal.Kind == ast.KIND_NAMESPACE_ACCESS {
+			terminal = terminal.Node.(*ast.NamespaceAccess).Right
+		}
+		if terminal.Kind == ast.KIND_FN_CALL {
+			var err error
+			qualifiedRetType, err = sema.checkNamespaceAccess(ns, referenceScope, declScope, fromImportPackage)
+			if err != nil {
+				return err
+			}
+			variable.Expr = terminal
+		}
+	}
 	switch variable.Expr.Kind {
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		tuple := variable.Expr.Node.(*ast.TupleExpr)
@@ -616,16 +645,13 @@ func (sema *sema) checkVar(
 		return nil
 	case ast.KIND_FN_CALL:
 		fnCall := variable.Expr.Node.(*ast.FnCall)
-		fnRetType, err := sema.checkFnCall(
-			fnCall,
-			referenceScope,
-			declScope,
-			returnTy,
-			fromImportPackage,
-			false,
-		)
-		if err != nil {
-			return err
+		fnRetType := qualifiedRetType
+		if fnRetType == nil {
+			var err error
+			fnRetType, err = sema.checkFnCall(fnCall, referenceScope, declScope, returnTy, fromImportPackage, false)
+			if err != nil {
+				return err
+			}
 		}
 
 		// @fail and @catch unwrap the error from the tuple — only non-error elements
@@ -678,6 +704,9 @@ func (sema *sema) checkVar(
 			// TODO(errors)
 			if len(variable.Names) != 1 {
 				return fmt.Errorf("more variables than expressions\n")
+			}
+			if qualifiedRetType != nil {
+				return sema.checkTupleTypeAssignedToVariable(variable.Names, &ast.TupleType{Types: []*ast.ExprType{fnRetType}}, referenceScope)
 			}
 			err := sema.checkVarExpr(variable.Names[0], variable.Expr, referenceScope, declScope, fromImportPackage, isArg)
 			if err != nil {
@@ -1168,6 +1197,9 @@ func (sema *sema) checkFnCall(
 		symbol, err = referenceScope.LookupAcrossScopes(fnCall.Name.Name())
 	} else {
 		symbol, err = declScope.LookupAcrossScopes(fnCall.Name.Name())
+		if err != nil {
+			symbol, err = referenceScope.LookupAcrossScopes(fnCall.Name.Name())
+		}
 	}
 
 	if err != nil {
@@ -1263,7 +1295,7 @@ func (sema *sema) checkFnCall(
 		}
 
 		catchOp := fnCall.AtOp.Op.(*ast.CatchAtOperator)
-		catchScope := ast.NewScope(declScope)
+		catchScope := ast.NewScope(referenceScope)
 
 		errVarId := &ast.VarIdStmt{
 			Name: catchOp.ErrVarName,
@@ -1281,9 +1313,9 @@ func (sema *sema) checkFnCall(
 
 		if err := sema.checkBlock(
 			catchOp.Block,
-			returnTy,
+			sema.currentReturnType,
 			catchScope,
-			declScope,
+			sema.pkg.Scope,
 			fromImportPackage,
 			isArg,
 		); err != nil {
@@ -1354,8 +1386,12 @@ func (sema *sema) checkFnCallArgs(
 				// any type at the C ABI level. Still resolve the expression (so
 				// field accesses, identifiers, etc. are fully wired up) but skip
 				// the type constraint check against variadicParam.Type.
-				if _, _, err := sema.inferExprTypeWithoutContext(variadicArg, referenceScope, declScope, fromImportPackage, true); err != nil {
+				argType, _, err := sema.inferExprTypeWithoutContext(variadicArg, referenceScope, declScope, fromImportPackage, true)
+				if err != nil {
 					return err
+				}
+				if argType.Equals(ast.NewBasicType(token.STRING_TYPE)) {
+					return fmt.Errorf("borrowed string in C variadic call requires explicit C string conversion")
 				}
 			} else {
 				if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage, true); err != nil {
@@ -1490,6 +1526,15 @@ func (s *sema) inferExprTypeWithContext(
 			// fromImportPackage,
 			// isArg,
 		)
+	case ast.KIND_NAMESPACE_ACCESS:
+		actual, err := s.checkNamespaceAccess(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, err
+		}
+		if !actual.Equals(expectedType) {
+			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, actual.T)
+		}
+		return actual, nil
 	default:
 		panic(fmt.Sprintf("infer expr type with context - unimplemented expr: %v\n", expr))
 	}
@@ -1504,6 +1549,18 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 		return nil, fmt.Errorf("error: expected literal expression type to be basic")
 	}
 	actualBasicType := literal.Type.T.(*ast.BasicType)
+	// A literal may directly name static C storage. Existing string values
+	// still require an explicit, owned conversion before crossing the C ABI.
+	if actualBasicType.Kind == token.STRING_TYPE && expectedType.Kind == ast.EXPR_TYPE_BASIC &&
+		expectedType.T.(*ast.BasicType).Kind == token.CSTRING_TYPE {
+		for _, b := range literal.Value {
+			if b == 0 {
+				return nil, fmt.Errorf("C string literal contains an embedded zero byte")
+			}
+		}
+		literal.Type = expectedType
+		return expectedType, nil
+	}
 
 	if actualBasicType.Kind == token.ERROR_TYPE {
 		actualBasicType.Explicit = true
@@ -1681,6 +1738,7 @@ func (s *sema) inferBinaryExprType(
 	}
 
 	commonType := lhs // since they are the same
+	binary.OperandType = commonType
 
 	// TODO(errors)
 	validation, exists := ast.BinaryOperators[binary.Op]
@@ -2040,27 +2098,27 @@ func (sema *sema) inferStructLiteralExprWithContext(
 			stLit.Name.Name(),
 		)
 	}
-	for _, field := range st.Decl.Fields {
-		var currentField *ast.StructFieldValue
-		var litFieldName *token.Token
-
-		fieldFoundOnStructLiteral := false
-		for i, literalField := range stLit.Values {
-			if literalField.Name.Name() == field.Name.Name() {
-				currentField = literalField
-				litFieldName = field.Name
-				fieldFoundOnStructLiteral = true
-				currentField.Index = i
+	seen := make(map[string]bool)
+	for _, value := range stLit.Values {
+		name := value.Name.Name()
+		if seen[name] {
+			return nil, fmt.Errorf("duplicate field %s in struct literal", name)
+		}
+		seen[name] = true
+		var fieldType *ast.ExprType
+		for i, field := range st.Decl.Fields {
+			if name == field.Name.Name() {
+				value.Index = i
+				fieldType = field.Type
 				break
 			}
 		}
-		if !fieldFoundOnStructLiteral {
-			return nil, fmt.Errorf("field %s does not exist in the struct\n", litFieldName.Name())
+		if fieldType == nil {
+			return nil, fmt.Errorf("field %s does not exist in the struct", name)
 		}
-
 		_, err := sema.inferExprTypeWithContext(
-			currentField.Value,
-			field.Type,
+			value.Value,
+			fieldType,
 			referenceScope,
 			declScope,
 			fromImportPackage,

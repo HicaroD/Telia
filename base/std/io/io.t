@@ -1,8 +1,7 @@
 package io
 
-use "std::libc"
-
-fn println(f string) {
-  libc::println(f)
-  return
+@[default_cc="c"]
+extern {
+  @[link_name="_telia_println"]
+  fn println(text string)
 }

@@ -93,9 +93,10 @@ func (unary *UnaryExpr) String() string {
 }
 
 type BinExpr struct {
-	Left  *Node
-	Op    token.Kind
-	Right *Node
+	Left        *Node
+	Op          token.Kind
+	Right       *Node
+	OperandType *ExprType
 }
 
 func (binExpr *BinExpr) String() string {

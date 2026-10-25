@@ -1,9 +1,10 @@
 package main
+use "std::io"
 
 use libc "std::libc"
 
 fn print_error(err error) {
-  libc::printf("%s\n", err.msg)
+  io::println(err.msg)
 }
 
 fn make_error() error {

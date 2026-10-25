@@ -182,6 +182,9 @@ func (left *BasicType) Equals(right *BasicType) bool {
 }
 
 func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
+	if left.Kind == right.Kind {
+		return true
+	}
 	if left.Kind.IsInteger() && right.Kind.IsInteger() {
 		return true
 	}
@@ -189,6 +192,9 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 		return true
 	}
 	if left.Kind == token.STRING_TYPE && right.Kind == token.STRING_TYPE {
+		return true
+	}
+	if left.Kind == token.CSTRING_TYPE && right.Kind == token.CSTRING_TYPE {
 		return true
 	}
 	if left.Kind == token.BOOL_TYPE && right.Kind == token.BOOL_TYPE {
@@ -203,7 +209,8 @@ func (basicType BasicType) String() string {
 }
 
 type IdType struct {
-	Name *token.Token
+	Name      *token.Token
+	Namespace *token.Token
 }
 
 func (idType IdType) String() string {
@@ -255,6 +262,10 @@ func (tt TupleType) String() string {
 
 type StructType struct {
 	Decl *StructDecl
+}
+
+func (st *StructType) String() string {
+	return st.Decl.Name.Name()
 }
 
 func (st *StructType) Equals(other *StructType) bool {
@@ -491,6 +502,7 @@ var BinaryOperators = OperatorTable{
 	},
 	token.EQUAL_EQUAL: {
 		ValidTypes: []*ExprType{
+			NewBasicType(token.STRING_TYPE),
 			// integers
 			NewBasicType(token.UINT_TYPE),
 			NewBasicType(token.INT_TYPE),
@@ -519,6 +531,7 @@ var BinaryOperators = OperatorTable{
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
+			NewBasicType(token.STRING_TYPE),
 			NewBasicType(token.UINT_TYPE),
 			NewBasicType(token.INT_TYPE),
 			NewBasicType(token.I8_TYPE),

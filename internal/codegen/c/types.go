@@ -56,7 +56,9 @@ func emitCType(ty *ast.ExprType) string {
 			return "double"
 		case token.VOID_TYPE:
 			return "void"
-		case token.STRING_TYPE, token.CSTRING_TYPE:
+		case token.STRING_TYPE:
+			return "_String"
+		case token.CSTRING_TYPE:
 			return "char *"
 		case token.RAWPTR_TYPE:
 			return "void *"

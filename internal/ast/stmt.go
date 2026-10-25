@@ -9,12 +9,10 @@ import (
 type BlockStmt struct {
 	OpenCurly token.Pos
 	// DeferStack holds all deferred statements registered directly inside this
-	// block. Telia's defer is block-scoped: a deferred statement runs before
-	// the return of the block it appears in, not necessarily before the return
-	// of the enclosing function. This differs from Go, where defer is always
-	// function-scoped. Codegen flushes this stack in LIFO order immediately
-	// before any explicit return in this block, and also at block fall-through
-	// (for void functions and nested blocks that end without a return).
+	// block. Telia's defer is block-scoped: fall-through runs this block's
+	// registered cleanup, while return runs cleanup in all exited scopes.
+	// Cleanup is LIFO within each scope. Codegen registers deferred statements
+	// as it reaches them and evaluates return values before running cleanup.
 	DeferStack  []*DeferStmt
 	Statements  []*Node
 	FoundReturn bool

@@ -2,7 +2,9 @@ package compiler
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
@@ -44,6 +46,7 @@ func CompileFile(path string) (string, *diagnostics.Collector) {
 		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
 		return "", collector
 	}
+	defer os.RemoveAll(filepath.Dir(exePath))
 
 	output, err := RunBinary(exePath)
 	if err != nil {
@@ -70,13 +73,17 @@ func RunBinary(path string) (string, error) {
 // binary without executing it. Use this when the test needs to control
 // execution itself (e.g. to inspect exit codes or stderr).
 func CompileOnly(path string) (string, *diagnostics.Collector) {
+	return CompileOnlyWithCFlags(path)
+}
+
+func CompileOnlyWithCFlags(path string, flags ...string) (string, *diagnostics.Collector) {
 	collector := diagnostics.New()
 	loc, err := ast.LocFromPath(path)
 	if err != nil {
 		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
 		return "", collector
 	}
-	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector)
+	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector, flags...)
 	if err != nil {
 		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
 		return "", collector
@@ -98,6 +105,7 @@ func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
 		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
 		return "", collector
 	}
+	defer os.RemoveAll(filepath.Dir(exePath))
 
 	output, err := RunBinary(exePath)
 	if err != nil {
@@ -108,7 +116,7 @@ func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
 	return output, collector
 }
 
-func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
+func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector, flags ...string) (string, error) {
 	p := parser.New(collector)
 	program, err := p.ParseFileAsProgram(loc.Path, loc, collector)
 	if err != nil {
@@ -122,12 +130,8 @@ func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, colle
 	}
 
 	cg := ccodegen.NewCG(loc, program)
-	err = cg.Generate(buildType)
-	if err != nil {
-		return "", fmt.Errorf("codegen failed: %v", err)
-	}
-
-	return cg.ExePath(), nil
+	cg.SetCFlags(flags...)
+	return generateTestBinary(cg, buildType)
 }
 
 func compilePackagePipeline(dirPath string, loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
@@ -144,8 +148,18 @@ func compilePackagePipeline(dirPath string, loc *ast.Loc, buildType config.Build
 	}
 
 	cg := ccodegen.NewCG(loc, program)
+	return generateTestBinary(cg, buildType)
+}
+
+func generateTestBinary(cg *ccodegen.CCodegen, buildType config.BuildOptimizationType) (string, error) {
+	dir, err := os.MkdirTemp("", "telia-test-")
+	if err != nil {
+		return "", err
+	}
+	cg.SetOutputPath(filepath.Join(dir, "program"))
 	err = cg.Generate(buildType)
 	if err != nil {
+		os.RemoveAll(dir)
 		return "", fmt.Errorf("codegen failed: %v", err)
 	}
 

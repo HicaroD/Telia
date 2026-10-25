@@ -17,6 +17,8 @@ const preamble = `#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+_Static_assert(sizeof(size_t) == sizeof(uint64_t), "Telia libc bindings require 64-bit size_t");
+
 static inline void _check_nil_pointer_deref(void *ptr) {
     if (ptr == NULL) {
         fprintf(stderr, "runtime panic: null pointer deref\n");
@@ -24,12 +26,25 @@ static inline void _check_nil_pointer_deref(void *ptr) {
     }
 }
 
-static inline void _panic(char *msg) {
-    fprintf(stderr, "runtime panic: %s\n", msg);
+typedef struct { const unsigned char *data; size_t len; } _String;
+
+static inline bool _telia_string_equal(_String a, _String b) {
+    return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
+}
+
+static inline void _telia_println(_String text) {
+    if (text.len) fwrite(text.data, 1, text.len, stdout);
+    fputc('\n', stdout);
+}
+
+static inline void _panic(_String msg) {
+    fputs("runtime panic: ", stderr);
+    if (msg.len) fwrite(msg.data, 1, msg.len, stderr);
+    fputc('\n', stderr);
     exit(1);
 }
 
-typedef struct { char *msg; } _Error;
+typedef struct { _String msg; } _Error;
 
 `
 
@@ -42,6 +57,8 @@ type CCodegen struct {
 	tmpCnt       int
 	exePath      string
 	outputPath   string
+	deferScopes  [][]*ast.DeferStmt
+	cFlags       []string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
@@ -53,6 +70,11 @@ func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
 
 func (c *CCodegen) SetOutputPath(path string) {
 	c.outputPath = path
+}
+
+// SetCFlags configures additional native compiler flags (e.g. sanitizers).
+func (c *CCodegen) SetCFlags(flags ...string) {
+	c.cFlags = append([]string(nil), flags...)
 }
 
 func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
@@ -73,9 +95,11 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	// Emit into buf
 	c.buf.Reset()
 	c.buf.WriteString(preamble)
+	c.buf.WriteString(runtimeSource)
 
 	// Reset processed flags so each Generate() call is clean
 	resetProcessed(c.program.Root)
+	c.emitPackageStructs(c.program.Root, make(map[*ast.Package]bool))
 
 	// Emit tuple typedef structs before any function declarations that
 	// reference them. program.TupleTypes was populated and deduplicated by
@@ -110,7 +134,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 
 	// Compile into temp dir
-	cmd := exec.Command(compiler, optFlag, "-o", exePath, cFilePath, "-lm")
+	args := append([]string{optFlag}, c.cFlags...)
+	args = append(args, "-o", exePath, cFilePath, "-lm")
+	cmd := exec.Command(compiler, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("C compiler error:\n%s", string(out))
 	}
@@ -205,8 +231,26 @@ func (c *CCodegen) emitDeclarations(file *ast.File) {
 			c.emitExternDecl(node.Node.(*ast.ExternDecl))
 		case ast.KIND_FN_DECL:
 			c.emitFnForwardDecl(node.Node.(*ast.FnDecl))
-		case ast.KIND_STRUCT_DECL:
-			c.emitStructDecl(node.Node.(*ast.StructDecl))
+		}
+	}
+}
+
+// Struct-valued tuple results need complete struct definitions first.
+func (c *CCodegen) emitPackageStructs(pkg *ast.Package, seen map[*ast.Package]bool) {
+	if pkg == nil || seen[pkg] {
+		return
+	}
+	seen[pkg] = true
+	for _, file := range pkg.Files {
+		for _, imp := range file.Imports {
+			c.emitPackageStructs(imp.Package, seen)
+		}
+	}
+	for _, file := range pkg.Files {
+		for _, node := range file.Body {
+			if node.Kind == ast.KIND_STRUCT_DECL {
+				c.emitStructDecl(node.Node.(*ast.StructDecl))
+			}
 		}
 	}
 }

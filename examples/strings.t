@@ -2,14 +2,27 @@ package main
 
 use "std::libc"
 use "std::io"
+use "std::strings"
+use "std::memory"
 
-fn main() {
-  size := libc::strings::strlen("HELLO")
-  if size == 5 {
-    io::println("size of hello is 5")
+fn main() i32 {
+  text := strings::clone("Hello") @fail
+  defer strings::free(&text)
+  part := strings::slice(strings::view(&text), 0, 5) @fail
+  io::println(part)
+
+  arena := memory::arena_create() @fail
+  defer memory::arena_destroy(&arena)
+  greeting := strings::concat_in(&arena, part, ", Telia!") @fail
+  io::println(greeting)
+
+  ctext := strings::to_c(greeting) @fail
+  defer strings::free_c(&ctext)
+  libc::println(strings::c_view(&ctext))
+
+  invalid := strings::slice(greeting, 5, 1) @catch err {
+    io::println(err.msg)
+    return 0
   }
-  
-  if libc::strings::strcmp("Hello", "Hello") == 0 {
-    io::println("equal")
-  }
+  return 1
 }

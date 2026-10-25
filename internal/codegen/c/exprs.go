@@ -32,6 +32,9 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return c.emitNamespaceAccess(node.Node.(*ast.NamespaceAccess))
 
 	case ast.KIND_NULLPTR_EXPR:
+		if ty := node.Node.(*ast.NullPtrExpr).Type; ty != nil && ty.IsError() {
+			return "(_Error){0}"
+		}
 		return "NULL"
 
 	case ast.KIND_VOID_EXPR:
@@ -70,11 +73,12 @@ func (c *CCodegen) emitLiteral(lit *ast.LiteralExpr) string {
 	if lit.Type.Kind == ast.EXPR_TYPE_BASIC {
 		b := lit.Type.T.(*ast.BasicType)
 		switch b.Kind {
-		case token.STRING_TYPE, token.CSTRING_TYPE:
-			// The lexer stores the literal without surrounding quotes.
-			return fmt.Sprintf("%q", val)
+		case token.STRING_TYPE:
+			return emitStringLiteral(lit.Value)
+		case token.CSTRING_TYPE:
+			return emitCBytes(lit.Value)
 		case token.ERROR_TYPE:
-			return fmt.Sprintf("(_Error){%q}", val)
+			return fmt.Sprintf("(_Error){%s}", emitStringLiteral(lit.Value))
 		case token.BOOL_TYPE:
 			if val == "true" {
 				return "1"
@@ -97,6 +101,21 @@ func (c *CCodegen) emitLiteral(lit *ast.LiteralExpr) string {
 		}
 	}
 	return val
+}
+
+// Fixed-width octal escapes cannot consume a following hex digit, unlike \x.
+func emitCBytes(data []byte) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, v := range data {
+		fmt.Fprintf(&b, "\\%03o", v)
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+func emitStringLiteral(data []byte) string {
+	return fmt.Sprintf("(_String){(const unsigned char *)%s, %d}", emitCBytes(data), len(data))
 }
 
 // emitIdExpr resolves an identifier to its C name.
@@ -132,6 +151,13 @@ func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
 	}
 	left := c.emitExpr(bin.Left)
 	right := c.emitExpr(bin.Right)
+	if bin.OperandType != nil && bin.OperandType.Equals(ast.NewBasicType(token.STRING_TYPE)) {
+		comparison := fmt.Sprintf("_telia_string_equal(%s, %s)", left, right)
+		if bin.Op == token.BANG_EQUAL {
+			return "(!" + comparison + ")"
+		}
+		return comparison
+	}
 	op := binOpToC(bin.Op)
 	return fmt.Sprintf("(%s %s %s)", left, op, right)
 }
@@ -185,7 +211,7 @@ func (c *CCodegen) emitErrorNilComparison(bin *ast.BinExpr) string {
 	}
 	val := c.emitExpr(errorExpr)
 	op := binOpToC(bin.Op)
-	return fmt.Sprintf("(%s.msg %s NULL)", val, op)
+	return fmt.Sprintf("(%s.msg.data %s NULL)", val, op)
 }
 
 // binOpToC maps a Telia binary operator token to its C operator string.
@@ -376,6 +402,9 @@ func (c *CCodegen) emitFieldAccess(fa *ast.FieldAccess) string {
 
 // emitStructLiteral emits a C compound literal for a struct.
 func (c *CCodegen) emitStructLiteral(sl *ast.StructLiteralExpr) string {
+	if len(sl.Values) == 0 {
+		return fmt.Sprintf("(%s){0}", sl.Name.Name())
+	}
 	var fields []string
 	for _, fv := range sl.Values {
 		val := c.emitExpr(fv.Value)
