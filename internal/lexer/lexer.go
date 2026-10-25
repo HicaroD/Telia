@@ -151,6 +151,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.consumeTokenNoLex(tok, token.CLOSE_CURLY)
 		lex.nextChar()
 	case '"':
+		tok.Literal = true
 		// TODO: implement raw strings
 		isRaw := false
 		lex.getStringLit(tok, isRaw)
@@ -282,7 +283,10 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	default:
 		if unicode.IsLetter(rune(ch)) || ch == '_' {
 			lex.getIdOrKeyword(tok)
+			word := string(tok.Lexeme)
+			tok.Literal = word == "true" || word == "false" || word == "nil"
 		} else if ch >= '0' && ch <= '9' {
+			tok.Literal = true
 			lex.getNumberLit(tok)
 		} else {
 			tokenPosition := lex.pos

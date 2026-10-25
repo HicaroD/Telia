@@ -211,6 +211,7 @@ func (basicType BasicType) String() string {
 type IdType struct {
 	Name      *token.Token
 	Namespace *token.Token
+	Args      []*ExprType
 }
 
 func (idType IdType) String() string {
@@ -231,8 +232,10 @@ func (pointer PointerType) String() string {
 }
 
 type TypeAlias struct {
-	Name *token.Token
-	Type *ExprType
+	Owner *Package
+	File  *File
+	Name  *token.Token
+	Type  *ExprType
 }
 
 func (alias TypeAlias) String() string {
@@ -269,7 +272,7 @@ func (st *StructType) String() string {
 }
 
 func (st *StructType) Equals(other *StructType) bool {
-	return st.Decl.Name == other.Decl.Name
+	return st.Decl == other.Decl
 }
 
 // Operator validation

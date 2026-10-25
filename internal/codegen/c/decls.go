@@ -102,11 +102,11 @@ func (c *CCodegen) emitProtoParams(proto *ast.Proto) string {
 func (c *CCodegen) emitTupleTypedef(ty *ast.ExprType) {
 	name := tupleTypedefName(ty)
 	tt := ty.T.(*ast.TupleType)
-	c.buf.WriteString("typedef struct {\n")
+	c.buf.WriteString(fmt.Sprintf("struct %s {\n", name))
 	for i, elem := range tt.Types {
 		c.buf.WriteString(fmt.Sprintf("    %s _%d;\n", emitCType(elem), i))
 	}
-	c.buf.WriteString(fmt.Sprintf("} %s;\n\n", name))
+	c.buf.WriteString("};\n\n")
 }
 
 // emitFnForwardDecl emits a C forward declaration for a Telia function.
@@ -136,12 +136,15 @@ func (c *CCodegen) emitFnParams(fn *ast.FnDecl) string {
 //	typedef struct { field_type field_name; ... } StructName;
 func (c *CCodegen) emitStructDecl(st *ast.StructDecl) {
 	name := st.Name.Name()
-	c.buf.WriteString(fmt.Sprintf("typedef struct %s {\n", name))
+	if st.CName != "" {
+		name = st.CName
+	}
+	c.buf.WriteString(fmt.Sprintf("struct %s {\n", name))
 	for _, field := range st.Fields {
 		cType := emitCType(field.Type)
 		c.buf.WriteString(fmt.Sprintf("    %s %s;\n", cType, field.Name.Name()))
 	}
-	c.buf.WriteString(fmt.Sprintf("} %s;\n\n", name))
+	c.buf.WriteString("};\n\n")
 }
 
 // emitFnBody emits the full C function definition including body.

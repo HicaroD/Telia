@@ -121,8 +121,11 @@ func (v *VarArgsExpr) String() string {
 }
 
 type StructLiteralExpr struct {
-	Name   *token.Token
-	Values []*StructFieldValue
+	TypeArgs  []*ExprType
+	Namespace *token.Token
+	Decl      *StructDecl
+	Name      *token.Token
+	Values    []*StructFieldValue
 }
 
 type StructFieldValue struct {

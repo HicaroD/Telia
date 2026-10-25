@@ -301,6 +301,9 @@ func (c *CCodegen) getFnCallName(call *ast.FnCall) string {
 // mangledFnDeclName returns the C name for a FnDecl, using the package it
 // belongs to. We walk the program to find which package owns the decl.
 func (c *CCodegen) mangledFnDeclName(fn *ast.FnDecl) string {
+	if fn.CName != "" {
+		return fn.CName
+	}
 	// Check if this fn belongs to the root package.
 	if c.fnBelongsToPackage(fn, c.program.Root) {
 		return fn.Name.Name()
@@ -390,27 +393,43 @@ func (c *CCodegen) emitFieldAccess(fa *ast.FieldAccess) string {
 			varId.NumberOfPointerReceivers > 0 ||
 			(varId.Type != nil && varId.Type.Kind == ast.EXPR_TYPE_POINTER)
 		if isPointerVar {
-			return fmt.Sprintf("%s->%s", recv, fieldName)
+			return fieldAccessTail(fmt.Sprintf("%s->%s", recv, fieldName), fa)
 		}
 	} else if fa.StructParam != nil {
 		if fa.StructParam.Type != nil && fa.StructParam.Type.Kind == ast.EXPR_TYPE_POINTER {
-			return fmt.Sprintf("%s->%s", recv, fieldName)
+			return fieldAccessTail(fmt.Sprintf("%s->%s", recv, fieldName), fa)
 		}
 	}
-	return fmt.Sprintf("%s.%s", recv, fieldName)
+	return fieldAccessTail(fmt.Sprintf("%s.%s", recv, fieldName), fa)
+}
+
+func fieldAccessTail(expr string, fa *ast.FieldAccess) string {
+	if fa.Right.Kind != ast.KIND_FIELD_ACCESS {
+		return expr
+	}
+	next := fa.Right.Node.(*ast.FieldAccess)
+	separator := "."
+	if fa.AccessedField.Type.IsPointer() {
+		separator = "->"
+	}
+	return fieldAccessTail(expr+separator+next.AccessedField.Name.Name(), next)
 }
 
 // emitStructLiteral emits a C compound literal for a struct.
 func (c *CCodegen) emitStructLiteral(sl *ast.StructLiteralExpr) string {
+	name := sl.Name.Name()
+	if sl.Decl != nil && sl.Decl.CName != "" {
+		name = sl.Decl.CName
+	}
 	if len(sl.Values) == 0 {
-		return fmt.Sprintf("(%s){0}", sl.Name.Name())
+		return fmt.Sprintf("(%s){0}", name)
 	}
 	var fields []string
 	for _, fv := range sl.Values {
 		val := c.emitExpr(fv.Value)
 		fields = append(fields, fmt.Sprintf(".%s = %s", fv.Name.Name(), val))
 	}
-	return fmt.Sprintf("(%s){%s}", sl.Name.Name(), strings.Join(fields, ", "))
+	return fmt.Sprintf("(%s){%s}", name, strings.Join(fields, ", "))
 }
 
 // emitTupleLiteral emits a C compound literal for a tuple expression, e.g.:

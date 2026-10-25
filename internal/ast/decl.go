@@ -7,6 +7,10 @@ import (
 )
 
 type StructDecl struct {
+	Owner      *Package
+	File       *File
+	CName      string
+	TypeParams []*token.Token
 	Attributes Attributes
 	Name       *token.Token
 	Fields     []*StructField
@@ -32,6 +36,10 @@ type StructField struct {
 }
 
 type FnDecl struct {
+	Owner      *Package
+	File       *File
+	CName      string
+	TypeParams []*token.Token
 	Scope      *Scope
 	Attributes Attributes
 	Name       *token.Token

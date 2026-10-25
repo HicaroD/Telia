@@ -99,17 +99,30 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 
 	// Reset processed flags so each Generate() call is clean
 	resetProcessed(c.program.Root)
-	c.emitPackageStructs(c.program.Root, make(map[*ast.Package]bool))
-
-	// Emit tuple typedef structs before any function declarations that
-	// reference them. program.TupleTypes was populated and deduplicated by
-	// sema.Check(), so we emit exactly the right set, exactly once.
+	for _, st := range c.program.Structs {
+		name := emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: st}})
+		c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
+	}
 	for _, ty := range c.program.TupleTypes {
-		c.emitTupleTypedef(ty)
+		name := tupleTypedefName(ty)
+		c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
+	}
+	for _, ty := range c.program.ValueTypes {
+		if ty.Kind == ast.EXPR_TYPE_STRUCT {
+			c.emitStructDecl(ty.T.(*ast.StructType).Decl)
+		} else {
+			c.emitTupleTypedef(ty)
+		}
 	}
 
 	// Two-pass emission: declarations then bodies, DFS over import graph
+	for _, fn := range c.program.Functions {
+		c.emitFnForwardDecl(fn)
+	}
 	c.generatePackage(c.program.Root)
+	for _, fn := range c.program.Functions {
+		c.emitFnBody(fn)
+	}
 
 	// Write .c file
 	cFile, err := os.Create(cFilePath)
@@ -230,26 +243,9 @@ func (c *CCodegen) emitDeclarations(file *ast.File) {
 		case ast.KIND_EXTERN_DECL:
 			c.emitExternDecl(node.Node.(*ast.ExternDecl))
 		case ast.KIND_FN_DECL:
-			c.emitFnForwardDecl(node.Node.(*ast.FnDecl))
-		}
-	}
-}
-
-// Struct-valued tuple results need complete struct definitions first.
-func (c *CCodegen) emitPackageStructs(pkg *ast.Package, seen map[*ast.Package]bool) {
-	if pkg == nil || seen[pkg] {
-		return
-	}
-	seen[pkg] = true
-	for _, file := range pkg.Files {
-		for _, imp := range file.Imports {
-			c.emitPackageStructs(imp.Package, seen)
-		}
-	}
-	for _, file := range pkg.Files {
-		for _, node := range file.Body {
-			if node.Kind == ast.KIND_STRUCT_DECL {
-				c.emitStructDecl(node.Node.(*ast.StructDecl))
+			fn := node.Node.(*ast.FnDecl)
+			if len(fn.TypeParams) == 0 {
+				c.emitFnForwardDecl(fn)
 			}
 		}
 	}
@@ -259,7 +255,10 @@ func (c *CCodegen) emitPackageStructs(pkg *ast.Package, seen map[*ast.Package]bo
 func (c *CCodegen) emitBodies(file *ast.File) {
 	for _, node := range file.Body {
 		if node.Kind == ast.KIND_FN_DECL {
-			c.emitFnBody(node.Node.(*ast.FnDecl))
+			fn := node.Node.(*ast.FnDecl)
+			if len(fn.TypeParams) == 0 {
+				c.emitFnBody(fn)
+			}
 		}
 	}
 }
@@ -268,6 +267,9 @@ func (c *CCodegen) emitBodies(file *ast.File) {
 // Functions in the root (main) package keep their bare name.
 // All other packages get <pkg>__<fn>.
 func (c *CCodegen) mangledName(fn *ast.FnDecl) string {
+	if fn.CName != "" {
+		return fn.CName
+	}
 	if c.currentPkg == c.program.Root {
 		return fn.Name.Name()
 	}

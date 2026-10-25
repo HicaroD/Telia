@@ -684,6 +684,11 @@ func (p *Parser) ParseStruct(attrs ast.Attributes) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected struct name, not %s\n", structKw.Name())
 	}
 	st.Name = name
+	var err error
+	st.TypeParams, err = p.parseTypeParams()
+	if err != nil {
+		return nil, err
+	}
 
 	fields, err := p.parseStructFields()
 	if err != nil {
@@ -797,6 +802,7 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	node.Kind = ast.KIND_TYPE_ALIAS_DECL
 
 	alias := new(ast.TypeAlias)
+	alias.Owner, alias.File = p.pkg, p.file
 	alias.Name = name
 	alias.Type = ty
 
@@ -912,6 +918,10 @@ func (p *Parser) ParseFnDecl(attrs ast.Attributes) (*ast.Node, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	fnDecl.Name = name
+	fnDecl.TypeParams, err = p.parseTypeParams()
+	if err != nil {
+		return nil, err
+	}
 
 	fnScope := ast.NewScope(p.pkg.Scope)
 	fnDecl.Scope = fnScope
@@ -1221,6 +1231,9 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 	t.Explicit = true
 
 	tok := p.lex.Peek()
+	if tok.Literal {
+		return nil, fmt.Errorf("%s: expected type, got a literal", tok.Pos)
+	}
 	switch tok.Kind {
 	case token.STAR:
 		p.lex.Skip() // *
@@ -1245,6 +1258,11 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 			idType.Name = name
 		}
 		t.T = idType
+		var err error
+		idType.Args, err = p.parseTypeArgs()
+		if err != nil {
+			return nil, err
+		}
 	case token.OPEN_PAREN:
 		tupleType, err := p.parseTupleExpr()
 		if err != nil {
@@ -1547,6 +1565,9 @@ func (p *Parser) createDerefExprFromId(idTok *token.Token) *ast.Node {
 }
 
 func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
+	if p.genericSuffix() == token.OPEN_PAREN {
+		return p.parseFnCall(parentScope)
+	}
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_PAREN:
@@ -2173,6 +2194,11 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 
 	peeked1 := p.lex.PeekN(1)
 	peeked2 := p.lex.PeekN(2)
+	if suffix := p.genericSuffix(); suffix == token.OPEN_PAREN {
+		return p.parseFnCall(parentScope)
+	} else if suffix == token.DOT {
+		return p.parseStructLiteralExpr(parentScope)
+	}
 	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
 	}
@@ -2227,6 +2253,10 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'id'")
 	}
 
+	typeArgs, err := parser.parseTypeArgs()
+	if err != nil {
+		return nil, err
+	}
 	_, ok = parser.expect(token.OPEN_PAREN)
 	// TODO(errors): add proper error
 	if !ok {
@@ -2254,11 +2284,14 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_CALL
-	n.Node = &ast.FnCall{Name: name, Args: args, AtOp: atOp}
+	n.Node = &ast.FnCall{Name: name, TypeArgs: typeArgs, Args: args, AtOp: atOp}
 	return n, nil
 }
 
 func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error) {
+	if p.lex.Peek1().Kind != token.COLON_COLON {
+		return p.parseIdExpr(parentScope)
+	}
 	ahead := p.lex.Peek1()
 	switch ahead.Kind {
 	case token.OPEN_PAREN:
@@ -2291,6 +2324,10 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 			return nil, err
 		}
 		access.Right = right
+		if right.Kind == ast.KIND_STRUCT_EXPR {
+			right.Node.(*ast.StructLiteralExpr).Namespace = tk
+			return right, nil
+		}
 
 		n.Kind = ast.KIND_NAMESPACE_ACCESS
 		n.Node = access
@@ -2332,9 +2369,10 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	expr := new(ast.StructLiteralExpr)
 	values := make([]*ast.StructFieldValue, 0)
 
+	previousStrictNewline := p.lex.StrictNewline
 	p.lex.StrictNewline = false
 	defer func() {
-		p.lex.StrictNewline = true
+		p.lex.StrictNewline = previousStrictNewline
 	}()
 
 	name, ok := p.expect(token.ID)
@@ -2343,6 +2381,11 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		return nil, fmt.Errorf("error: expected ID")
 	}
 	expr.Name = name
+	var err error
+	expr.TypeArgs, err = p.parseTypeArgs()
+	if err != nil {
+		return nil, err
+	}
 
 	dot, ok := p.expect(token.DOT)
 	if !ok {

@@ -13,6 +13,7 @@ import (
 )
 
 type sema struct {
+	generics         genericState
 	mainPackageFound bool
 	collector        *diagnostics.Collector
 
@@ -55,14 +56,22 @@ func (s *sema) registerTupleType(ty *ast.ExprType) {
 func tupleKey(tt *ast.TupleType) string {
 	parts := make([]string, len(tt.Types))
 	for i, t := range tt.Types {
-		parts[i] = t.T.(fmt.Stringer).String()
+		parts[i] = typeKey(t)
 	}
 	return strings.Join(parts, ",")
 }
 
 func (s *sema) Check(program *ast.Program) error {
 	s.program = program
-	return s.checkPackage(program.Root)
+	s.generics = genericState{structs: map[string]*ast.StructDecl{}, functions: map[string]*ast.FnDecl{}, resolved: map[*ast.StructDecl]bool{}, origins: map[*ast.StructDecl][]string{}}
+	s.prepareGenerics(program.Root, map[*ast.Package]bool{})
+	if err := s.validateTemplates(program.Root, map[*ast.Package]bool{}); err != nil {
+		return err
+	}
+	if err := s.checkPackage(program.Root); err != nil {
+		return err
+	}
+	return s.orderValueTypes()
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
@@ -154,6 +163,9 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
 			fnDecl := node.Node.(*ast.FnDecl)
+			if len(fnDecl.TypeParams) != 0 {
+				continue
+			}
 			if !foundMain {
 				foundMain = fnDecl.Name.Name() == "main"
 			}
@@ -169,11 +181,16 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			}
 		case ast.KIND_STRUCT_DECL:
 			structDecl := node.Node.(*ast.StructDecl)
-			err := s.checkStructDecl(structDecl)
+			if len(structDecl.TypeParams) != 0 {
+				continue
+			}
+			err := s.resolveStruct(structDecl, nil)
 			if err != nil {
 				return false, err
 			}
 		case ast.KIND_PKG_DECL:
+			continue
+		case ast.KIND_TYPE_ALIAS_DECL:
 			continue
 		default:
 			panic(fmt.Sprintf(
@@ -206,6 +223,9 @@ func (sema *sema) checkFnDecl(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
+	if err := sema.resolveSignature(function); err != nil {
+		return err
+	}
 	previousReturnType := sema.currentReturnType
 	sema.currentReturnType = function.RetType
 	defer func() { sema.currentReturnType = previousReturnType }()
@@ -216,29 +236,6 @@ func (sema *sema) checkFnDecl(
 	err := sema.checkFnAttributes(function.Attributes)
 	if err != nil {
 		return err
-	}
-
-	for _, param := range function.Params.Fields {
-		switch param.Type.Kind {
-		case ast.EXPR_TYPE_ID:
-			idTy := param.Type.T.(*ast.IdType)
-			revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
-			if err != nil {
-				return err
-			}
-			param.Type = revealedTy
-		case ast.EXPR_TYPE_POINTER:
-			// Resolve pointer-to-id types (e.g. *Point → *StructType{Point}).
-			ptrTy := param.Type.T.(*ast.PointerType)
-			if ptrTy.Type.Kind == ast.EXPR_TYPE_ID {
-				idTy := ptrTy.Type.T.(*ast.IdType)
-				revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
-				if err != nil {
-					return err
-				}
-				ptrTy.Type = revealedTy
-			}
-		}
 	}
 
 	err = sema.checkBlock(
@@ -259,15 +256,6 @@ func (sema *sema) checkFnDecl(
 				function.Name.Name(),
 			)
 		}
-	}
-
-	if function.RetType.Kind == ast.EXPR_TYPE_ID {
-		idTy := function.RetType.T.(*ast.IdType)
-		revealedTy, err := sema.checkIdType(idTy, function.Scope.Parent)
-		if err != nil {
-			return err
-		}
-		function.RetType = revealedTy
 	}
 
 	// Register tuple return types so codegen can emit their typedef structs
@@ -426,34 +414,7 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 }
 
 func (sema *sema) checkIdType(idTy *ast.IdType, declScope *ast.Scope) (*ast.ExprType, error) {
-	idTyName := idTy.Name.Name()
-	if idTy.Namespace != nil {
-		imp, ok := sema.file.Imports[idTy.Namespace.Name()]
-		if !ok {
-			return nil, fmt.Errorf("unknown type namespace %s", idTy.Namespace.Name())
-		}
-		declScope = imp.Package.Scope
-	}
-
-	symbol, err := declScope.LookupAcrossScopes(idTyName)
-	if err != nil {
-		if err == ast.ErrSymbolNotFoundOnScope {
-			return nil, fmt.Errorf("'%s' type not found on scope\n", idTyName)
-		}
-	}
-
-	switch symbol.Kind {
-	case ast.KIND_TYPE_ALIAS_DECL:
-		alias := symbol.Node.(*ast.TypeAlias)
-		return alias.Type, nil
-	case ast.KIND_STRUCT_DECL:
-		stTy := new(ast.ExprType)
-		stTy.Kind = ast.EXPR_TYPE_STRUCT
-		stTy.T = &ast.StructType{Decl: symbol.Node.(*ast.StructDecl)}
-		return stTy, nil
-	default:
-		panic(fmt.Sprintf("unknown id type: %v\n", symbol.Kind))
-	}
+	return sema.resolveType(&ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: idTy}, declScope)
 }
 
 func (sema *sema) checkBlock(
@@ -1240,6 +1201,9 @@ func (sema *sema) checkFnCall(
 	var retType *ast.ExprType
 
 	if symbol.Kind == ast.KIND_PROTO {
+		if len(fnCall.TypeArgs) != 0 {
+			return nil, fmt.Errorf("%s: '%s' does not take type arguments", fnCall.Name.Pos, fnCall.Name.Name())
+		}
 		proto := symbol.Node.(*ast.Proto)
 		fnCall.Proto = proto
 		err = sema.checkFnCallArgs(
@@ -1252,6 +1216,19 @@ func (sema *sema) checkFnCall(
 		retType = proto.RetType
 	} else {
 		fnDecl := symbol.Node.(*ast.FnDecl)
+		if len(fnDecl.TypeParams) != 0 {
+			fnDecl, err = sema.instantiateFunction(fnDecl, fnCall.TypeArgs, referenceScope, fnCall.Name)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			if len(fnCall.TypeArgs) != 0 {
+				return nil, fmt.Errorf("%s: '%s' does not take type arguments", fnCall.Name.Pos, fnCall.Name.Name())
+			}
+			if err := sema.resolveSignature(fnDecl); err != nil {
+				return nil, err
+			}
+		}
 		fnCall.Decl = fnDecl
 		err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
 		retType = fnDecl.RetType
@@ -1444,6 +1421,11 @@ func (s *sema) inferExprTypeWithContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
+	resolved, err := s.resolveType(expectedType, referenceScope)
+	if err != nil {
+		return nil, err
+	}
+	*expectedType = *resolved
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
@@ -1468,13 +1450,20 @@ func (s *sema) inferExprTypeWithContext(
 		)
 		return ty, err
 	case ast.KIND_FN_CALL:
-		return s.inferFnCallExprTypeWithContext(
+		actual, err := s.inferFnCallExprTypeWithContext(
 			expr.Node.(*ast.FnCall),
 			referenceScope,
 			declScope,
 			fromImportPackage,
 			isArg,
 		)
+		if err != nil {
+			return nil, err
+		}
+		if !actual.Equals(expectedType) {
+			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, actual.T)
+		}
+		return actual, nil
 	case ast.KIND_VOID_EXPR:
 		return s.inferVoidExprTypeWithContext(expectedType)
 	case ast.KIND_TUPLE_LITERAL_EXPR:
@@ -2089,15 +2078,18 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	st := expectedType.T.(*ast.StructType)
-
-	if stLit.Name.Name() != st.Decl.Name.Name() {
+	actual, err := sema.literalType(stLit, declScope)
+	if err != nil {
+		return nil, err
+	}
+	if !actual.Equals(expectedType) {
 		return nil, fmt.Errorf(
 			"struct type mismatch, expected %s, got %s\n",
-			st.Decl.Name.Name(),
+			expectedType.T,
 			stLit.Name.Name(),
 		)
 	}
+	st := actual.T.(*ast.StructType)
 	seen := make(map[string]bool)
 	for _, value := range stLit.Values {
 		name := value.Name.Name()
@@ -2396,17 +2388,10 @@ func (sema *sema) inferStructLiteralExprWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	sym, err := declScope.LookupAcrossScopes(stLit.Name.Name())
+	ty, err := sema.literalType(stLit, declScope)
 	if err != nil {
 		return nil, false, err
 	}
-	st := sym.Node.(*ast.StructDecl)
-
-	stTy := &ast.StructType{Decl: st}
-	ty := new(ast.ExprType)
-	ty.Kind = ast.EXPR_TYPE_STRUCT
-	ty.T = stTy
-
 	inferredTy, err := sema.inferStructLiteralExprWithContext(
 		stLit,
 		ty,
@@ -2602,6 +2587,9 @@ func (sema *sema) checkPrototypeCall(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.Proto, error) {
+	if len(prototypeCall.TypeArgs) != 0 {
+		return nil, fmt.Errorf("%s: '%s' does not take type arguments", prototypeCall.Name.Pos, prototypeCall.Name.Name())
+	}
 	symbol, err := extern.Scope.LookupCurrentScope(prototypeCall.Name.Name())
 	if err != nil {
 		pos := prototypeCall.Name.Pos

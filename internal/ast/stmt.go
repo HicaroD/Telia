@@ -63,6 +63,7 @@ func (ret ReturnStmt) String() string {
 }
 
 type FnCall struct {
+	TypeArgs []*ExprType
 	Name     *token.Token
 	Args     []*Node
 	Variadic bool

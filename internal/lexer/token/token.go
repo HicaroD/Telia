@@ -3,9 +3,10 @@ package token
 import "fmt"
 
 type Token struct {
-	Lexeme []byte
-	Kind   Kind
-	Pos    Pos
+	Literal bool // distinguishes literal spellings from type keywords
+	Lexeme  []byte
+	Kind    Kind
+	Pos     Pos
 }
 
 func New(lexeme []byte, kind Kind, position Pos) *Token {

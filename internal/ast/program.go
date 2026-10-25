@@ -18,6 +18,9 @@ type Program struct {
 	// so that codegen can emit exactly the right typedef structs upfront
 	// without a separate discovery pass.
 	TupleTypes []*ExprType
+	Structs    []*StructDecl
+	ValueTypes []*ExprType // dependency-ordered struct and tuple layouts
+	Functions  []*FnDecl   // concrete generic instances, in discovery order
 }
 
 type Loc struct {

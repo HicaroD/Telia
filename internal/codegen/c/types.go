@@ -72,6 +72,9 @@ func emitCType(ty *ast.ExprType) string {
 		return emitCType(ptr.Type) + " *"
 	case ast.EXPR_TYPE_STRUCT:
 		st := ty.T.(*ast.StructType)
+		if st.Decl.CName != "" {
+			return st.Decl.CName
+		}
 		return st.Decl.Name.Name()
 	case ast.EXPR_TYPE_ALIAS:
 		// Type aliases are fully resolved by sema before codegen runs.
