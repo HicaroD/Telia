@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -175,6 +176,9 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		sym, err := scope.LookupAcrossScopes(id.Name.Name())
 		if err != nil {
 			return nil, fmt.Errorf("%s: '%s' type not found on scope", id.Name.Pos, id.Name.Name())
+		}
+		if sym.Invalid {
+			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		switch d := sym.Node.(type) {
 		case *ast.TypeAlias:

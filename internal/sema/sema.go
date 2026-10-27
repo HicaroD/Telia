@@ -1,6 +1,7 @@
 package sema
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
+	"github.com/HicaroD/Telia/internal/source"
 )
 
 type sema struct {
@@ -66,12 +68,22 @@ func (s *sema) Check(program *ast.Program) error {
 	s.generics = genericState{structs: map[string]*ast.StructDecl{}, functions: map[string]*ast.FnDecl{}, resolved: map[*ast.StructDecl]bool{}, origins: map[*ast.StructDecl][]string{}}
 	s.prepareGenerics(program.Root, map[*ast.Package]bool{})
 	if err := s.validateTemplates(program.Root, map[*ast.Package]bool{}); err != nil {
-		return err
+		if !errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
+			return err
+		}
 	}
 	if err := s.checkPackage(program.Root); err != nil {
-		return err
+		s.collector.ReportError(err, source.Span{})
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
-	return s.orderValueTypes()
+	if s.collector.HasErrors() {
+		return diagnostics.COMPILER_ERROR_FOUND
+	}
+	if err := s.orderValueTypes(); err != nil {
+		s.collector.ReportError(err, source.Span{})
+		return diagnostics.COMPILER_ERROR_FOUND
+	}
+	return nil
 }
 
 func (s *sema) checkPackage(pkg *ast.Package) error {
@@ -111,7 +123,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 		for _, imp := range file.Imports {
 			err := s.checkPackage(imp.Package)
 			if err != nil {
-				return err
+				s.collector.ReportError(err, source.Span{})
 			}
 		}
 
@@ -137,7 +149,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 
 		fileHasMain, err := s.checkFile(file)
 		if err != nil {
-			return err
+			s.collector.ReportError(err, source.Span{})
 		}
 		hasMainMethod = hasMainMethod || fileHasMain
 	}
@@ -158,8 +170,12 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 
 func (s *sema) checkFile(file *ast.File) (bool, error) {
 	var foundMain bool
+	failed := false
 
 	for _, node := range file.Body {
+		if node.Invalid {
+			continue
+		}
 		switch node.Kind {
 		case ast.KIND_FN_DECL:
 			fnDecl := node.Node.(*ast.FnDecl)
@@ -171,13 +187,16 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			}
 			err := s.checkFnDecl(fnDecl, s.pkg.Scope, false, false)
 			if err != nil {
-				return false, err
+				s.collector.ReportError(err, fnDecl.Name.Span)
+				node.Invalid = true
+				failed = true
 			}
 		case ast.KIND_EXTERN_DECL:
 			externDecl := node.Node.(*ast.ExternDecl)
 			err := s.checkExternDecl(externDecl)
 			if err != nil {
-				return false, err
+				s.collector.ReportError(err, node.Span)
+				failed = true
 			}
 		case ast.KIND_STRUCT_DECL:
 			structDecl := node.Node.(*ast.StructDecl)
@@ -186,7 +205,9 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			}
 			err := s.resolveStruct(structDecl, nil)
 			if err != nil {
-				return false, err
+				s.collector.ReportError(err, structDecl.Name.Span)
+				node.Invalid = true
+				failed = true
 			}
 		case ast.KIND_PKG_DECL:
 			continue
@@ -200,6 +221,9 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 		}
 	}
 
+	if failed {
+		return foundMain, diagnostics.COMPILER_ERROR_FOUND
+	}
 	return foundMain, nil
 }
 
@@ -207,13 +231,13 @@ func (sema *sema) checkStructDecl(structDecl *ast.StructDecl) error {
 	// TODO: optimize it
 	// Depending on the number of fields, it might be better to use a slice or even bitmaps
 	// to store seen fields
-	seenFields := make(map[string]bool, len(structDecl.Fields))
+	seenFields := make(map[string]*token.Token, len(structDecl.Fields))
 	for _, field := range structDecl.Fields {
 		fieldName := field.Name.Name()
-		if seenFields[fieldName] {
-			return fmt.Errorf("%s duplicate field '%s' in struct '%s'", field.Name.Pos, fieldName, structDecl.Name.Name())
+		if previous := seenFields[fieldName]; previous != nil {
+			return diagnostics.Diag{Title: "Duplicate field", Message: fmt.Sprintf("duplicate field '%s' in struct '%s'", fieldName, structDecl.Name.Name()), Span: field.Name.Span, Related: []diagnostics.Related{{Span: previous.Span, Message: "Previously declared here"}}}
 		}
-		seenFields[fieldName] = true
+		seenFields[fieldName] = field.Name
 	}
 	return nil
 }
@@ -307,11 +331,23 @@ func (sema *sema) checkBlockStmt(
 	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) error {
+	failed := false
 	for _, stmt := range block.Statements {
+		count := len(sema.collector.Diags)
 		err := sema.checkStmt(stmt, referenceScope, declScope, returnTy, fromImportPackage, isArg)
 		if err != nil {
-			return err
+			// Keep instantiation context attached while unwinding to its call site.
+			if len(sema.generics.chain) > 0 {
+				return err
+			}
+			if len(sema.collector.Diags) == count {
+				sema.collector.ReportError(err, stmt.Span)
+			}
+			failed = true
 		}
+	}
+	if failed {
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 	return nil
 }
@@ -424,21 +460,7 @@ func (sema *sema) checkBlock(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
-	for _, statement := range block.Statements {
-		err := sema.checkStmt(
-			statement,
-			referenceScope,
-			declScope,
-			returnTy,
-			fromImportPackage,
-			isArg,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return sema.checkBlockStmt(block, declScope, referenceScope, returnTy, fromImportPackage, isArg)
 }
 
 func (sema *sema) checkStmt(
@@ -554,7 +576,21 @@ func (sema *sema) checkVar(
 	declScope *ast.Scope,
 	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
-) error {
+) (resultErr error) {
+	defer func() {
+		if resultErr == nil || !variable.IsDecl {
+			return
+		}
+		for _, name := range variable.Names {
+			if name.Kind != ast.KIND_VAR_ID_STMT {
+				continue
+			}
+			v := name.Node.(*ast.VarIdStmt)
+			if v.N != nil && v.N.Node == v {
+				v.N.Invalid = true
+			}
+		}
+	}()
 	for _, currentVar := range variable.Names {
 		var err error
 
@@ -640,6 +676,7 @@ func (sema *sema) checkVar(
 					atName = "@catch"
 				}
 				d := diagnostics.Diag{
+					Span: fnCall.Name.Span,
 					Message: fmt.Sprintf(
 						"%s:%d:%d: %s on error-only function '%s' has no value to assign; use '%s() %s' without variable assignment",
 						pos.Filename,
@@ -705,14 +742,15 @@ func (sema *sema) checkNormalVarDecl(
 			return fmt.Errorf("impossible to redefine builtin '%s'", currentVar.Name.Name())
 		}
 
-		_, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
+		previous, err := referenceScope.LookupCurrentScope(currentVar.Name.Name())
 		if err == nil {
-			return fmt.Errorf("'%s' already declared in the current block", currentVar.Name.Name())
+			return diagnostics.Diag{Title: "Duplicate declaration", Message: fmt.Sprintf("'%s' already declared in the current block", currentVar.Name.Name()), Span: currentVar.Name.Span, Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "Previously declared here"}}}
 		}
 
 		n := new(ast.Node)
 		n.Kind = ast.KIND_VAR_ID_STMT
 		n.Node = currentVar
+		n.Span = currentVar.Name.Span
 		currentVar.N = n
 
 		err = referenceScope.Insert(currentVar.Name.Name(), n)
@@ -729,6 +767,9 @@ func (sema *sema) checkNormalVarDecl(
 				return fmt.Errorf("%s '%s' not declared in the current block", pos, name)
 			}
 			return err
+		}
+		if symbol.Invalid {
+			return diagnostics.COMPILER_ERROR_FOUND
 		}
 		if currentVar.Type != nil {
 			return fmt.Errorf("impossible to define type for variable '%s' since you're reassigning", currentVar.Name.Name())
@@ -946,6 +987,9 @@ func (sema *sema) getAccessedField(
 	sym, err := referenceScope.LookupAcrossScopes(id)
 	if err != nil {
 		return nil, nil, err
+	}
+	if sym.Invalid {
+		return nil, nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	var ty *ast.ExprType
@@ -1206,6 +1250,7 @@ func (sema *sema) checkFnCall(
 		if err == ast.ErrSymbolNotFoundOnScope {
 			pos := fnCall.Name.Pos
 			functionNotDefined := diagnostics.Diag{
+				Span: fnCall.Name.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: function '%s' not defined on scope",
 					pos.Filename,
@@ -1220,9 +1265,13 @@ func (sema *sema) checkFnCall(
 		return nil, err
 	}
 
+	if symbol.Invalid {
+		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
 	if symbol.Kind != ast.KIND_FN_DECL && symbol.Kind != ast.KIND_PROTO {
 		pos := fnCall.Name.Pos
 		notCallable := diagnostics.Diag{
+			Span: fnCall.Name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: '%s' is not callable",
 				pos.Filename,
@@ -1285,6 +1334,7 @@ func (sema *sema) checkCallAtOperator(fnCall *ast.FnCall, retType *ast.ExprType,
 		if !returnsError(retType) {
 			pos := fnCall.Name.Pos
 			d := diagnostics.Diag{
+				Span: fnCall.Name.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: @fail requires error-returning function, but '%s' does not return an error",
 					pos.Filename,
@@ -1302,6 +1352,7 @@ func (sema *sema) checkCallAtOperator(fnCall *ast.FnCall, retType *ast.ExprType,
 		if !returnsError(retType) {
 			pos := fnCall.Name.Pos
 			d := diagnostics.Diag{
+				Span: fnCall.Name.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: @catch requires error-returning function, but '%s' does not return an error",
 					pos.Filename,
@@ -1357,6 +1408,7 @@ func (sema *sema) checkFnCallArgs(
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
 		notEnoughArguments := diagnostics.Diag{
+			Span: fnCall.Name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: not enough arguments in call to '%s', expected at least %d arguments",
 				pos.Filename,
@@ -1375,6 +1427,7 @@ func (sema *sema) checkFnCallArgs(
 		// TODO(errors): show which arguments were passed and which types we
 		// were expecting
 		notEnoughArguments := diagnostics.Diag{
+			Span: fnCall.Name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: not enough arguments in call to '%s', expected %d arguments, but got %d arguments",
 				pos.Filename,
@@ -1463,7 +1516,8 @@ func (s *sema) inferExprTypeWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 	isArg bool,
-) (*ast.ExprType, error) {
+) (result *ast.ExprType, resultErr error) {
+	defer func() { resultErr = diagnostics.WithSpan(resultErr, expr.Span) }()
 	resolved, err := s.resolveType(expectedType, referenceScope)
 	if err != nil {
 		return nil, err
@@ -1628,7 +1682,7 @@ func (sema *sema) inferLiteralExprTypeWithContext(
 		expectedBasicType := expectedType.T.(*ast.BasicType)
 		_, err := sema.inferBasicExprTypeWithContext(actualBasicType, expectedBasicType)
 		if err != nil {
-			return nil, err
+			return nil, diagnostics.Diag{Title: "Type mismatch", Message: err.Error()}
 		}
 	case ast.EXPR_TYPE_POINTER:
 		// TODO(errors)
@@ -1646,9 +1700,12 @@ func (sema *sema) inferIdExprTypeWithContext(
 	symbol, err := referenceScope.LookupAcrossScopes(id.Name.Name())
 	// TODO(errors)
 	if err != nil {
-		return nil, err
+		return nil, diagnostics.Diag{Title: "Undeclared name", Message: fmt.Sprintf("symbol not found on scope: '%s' is not declared.", id.Name.Name()), Span: id.Name.Span}
 	}
 	id.N = symbol
+	if symbol.Invalid {
+		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
 
 	var idTy *ast.ExprType
 
@@ -2303,7 +2360,8 @@ func (sema *sema) inferExprTypeWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 	isArg bool,
-) (*ast.ExprType, bool, error) {
+) (result *ast.ExprType, isLiteral bool, resultErr error) {
+	defer func() { resultErr = diagnostics.WithSpan(resultErr, expr.Span) }()
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr))
@@ -2428,10 +2486,13 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	variable, err := scope.LookupAcrossScopes(variableName)
 	// TODO(errors)
 	if err != nil {
-		return nil, false, err
+		return nil, false, diagnostics.Diag{Title: "Undeclared name", Message: fmt.Sprintf("symbol not found on scope: '%s' is not declared.", variableName), Span: id.Name.Span}
 	}
 
 	id.N = variable
+	if variable.Invalid {
+		return nil, false, diagnostics.COMPILER_ERROR_FOUND
+	}
 
 	switch variable.Kind {
 	case ast.KIND_VAR_ID_STMT:
@@ -2642,6 +2703,7 @@ func (sema *sema) checkPrototypeCall(
 	if err != nil {
 		pos := prototypeCall.Name.Pos
 		prototypeNotFound := diagnostics.Diag{
+			Span: prototypeCall.Name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: function '%s' not declared on extern '%s'",
 				pos.Filename,

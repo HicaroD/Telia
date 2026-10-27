@@ -1,12 +1,16 @@
 package token
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/HicaroD/Telia/internal/source"
+)
 
 type Token struct {
 	Literal bool // distinguishes literal spellings from type keywords
 	Lexeme  []byte
 	Kind    Kind
 	Pos     Pos
+	Span    source.Span
 }
 
 func New(lexeme []byte, kind Kind, position Pos) *Token {

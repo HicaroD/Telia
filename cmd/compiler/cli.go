@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"strings"
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
@@ -23,10 +23,11 @@ type CliResult struct {
 	ArgLoc       string
 	Loc          *ast.Loc
 	OutputPath   string
+	Color        string
 }
 
 func cli() (CliResult, error) {
-	result := CliResult{}
+	result := CliResult{Color: "auto"}
 
 	args := os.Args[1:]
 	if len(args) == 0 {
@@ -49,6 +50,11 @@ func cli() (CliResult, error) {
 		for i := 1; i < len(args); i++ {
 			arg := args[i]
 			switch {
+			case strings.HasPrefix(arg, "--color="):
+				result.Color = strings.TrimPrefix(arg, "--color=")
+				if result.Color != "auto" && result.Color != "always" && result.Color != "never" {
+					return result, fmt.Errorf("--color must be auto, always, or never")
+				}
 			case arg == "-release":
 				if releaseBuildSet {
 					return result, fmt.Errorf("duplicate -release flag")
@@ -86,7 +92,7 @@ func cli() (CliResult, error) {
 
 		_, err := os.Stat(sourcePath)
 		if err != nil {
-			log.Fatalf("No such file or directory: %s\n", sourcePath)
+			return result, fmt.Errorf("no such file or directory: %s", sourcePath)
 		}
 
 		loc, err := ast.LocFromPath(sourcePath)

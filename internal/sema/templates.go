@@ -1,9 +1,11 @@
 package sema
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
 )
 
@@ -23,7 +25,9 @@ func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) e
 	for _, file := range pkg.Files {
 		for _, imp := range file.Imports {
 			if err := s.validateTemplates(imp.Package, seen); err != nil {
-				return err
+				if !errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
+					return err
+				}
 			}
 		}
 		if err := s.inContext(pkg, file, nil, func() error {
@@ -38,54 +42,64 @@ func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) e
 				if len(params) == 0 {
 					continue
 				}
-				v := templateValidator{s: s, params: map[string]bool{}, locals: map[string]*ast.ExprType{}}
-				for _, p := range params {
-					v.params[p.Name()] = true
-				}
-				switch d := node.Node.(type) {
-				case *ast.StructDecl:
-					if err := s.checkStructDecl(d); err != nil {
-						return err
+				err := func() error {
+					v := templateValidator{s: s, params: map[string]bool{}, locals: map[string]*ast.ExprType{}}
+					for _, p := range params {
+						v.params[p.Name()] = true
 					}
-					if d.Attributes.LinkName != "" || d.Attributes.Linkage != "" {
-						return fmt.Errorf("%s: generic templates cannot have C linkage", d.Name.Pos)
-					}
-					for _, f := range d.Fields {
-						if err := v.typeExpr(f.Type, map[*ast.TypeAlias]bool{}); err != nil {
+					switch d := node.Node.(type) {
+					case *ast.StructDecl:
+						if err := s.checkStructDecl(d); err != nil {
 							return err
 						}
-					}
-				case *ast.FnDecl:
-					if d.Name.Name() == "main" || token.IsAnyBuiltin(d.Name.Name()) {
-						return fmt.Errorf("%s: '%s' cannot be generic", d.Name.Pos, d.Name.Name())
-					}
-					if d.Attributes.LinkName != "" || d.Attributes.Linkage != "" {
-						return fmt.Errorf("%s: generic templates cannot have C linkage", d.Name.Pos)
-					}
-					if err := s.checkFnAttributes(d.Attributes); err != nil {
-						return err
-					}
-					if err := v.typeExpr(d.RetType, map[*ast.TypeAlias]bool{}); err != nil {
-						return err
-					}
-					for _, p := range d.Params.Fields {
-						if err := v.typeExpr(p.Type, map[*ast.TypeAlias]bool{}); err != nil {
+						if d.Attributes.LinkName != "" || d.Attributes.Linkage != "" {
+							return fmt.Errorf("%s: generic templates cannot have C linkage", d.Name.Pos)
+						}
+						for _, f := range d.Fields {
+							if err := v.typeExpr(f.Type, map[*ast.TypeAlias]bool{}); err != nil {
+								return err
+							}
+						}
+					case *ast.FnDecl:
+						if d.Name.Name() == "main" || token.IsAnyBuiltin(d.Name.Name()) {
+							return fmt.Errorf("%s: '%s' cannot be generic", d.Name.Pos, d.Name.Name())
+						}
+						if d.Attributes.LinkName != "" || d.Attributes.Linkage != "" {
+							return fmt.Errorf("%s: generic templates cannot have C linkage", d.Name.Pos)
+						}
+						if err := s.checkFnAttributes(d.Attributes); err != nil {
 							return err
 						}
-						v.locals[p.Name.Name()] = p.Type
+						if err := v.typeExpr(d.RetType, map[*ast.TypeAlias]bool{}); err != nil {
+							return err
+						}
+						for _, p := range d.Params.Fields {
+							if err := v.typeExpr(p.Type, map[*ast.TypeAlias]bool{}); err != nil {
+								return err
+							}
+							v.locals[p.Name.Name()] = p.Type
+						}
+						if err := v.block(d.Block); err != nil {
+							return err
+						}
+						if !d.RetType.IsVoid() && !s.checkNonVoidFunctionReturns(d.Block) {
+							return fmt.Errorf("%s: non-void function '%s' must always return a value", d.Name.Pos, d.Name.Name())
+						}
 					}
-					if err := v.block(d.Block); err != nil {
-						return err
-					}
-					if !d.RetType.IsVoid() && !s.checkNonVoidFunctionReturns(d.Block) {
-						return fmt.Errorf("%s: non-void function '%s' must always return a value", d.Name.Pos, d.Name.Name())
-					}
+					return nil
+				}()
+				if err != nil {
+					s.collector.ReportError(err, node.DeclarationSpan())
+					node.Invalid = true
 				}
 			}
 			return nil
 		}); err != nil {
 			return err
 		}
+	}
+	if s.collector.HasErrors() {
+		return diagnostics.COMPILER_ERROR_FOUND
 	}
 	return nil
 }

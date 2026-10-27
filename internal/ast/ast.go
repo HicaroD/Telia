@@ -1,7 +1,10 @@
 // Package ast defines the abstract syntax tree (AST) for a programming language.
 package ast
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/HicaroD/Telia/internal/source"
+)
 
 type NodeKind int
 
@@ -61,8 +64,29 @@ const (
 )
 
 type Node struct {
-	Kind NodeKind
-	Node any
+	Kind    NodeKind
+	Node    any
+	Span    source.Span
+	Invalid bool // a failed declaration; dependent checks must not infer from it
+}
+
+// DeclarationSpan selects the name rather than the entire declaration body.
+func (n *Node) DeclarationSpan() source.Span {
+	switch d := n.Node.(type) {
+	case *FnDecl:
+		return d.Name.Span
+	case *StructDecl:
+		return d.Name.Span
+	case *VarIdStmt:
+		return d.Name.Span
+	case *Param:
+		return d.Name.Span
+	case *Proto:
+		return d.Name.Span
+	case *TypeAlias:
+		return d.Name.Span
+	}
+	return n.Span
 }
 
 func (n *Node) IsStmt() bool {

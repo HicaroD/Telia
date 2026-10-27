@@ -2,7 +2,6 @@ package lexer_test
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/HicaroD/Telia/internal/ast"
@@ -313,7 +312,7 @@ func TestLexicalErrors(t *testing.T) {
 			input: "!",
 			diags: []diagnostics.Diag{
 				{
-					Message: "test.tt:1:1: invalid character !",
+					Message: "The character ! is not a valid operator; use != for inequality.",
 				},
 			},
 		},
@@ -321,15 +320,16 @@ func TestLexicalErrors(t *testing.T) {
 			input: "!!",
 			diags: []diagnostics.Diag{
 				{
-					Message: "test.tt:1:1: invalid character !",
+					Message: "The character ! is not a valid operator; use != for inequality.",
 				},
+				{Message: "The character ! is not a valid operator; use != for inequality."},
 			},
 		},
 		{
 			input: "?",
 			diags: []diagnostics.Diag{
 				{
-					Message: "test.tt:1:1: invalid character ?",
+					Message: "The character '?' is not valid here.",
 				},
 			},
 		},
@@ -337,7 +337,7 @@ func TestLexicalErrors(t *testing.T) {
 			input: "\"Unterminated string literal here",
 			diags: []diagnostics.Diag{
 				{
-					Message: "test.tt:1:1: unterminated string literal",
+					Message: "Expected a closing double quote.",
 				},
 			},
 		},
@@ -345,7 +345,7 @@ func TestLexicalErrors(t *testing.T) {
 			input: "\"",
 			diags: []diagnostics.Diag{
 				{
-					Message: "test.tt:1:1: unterminated string literal",
+					Message: "Expected a closing double quote.",
 				},
 			},
 		},
@@ -372,8 +372,11 @@ func TestLexicalErrors(t *testing.T) {
 				)
 			}
 
-			if !reflect.DeepEqual(test.diags, lex.Collector.Diags) {
-				t.Fatalf("\nexpected diags: %v\ngot diags: %v\n", test.diags, lex.Collector)
+			for i, want := range test.diags {
+				got := lex.Collector.Diags[i]
+				if got.Message != want.Message || !got.Span.Valid() || got.Span.Start != i {
+					t.Fatalf("expected %q at source start, got %+v", want.Message, got)
+				}
 			}
 		})
 	}

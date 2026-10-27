@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -65,6 +66,9 @@ func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
 	err := p.buildPackage(pkg)
 	if err != nil {
 		return nil, err
+	}
+	if p.collector.HasErrors() {
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 
 	return pkg, nil
@@ -171,7 +175,7 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 
 	err := p.parseFileDecls(file)
 	if err != nil {
-		return nil, err
+		return file, err
 	}
 
 	return file, nil
@@ -179,11 +183,18 @@ func (p *Parser) parseFile(lex *lexer.Lexer, pkg *ast.Package) (*ast.File, error
 
 func (p *Parser) parseFileDecls(file *ast.File) error {
 	var decls []*ast.Node
+	before := len(p.collector.Diags)
 
 	for {
+		start := p.lex.Peek().Span
+		count := len(p.collector.Diags)
 		node, eof, err := p.next(file)
 		if err != nil {
-			return err
+			if len(p.collector.Diags) == count {
+				p.collector.ReportError(err, start)
+			}
+			p.synchronize(0, true)
+			continue
 		}
 
 		if eof {
@@ -194,10 +205,14 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 			continue
 		}
 
+		node.Span = p.lex.SpanFrom(start)
 		decls = append(decls, node)
 	}
 
 	file.Body = decls
+	if len(p.collector.Diags) > before {
+		return diagnostics.COMPILER_ERROR_FOUND
+	}
 	return nil
 }
 
@@ -213,7 +228,7 @@ func (p *Parser) buildPackage(pkg *ast.Package) error {
 				return err
 			}
 			file, err := p.parseFile(lex, pkg)
-			if err != nil {
+			if err != nil && !errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
 				return err
 			}
 			pkg.Files = append(pkg.Files, file)
@@ -248,6 +263,9 @@ func (p *Parser) next(file *ast.File) (*ast.Node, bool, error) {
 peekAgain:
 	tok := p.lex.Peek()
 	switch tok.Kind {
+	case token.INVALID:
+		p.lex.Skip() // consume and collect the lexical error, not a syntax cascade
+		return nil, false, diagnostics.COMPILER_ERROR_FOUND
 	case token.EOF:
 		eof = true
 		return nil, eof, nil
@@ -300,6 +318,7 @@ peekAgain:
 	default:
 		pos := tok.Pos
 		unexpectedTokenOnGlobalScope := diagnostics.Diag{
+			Span: tok.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: unexpected non-declaration statement on global scope: %s\n",
 				pos.Filename,
@@ -410,6 +429,7 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 		if !ok {
 			pos := name.Pos
 			expectedName := diagnostics.Diag{
+				Span: name.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected name, not %s",
 					pos.Filename,
@@ -428,6 +448,7 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 	if !ok {
 		pos := openCurly.Pos
 		expectedOpenCurly := diagnostics.Diag{
+			Span: openCurly.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected {, not %s",
 				pos.Filename,
@@ -450,6 +471,7 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 		}
 		pos := openCurly.Pos
 		expectedOpenCurly := diagnostics.Diag{
+			Span: tk.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected new line after {, not %s",
 				pos.Filename,
@@ -483,6 +505,7 @@ AfterFields:
 	if !ok {
 		pos := closeCurly.Pos
 		expectedCloseCurly := diagnostics.Diag{
+			Span: closeCurly.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected }, not %s",
 				pos.Filename,
@@ -513,6 +536,7 @@ AfterFields:
 				if externDecl.Attributes.Global {
 					pos := prototypes[i].Name.Pos
 					prototypeRedeclaration := diagnostics.Diag{
+						Span: prototype.Name.Span,
 						Message: fmt.Sprintf(
 							"%s:%d:%d: prototype '%s' already declared in the package scope",
 							pos.Filename,
@@ -527,6 +551,7 @@ AfterFields:
 					name := externDecl.Name
 					pos := prototypes[i].Name.Pos
 					prototypeRedeclaration := diagnostics.Diag{
+						Span: prototype.Name.Span,
 						Message: fmt.Sprintf(
 							"%s:%d:%d: prototype '%s' already declared on extern '%s'",
 							pos.Filename,
@@ -555,6 +580,7 @@ AfterFields:
 			if err == ast.ErrSymbolAlreadyDefinedOnScope {
 				pos := name.Pos
 				prototypeRedeclaration := diagnostics.Diag{
+					Span: name.Span,
 					Message: fmt.Sprintf(
 						"%s:%d:%d: extern '%s' already declared on scope",
 						pos.Filename,
@@ -833,6 +859,7 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	if !ok {
 		pos := fn.Pos
 		expectedCloseCurly := diagnostics.Diag{
+			Span: fn.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected prototype declaration or }, not %s",
 				pos.Filename,
@@ -849,6 +876,7 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	if !ok {
 		pos := name.Pos
 		expectedName := diagnostics.Diag{
+			Span: name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
 				pos.Filename,
@@ -878,6 +906,7 @@ func (p *Parser) parsePrototype() (*ast.Proto, error) {
 	if !ok {
 		pos := newline.Pos
 		expectedNewLine := diagnostics.Diag{
+			Span: newline.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected new line at the end of prototype, not %s",
 				pos.Filename,
@@ -907,6 +936,7 @@ func (p *Parser) ParseFnDecl(attrs ast.Attributes) (*ast.Node, error) {
 	if !ok {
 		pos := name.Pos
 		expectedIdentifier := diagnostics.Diag{
+			Span: name.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected name, not %s",
 				pos.Filename,
@@ -952,14 +982,12 @@ func (p *Parser) ParseFnDecl(attrs ast.Attributes) (*ast.Node, error) {
 	err = p.pkg.Scope.Insert(name.Name(), n)
 	if err != nil {
 		if err == ast.ErrSymbolAlreadyDefinedOnScope {
+			previous, _ := p.pkg.Scope.LookupCurrentScope(name.Name())
 			functionRedeclaration := diagnostics.Diag{
-				Message: fmt.Sprintf(
-					"%s:%d:%d: function '%s' already declared on scope",
-					name.Pos.Filename,
-					name.Pos.Line,
-					name.Pos.Column,
-					name.Name(),
-				),
+				Title:   "Duplicate declaration",
+				Message: fmt.Sprintf("Function '%s' already declared on scope.", name.Name()),
+				Span:    name.Span,
+				Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "Previously declared here"}},
 			}
 			p.collector.ReportAndSave(functionRedeclaration)
 		}
@@ -982,6 +1010,7 @@ func (p *Parser) parseFnParams(
 	if !ok {
 		pos := openParen.Pos
 		expectedOpenParen := diagnostics.Diag{
+			Span: openParen.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected (, not %s",
 				pos.Filename,
@@ -1005,6 +1034,7 @@ func (p *Parser) parseFnParams(
 		if !ok {
 			pos := name.Pos
 			expectedCloseParenOrId := diagnostics.Diag{
+				Span: name.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter or ), not %s",
 					pos.Filename,
@@ -1062,9 +1092,13 @@ func (p *Parser) parseFnParams(
 
 		ty, err := p.ParseExprType()
 		if err != nil {
+			if errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
+				return nil, err
+			}
 			tok := p.lex.Peek()
 			pos := tok.Pos
 			expectedParamType := diagnostics.Diag{
+				Span: tok.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected parameter type for '%s', not %s",
 					pos.Filename,
@@ -1087,6 +1121,7 @@ func (p *Parser) parseFnParams(
 				// TODO(errors):
 				// "fn name(a int, ...,) {}" because of the comma
 				unexpectedDotDotDot := diagnostics.Diag{
+					Span: tok.Span,
 					Message: fmt.Sprintf(
 						"%s:%d:%d: ... is only allowed at the end of parameter list",
 						pos.Filename,
@@ -1118,6 +1153,7 @@ func (p *Parser) parseFnParams(
 				if err == ast.ErrSymbolAlreadyDefinedOnScope {
 					pos := param.Name.Pos
 					parameterRedeclaration := diagnostics.Diag{
+						Span: param.Name.Span,
 						Message: fmt.Sprintf(
 							"%s:%d:%d: parameter '%s' already declared on function '%s'",
 							pos.Filename,
@@ -1146,6 +1182,7 @@ func (p *Parser) parseFnParams(
 	if !ok {
 		pos := closeParen.Pos
 		expectedCloseParen := diagnostics.Diag{
+			Span: closeParen.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected ), not %s",
 				pos.Filename,
@@ -1188,6 +1225,7 @@ func (p *Parser) parseReturnType(isPrototype bool) (*ast.ExprType, error) {
 		tok := p.lex.Peek()
 		pos := tok.Pos
 		expectedReturnTy := diagnostics.Diag{
+			Span: tok.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected type or {, not %s",
 				pos.Filename,
@@ -1236,6 +1274,9 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 		return nil, fmt.Errorf("%s: expected type, got a literal", tok.Pos)
 	}
 	switch tok.Kind {
+	case token.INVALID:
+		p.lex.Skip()
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	case token.STAR:
 		p.lex.Skip() // *
 		ty, err := p.ParseExprType()
@@ -1346,7 +1387,13 @@ func (p *Parser) ParseStmt(
 	block *ast.BlockStmt,
 	parentScope *ast.Scope,
 	allowDefer bool,
-) (*ast.Node, error) {
+) (result *ast.Node, resultErr error) {
+	start := p.lex.Peek().Span
+	defer func() {
+		if result != nil {
+			result.Span = p.lex.SpanFrom(start)
+		}
+	}()
 	n := new(ast.Node)
 	endsWithNewLine := false
 
@@ -1369,9 +1416,13 @@ func (p *Parser) ParseStmt(
 
 		returnValue, err := p.parseAnyExpr([]token.Kind{token.NEWLINE}, parentScope)
 		if err != nil {
+			if errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
+				return nil, err
+			}
 			tok := p.lex.Peek()
 			pos := tok.Pos
 			expectedNewline := diagnostics.Diag{
+				Span: tok.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected expression or new line, not %s",
 					pos.Filename,
@@ -1461,6 +1512,7 @@ func (p *Parser) ParseStmt(
 			tok := p.lex.Peek()
 			pos := tok.Pos
 			expectedNewline := diagnostics.Diag{
+				Span: tok.Span,
 				Message: fmt.Sprintf(
 					"%s:%d:%d: expected new line at the end of statement, not %s",
 					pos.Filename,
@@ -1488,18 +1540,25 @@ func (p *Parser) ParseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	block.OpenCurly = openCurly.Pos
 
 	var statements []*ast.Node
+	before := len(p.collector.Diags)
 
 	for {
 		p.skipNewLines()
 
 		tok := p.lex.Peek()
-		if tok.Kind == token.CLOSE_CURLY {
+		if tok.Kind == token.CLOSE_CURLY || tok.Kind == token.EOF {
 			break
 		}
 
+		depth := p.lex.BraceDepth
+		count := len(p.collector.Diags)
 		stmt, err := p.ParseStmt(block, parentScope, true)
 		if err != nil {
-			return nil, err
+			if len(p.collector.Diags) == count {
+				p.collector.ReportError(err, tok.Span)
+			}
+			p.synchronize(depth, false)
+			continue
 		}
 		if stmt == nil {
 			continue
@@ -1516,6 +1575,7 @@ func (p *Parser) ParseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 	if !ok {
 		pos := closeCurly.Pos
 		expectedStatementOrCloseCurly := diagnostics.Diag{
+			Span: closeCurly.Span,
 			Message: fmt.Sprintf(
 				"%s:%d:%d: expected statement or }, not %s",
 				pos.Filename,
@@ -1528,6 +1588,9 @@ func (p *Parser) ParseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
 	}
 	block.CloseCurly = closeCurly.Pos
+	if len(p.collector.Diags) > before {
+		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
 	return block, nil
 }
 
@@ -1948,7 +2011,12 @@ func (p *Parser) parseAnyExpr(
 }
 
 func (p *Parser) ParseSingleExpr(parentScope *ast.Scope) (*ast.Node, error) {
-	return p.parseLogical(parentScope)
+	start := p.lex.Peek().Span
+	node, err := p.parseLogical(parentScope)
+	if node != nil {
+		node.Span = p.lex.SpanFrom(start)
+	}
+	return node, err
 }
 
 func (p *Parser) parseAtOperator(parentScope *ast.Scope) (*ast.AtOperator, error) {
@@ -2024,6 +2092,7 @@ func (p *Parser) parseLogical(parentScope *ast.Scope) (*ast.Node, error) {
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
 			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Span = p.lex.SpanFrom(lhs.Span)
 			lhs = l
 		} else {
 			break
@@ -2051,6 +2120,7 @@ func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
 			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Span = p.lex.SpanFrom(lhs.Span)
 			lhs = l
 		} else {
 			break
@@ -2076,6 +2146,7 @@ func (p *Parser) parseTerm(parentScope *ast.Scope) (*ast.Node, error) {
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
 			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Span = p.lex.SpanFrom(lhs.Span)
 			lhs = l
 		} else {
 			break
@@ -2101,6 +2172,7 @@ func (p *Parser) parseFactor(parentScope *ast.Scope) (*ast.Node, error) {
 			l := new(ast.Node)
 			l.Kind = ast.KIND_BINARY_EXPR
 			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
+			l.Span = p.lex.SpanFrom(lhs.Span)
 			lhs = l
 		} else {
 			break
@@ -2122,13 +2194,20 @@ func (p *Parser) parseUnary(parentScope *ast.Scope) (*ast.Node, error) {
 		unary := new(ast.Node)
 		unary.Kind = ast.KIND_UNARY_EXPR
 		unary.Node = &ast.UnaryExpr{Op: next.Kind, Value: rhs}
+		unary.Span = p.lex.SpanFrom(next.Span)
 		return unary, nil
 	}
 
 	return p.parsePrimary(parentScope)
 }
 
-func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parsePrimary(parentScope *ast.Scope) (result *ast.Node, resultErr error) {
+	start := p.lex.Peek().Span
+	defer func() {
+		if result != nil {
+			result.Span = p.lex.SpanFrom(start)
+		}
+	}()
 	n, err := p.parseAtom(parentScope)
 	if err != nil {
 		return nil, err
@@ -2177,11 +2256,20 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseAtom(parentScope *ast.Scope) (*ast.Node, error) {
+func (p *Parser) parseAtom(parentScope *ast.Scope) (result *ast.Node, resultErr error) {
+	start := p.lex.Peek().Span
+	defer func() {
+		if result != nil {
+			result.Span = p.lex.SpanFrom(start)
+		}
+	}()
 	n := new(ast.Node)
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
+	case token.INVALID:
+		p.lex.Skip()
+		return nil, diagnostics.COMPILER_ERROR_FOUND
 	case token.DOT:
 		p.lex.Skip()
 		if _, ok := p.expect(token.OPEN_CURLY); !ok {

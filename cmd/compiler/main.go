@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
@@ -10,6 +10,8 @@ import (
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
+	"github.com/HicaroD/Telia/internal/source"
+	"golang.org/x/term"
 )
 
 // NOTE: this variable is set during build
@@ -27,6 +29,7 @@ Available Commands:
       -release      Build in release mode
       -debug        Build in debug mode
       -o <path>     Output executable path (default: source name in current directory)
+      --color=auto|always|never  Diagnostic colors (default: auto; respects NO_COLOR)
 
   env                               Show environment information
 
@@ -45,25 +48,46 @@ For more information about Telia, visit: https://github.com/HicaroD/Telia
 `
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	err := SetupAll()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 
 	args, err := cli()
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 
 	switch args.Command {
 	case COMMAND_HELP:
 		fmt.Print(HELP_COMMAND)
-		return
+		return 0
 	case COMMAND_ENV:
 		config.ENVS.ShowAll()
-		return
+		return 0
 	case COMMAND_BUILD:
 		collector := diagnostics.New()
+		_, noColor := os.LookupEnv("NO_COLOR")
+		renderer := diagnostics.Renderer{Color: diagnostics.ColorEnabled(args.Color, term.IsTerminal(int(os.Stderr.Fd())), noColor)}
+		finish := func(err error) int {
+			if !collector.HasErrors() {
+				collector.ReportError(err, source.Span{})
+			}
+			if renderErr := renderer.Render(os.Stderr, collector); renderErr != nil {
+				fmt.Fprintln(os.Stderr, renderErr)
+				return 1
+			}
+			if err != nil || collector.HasErrors() {
+				return 1
+			}
+			return 0
+		}
 
 		buildType := BUILD_TYPE_FILE
 		if args.Loc.IsPackage {
@@ -71,16 +95,14 @@ func main() {
 		}
 		program, err := buildAll(args.ArgLoc, args.Loc, collector, buildType)
 
-		// TODO(errors)
-		if err != nil {
-			log.Fatal(err)
+		if err != nil || collector.HasErrors() {
+			return finish(err)
 		}
 
 		sema := sema.New(collector)
 		err = sema.Check(program)
-		// TODO(errors)
-		if err != nil {
-			log.Fatal(err)
+		if err != nil || collector.HasErrors() {
+			return finish(err)
 		}
 
 		codegen := ccodegen.NewCG(args.Loc, program)
@@ -88,11 +110,9 @@ func main() {
 			codegen.SetOutputPath(args.OutputPath)
 		}
 		err = codegen.Generate(args.BuildOptType)
-		// TODO(errors)
-		if err != nil {
-			log.Fatal(err)
-		}
+		return finish(err)
 	}
+	return 0
 }
 
 func SetupAll() error {

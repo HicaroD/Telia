@@ -2,13 +2,13 @@ package lexer
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"unicode"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
+	"github.com/HicaroD/Telia/internal/source"
 )
 
 const eof = '\000'
@@ -17,10 +17,13 @@ type Lexer struct {
 	Loc           *ast.Loc
 	Collector     *diagnostics.Collector
 	StrictNewline bool
+	BraceDepth    int
 
-	src    []byte
-	offset int
-	pos    token.Pos
+	src         []byte
+	offset      int
+	pos         token.Pos
+	file        *source.File
+	speculative int
 }
 
 func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
@@ -31,6 +34,11 @@ func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	lexer.StrictNewline = true
 	lexer.pos = token.NewPosition(loc.Name, 1, 1)
 	lexer.src = src
+	path := loc.Path
+	if path == "" {
+		path = loc.Name
+	}
+	lexer.file = source.New(path, src)
 	lexer.offset = 0
 
 	return lexer
@@ -47,7 +55,14 @@ func NewFromFilePath(loc *ast.Loc, collector *diagnostics.Collector) (*Lexer, er
 
 func (lex *Lexer) Filename() string { return lex.pos.Filename }
 
+// SpanFrom covers consumed source starting at a previously observed token.
+func (lex *Lexer) SpanFrom(start source.Span) source.Span {
+	return source.Span{File: lex.file, Start: start.Start, End: lex.offset}
+}
+
 func (lex *Lexer) Peek() *token.Token {
+	lex.speculative++
+	defer func() { lex.speculative-- }()
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
@@ -59,6 +74,8 @@ func (lex *Lexer) Peek() *token.Token {
 }
 
 func (lex *Lexer) Peek1() *token.Token {
+	lex.speculative++
+	defer func() { lex.speculative-- }()
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
@@ -74,6 +91,8 @@ func (lex *Lexer) Peek1() *token.Token {
 }
 
 func (lex *Lexer) PeekN(n int) *token.Token {
+	lex.speculative++
+	defer func() { lex.speculative-- }()
 	prevPos := lex.pos
 	prevOffset := lex.offset
 
@@ -101,9 +120,22 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 
 func (lex *Lexer) Next() *token.Token {
 	lex.skipWhitespace()
+	start := lex.offset
 	character := lex.peekChar()
 
 	tok := &token.Token{}
+	defer func() {
+		tok.Span = source.Span{File: lex.file, Start: start, End: lex.offset}
+		lex.Collector.RegisterSpan(tok.Span)
+		if lex.speculative == 0 {
+			if tok.Kind == token.OPEN_CURLY {
+				lex.BraceDepth++
+			}
+			if tok.Kind == token.CLOSE_CURLY {
+				lex.BraceDepth--
+			}
+		}
+	}()
 	tok.Kind = token.INVALID
 
 	if character == eof {
@@ -118,15 +150,20 @@ func (lex *Lexer) Next() *token.Token {
 // Useful for testing
 func (lex *Lexer) Tokenize() ([]*token.Token, error) {
 	var tokens []*token.Token
+	failed := false
 	for {
 		tok := lex.Next()
 		if tok.Kind == token.INVALID {
-			return nil, diagnostics.COMPILER_ERROR_FOUND
+			failed = true
+			continue
 		}
 		tokens = append(tokens, tok)
 		if tok.Kind == token.EOF {
 			break
 		}
+	}
+	if failed {
+		return tokens, diagnostics.COMPILER_ERROR_FOUND
 	}
 	return tokens, nil
 }
@@ -191,18 +228,9 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	case '!':
 		lex.nextChar()
 
-		invalidCharacter := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: invalid character !",
-				tok.Pos.Filename,
-				tok.Pos.Line,
-				tok.Pos.Column,
-			),
-		}
-
 		next := lex.peekChar()
 		if next == eof {
-			lex.Collector.ReportAndSave(invalidCharacter)
+			lex.report(lex.offset-1, "Invalid character", "The character ! is not a valid operator; use != for inequality.")
 			return tok
 		}
 		if next == '=' {
@@ -211,7 +239,7 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			return tok
 		}
 
-		lex.Collector.ReportAndSave(invalidCharacter)
+		lex.report(lex.offset-1, "Invalid character", "The character ! is not a valid operator; use != for inequality.")
 		return tok
 	case '>':
 		tok.Pos = lex.pos
@@ -289,17 +317,17 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			tok.Literal = true
 			lex.getNumberLit(tok)
 		} else {
-			tokenPosition := lex.pos
-			invalidCharacter := diagnostics.Diag{
-				Message: fmt.Sprintf("%s:%d:%d: invalid character %c", tokenPosition.Filename, tokenPosition.Line, tokenPosition.Column, ch),
-			}
-			lex.Collector.ReportAndSave(invalidCharacter)
+			start := lex.offset
+			lex.nextChar()
+			lex.report(start, "Invalid character", fmt.Sprintf("The character %q is not valid here.", ch))
 		}
 	}
 	return tok
 }
 
 func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
+	start := lex.offset
+	invalid := false
 	tok.Pos = lex.pos
 	lex.nextChar() // "
 
@@ -328,9 +356,10 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 			case '0':
 				escape = 0
 			default:
-				// TODO(errors)
-				log.Fatalf("invalid escape sequence: %b", escape)
-				return tok
+				lex.nextChar()
+				lex.report(lex.offset-2, "Invalid escape sequence", fmt.Sprintf("Unknown escape \\%c.", escapeSym))
+				invalid = true
+				continue
 			}
 			str = append(str, escape)
 		} else {
@@ -342,15 +371,7 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 
 	ch := lex.peekChar()
 	if ch != '"' {
-		unterminatedStringLiteral := diagnostics.Diag{
-			Message: fmt.Sprintf(
-				"%s:%d:%d: unterminated string literal",
-				tok.Pos.Filename,
-				tok.Pos.Line,
-				tok.Pos.Column,
-			),
-		}
-		lex.Collector.ReportAndSave(unterminatedStringLiteral)
+		lex.report(start, "Unterminated string literal", "Expected a closing double quote.")
 		return tok
 	}
 	if ch == '"' {
@@ -358,11 +379,15 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 	}
 
 	tok.Kind = token.STRING_TYPE
+	if invalid {
+		tok.Kind = token.INVALID
+	}
 	tok.Lexeme = str
 	return tok
 }
 
 func (lex *Lexer) getNumberLit(tok *token.Token) {
+	start := lex.offset
 	var dotFound, dotRepeated bool
 	numberType := token.INT_TYPE
 
@@ -384,7 +409,8 @@ func (lex *Lexer) getNumberLit(tok *token.Token) {
 	// TODO(errors)
 	if dotRepeated {
 		tok.Kind = token.INVALID
-		log.Fatal("error: invalid float format")
+		lex.readWhile(func(ch byte) bool { return ch == '.' || ch >= '0' && ch <= '9' })
+		lex.report(start, "Invalid number", "A number cannot contain more than one decimal point.")
 		return
 	}
 
@@ -439,13 +465,20 @@ func (lex *Lexer) readWhile(isValid func(byte) bool) []byte {
 }
 
 func (lex *Lexer) nextChar() byte {
-	if lex.offset > len(lex.src) {
+	if lex.offset >= len(lex.src) {
 		return eof
 	}
 	character := lex.src[lex.offset]
 	lex.pos.Move(character)
 	lex.offset++
 	return character
+}
+
+func (lex *Lexer) report(start int, title, message string) {
+	if lex.speculative != 0 {
+		return
+	}
+	lex.Collector.ReportAndSave(diagnostics.Diag{Title: title, Message: message, Span: source.Span{File: lex.file, Start: start, End: lex.offset}})
 }
 
 func (lex *Lexer) peekChar() byte {

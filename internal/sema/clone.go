@@ -66,7 +66,7 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	if n == nil {
 		return nil
 	}
-	copy := &ast.Node{Kind: n.Kind}
+	copy := &ast.Node{Kind: n.Kind, Span: n.Span}
 	switch v := n.Node.(type) {
 	case *ast.ArrayLiteralExpr:
 		copy.Node = &ast.ArrayLiteralExpr{Values: c.nodes(v.Values, scope)}

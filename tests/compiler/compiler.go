@@ -12,6 +12,7 @@ import (
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/parser"
 	"github.com/HicaroD/Telia/internal/sema"
+	"github.com/HicaroD/Telia/internal/source"
 )
 
 var initialized bool
@@ -43,7 +44,7 @@ func CompileFile(path string) (string, *diagnostics.Collector) {
 
 	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
+		collector.ReportError(err, source.Span{})
 		return "", collector
 	}
 	defer os.RemoveAll(filepath.Dir(exePath))
@@ -85,7 +86,7 @@ func CompileOnlyWithCFlags(path string, flags ...string) (string, *diagnostics.C
 	}
 	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector, flags...)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
+		collector.ReportError(err, source.Span{})
 		return "", collector
 	}
 	return exePath, collector
@@ -102,7 +103,7 @@ func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
 
 	exePath, err := compilePackagePipeline(dirPath, loc, config.BUILD_OPT_DEBUG, collector)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: err.Error()})
+		collector.ReportError(err, source.Span{})
 		return "", collector
 	}
 	defer os.RemoveAll(filepath.Dir(exePath))
