@@ -108,8 +108,24 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
 	}
 	for _, ty := range c.program.ValueTypes {
+		if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
+			name := emitCType(ty)
+			c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
+		}
+	}
+	for _, ty := range c.program.ValueTypes {
 		if ty.Kind == ast.EXPR_TYPE_STRUCT {
 			c.emitStructDecl(ty.T.(*ast.StructType).Decl)
+		} else if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
+			t := ty.T.(*ast.SequenceType)
+			name := emitCType(ty)
+			if ty.Kind == ast.EXPR_TYPE_SLICE {
+				c.buf.WriteString(fmt.Sprintf("struct %s { %s *data; uint64_t len; };\n", name, emitCType(t.Element)))
+			} else if t.Length == 0 {
+				c.buf.WriteString(fmt.Sprintf("struct %s { unsigned char _empty; };\n", name))
+			} else {
+				c.buf.WriteString(fmt.Sprintf("struct %s { %s data[%d]; };\n", name, emitCType(t.Element), t.Length))
+			}
 		} else {
 			c.emitTupleTypedef(ty)
 		}

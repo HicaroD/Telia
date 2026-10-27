@@ -150,3 +150,25 @@ type DerefPointerExpr struct {
 type NullPtrExpr struct {
 	Type *ExprType
 }
+
+type ArrayLiteralExpr struct {
+	Values []*Node
+	Type   *ExprType
+}
+
+type IndexExpr struct {
+	Value *Node
+	Index *Node
+	Type  *ExprType // type of the indexed sequence
+}
+
+func (n *Node) IsAddressable() bool {
+	switch n.Kind {
+	case KIND_ID_EXPR, KIND_FIELD_ACCESS, KIND_DEREF_POINTER_EXPR:
+		return true
+	case KIND_INDEX_EXPR:
+		i := n.Node.(*IndexExpr)
+		return i.Type != nil && (i.Type.Kind == EXPR_TYPE_SLICE || i.Value.IsAddressable())
+	}
+	return false
+}

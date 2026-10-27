@@ -40,7 +40,8 @@ instantiated with a non-struct type.
 
 Arguments must be concrete value types: numeric types, `bool`, `string`,
 `cstring`, `rawptr`, typed pointers, structs, tuples, `error`, and fully applied
-generic types. Bare `void`, literals, `nil`, and generic declarations missing
+generic types, including arrays and slices such as `i32[3]` and `i32[]`.
+Bare `void`, literals, `nil`, and generic declarations missing
 their arguments are invalid arguments. Aliases are transparent: an alias and
 its underlying type select the same specialization.
 
@@ -97,7 +98,8 @@ cleanup. Lifetimes, resource ownership, and explicit cleanup remain the
 programmer's responsibility; `defer` works inside generic functions as usual.
 
 See [strings and explicit memory management](strings-and-memory.md) for those
-contracts and [the runnable generic example](../examples/generics.t).
+contracts, [collections](collections.md) for generic element storage, and
+[the runnable generic example](../examples/generics.t).
 
 ```sh
 make build

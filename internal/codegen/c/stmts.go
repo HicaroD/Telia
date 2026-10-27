@@ -342,6 +342,10 @@ func (c *CCodegen) emitCond(stmt *ast.CondStmt, indent string) {
 
 // emitForLoop emits a for loop.
 func (c *CCodegen) emitForLoop(stmt *ast.ForLoop, indent string) {
+	if stmt.Range != nil {
+		c.emitRangeLoop(stmt, indent)
+		return
+	}
 	inner := indent + "    "
 
 	// Emit init inline without trailing newline/semicolon so it can go into the for(;;)
@@ -460,6 +464,9 @@ func isAtCatchTupleCall(stmt *ast.VarStmt) bool {
 // unwrapping).  It checks Decl first, then Proto. Returns nil if unavailable
 // or not a tuple type.
 func getFullFnRetType(call *ast.FnCall) *ast.ExprType {
+	if call.ResultType != nil && call.ResultType.Kind == ast.EXPR_TYPE_TUPLE {
+		return call.ResultType
+	}
 	var retType *ast.ExprType
 	if call.Decl != nil {
 		retType = call.Decl.RetType

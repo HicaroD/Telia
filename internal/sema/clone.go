@@ -10,6 +10,8 @@ func cloneType(t *ast.ExprType, bindings map[string]*ast.ExprType) *ast.ExprType
 	}
 	copy := *t
 	switch v := t.T.(type) {
+	case *ast.SequenceType:
+		copy.T = &ast.SequenceType{Element: cloneType(v.Element, bindings), Length: v.Length}
 	case *ast.IdType:
 		if v.Namespace == nil && len(v.Args) == 0 && bindings[v.Name.Name()] != nil {
 			return cloneType(bindings[v.Name.Name()], nil)
@@ -66,6 +68,10 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	}
 	copy := &ast.Node{Kind: n.Kind}
 	switch v := n.Node.(type) {
+	case *ast.ArrayLiteralExpr:
+		copy.Node = &ast.ArrayLiteralExpr{Values: c.nodes(v.Values, scope)}
+	case *ast.IndexExpr:
+		copy.Node = &ast.IndexExpr{Value: c.node(v.Value, scope), Index: c.node(v.Index, scope)}
 	case nil:
 	case *ast.LiteralExpr:
 		copy.Node = &ast.LiteralExpr{Type: cloneType(v.Type, c.bindings), Value: v.Value}
@@ -96,7 +102,7 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	case *ast.NamespaceAccess:
 		copy.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope), IsImport: v.IsImport}
 	case *ast.FnCall:
-		call := &ast.FnCall{Name: v.Name, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic}
+		call := &ast.FnCall{Name: v.Name, Builtin: v.Builtin, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic}
 		if v.AtOp != nil {
 			call.AtOp = &ast.AtOperator{Kind: v.AtOp.Kind}
 			if op, ok := v.AtOp.Op.(*ast.CatchAtOperator); ok {
@@ -128,6 +134,10 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 		copy.Node = cond
 	case *ast.ForLoop:
 		inner := ast.NewScope(scope)
+		if v.Range != nil {
+			copy.Node = &ast.ForLoop{Scope: inner, Range: c.node(v.Range, inner), Binding: &ast.VarIdStmt{Name: v.Binding.Name}, Block: c.block(v.Block, inner)}
+			break
+		}
 		copy.Node = &ast.ForLoop{Scope: inner, Init: c.node(v.Init, inner), Cond: c.node(v.Cond, inner), Update: c.node(v.Update, inner), Block: c.block(v.Block, inner)}
 	case *ast.WhileLoop:
 		inner := ast.NewScope(scope)

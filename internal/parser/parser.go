@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/HicaroD/Telia/config"
@@ -1275,9 +1276,35 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 			p.lex.Skip()
 			t.Kind = ast.EXPR_TYPE_BASIC
 			t.T = &ast.BasicType{Kind: tok.Kind, Explicit: true}
-			return t, nil
+			return p.parseSequenceType(t)
 		}
 		return nil, fmt.Errorf("%s: expected type, not %s", tok.Pos, tok.Name())
+	}
+	return p.parseSequenceType(t)
+}
+
+func (p *Parser) parseSequenceType(t *ast.ExprType) (*ast.ExprType, error) {
+	for p.lex.NextIs(token.OPEN_BRACKET) {
+		p.lex.Skip()
+		seq := &ast.SequenceType{Element: t}
+		kind := ast.EXPR_TYPE_SLICE
+		if !p.lex.NextIs(token.CLOSE_BRACKET) {
+			tok := p.lex.Peek()
+			if !tok.Literal || tok.Kind != token.INT_TYPE {
+				return nil, fmt.Errorf("%s: array length must be a nonnegative integer literal", tok.Pos)
+			}
+			length, err := strconv.ParseUint(string(tok.Lexeme), 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("%s: invalid array length", tok.Pos)
+			}
+			seq.Length = length
+			kind = ast.EXPR_TYPE_ARRAY
+			p.lex.Skip()
+		}
+		if _, ok := p.expect(token.CLOSE_BRACKET); !ok {
+			return nil, fmt.Errorf("expected ] after array length")
+		}
+		t = &ast.ExprType{Kind: kind, T: seq, Explicit: true}
 	}
 	return t, nil
 }
@@ -1570,6 +1597,8 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	}
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
+	case token.OPEN_BRACKET:
+		return p.parseAssignment(parentScope)
 	case token.OPEN_PAREN:
 		fnCall, err := p.parseFnCall(parentScope)
 		return fnCall, err
@@ -1577,7 +1606,7 @@ func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccessing, err
 	case token.DOT:
-		return p.parseFieldAccess()
+		return p.parseAssignment(parentScope)
 	default:
 		return p.ParseVar(parentScope, false)
 	}
@@ -2100,10 +2129,83 @@ func (p *Parser) parseUnary(parentScope *ast.Scope) (*ast.Node, error) {
 }
 
 func (p *Parser) parsePrimary(parentScope *ast.Scope) (*ast.Node, error) {
+	n, err := p.parseAtom(parentScope)
+	if err != nil {
+		return nil, err
+	}
+	for p.lex.NextIs(token.OPEN_BRACKET) {
+		pos := p.lex.Peek().Pos
+		p.lex.Skip()
+		var index *ast.Node
+		if !p.lex.NextIs(token.COLON) {
+			index, err = p.ParseSingleExpr(parentScope)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if p.lex.NextIs(token.COLON) {
+			p.lex.Skip()
+			var end *ast.Node
+			if !p.lex.NextIs(token.CLOSE_BRACKET) {
+				end, err = p.ParseSingleExpr(parentScope)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if _, ok := p.expect(token.CLOSE_BRACKET); !ok {
+				return nil, fmt.Errorf("expected ] after slice range")
+			}
+			builtin := "slice"
+			if index == nil && end == nil {
+				builtin = "view"
+			}
+			call := &ast.FnCall{Name: token.New([]byte("slice"), token.ID, pos), Builtin: builtin, Args: []*ast.Node{n, index, end}}
+			if p.lex.NextIs(token.AT) {
+				call.AtOp, err = p.parseAtOperator(parentScope)
+				if err != nil {
+					return nil, err
+				}
+			}
+			n = &ast.Node{Kind: ast.KIND_FN_CALL, Node: call}
+			continue
+		}
+		if _, ok := p.expect(token.CLOSE_BRACKET); !ok {
+			return nil, fmt.Errorf("expected ] after index")
+		}
+		n = &ast.Node{Kind: ast.KIND_INDEX_EXPR, Node: &ast.IndexExpr{Value: n, Index: index}}
+	}
+	return n, nil
+}
+
+func (p *Parser) parseAtom(parentScope *ast.Scope) (*ast.Node, error) {
 	n := new(ast.Node)
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
+	case token.DOT:
+		p.lex.Skip()
+		if _, ok := p.expect(token.OPEN_CURLY); !ok {
+			return nil, fmt.Errorf("expected { after .")
+		}
+		lit := &ast.ArrayLiteralExpr{}
+		for !p.lex.NextIs(token.CLOSE_CURLY) {
+			p.skipNewLines()
+			value, err := p.ParseSingleExpr(parentScope)
+			if err != nil {
+				return nil, err
+			}
+			lit.Values = append(lit.Values, value)
+			p.skipNewLines()
+			if !p.lex.NextIs(token.COMMA) {
+				break
+			}
+			p.lex.Skip()
+			p.skipNewLines()
+		}
+		if _, ok := p.expect(token.CLOSE_CURLY); !ok {
+			return nil, fmt.Errorf("expected } after array literal")
+		}
+		return &ast.Node{Kind: ast.KIND_ARRAY_LITERAL_EXPR, Node: lit}, nil
 	case token.AMPERSAND:
 		p.lex.Skip() // &
 		expr, err := p.ParseSingleExpr(parentScope)
@@ -2481,6 +2583,21 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
+	if parser.lex.Peek().Kind == token.ID && parser.lex.Peek1().Name() == "in" {
+		name := parser.lex.Peek()
+		parser.lex.Skip()
+		parser.lex.Skip()
+		source, err := parser.ParseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		scope := ast.NewScope(parentScope)
+		block, err := parser.ParseBlock(scope)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.Node{Kind: ast.KIND_FOR_LOOP_STMT, Node: &ast.ForLoop{Range: source, Binding: &ast.VarIdStmt{Name: name}, Scope: scope, Block: block}}, nil
+	}
 	init, err := parser.ParseVar(parentScope, true)
 	if err != nil {
 		return nil, err

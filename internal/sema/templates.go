@@ -95,6 +95,8 @@ func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlia
 		return nil
 	}
 	switch t := ty.T.(type) {
+	case *ast.SequenceType:
+		return v.typeExpr(t.Element, aliases)
 	case *ast.IdType:
 		if t.Namespace == nil && v.params[t.Name.Name()] {
 			if len(t.Args) != 0 {
@@ -176,6 +178,19 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		return nil, nil
 	}
 	switch t := n.Node.(type) {
+	case *ast.ArrayLiteralExpr:
+		for _, value := range t.Values {
+			if _, err := v.node(value); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	case *ast.IndexExpr:
+		if _, err := v.node(t.Value); err != nil {
+			return nil, err
+		}
+		_, err := v.node(t.Index)
+		return nil, err
 	case *ast.LiteralExpr:
 		return t.Type, nil
 	case *ast.NullPtrExpr:
@@ -196,6 +211,10 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		if left == nil || right == nil || left.Kind != ast.EXPR_TYPE_BASIC || right.Kind != ast.EXPR_TYPE_BASIC {
 			return nil, nil
+		}
+		if (t.Op == token.EQUAL_EQUAL || t.Op == token.BANG_EQUAL) &&
+			(left.IsError() && right.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR || right.IsError() && left.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR) {
+			return ast.NewBasicType(token.BOOL_TYPE), nil
 		}
 		op := ast.BinaryOperators[t.Op]
 		// Literal operands adopt the other numeric operand's type, just as
@@ -350,6 +369,13 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			v.locals[k] = val
 		}
 		defer func() { v.locals = outer }()
+		if t.Range != nil {
+			if _, err := v.node(t.Range); err != nil {
+				return nil, err
+			}
+			v.locals[t.Binding.Name.Name()] = nil
+			return nil, v.block(t.Block)
+		}
 		for _, n := range []*ast.Node{t.Init, t.Cond, t.Update} {
 			if _, err := v.node(n); err != nil {
 				return nil, err
@@ -383,6 +409,36 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 }
 
 func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprType, error) {
+	_, lookupErr := scope.LookupAcrossScopes(call.Name.Name())
+	if isMemoryBuiltin(call.Name.Name()) && lookupErr != nil {
+		count := 0
+		if call.Name.Name() == "slice_from_raw" {
+			count = 2
+		}
+		if call.Name.Name() == "slice_data" {
+			count = 1
+		}
+		if len(call.TypeArgs) != 1 || len(call.Args) != count {
+			return nil, fmt.Errorf("%s requires one type argument and %d value arguments", call.Name.Name(), count)
+		}
+		if err := v.typeExpr(call.TypeArgs[0], map[*ast.TypeAlias]bool{}); err != nil {
+			return nil, err
+		}
+		for _, arg := range call.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	}
+	if call.Builtin == "view" || call.Builtin == "slice" || call.Name.Name() == "len" {
+		for _, arg := range call.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	}
 	sym, err := scope.LookupAcrossScopes(call.Name.Name())
 	if err != nil {
 		return nil, fmt.Errorf("%s: '%s' not defined", call.Name.Pos, call.Name.Name())

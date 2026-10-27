@@ -24,11 +24,13 @@ Param          = ID [ Attributes ] [ "..." ] Type ;
 
 FieldDecl      = ID Type ;
 
-Type           = BasicType
+Type           = TypeAtom ( SequenceSuffix )* ;
+TypeAtom       = BasicType
                | PointerType
                | IdType
                | TupleType
-               ;
+                ;
+SequenceSuffix = "[" [ INT ] "]" ;
 
 BasicType      = "bool" | "rawptr" | "string" | "cstring"
                | ( "i" | "u" ) ( "8" | "16" | "32" | "64" | "128" )
@@ -54,7 +56,7 @@ ReturnStmt     = "return" [ Expr ] NEWLINE ;
 VarStmt        = ( ID | ( "*" )+ ID ) ( "," ( ID | ( "*" )+ ID ) )* 
                  [ ":" Type ] ( ":=" | "=" ) Expr NEWLINE ;
 IfStmt         = "if" Expr Block ( "elif" Expr Block )* [ "else" Block ] ;
-ForStmt        = "for" VarStmt ";" Expr ";" VarStmt Block ;
+ForStmt        = "for" ( VarStmt ";" Expr ";" VarStmt | ID "in" Expr ) Block ;
 WhileStmt      = "while" Expr Block ;
 DeferStmt      = "defer" Statement ;
 ExprStmt       = Expr NEWLINE ;
@@ -65,14 +67,20 @@ ComparisonExpr = Term [ ( "==" | "!=" | ">" | ">=" | "<" | "<=" ) Term ] ;
 Term           = Factor [ ( "+" | "-" ) Factor ] ;
 Factor         = UnaryExpr [ ( "*" | "/" ) UnaryExpr ] ;
 UnaryExpr      = [ "!" | "-" | "&" | "*" ] PrimaryExpr ;
-PrimaryExpr    = Literal
+PrimaryExpr    = AtomExpr ( IndexSuffix | SliceSuffix )* ;
+AtomExpr       = Literal
                | ID
                | "(" Expr ")"
                | FnCall
                | FieldAccess
                | NamespaceAccess
-               | StructLiteral
-               ;
+                | StructLiteral
+               | ArrayLiteral
+                ;
+
+IndexSuffix    = "[" Expr "]" ;
+SliceSuffix    = "[" [ Expr ] ":" [ Expr ] "]" [ "@" ID [ Block ] ] ;
+ArrayLiteral   = "." "{" [ Expr ( "," Expr )* [ "," ] ] "}" ;
 
 Literal        = INT | FLOAT | STRING | "true" | "false" | "nil" ;
 FnCall         = ID "(" [ Expr ( "," Expr )* ] ")" [ "@" ID [ Block ] ] ;

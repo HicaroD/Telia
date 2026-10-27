@@ -17,10 +17,11 @@ type Program struct {
 	// analysis, in the order they were first seen. Populated by sema.Check()
 	// so that codegen can emit exactly the right typedef structs upfront
 	// without a separate discovery pass.
-	TupleTypes []*ExprType
-	Structs    []*StructDecl
-	ValueTypes []*ExprType // dependency-ordered struct and tuple layouts
-	Functions  []*FnDecl   // concrete generic instances, in discovery order
+	TupleTypes    []*ExprType
+	SequenceTypes []*ExprType
+	Structs       []*StructDecl
+	ValueTypes    []*ExprType // dependency-ordered struct and tuple layouts
+	Functions     []*FnDecl   // concrete generic instances, in discovery order
 }
 
 type Loc struct {

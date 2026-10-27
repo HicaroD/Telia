@@ -13,6 +13,24 @@ import (
 // it writes the declaration to c.buf and returns the temp name.
 func (c *CCodegen) emitExpr(node *ast.Node) string {
 	switch node.Kind {
+	case ast.KIND_ARRAY_LITERAL_EXPR:
+		lit := node.Node.(*ast.ArrayLiteralExpr)
+		if len(lit.Values) == 0 {
+			return fmt.Sprintf("(%s){0}", emitCType(lit.Type))
+		}
+		var values []string
+		for _, value := range lit.Values {
+			values = append(values, c.emitExpr(value))
+		}
+		return fmt.Sprintf("(%s){.data = {%s}}", emitCType(lit.Type), strings.Join(values, ", "))
+	case ast.KIND_INDEX_EXPR:
+		index := node.Node.(*ast.IndexExpr)
+		data, length := c.captureSequence(index.Value, index.Type)
+		i := c.emitExpr(index.Index)
+		tmp := c.nextTmp()
+		c.buf.WriteString(fmt.Sprintf("uint64_t %s = %s;\n", tmp, i))
+		c.buf.WriteString(fmt.Sprintf("if (%s >= %s) _panic(%s);\n", tmp, length, emitStringLiteral([]byte("index out of bounds"))))
+		return fmt.Sprintf("(%s)[%s]", data, tmp)
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteral(node.Node.(*ast.LiteralExpr))
 
@@ -261,6 +279,30 @@ func (c *CCodegen) emitUnaryExpr(u *ast.UnaryExpr) string {
 
 // emitFnCall emits a function call expression, handling variadic args.
 func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
+	switch call.Builtin {
+	case "sizeof":
+		return fmt.Sprintf("((uint64_t)sizeof(%s))", emitCType(call.BuiltinType))
+	case "alignof":
+		return fmt.Sprintf("((uint64_t)_Alignof(%s))", emitCType(call.BuiltinType))
+	case "zero":
+		return fmt.Sprintf("(%s){0}", emitCType(call.BuiltinType))
+	case "slice_from_raw":
+		data, count := c.emitExpr(call.Args[0]), c.emitExpr(call.Args[1])
+		return fmt.Sprintf("(%s){(%s *)%s, %s}", emitCType(call.ResultType), emitCType(call.BuiltinType), data, count)
+	case "slice_data":
+		return fmt.Sprintf("((void *)(%s).data)", c.emitExpr(call.Args[0]))
+	}
+	if call.Builtin == "view" || call.Builtin == "slice" {
+		return c.emitSliceCall(call)
+	}
+	if call.Builtin == "len" {
+		value := c.emitExpr(call.Args[0])
+		if call.BuiltinType.Kind == ast.EXPR_TYPE_ARRAY {
+			c.buf.WriteString(fmt.Sprintf("(void)(%s);\n", value))
+			return fmt.Sprintf("UINT64_C(%d)", call.BuiltinType.T.(*ast.SequenceType).Length)
+		}
+		return fmt.Sprintf("(%s).len", value)
+	}
 	name := c.getFnCallName(call)
 	args := c.emitCallArgs(call.Args)
 	return fmt.Sprintf("%s(%s)", name, args)

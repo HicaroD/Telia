@@ -63,12 +63,15 @@ func (ret ReturnStmt) String() string {
 }
 
 type FnCall struct {
-	TypeArgs []*ExprType
-	Name     *token.Token
-	Args     []*Node
-	Variadic bool
-	AtOp     *AtOperator
-	IsProto  bool
+	Builtin     string
+	BuiltinType *ExprType
+	ResultType  *ExprType
+	TypeArgs    []*ExprType
+	Name        *token.Token
+	Args        []*Node
+	Variadic    bool
+	AtOp        *AtOperator
+	IsProto     bool
 
 	// Codegen
 	BackendType any
@@ -104,11 +107,14 @@ type ElseCond struct {
 }
 
 type ForLoop struct {
-	Init   *Node
-	Cond   *Node
-	Update *Node
-	Block  *BlockStmt
-	Scope  *Scope
+	Range     *Node
+	Binding   *VarIdStmt
+	RangeType *ExprType
+	Init      *Node
+	Cond      *Node
+	Update    *Node
+	Block     *BlockStmt
+	Scope     *Scope
 }
 
 func (forLoop ForLoop) String() string {

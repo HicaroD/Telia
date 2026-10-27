@@ -103,6 +103,9 @@ func concreteName(kind, key string) string {
 
 func typeKey(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+		t := ty.T.(*ast.SequenceType)
+		return fmt.Sprintf("sequence%d:%d:%s", ty.Kind, t.Length, typeKey(t.Element))
 	case ast.EXPR_TYPE_BASIC:
 		return ty.T.(*ast.BasicType).Kind.String()
 	case ast.EXPR_TYPE_POINTER:
@@ -140,6 +143,18 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		return nil, nil
 	}
 	switch ty.Kind {
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+		t := ty.T.(*ast.SequenceType)
+		element, err := s.resolveTypeAliases(t.Element, scope, aliases)
+		if err != nil {
+			return nil, err
+		}
+		if !valueType(element) {
+			return nil, fmt.Errorf("collection element requires a value type")
+		}
+		resolved := &ast.ExprType{Kind: ty.Kind, T: &ast.SequenceType{Element: element, Length: t.Length}}
+		s.program.SequenceTypes = append(s.program.SequenceTypes, resolved)
+		return resolved, nil
 	case ast.EXPR_TYPE_ID:
 		id := ty.T.(*ast.IdType)
 		argumentScope := scope
@@ -343,7 +358,7 @@ func (s *sema) orderValueTypes() error {
 	state := map[string]int{}
 	var visit func(*ast.ExprType) error
 	visit = func(ty *ast.ExprType) error {
-		if ty.Kind != ast.EXPR_TYPE_STRUCT && ty.Kind != ast.EXPR_TYPE_TUPLE {
+		if ty.Kind != ast.EXPR_TYPE_STRUCT && ty.Kind != ast.EXPR_TYPE_TUPLE && ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
 			return nil
 		}
 		key := typeKey(ty)
@@ -360,7 +375,11 @@ func (s *sema) orderValueTypes() error {
 					return fmt.Errorf("%s: %w", field.Name.Pos, err)
 				}
 			}
-		} else {
+		} else if ty.Kind == ast.EXPR_TYPE_ARRAY {
+			if err := visit(ty.T.(*ast.SequenceType).Element); err != nil {
+				return err
+			}
+		} else if ty.Kind == ast.EXPR_TYPE_TUPLE {
 			for _, t := range ty.T.(*ast.TupleType).Types {
 				if err := visit(t); err != nil {
 					return err
@@ -380,6 +399,11 @@ func (s *sema) orderValueTypes() error {
 		}
 	}
 	for _, ty := range s.program.TupleTypes {
+		if err := visit(ty); err != nil {
+			return err
+		}
+	}
+	for _, ty := range s.program.SequenceTypes {
 		if err := visit(ty); err != nil {
 			return err
 		}

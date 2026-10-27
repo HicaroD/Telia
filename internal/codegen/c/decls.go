@@ -144,6 +144,9 @@ func (c *CCodegen) emitStructDecl(st *ast.StructDecl) {
 		cType := emitCType(field.Type)
 		c.buf.WriteString(fmt.Sprintf("    %s %s;\n", cType, field.Name.Name()))
 	}
+	if len(st.Fields) == 0 {
+		c.buf.WriteString("    unsigned char _empty;\n")
+	}
 	c.buf.WriteString("};\n\n")
 }
 

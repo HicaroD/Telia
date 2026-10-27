@@ -790,6 +790,12 @@ func (sema *sema) checkVarExpr(
 	var err error
 
 	switch variable.Kind {
+	case ast.KIND_INDEX_EXPR:
+		ty, e := sema.inferIndex(variable.Node.(*ast.IndexExpr), referenceScope, declScope, fromImportPackage)
+		if e != nil {
+			return e
+		}
+		_, err = sema.inferExprTypeWithContext(expr, ty, referenceScope, declScope, fromImportPackage, isArg)
 	case ast.KIND_VAR_ID_STMT:
 		varId := variable.Node.(*ast.VarIdStmt)
 		_, err = sema.checkNormalVarExpr(
@@ -1153,6 +1159,39 @@ func (sema *sema) checkFnCall(
 ) (*ast.ExprType, error) {
 	var symbol *ast.Node
 	var err error
+	_, localBuiltinLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
+	_, declBuiltinLookup := declScope.LookupAcrossScopes(fnCall.Name.Name())
+	if isMemoryBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil && declBuiltinLookup != nil {
+		ty, err := sema.checkMemoryBuiltin(fnCall, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, err
+		}
+		return sema.checkCallAtOperator(fnCall, ty, referenceScope, fromImportPackage, isArg)
+	}
+	if fnCall.Builtin == "view" || fnCall.Builtin == "slice" {
+		ty, err := sema.checkSliceCall(fnCall, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, err
+		}
+		return sema.checkCallAtOperator(fnCall, ty, referenceScope, fromImportPackage, isArg)
+	}
+	_, localLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
+	_, declLookup := declScope.LookupAcrossScopes(fnCall.Name.Name())
+	if fnCall.Name.Name() == "len" && localLookup != nil && declLookup != nil {
+		if len(fnCall.Args) != 1 || len(fnCall.TypeArgs) != 0 || fnCall.AtOp != nil {
+			return nil, fmt.Errorf("len requires one collection argument")
+		}
+		ty, _, err := sema.inferExprTypeWithoutContext(fnCall.Args[0], referenceScope, declScope, fromImportPackage, false)
+		if err != nil {
+			return nil, err
+		}
+		if ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
+			return nil, fmt.Errorf("len requires an array or slice")
+		}
+		fnCall.Builtin, fnCall.BuiltinType = "len", ty
+		fnCall.ResultType = concreteBasicType(token.U64_TYPE)
+		return fnCall.ResultType, nil
+	}
 
 	if isArg {
 		symbol, err = referenceScope.LookupAcrossScopes(fnCall.Name.Name())
@@ -1238,6 +1277,10 @@ func (sema *sema) checkFnCall(
 		return nil, err
 	}
 
+	return sema.checkCallAtOperator(fnCall, retType, referenceScope, fromImportPackage, isArg)
+}
+
+func (sema *sema) checkCallAtOperator(fnCall *ast.FnCall, retType *ast.ExprType, referenceScope *ast.Scope, fromImportPackage, isArg bool) (*ast.ExprType, error) {
 	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
 		if !returnsError(retType) {
 			pos := fnCall.Name.Pos
@@ -1427,6 +1470,31 @@ func (s *sema) inferExprTypeWithContext(
 	}
 	*expectedType = *resolved
 	switch expr.Kind {
+	case ast.KIND_ARRAY_LITERAL_EXPR:
+		lit := expr.Node.(*ast.ArrayLiteralExpr)
+		if expectedType.Kind != ast.EXPR_TYPE_ARRAY {
+			return nil, fmt.Errorf("array literal requires an array type")
+		}
+		t := expectedType.T.(*ast.SequenceType)
+		if len(lit.Values) != 0 && uint64(len(lit.Values)) != t.Length {
+			return nil, fmt.Errorf("array literal requires exactly %d elements", t.Length)
+		}
+		for _, value := range lit.Values {
+			if _, err := s.inferExprTypeWithContext(value, t.Element, referenceScope, declScope, fromImportPackage, isArg); err != nil {
+				return nil, err
+			}
+		}
+		lit.Type = expectedType
+		return expectedType, nil
+	case ast.KIND_INDEX_EXPR:
+		actual, err := s.inferIndex(expr.Node.(*ast.IndexExpr), referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, err
+		}
+		if !actual.Equals(expectedType) {
+			return nil, fmt.Errorf("indexed element type mismatch")
+		}
+		return actual, nil
 	case ast.KIND_LITERAL_EXPR:
 		return s.inferLiteralExprTypeWithContext(expr.Node.(*ast.LiteralExpr), expectedType)
 	case ast.KIND_ID_EXPR:
@@ -1595,6 +1663,11 @@ func (sema *sema) inferIdExprTypeWithContext(
 	}
 
 	switch idTy.Kind {
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+		if !idTy.Equals(expectedType) {
+			return nil, fmt.Errorf("collection type mismatch")
+		}
+		return idTy, nil
 	case ast.EXPR_TYPE_BASIC:
 		actualBasicType := idTy.T.(*ast.BasicType)
 
@@ -1619,6 +1692,8 @@ func (sema *sema) inferIdExprTypeWithContext(
 				return nil, err
 			}
 			return ty, nil
+		default:
+			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, idTy.T)
 		}
 		return expectedType, err
 	case ast.EXPR_TYPE_POINTER:
@@ -1631,9 +1706,9 @@ func (sema *sema) inferIdExprTypeWithContext(
 		}
 		return expectedType, nil
 	case ast.EXPR_TYPE_STRUCT:
-		st := idTy.T.(*ast.StructType)
-		expectedType.Kind = ast.EXPR_TYPE_STRUCT
-		expectedType.T = st
+		if !expectedType.Equals(idTy) {
+			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, idTy.T)
+		}
 		return expectedType, nil
 	default:
 		// TODO(errors)
@@ -1723,6 +1798,9 @@ func (s *sema) inferBinaryExprType(
 	}
 
 	if s.isErrorNilComparison(lhs, rhs) {
+		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
+	}
+	if lhs.Kind == ast.EXPR_TYPE_POINTER && (binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
 		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
 	}
 
@@ -2078,7 +2156,7 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	actual, err := sema.literalType(stLit, declScope)
+	actual, err := sema.literalType(stLit, referenceScope)
 	if err != nil {
 		return nil, err
 	}
@@ -2168,6 +2246,12 @@ func (s *sema) inferPtrExprWithContext(
 		fromImportPackage,
 		isArg,
 	)
+	if err != nil {
+		return nil, err
+	}
+	if !ptr.Expr.IsAddressable() {
+		return nil, fmt.Errorf("address-of requires addressable storage")
+	}
 
 	t := new(ast.ExprType)
 	t.Kind = ast.EXPR_TYPE_POINTER
@@ -2223,6 +2307,11 @@ func (sema *sema) inferExprTypeWithoutContext(
 	switch expr.Kind {
 	case ast.KIND_LITERAL_EXPR:
 		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr))
+	case ast.KIND_ARRAY_LITERAL_EXPR:
+		return nil, false, fmt.Errorf("array literal needs an explicit array type")
+	case ast.KIND_INDEX_EXPR:
+		ty, err := sema.inferIndex(expr.Node.(*ast.IndexExpr), referenceScope, declScope, fromImportPackage)
+		return ty, false, err
 	case ast.KIND_ID_EXPR:
 		return sema.inferIdExprTypeWithoutContext(expr.Node.(*ast.IdExpr), referenceScope)
 	case ast.KIND_UNARY_EXPR:
@@ -2422,57 +2511,16 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, bool, error) {
-	var ty *ast.ExprType
-
-	switch ptr.Expr.Kind {
-	case ast.KIND_ID_EXPR:
-		idExpr := ptr.Expr.Node.(*ast.IdExpr)
-
-		if idExpr.N == nil {
-			_, _, err := sema.inferIdExprTypeWithoutContext(
-				idExpr,
-				referenceScope,
-			)
-			if err != nil {
-				return nil, false, err
-			}
-		}
-
-		switch idExpr.N.Kind {
-		case ast.KIND_PARAM:
-			param := idExpr.N.Node.(*ast.Param)
-			ty = param.Type
-		case ast.KIND_VAR_ID_STMT:
-			variable := idExpr.N.Node.(*ast.VarIdStmt)
-			ty = variable.Type
-		}
-	case ast.KIND_FIELD_ACCESS:
-		_, field, err := sema.getAccessedField(
-			ptr.Expr.Node.(*ast.FieldAccess),
-			referenceScope,
-		)
-		if err != nil {
-			return nil, false, err
-		}
-		ty = field.Type
-	}
-
-	t := new(ast.ExprType)
-	t.Kind = ast.EXPR_TYPE_POINTER
-	t.T = &ast.PointerType{Type: ty}
-
-	exprTy, err := sema.inferPtrExprWithContext(
-		ptr,
-		t,
-		referenceScope,
-		declScope,
-		fromImportPackage,
-		isArg,
-	)
+	ty, _, err := sema.inferExprTypeWithoutContext(ptr.Expr, referenceScope, declScope, fromImportPackage, isArg)
 	if err != nil {
 		return nil, false, err
 	}
-	return exprTy, exprTy.Explicit, nil
+	if !ptr.Expr.IsAddressable() {
+		return nil, false, fmt.Errorf("address-of requires addressable storage")
+	}
+	result := ast.NewPointerType(ty)
+	result.Explicit = true
+	return result, true, nil
 }
 
 func (sema *sema) checkNamespaceAccess(
@@ -2629,6 +2677,23 @@ func (sema *sema) checkForLoop(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
+	if forLoop.Range != nil {
+		ty, _, err := sema.inferExprTypeWithoutContext(forLoop.Range, referenceScope, declScope, fromImportPackage, false)
+		if err != nil {
+			return err
+		}
+		if ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
+			return fmt.Errorf("iteration requires an array or slice")
+		}
+		forLoop.RangeType = ty
+		forLoop.Binding.Type = ty.T.(*ast.SequenceType).Element
+		binding := &ast.Node{Kind: ast.KIND_VAR_ID_STMT, Node: forLoop.Binding}
+		forLoop.Binding.N = binding
+		if err := forLoop.Scope.Insert(forLoop.Binding.Name.Name(), binding); err != nil {
+			return err
+		}
+		return sema.checkBlock(forLoop.Block, returnTy, forLoop.Scope, declScope, fromImportPackage, isArg)
+	}
 	err := sema.checkStmt(
 		forLoop.Init,
 		referenceScope,
@@ -2705,6 +2770,11 @@ func (s *sema) checkAssignment(
 
 		var err error
 		switch target.Kind {
+		case ast.KIND_INDEX_EXPR:
+			if assignment.Decl {
+				return fmt.Errorf("index expressions cannot declare variables")
+			}
+			_, err = s.inferIndex(target.Node.(*ast.IndexExpr), referenceScope, declScope, fromImportPackage)
 		case ast.KIND_VAR_ID_STMT:
 			err = s.checkNormalVarDecl(
 				target.Node.(*ast.VarIdStmt),
@@ -2825,7 +2895,7 @@ func (s *sema) getBehindDeref(deref *ast.DerefPointerExpr) *ast.Node {
 
 func (s *sema) isAssignable(lhs *ast.Node) bool {
 	switch lhs.Kind {
-	case ast.KIND_VAR_ID_STMT, ast.KIND_FIELD_ACCESS, ast.KIND_DEREF_POINTER_EXPR:
+	case ast.KIND_VAR_ID_STMT, ast.KIND_FIELD_ACCESS, ast.KIND_DEREF_POINTER_EXPR, ast.KIND_INDEX_EXPR:
 		return true
 	default:
 		return false

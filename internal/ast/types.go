@@ -30,6 +30,8 @@ const (
 	EXPR_TYPE_POINTER
 	EXPR_TYPE_ALIAS
 	EXPR_TYPE_TUPLE
+	EXPR_TYPE_ARRAY
+	EXPR_TYPE_SLICE
 )
 
 type ExprType struct {
@@ -44,6 +46,9 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 
 	switch t.Kind {
+	case EXPR_TYPE_ARRAY, EXPR_TYPE_SLICE:
+		a, b := t.T.(*SequenceType), other.T.(*SequenceType)
+		return a.Length == b.Length && a.Element.Equals(b.Element)
 	case EXPR_TYPE_BASIC:
 		return t.T.(*BasicType).Equals(other.T.(*BasicType))
 	case EXPR_TYPE_POINTER:
@@ -59,6 +64,16 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	default:
 		return false
 	}
+}
+
+// SequenceType describes inline arrays and borrowed pointer-plus-length slices.
+type SequenceType struct {
+	Element *ExprType
+	Length  uint64
+}
+
+func (t *SequenceType) String() string {
+	return fmt.Sprintf("%v[%d]", t.Element.T, t.Length)
 }
 
 // func (t *ExprType) IsLiteral() bool {
