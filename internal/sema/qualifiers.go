@@ -30,6 +30,11 @@ func (s *sema) readOnlyStorage(node *ast.Node, scope *ast.Scope) bool {
 // Only the immediate pointee may gain const. Changing nested qualifiers would
 // permit writing an incompatible pointer through a mutable output slot.
 func pointerAssignable(actual, expected *ast.ExprType) bool {
+	// C void* parameters accept mutable object pointers. This erases the type,
+	// not const protection; the reverse conversion remains explicit/unsupported.
+	if actual.IsPointer() && expected.Equals(ast.RAWPTR_TYPE) {
+		return !actual.T.(*ast.PointerType).Const
+	}
 	if !actual.IsPointer() || !expected.IsPointer() {
 		return false
 	}

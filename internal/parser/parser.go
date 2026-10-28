@@ -866,6 +866,22 @@ func (p *Parser) parseStruct(attrs ast.Attributes, register bool) (*ast.Node, er
 	return n, nil
 }
 
+// Field names are unambiguous in these contexts, so C names such as "type"
+// can be used without making keywords valid standalone identifiers.
+func (p *Parser) expectFieldName() (*token.Token, bool) {
+	next := p.lex.Peek()
+	if next.Kind == token.ID {
+		return p.expect(token.ID)
+	}
+	if kind, ok := token.KEYWORDS[string(next.Lexeme)]; ok && kind == next.Kind && !next.Literal {
+		p.lex.Skip()
+		name := *next
+		name.Kind = token.ID
+		return &name, true
+	}
+	return next, false
+}
+
 func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 	fields := make([]*ast.StructField, 0)
 
@@ -891,7 +907,7 @@ func (p *Parser) parseStructFields() ([]*ast.StructField, error) {
 
 		field := new(ast.StructField)
 
-		name, ok := p.expect(token.ID)
+		name, ok := p.expectFieldName()
 		if !ok {
 			return nil, fmt.Errorf("expected struct field name, not %s\n", name.Name())
 		}
@@ -2767,7 +2783,7 @@ func (p *Parser) parseFieldAccess() (*ast.Node, error) {
 	n := new(ast.Node)
 	n.Kind = ast.KIND_ID_EXPR
 
-	tk, ok := p.expect(token.ID)
+	tk, ok := p.expectFieldName()
 	if !ok {
 		return nil, fmt.Errorf("expected identifier for field accessing")
 	}
@@ -2831,7 +2847,7 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 			break
 		}
 
-		name, ok := p.expect(token.ID)
+		name, ok := p.expectFieldName()
 		if !ok {
 			return nil, fmt.Errorf("expected struct field name, not %s\n", name)
 		}

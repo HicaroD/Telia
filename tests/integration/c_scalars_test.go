@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,40 @@ import (
 	"github.com/HicaroD/Telia/internal/ctarget"
 	"github.com/HicaroD/Telia/tests/compiler"
 )
+
+func TestLibcWideCharacterAndPointerIntegerScalarsMatchC(t *testing.T) {
+	dir := t.TempDir()
+	header := filepath.Join(dir, "scalars.h")
+	if err := os.WriteFile(header, []byte(`#include <stddef.h>
+#include <stdint.h>
+static inline int check_scalars(wchar_t *wide, intptr_t *signed_pointer, uintptr_t *unsigned_pointer) {
+    return *wide == 65 && *signed_pointer == -42 && *unsigned_pointer == 42;
+}
+`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "main.t")
+	source := fmt.Sprintf(`package main
+use "std::libc"
+@[header=%q, default_cc="c"]
+extern {
+  fn check_scalars(wide *libc::c_wchar_t, signed_pointer *libc::c_intptr_t, unsigned_pointer *libc::c_uintptr_t) i32
+}
+fn main() i32 {
+  wide libc::c_wchar_t := 65
+  signed_pointer libc::c_intptr_t := -42
+  unsigned_pointer libc::c_uintptr_t := 42
+  return check_scalars(&wide, &signed_pointer, &unsigned_pointer) - 1
+}
+`, header)
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, diags := compiler.CompileFile(path)
+	if len(diags.Diags) != 0 {
+		t.Fatalf("wide and pointer-sized scalars: %v", diags.Diags)
+	}
+}
 
 func TestCScalarABIChangingFlagsCannotSilentlyChangeSemantics(t *testing.T) {
 	scalars, err := ctarget.Scalars()

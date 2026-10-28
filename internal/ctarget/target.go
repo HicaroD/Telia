@@ -64,6 +64,8 @@ func Scalars() (map[string]Scalar, error) {
 		{"long", "long", "__SIZEOF_LONG__", false, false}, {"ulong", "unsigned long", "__SIZEOF_LONG__", true, false},
 		{"longlong", "long long", "__SIZEOF_LONG_LONG__", false, false}, {"ulonglong", "unsigned long long", "__SIZEOF_LONG_LONG__", true, false},
 		{"size_t", "size_t", "__SIZEOF_SIZE_T__", true, false}, {"ptrdiff_t", "ptrdiff_t", "__SIZEOF_PTRDIFF_T__", false, false},
+		{"wchar_t", "wchar_t", "__SIZEOF_WCHAR_T__", macros["__WCHAR_UNSIGNED__"] != "", false},
+		{"intptr_t", "intptr_t", "__SIZEOF_POINTER__", false, false}, {"uintptr_t", "uintptr_t", "__SIZEOF_POINTER__", true, false},
 		{"float", "float", "__SIZEOF_FLOAT__", false, true}, {"double", "double", "__SIZEOF_DOUBLE__", false, true},
 	} {
 		size := spec.size

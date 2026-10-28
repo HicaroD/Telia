@@ -170,6 +170,7 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		proto := &ast.Proto{Params: f.Params}
 		fmt.Fprintf(c.buf, "typedef %s (%s*%s)(%s);\n", emitCType(f.Result), callingConvention(f.Attributes), f.CName, c.emitProtoParams(proto))
 	}
+	sequences := map[string]bool{}
 	for _, ty := range c.program.ValueTypes {
 		if ty.Kind == ast.EXPR_TYPE_ENUM {
 			c.emitEnumDecl(ty.T.(*ast.EnumType).Decl)
@@ -181,6 +182,12 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		} else if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
 			t := ty.T.(*ast.SequenceType)
 			name := emitCType(ty)
+			// Distinct Telia element identities (f32 and C float, for example)
+			// can share a C representation. Emit that wrapper only once.
+			if sequences[name] {
+				continue
+			}
+			sequences[name] = true
 			if ty.Kind == ast.EXPR_TYPE_SLICE {
 				c.buf.WriteString(fmt.Sprintf("struct %s { %s *data; uint64_t len; };\n", name, emitCType(t.Element)))
 			} else if t.Length == 0 {

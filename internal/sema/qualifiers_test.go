@@ -2,6 +2,24 @@ package sema_test
 
 import "testing"
 
+func TestConstPointerCannotEscapeThroughRawPointer(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nfn erase(pointer const *i32) rawptr {\nreturn pointer\n}\nfn main() {}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Const qualifier removed" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+		t.Fatalf("want located const-erasure diagnostic with help, got %+v", c.Diags)
+	}
+}
+
+func TestQualifiedCallTypeMismatchExplainsTheDeclaredDestination(t *testing.T) {
+	c := checkDiagnostics(t, "package main\n@[default_cc=\"c\"]\nextern api {\nfn get() *i32\n}\nfn main() {\nvalue *bool := api::get()\n}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Type mismatch" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+		t.Fatalf("want located destination type diagnostic with help, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Span.File.Text[d.Span.Start:d.Span.End] != "value" {
+		t.Fatalf("want destination identifier highlighted, got %+v", d.Span)
+	}
+}
+
 func TestConstPointerCannotLoseItsQualifier(t *testing.T) {
 	c := checkDiagnostics(t, "package main\nfn drop(pointer const *i32) *i32 {\nreturn pointer\n}\nfn main() {}\n")
 	if len(c.Diags) != 1 || c.Diags[0].Title != "Const qualifier removed" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {

@@ -3,25 +3,25 @@
   "targets": {
     "linux-amd64": {
       "include_dirs": ["artifacts/linux-amd64/include"],
-      "sources": ["adapter.c"],
+      "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/linux-amd64/lib/libSDL3.so.0"],
       "runtime_files": ["artifacts/linux-amd64/lib/libSDL3.so.0"]
     },
     "darwin-amd64": {
       "include_dirs": ["artifacts/darwin-amd64/include"],
-      "sources": ["adapter.c"],
+      "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/darwin-amd64/lib/libSDL3.0.dylib"],
       "runtime_files": ["artifacts/darwin-amd64/lib/libSDL3.0.dylib"]
     },
     "darwin-arm64": {
       "include_dirs": ["artifacts/darwin-arm64/include"],
-      "sources": ["adapter.c"],
+      "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/darwin-arm64/lib/libSDL3.0.dylib"],
       "runtime_files": ["artifacts/darwin-arm64/lib/libSDL3.0.dylib"]
     },
     "windows-amd64": {
       "include_dirs": ["artifacts/windows-amd64/include"],
-      "sources": ["adapter.c"],
+      "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/windows-amd64/lib/libSDL3.dll.a"],
       "runtime_files": ["artifacts/windows-amd64/bin/SDL3.dll"]
     }

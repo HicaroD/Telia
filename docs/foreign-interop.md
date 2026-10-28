@@ -96,15 +96,20 @@ ownership, termination validation, or lifetime extension.
 
 Public scalar aliases live in `std::libc`: `c_char`, `c_schar`, `c_uchar`,
 `c_short`, `c_ushort`, `c_int`, `c_uint`, `c_long`, `c_ulong`, `c_longlong`,
-`c_ulonglong`, `c_size_t`, `c_ptrdiff_t`, `c_float`, and `c_double`.
+`c_ulonglong`, `c_size_t`, `c_ptrdiff_t`, `c_wchar_t`, `c_intptr_t`,
+`c_uintptr_t`, `c_float`, and `c_double`.
 
 The compiler queries its selected native GCC/Clang toolchain for scalar widths
 and plain-char signedness. Generated C retains the actual C spelling, including
 plain `char` and `long`. Build-time assertions reject ABI-changing flags that
 disagree with the probed size or signedness instead of silently changing Telia
 semantics. This is a native-toolchain strategy, not cross-compilation support.
-Value-compatible equal-width numeric scalars may be assigned; typed pointer and
-callback signatures retain their declared C scalar identities.
+Numeric values with the same width, signedness, and numeric kind are compatible
+across the C boundary, including arithmetic results, indexed elements, and foreign
+constants. For example, a Telia `f32` expression can be passed to a C `float`
+parameter without using `libc::c_float` in application code. This does not permit
+implicit `f64`-to-`float` narrowing. Typed pointers (including address-of
+expressions) and callback signatures retain their declared C scalar identities.
 
 ## Callbacks and calling conventions
 

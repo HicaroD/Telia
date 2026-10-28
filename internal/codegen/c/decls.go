@@ -65,7 +65,16 @@ func (c *CCodegen) emitExternDecl(ext *ast.ExternDecl) {
 
 		retType := emitCType(proto.RetType)
 		params := c.emitProtoParams(proto)
+		// Header-owned names can be function-like macros (SDL redirects several
+		// libc functions this way). A prototype would expand the macro with types
+		// as arguments. Let the header own those declarations and call expansions.
+		if ext.Attributes.Header != "" {
+			fmt.Fprintf(c.buf, "#ifndef %s\n", cName)
+		}
 		c.buf.WriteString(fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(proto.Attributes), cName, params))
+		if ext.Attributes.Header != "" {
+			c.buf.WriteString("#endif\n")
+		}
 	}
 }
 

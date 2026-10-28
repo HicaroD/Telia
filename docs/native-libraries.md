@@ -93,24 +93,51 @@ the native linker diagnoses incompatible architectures/ABIs.
 ## SDL API and ownership
 
 `examples/sdl.t` opens and raises a window, polls events, draws a rectangle, and
-stays open until a quit event. Calls must run on the main thread.
+stays open until a quit event. Window, event-pump, and rendering calls run on the
+main thread. See [Snake](../examples/snake/README.md) for a playable Telia game.
 For automated smoke checks only, set `TELIA_SDL_EXAMPLE_FRAMES` to a positive
 frame count to exit automatically. Normal desktop runs should not set
 `SDL_VIDEO_DRIVER=dummy` (or `SDL_VIDEODRIVER=dummy`): that driver deliberately
 creates no visible window. Rebuild the executable after changing the example.
 
-- `init` initializes video; pair successful initialization with `quit`.
-- `create_window` and `create_renderer` return nullable, opaque `rawptr` handles.
-  Destroy the renderer before its window, then call `quit`. Handles are not
-  interchangeable despite sharing the Telia type; use after destruction is invalid.
-- Pass a NUL-terminated `cstring` title; `std::strings::to_c` creates owned storage.
+- Call `set_main_ready()`, then `init(INIT_VIDEO)`; pair successful initialization
+  with `quit`. Initialization flags follow SDL rather than always enabling video.
+- `create_window(title, width, height, flags)` returns `*Window` and
+  `create_renderer(window, name)` returns `*Renderer`; both are nullable. Destroy
+  the renderer before its window, then call `quit`. Typed handles are not
+  interchangeable, and use after destruction is invalid.
+- Pass a NUL-terminated `const cstring` title; literals work directly and
+  `std::strings::to_c` creates owned storage for dynamic Telia text.
   SDL copies the title. Free the conversion with `free_c`.
 - Drawing functions return `bool`; false indicates an SDL error. `get_error`
   returns borrowed SDL text; do not free it or assume it survives another SDL call.
-- `poll_event` returns an SDL event type, or zero when the queue is empty.
-  `is_quit_event` recognizes quit events. Event payloads, callbacks, and full SDL
-  API coverage are not exposed. The package-local C adapter owns the `SDL_Event`
-  union and `SDL_FRect` layout; Telia does not reproduce those layouts.
+- `poll_event(&event)` returns `bool` and writes a header-owned `Event` union.
+  Initialize storage with `Event.{type: 0}`. Check `event.type` before accessing
+  its active member, such as `event.key`. Quit events have type `EVENT_QUIT`.
+- Rendering uses SDL-faithful names such as `set_render_draw_color`,
+  `render_clear`, `render_fill_rect`, and `render_present`. Rectangles use
+  header-owned `FRect` fields `x`, `y`, `w`, and `h`. Ordinary Telia `f32` values
+  and arithmetic can be passed to C `float` parameters.
+- Callback declarations use `SDLCALL`. Keep callbacks and userdata alive until
+  SDL stops invoking them. Ownership and threading requirements remain those of
+  the corresponding upstream SDL API; the binding does not add automatic cleanup.
+
+### Regenerating bindings
+
+```sh
+python3 scripts/generate-sdl.py --include base/vendor/sdl/artifacts/darwin-arm64/include
+```
+
+Regeneration requires Clang and the pinned SDL 3.2.28 headers; ordinary builds do
+not run the generator. It emits `sdl.t` and a function inventory in `coverage.json`.
+SDL's headers own record layouts and native type identity, including nested
+anonymous records accessed through `__typeof__`; no replacement layouts are emitted.
+
+The inventory describes declarations visible on the regeneration host, not every
+platform-specific API or macro. The current generated surface includes the Vulkan
+integration header and explicit thread-creation macro signatures. Full platform,
+type, and macro coverage auditing remains unfinished. Local runtime verification
+is macOS ARM64; CI configuration alone is not proof of results on other targets.
 
 Test the real SDL example after setup:
 

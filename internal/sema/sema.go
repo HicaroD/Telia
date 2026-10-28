@@ -917,9 +917,18 @@ func (sema *sema) checkTupleTypeAssignedToVariable(
 			currentVar := n.Node.(*ast.VarIdStmt)
 			if currentVar.Type == nil {
 				currentVar.Type = ty
-			} else if !currentVar.Type.Equals(ty) {
-				// TODO(errors)
-				return fmt.Errorf("type mismatch: expected %v, got %v\n", ty, currentVar.Type)
+			} else {
+				resolved, err := sema.resolveType(currentVar.Type, referenceScope)
+				if err != nil {
+					return err
+				}
+				currentVar.Type = resolved
+				if !typeAssignable(ty, resolved) {
+					return diagnostics.Diag{
+						Title: "Type mismatch", Message: fmt.Sprintf("expected %s, got %s", resolved.T, ty.T),
+						Span: currentVar.Name.Span, Help: "Use a destination type compatible with the returned value, or omit the type to infer it.",
+					}
+				}
 			}
 		} else {
 			currentVar := n.Node.(*ast.FieldAccess)
@@ -1025,8 +1034,8 @@ func (s *sema) checkDerefPointerVar(
 	if err != nil {
 		return nil, err
 	}
-	if !ty.Equals(varTy) {
-		return nil, fmt.Errorf("variable type mismatch, expected %s, got %s", varTy.T, ty.T)
+	if !typeAssignable(ty, varTy) {
+		return nil, diagnostics.Diag{Title: "Type mismatch", Message: fmt.Sprintf("expected %s, got %s", varTy.T, ty.T), Span: expr.Span, Help: "Use a value compatible with the pointed-to storage type."}
 	}
 
 	return ty, nil
@@ -1752,8 +1761,8 @@ func (s *sema) inferExprTypeWithContext(
 		if err != nil {
 			return nil, err
 		}
-		if !actual.Equals(expectedType) {
-			return nil, fmt.Errorf("indexed element type mismatch")
+		if !typeAssignable(actual, expectedType) {
+			return nil, diagnostics.Diag{Title: "Type mismatch", Message: fmt.Sprintf("expected %s, got %s", expectedType.T, actual.T), Span: expr.Span, Help: "Use an element value with a compatible type; numeric widths and signedness must match."}
 		}
 		return actual, nil
 	case ast.KIND_LITERAL_EXPR:
@@ -2004,7 +2013,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 		return expectedType, err
 	case ast.EXPR_TYPE_POINTER:
 		if !pointerAssignable(idTy, expectedType) {
-			if expectedType.IsPointer() && idTy.T.(*ast.PointerType).Const && !expectedType.T.(*ast.PointerType).Const {
+			if idTy.T.(*ast.PointerType).Const && (expectedType.Equals(ast.RAWPTR_TYPE) || expectedType.IsPointer() && !expectedType.T.(*ast.PointerType).Const) {
 				return nil, diagnostics.Diag{Title: "Const qualifier removed", Message: "cannot discard the pointer's immediate-pointee const qualifier", Span: id.Name.Span, Help: "Keep the destination const-qualified or copy into separately owned mutable storage."}
 			}
 			return nil, fmt.Errorf(
@@ -2184,7 +2193,7 @@ func (s *sema) inferBinaryExprType(
 		}
 	}
 
-	if expectedType != nil && !resultType.Equals(expectedType) {
+	if expectedType != nil && !typeAssignable(resultType, expectedType) {
 		// If the result is a non-explicit basic type (untyped literal result) and
 		// the expected type is also basic, try the same compatibility+coercion path
 		// that single literals use in inferBasicExprTypeWithContext. This allows
@@ -2197,11 +2206,10 @@ func (s *sema) inferBinaryExprType(
 				return expectedType, ctx, nil
 			}
 		}
-		return nil, false, fmt.Errorf(
-			"type mismatch: expected %s, got %s\n",
-			expectedType.T,
-			resultType.T,
-		)
+		return nil, false, diagnostics.Diag{
+			Title: "Type mismatch", Message: fmt.Sprintf("expected %s, got %s", expectedType.T, resultType.T),
+			Help: "Use numeric values with matching widths and signedness; equal-width C scalar values are compatible with Telia values.",
+		}
 	}
 
 	return resultType, ctx, nil
@@ -2604,9 +2612,10 @@ func (s *sema) inferPtrExprWithContext(
 	}
 
 	expectedPtrType := expectedType.T.(*ast.PointerType)
-	underlyingPtrExprType, err := s.inferExprTypeWithContext(
+	// Address-of must retain the storage's actual type. Contextual value
+	// conversion here could otherwise turn &f32 into a pointer to C float.
+	underlyingPtrExprType, _, err := s.inferExprTypeWithoutContext(
 		ptr.Expr,
-		expectedPtrType.Type,
 		referenceScope,
 		declScope,
 		fromImportPackage,
@@ -2631,7 +2640,10 @@ func (s *sema) inferPtrExprWithContext(
 	}
 
 	if !pointerAssignable(t, expectedType) {
-		return nil, fmt.Errorf("pointer type mismatch: expected %s, got %s\n", expectedType.T, t.T)
+		return nil, diagnostics.Diag{
+			Title: "Pointer type mismatch", Message: fmt.Sprintf("expected %s, got %s", expectedType.T, t.T), Span: ptr.Expr.Span,
+			Help: "Match the storage's exact pointee type and qualifiers; scalar value compatibility does not convert pointers.",
+		}
 	}
 	return t, err
 }

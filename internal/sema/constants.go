@@ -15,18 +15,20 @@ import (
 
 func (s *sema) checkConstDecl(d *ast.ConstDecl) error {
 	if d.Foreign != nil {
-		if d.Foreign.Attributes.Header == "" {
-			return diagnostics.Diag{Title: "Foreign constant requires a header", Message: "foreign constants obtain their values from a C header", Span: d.Name.Span, Help: "Add a header attribute to the extern block."}
-		}
-		ty, err := s.resolveType(d.Type, d.Scope)
-		if err != nil {
-			return err
-		}
-		if ty.Kind != ast.EXPR_TYPE_BASIC || (!ty.IsNumeric() && ty.T.(*ast.BasicType).Kind != token.BOOL_TYPE) {
-			return diagnostics.Diag{Title: "Invalid foreign constant type", Message: "foreign constants require a scalar type", Span: d.Name.Span, Help: "Declare the header constant with its numeric or boolean type."}
-		}
-		d.Type = ty
-		return nil
+		return s.inContext(d.Owner, d.File, nil, func() error {
+			if d.Foreign.Attributes.Header == "" {
+				return diagnostics.Diag{Title: "Foreign constant requires a header", Message: "foreign constants obtain their values from a C header", Span: d.Name.Span, Help: "Add a header attribute to the extern block."}
+			}
+			ty, err := s.resolveType(d.Type, d.Scope)
+			if err != nil {
+				return err
+			}
+			if ty.Kind != ast.EXPR_TYPE_BASIC || (!ty.IsNumeric() && ty.T.(*ast.BasicType).Kind != token.BOOL_TYPE && ty.T.(*ast.BasicType).Kind != token.CSTRING_TYPE) {
+				return diagnostics.Diag{Title: "Invalid foreign constant type", Message: "foreign constants require a numeric, boolean, or C-text type", Span: d.Name.Span, Help: "Use the header's numeric or boolean type, or const cstring for borrowed NUL-terminated text."}
+			}
+			d.Type = ty
+			return nil
+		})
 	}
 	if d.Value != nil {
 		return nil
@@ -116,7 +118,7 @@ func (s *sema) inferConstReference(id *ast.IdExpr, d *ast.ConstDecl, expected *a
 		return nil, err
 	}
 	if d.Foreign != nil {
-		if expected != nil && !expected.Equals(d.Type) {
+		if expected != nil && !typeAssignable(d.Type, expected) {
 			return nil, diagnostics.Diag{Title: "Foreign constant type mismatch", Message: fmt.Sprintf("expected %s, got %s", expected.T, d.Type.T), Span: id.Name.Span, Help: "Use the declared foreign constant type or an explicit conversion.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "foreign constant declared here"}}}
 		}
 		return d.Type, nil

@@ -1,0 +1,4897 @@
+{
+  "version": "3.2.28",
+  "functions": [
+    {
+      "name": "SDL_malloc",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_calloc",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_realloc",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_free",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetOriginalMemoryFunctions",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMemoryFunctions",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetMemoryFunctions",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_aligned_alloc",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_aligned_free",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumAllocations",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetEnvironment",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateEnvironment",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetEnvironmentVariable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetEnvironmentVariables",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetEnvironmentVariable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnsetEnvironmentVariable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyEnvironment",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_getenv",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_getenv_unsafe",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_setenv_unsafe",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_unsetenv_unsafe",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_qsort",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_bsearch",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_qsort_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_bsearch_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_abs",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isalpha",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isalnum",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isblank",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_iscntrl",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isdigit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isxdigit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ispunct",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isspace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isupper",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_islower",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isprint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isgraph",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_toupper",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_tolower",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_crc16",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_crc32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_murmur3_32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_memcpy",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_memmove",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_memset",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_memset4",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_memcmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcslen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsnlen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcslcpy",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcslcat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsdup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsstr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsnstr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcscmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsncmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcscasecmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcsncasecmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_wcstol",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strlen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strnlen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strlcpy",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_utf8strlcpy",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strlcat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strdup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strndup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strrev",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strupr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strlwr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strchr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strrchr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strstr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strnstr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strcasestr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtok_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_utf8strlen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_utf8strnlen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_itoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_uitoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ltoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ultoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_lltoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ulltoa",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atoi",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atof",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtol",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtoul",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtoll",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtoull",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strtod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strcmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strncmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strcasecmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strncasecmp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_strpbrk",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StepUTF8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StepBackUTF8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UCS4ToUTF8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_sscanf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_vsscanf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_snprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_swprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_vsnprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_vswprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_asprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_vasprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_srand",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_rand",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_randf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_rand_bits",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_rand_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_randf_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_rand_bits_r",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_acos",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_acosf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_asin",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_asinf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atan",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atanf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atan2",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_atan2f",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ceil",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ceilf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_copysign",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_copysignf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_cos",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_cosf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_exp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_expf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_fabs",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_fabsf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_floor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_floorf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_trunc",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_truncf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_fmod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_fmodf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isinf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isinff",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isnan",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_isnanf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_log",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_logf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_log10",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_log10f",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_modf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_modff",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_pow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_powf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_round",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_roundf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_lround",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_lroundf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_scalbn",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_scalbnf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_sin",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_sinf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_sqrt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_sqrtf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_tan",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_tanf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_iconv_open",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_iconv_close",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_iconv",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_iconv_string",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_size_mul_check_overflow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_size_mul_check_overflow_builtin",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_size_add_check_overflow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_size_add_check_overflow_builtin",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReportAssertion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAssertionHandler",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDefaultAssertionHandler",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAssertionHandler",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAssertionReport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResetAssertionReport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AsyncIOFromFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAsyncIOSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadAsyncIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteAsyncIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseAsyncIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateAsyncIOQueue",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyAsyncIOQueue",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAsyncIOResult",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitAsyncIOResult",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SignalAsyncIOQueue",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadFileAsync",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TryLockSpinlock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockSpinlock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockSpinlock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MemoryBarrierReleaseFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MemoryBarrierAcquireFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicInt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAtomicInt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAtomicInt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddAtomicInt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicU32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAtomicU32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAtomicU32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CompareAndSwapAtomicPointer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAtomicPointer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAtomicPointer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SwapFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetError",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetErrorV",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OutOfMemory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetError",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearError",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGlobalProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CopyProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetPointerPropertyWithCleanup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetPointerProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetStringProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetNumberProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetFloatProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetBooleanProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPropertyType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPointerProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetStringProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumberProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetFloatProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetBooleanProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EnumerateProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateThreadRuntime",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateThreadWithPropertiesRuntime",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetThreadName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentThreadID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetThreadID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetCurrentThreadPriority",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitThread",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetThreadState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DetachThread",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTLS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTLS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CleanupTLS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateMutex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockMutex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TryLockMutex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockMutex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyMutex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateRWLock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockRWLockForReading",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockRWLockForWriting",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TryLockRWLockForReading",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TryLockRWLockForWriting",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockRWLock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyRWLock",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSemaphore",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroySemaphore",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitSemaphore",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TryWaitSemaphore",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitSemaphoreTimeout",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SignalSemaphore",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSemaphoreValue",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateCondition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyCondition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SignalCondition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BroadcastCondition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitCondition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitConditionTimeout",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShouldInit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShouldQuit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetInitialized",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOFromFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOFromMem",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOFromConstMem",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOFromDynamicMem",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetIOProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetIOStatus",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetIOSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SeekIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TellIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IOvprintf",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlushIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadFile_IO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SaveFile_IO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SaveFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU16LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS16LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU16BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS16BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU32LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS32LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU32BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS32BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU64LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS64LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadU64BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadS64BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS8",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU16LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS16LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU16BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS16BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU32LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS32LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU32BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS32BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU64LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS64LE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteU64BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteS64BE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumAudioDrivers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentAudioDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioPlaybackDevices",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioRecordingDevices",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioDeviceName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioDeviceFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioDeviceChannelMap",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenAudioDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsAudioDevicePhysical",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsAudioDevicePlayback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PauseAudioDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResumeAudioDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AudioDevicePaused",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioDeviceGain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioDeviceGain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseAudioDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindAudioStreams",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnbindAudioStreams",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnbindAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamFrequencyRatio",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamFrequencyRatio",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamGain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamGain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamInputChannelMap",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamOutputChannelMap",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamInputChannelMap",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamOutputChannelMap",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PutAudioStreamData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamAvailable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioStreamQueued",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlushAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PauseAudioStreamDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResumeAudioStreamDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AudioStreamDevicePaused",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamGetCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioStreamPutCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyAudioStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenAudioDeviceStream",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAudioPostmixCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadWAV_IO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadWAV",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MixAudio",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertAudioSamples",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAudioFormatName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSilenceValueForFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MostSignificantBitIndex32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasExactlyOneBitSet32",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ComposeCustomBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPixelFormatName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMasksForPixelFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPixelFormatForMasks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPixelFormatDetails",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreatePalette",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetPaletteColors",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyPalette",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MapRGB",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MapRGBA",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRGB",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRGBA",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectToFRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PointInRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectEmpty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectsEqual",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasRectIntersection",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectIntersection",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectUnion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectEnclosingPoints",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectAndLineIntersection",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PointInRectFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectEmptyFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectsEqualEpsilon",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RectsEqualFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasRectIntersectionFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectIntersectionFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectUnionFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectEnclosingPointsFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRectAndLineIntersectionFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSurfaceFrom",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroySurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceColorspace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceColorspace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSurfacePalette",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfacePalette",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfacePalette",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddSurfaceAlternateImage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SurfaceHasAlternateImages",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceImages",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveSurfaceAlternateImages",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadBMP_IO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadBMP",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SaveBMP_IO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SaveBMP",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceRLE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SurfaceHasRLE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceColorKey",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SurfaceHasColorKey",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceColorKey",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceColorMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceColorMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceAlphaMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceAlphaMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetSurfaceClipRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSurfaceClipRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlipSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DuplicateSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ScaleSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertSurfaceAndColorspace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertPixels",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertPixelsAndColorspace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PremultiplyAlpha",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PremultiplySurfaceAlpha",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FillSurfaceRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FillSurfaceRects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurfaceUnchecked",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurfaceScaled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurfaceUncheckedScaled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StretchSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurfaceTiled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurfaceTiledWithScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitSurface9Grid",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MapSurfaceRGB",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MapSurfaceRGBA",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadSurfacePixel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadSurfacePixelFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteSurfacePixel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteSurfacePixelFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumCameraDrivers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentCameraDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameras",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraSupportedFormats",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraPosition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenCamera",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraPermissionState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCameraFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AcquireCameraFrame",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseCameraFrame",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseCamera",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetClipboardText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetClipboardText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasClipboardText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetPrimarySelectionText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPrimarySelectionText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasPrimarySelectionText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetClipboardData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearClipboardData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetClipboardData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasClipboardData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetClipboardMimeTypes",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumLogicalCPUCores",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCPUCacheLineSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasAltiVec",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasMMX",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasSSE",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasSSE2",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasSSE3",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasSSE41",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasSSE42",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasAVX",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasAVX2",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasAVX512F",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasARMSIMD",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasNEON",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasLSX",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasLASX",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSystemRAM",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSIMDAlignment",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumVideoDrivers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetVideoDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentVideoDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSystemTheme",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplays",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPrimaryDisplay",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayBounds",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayUsableBounds",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNaturalDisplayOrientation",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentDisplayOrientation",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayContentScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetFullscreenDisplayModes",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetClosestFullscreenDisplayMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDesktopDisplayMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentDisplayMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayForPoint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayForRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDisplayForWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowPixelDensity",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowDisplayScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowFullscreenMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowFullscreenMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowICCProfile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowPixelFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindows",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreatePopupWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateWindowWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowFromID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowParent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowFlags",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowTitle",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowTitle",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowIcon",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowPosition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowPosition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowSafeArea",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowAspectRatio",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowAspectRatio",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowBordersSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowSizeInPixels",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowMinimumSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowMinimumSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowMaximumSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowMaximumSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowBordered",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowResizable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowAlwaysOnTop",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HideWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RaiseWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MaximizeWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MinimizeWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RestoreWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowFullscreen",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SyncWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WindowHasSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowSurfaceVSync",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowSurfaceVSync",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateWindowSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateWindowSurfaceRects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyWindowSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowKeyboardGrab",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowMouseGrab",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowKeyboardGrab",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowMouseGrab",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGrabbedWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowMouseRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowMouseRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowOpacity",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowOpacity",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowParent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowModal",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowFocusable",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowWindowSystemMenu",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowHitTest",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowShape",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlashWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ScreenSaverEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EnableScreenSaver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DisableScreenSaver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_LoadLibrary",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_GetProcAddress",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EGL_GetProcAddress",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_UnloadLibrary",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_ExtensionSupported",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_ResetAttributes",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_SetAttribute",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_GetAttribute",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_CreateContext",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_MakeCurrent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_GetCurrentWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_GetCurrentContext",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EGL_GetCurrentDisplay",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EGL_GetCurrentConfig",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EGL_GetWindowSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EGL_SetAttributeCallbacks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_SetSwapInterval",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_GetSwapInterval",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_SwapWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GL_DestroyContext",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowOpenFileDialog",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowSaveFileDialog",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowOpenFolderDialog",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowFileDialogWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GUIDToString",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StringToGUID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPowerInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensors",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorTypeForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorNonPortableTypeForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenSensor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorFromID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorNonPortableType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSensorData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseSensor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateSensors",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockJoysticks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockJoysticks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoysticks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickPathForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickPlayerIndexForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickGUIDForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickVendorForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickProductForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickProductVersionForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickTypeForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickFromID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickFromPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AttachVirtualJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DetachVirtualJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsJoystickVirtual",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickVirtualAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickVirtualBall",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickVirtualButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickVirtualHat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickVirtualTouchpad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SendJoystickVirtualSensorData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickPath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickGUID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickVendor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickProduct",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickProductVersion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickFirmwareVersion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickSerial",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickGUIDInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_JoystickConnected",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumJoystickAxes",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumJoystickBalls",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumJoystickHats",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumJoystickButtons",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickEventsEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_JoystickEventsEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateJoysticks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickAxisInitialState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickBall",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickHat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RumbleJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RumbleJoystickTriggers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetJoystickLED",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SendJoystickEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickConnectionState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetJoystickPowerInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddGamepadMapping",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddGamepadMappingsFromIO",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddGamepadMappingsFromFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReloadGamepadMappings",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadMappings",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadMappingForGUID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadMapping",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGamepadMapping",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasGamepad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepads",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsGamepad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadPathForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadPlayerIndexForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadGUIDForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadVendorForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadProductForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadProductVersionForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadTypeForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRealGamepadTypeForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadMappingForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenGamepad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadFromID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadFromPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadPath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRealGamepadType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGamepadPlayerIndex",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadVendor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadProduct",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadProductVersion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadFirmwareVersion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadSerial",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadSteamHandle",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadConnectionState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadPowerInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadConnected",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGamepadEventsEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadEventsEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadBindings",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateGamepads",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadTypeFromString",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadStringForType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadAxisFromString",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadStringForAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadHasAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadButtonFromString",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadStringForButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadHasButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadButtonLabelForType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadButtonLabel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumGamepadTouchpads",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumGamepadTouchpadFingers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadTouchpadFinger",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadHasSensor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGamepadSensorEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GamepadSensorEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadSensorDataRate",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadSensorData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RumbleGamepad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RumbleGamepadTriggers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGamepadLED",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SendGamepadEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseGamepad",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadAppleSFSymbolsNameForButton",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGamepadAppleSFSymbolsNameForAxis",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasKeyboard",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyboards",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyboardNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyboardFocus",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyboardState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResetKeyboard",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetModState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetModState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyFromScancode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetScancodeFromKey",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetScancodeName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetScancodeName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetScancodeFromName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetKeyFromName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StartTextInput",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StartTextInputWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TextInputActive",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StopTextInput",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClearComposition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextInputArea",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextInputArea",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasScreenKeyboardSupport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ScreenKeyboardShown",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasMouse",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMouseNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMouseFocus",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMouseState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGlobalMouseState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRelativeMouseState",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WarpMouseInWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WarpMouseGlobal",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetWindowRelativeMouseMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowRelativeMouseMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CaptureMouse",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateColorCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSystemCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDefaultCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HideCursor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CursorVisible",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTouchDevices",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTouchDeviceName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTouchDeviceType",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTouchFingers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PumpEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PeepEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HasEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlushEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlushEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PollEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitEventTimeout",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PushEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetEventFilter",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetEventFilter",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddEventWatch",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveEventWatch",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FilterEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetEventEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EventEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RegisterEvents",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetWindowFromEvent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetBasePath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPrefPath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetUserFolder",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EnumerateDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemovePath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenamePath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CopyFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPathInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GlobDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GPUSupportsShaderFormats",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GPUSupportsProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUDeviceWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyGPUDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumGPUDrivers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGPUDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGPUDeviceDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGPUShaderFormats",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUComputePipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUGraphicsPipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUSampler",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUShader",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateGPUTransferBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUBufferName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUTextureName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_InsertGPUDebugLabel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PushGPUDebugGroup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PopGPUDebugGroup",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUSampler",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUTransferBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUComputePipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUShader",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUGraphicsPipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AcquireGPUCommandBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PushGPUVertexUniformData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PushGPUFragmentUniformData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PushGPUComputeUniformData",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BeginGPURenderPass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUGraphicsPipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUViewport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUScissor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUBlendConstants",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUStencilReference",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUVertexBuffers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUIndexBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUVertexSamplers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUVertexStorageTextures",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUVertexStorageBuffers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUFragmentSamplers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUFragmentStorageTextures",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUFragmentStorageBuffers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DrawGPUIndexedPrimitives",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DrawGPUPrimitives",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DrawGPUPrimitivesIndirect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DrawGPUIndexedPrimitivesIndirect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EndGPURenderPass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BeginGPUComputePass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUComputePipeline",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUComputeSamplers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUComputeStorageTextures",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BindGPUComputeStorageBuffers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DispatchGPUCompute",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DispatchGPUComputeIndirect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EndGPUComputePass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_MapGPUTransferBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnmapGPUTransferBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BeginGPUCopyPass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UploadToGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UploadToGPUBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CopyGPUTextureToTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CopyGPUBufferToBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DownloadFromGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DownloadFromGPUBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EndGPUCopyPass",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GenerateMipmapsForGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_BlitGPUTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WindowSupportsGPUSwapchainComposition",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WindowSupportsGPUPresentMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClaimWindowForGPUDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseWindowFromGPUDevice",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUSwapchainParameters",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetGPUAllowedFramesInFlight",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetGPUSwapchainTextureFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AcquireGPUSwapchainTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitForGPUSwapchain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitAndAcquireGPUSwapchainTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SubmitGPUCommandBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SubmitGPUCommandBufferAndAcquireFence",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CancelGPUCommandBuffer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitForGPUIdle",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitForGPUFences",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_QueryGPUFence",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReleaseGPUFence",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GPUTextureFormatTexelBlockSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GPUTextureSupportsFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GPUTextureSupportsSampleCount",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CalculateGPUTextureFormatSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHaptics",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticNameForID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticFromID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticID",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsMouseHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenHapticFromMouse",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsJoystickHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenHapticFromJoystick",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMaxHapticEffects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetMaxHapticEffectsPlaying",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticFeatures",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumHapticAxes",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HapticEffectSupported",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateHapticEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateHapticEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RunHapticEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StopHapticEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyHapticEffect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHapticEffectStatus",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetHapticGain",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetHapticAutocenter",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PauseHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResumeHaptic",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StopHapticEffects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_HapticRumbleSupported",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_InitHapticRumble",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_PlayHapticRumble",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StopHapticRumble",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_init",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_exit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_device_change_count",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_enumerate",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_free_enumeration",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_open",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_open_path",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_write",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_read_timeout",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_read",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_set_nonblocking",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_send_feature_report",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_feature_report",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_input_report",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_close",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_manufacturer_string",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_product_string",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_serial_number_string",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_indexed_string",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_device_info",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_get_report_descriptor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_hid_ble_scan",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetHintWithPriority",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetHint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResetHint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResetHints",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetHintBoolean",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddHintCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveHintCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Init",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_InitSubSystem",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_QuitSubSystem",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WasInit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Quit",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsMainThread",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RunOnMainThread",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAppMetadata",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetAppMetadataProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetAppMetadataProperty",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadObject",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LoadFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnloadObject",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPreferredLocales",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetLogPriorities",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetLogPriority",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetLogPriority",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ResetLogPriorities",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetLogPriorityPrefix",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Log",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogTrace",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogVerbose",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogDebug",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogWarn",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogError",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogCritical",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogMessage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LogMessageV",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDefaultLogOutputFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetLogOutputFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetLogOutputFunction",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowMessageBox",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ShowSimpleMessageBox",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Metal_CreateView",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Metal_DestroyView",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Metal_GetLayer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenURL",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPlatform",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateProcess",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateProcessWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetProcessProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadProcess",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetProcessInput",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetProcessOutput",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_KillProcess",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WaitProcess",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyProcess",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetNumRenderDrivers",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderDriver",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateWindowAndRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateRendererWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateSoftwareRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRendererName",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRendererProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderOutputSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentRenderOutputSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTextureFromSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTextureWithProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureProperties",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRendererFromTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureColorMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureColorModFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureColorMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureColorModFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureAlphaMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureAlphaModFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureAlphaMod",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureAlphaModFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTextureScaleMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTextureScaleMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateYUVTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateNVTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_LockTextureToSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UnlockTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderTarget",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderTarget",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderLogicalPresentation",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderLogicalPresentation",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderLogicalPresentationRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderCoordinatesFromWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderCoordinatesToWindow",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ConvertEventToRenderCoordinates",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderViewport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderViewport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderViewportSet",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderSafeArea",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderClipRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderClipRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderClipEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderDrawColor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderDrawColorFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderDrawColor",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderDrawColorFloat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderColorScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderColorScale",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderDrawBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderDrawBlendMode",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderClear",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderPoint",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderPoints",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderLine",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderLines",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderRects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderFillRect",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderFillRects",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderTextureRotated",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderTextureAffine",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderTextureTiled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderTexture9Grid",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderGeometry",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderGeometryRaw",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderReadPixels",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderPresent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyTexture",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_FlushRenderer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderMetalLayer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderMetalCommandEncoder",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddVulkanRenderSemaphores",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetRenderVSync",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRenderVSync",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderDebugText",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenderDebugTextFormat",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenTitleStorage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenUserStorage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenFileStorage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OpenStorage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CloseStorage",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_StorageReady",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetStorageFileSize",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ReadStorageFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_WriteStorageFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateStorageDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EnumerateStorageDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveStoragePath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RenameStoragePath",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CopyStorageFile",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetStoragePathInfo",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetStorageSpaceRemaining",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GlobStorageDirectory",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetX11EventHook",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsTablet",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_IsTV",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetSandbox",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationWillTerminate",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationDidReceiveMemoryWarning",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationWillEnterBackground",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationDidEnterBackground",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationWillEnterForeground",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_OnApplicationDidEnterForeground",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDateTimeLocalePreferences",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetCurrentTime",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TimeToDateTime",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DateTimeToTime",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TimeToWindows",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_TimeFromWindows",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDaysInMonth",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDayOfYear",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetDayOfWeek",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTicks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTicksNS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPerformanceCounter",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetPerformanceFrequency",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Delay",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DelayNS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DelayPrecise",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddTimer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_AddTimerNS",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveTimer",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTray",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayIcon",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayTooltip",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTrayMenu",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateTraySubmenu",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayMenu",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTraySubmenu",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayEntries",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RemoveTrayEntry",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_InsertTrayEntryAt",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayEntryLabel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayEntryLabel",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayEntryChecked",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayEntryChecked",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayEntryEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayEntryEnabled",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetTrayEntryCallback",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_ClickTrayEntry",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_DestroyTray",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayEntryParent",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayMenuParentEntry",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetTrayMenuParentTray",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_UpdateTrays",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetVersion",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GetRevision",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_main",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_SetMainReady",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_RunApp",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_EnterAppMainCallbacks",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_GDKSuspendComplete",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_LoadLibrary",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_GetVkGetInstanceProcAddr",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_UnloadLibrary",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_GetInstanceExtensions",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_CreateSurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_DestroySurface",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_Vulkan_GetPresentationSupport",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateThread",
+      "status": "bound"
+    },
+    {
+      "name": "SDL_CreateThreadWithProperties",
+      "status": "bound"
+    }
+  ]
+}

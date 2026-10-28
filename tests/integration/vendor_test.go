@@ -257,24 +257,24 @@ extern {
   fn push_quit() bool
 }
 fn main() i32 {
-  if sdl::init() == false {
+  sdl::set_main_ready()
+  if sdl::init(sdl::INIT_VIDEO) == false {
     return 1
   }
   defer sdl::quit()
-  if sdl::is_quit_event(1234) {
-    return 2
-  }
-  event := sdl::poll_event()
-  while event != 0 {
-    event = sdl::poll_event()
+  event := sdl::Event.{type: 0}
+  while sdl::poll_event(&event) {
   }
   if push_quit() == false {
     return 3
   }
-  if sdl::is_quit_event(sdl::poll_event()) == false {
+  if sdl::poll_event(&event) == false {
     return 4
   }
-  if sdl::poll_event() != 0 {
+  if event.type != sdl::EVENT_QUIT {
+    return 2
+  }
+  if sdl::poll_event(&event) {
     return 5
   }
   return 0
