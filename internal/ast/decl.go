@@ -64,6 +64,7 @@ type ExternDecl struct {
 	Attributes  Attributes
 	Name        *token.Token
 	Prototypes  []*Proto
+	Opaques     []*OpaqueDecl
 	BackendType any // LLVM: *values.Extern
 }
 
@@ -96,6 +97,7 @@ func (imp *UseDecl) String() string {
 }
 
 type Attributes struct {
+	Header   string
 	LinkName string
 	Linkage  string
 

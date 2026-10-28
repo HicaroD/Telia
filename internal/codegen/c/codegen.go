@@ -52,7 +52,7 @@ typedef struct { _String msg; } _Error;
 `
 
 type CCodegen struct {
-	buf          strings.Builder
+	buf          *strings.Builder
 	loc          *ast.Loc
 	program      *ast.Program
 	currentPkg   *ast.Package
@@ -61,11 +61,13 @@ type CCodegen struct {
 	exePath      string
 	outputPath   string
 	deferScopes  [][]*ast.DeferStmt
+	matchScopes  []matchScope
 	cFlags       []string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
 	return &CCodegen{
+		buf:     &strings.Builder{},
 		loc:     loc,
 		program: program,
 	}
@@ -105,10 +107,16 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	// Emit into buf
 	c.buf.Reset()
 	c.buf.WriteString(preamble)
+	c.emitHeaderIncludes(c.program.Root, map[*ast.Package]bool{}, map[string]bool{})
 	c.buf.WriteString(runtimeSource)
 
 	// Reset processed flags so each Generate() call is clean
 	resetProcessed(c.program.Root)
+	for _, d := range c.program.Enums {
+		if d.HasPayload {
+			c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", d.CName, d.CName))
+		}
+	}
 	for _, st := range c.program.Structs {
 		name := emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: st}})
 		c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
@@ -124,7 +132,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		}
 	}
 	for _, ty := range c.program.ValueTypes {
-		if ty.Kind == ast.EXPR_TYPE_STRUCT {
+		if ty.Kind == ast.EXPR_TYPE_ENUM {
+			c.emitEnumDecl(ty.T.(*ast.EnumType).Decl)
+		} else if ty.Kind == ast.EXPR_TYPE_STRUCT {
 			c.emitStructDecl(ty.T.(*ast.StructType).Decl)
 		} else if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
 			t := ty.T.(*ast.SequenceType)

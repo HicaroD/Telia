@@ -68,6 +68,21 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	}
 	copy := &ast.Node{Kind: n.Kind, Span: n.Span}
 	switch v := n.Node.(type) {
+	case *ast.MatchExpr:
+		m := &ast.MatchExpr{Value: c.node(v.Value, scope)}
+		for _, arm := range v.Arms {
+			armScope := ast.NewScope(scope)
+			a := &ast.MatchArm{PatternType: cloneType(arm.PatternType, c.bindings), VariantName: arm.VariantName, Fallback: arm.Fallback, OmitRest: arm.OmitRest, Scope: armScope, Result: c.node(arm.Result, armScope), Block: c.block(arm.Block, armScope)}
+			for _, f := range arm.Fields {
+				a.Fields = append(a.Fields, &ast.PatternField{Name: f.Name, Binding: &ast.Param{Name: f.Binding.Name, Attributes: &ast.ParamAttributes{}}})
+			}
+			m.Arms = append(m.Arms, a)
+		}
+		copy.Node = m
+	case *ast.YieldStmt:
+		copy.Node = &ast.YieldStmt{Value: c.node(v.Value, scope)}
+	case *ast.ConstDecl:
+		copy.Node = &ast.ConstDecl{Owner: v.Owner, File: v.File, Scope: scope, Name: v.Name, Type: cloneType(v.Type, c.bindings), Expr: c.node(v.Expr, scope)}
 	case *ast.ArrayLiteralExpr:
 		copy.Node = &ast.ArrayLiteralExpr{Values: c.nodes(v.Values, scope)}
 	case *ast.IndexExpr:
@@ -100,7 +115,7 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	case *ast.FieldAccess:
 		copy.Node = &ast.FieldAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope)}
 	case *ast.NamespaceAccess:
-		copy.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope), IsImport: v.IsImport}
+		copy.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope), IsImport: v.IsImport, TypeArgs: cloneTypes(v.TypeArgs, c.bindings)}
 	case *ast.FnCall:
 		call := &ast.FnCall{Name: v.Name, Builtin: v.Builtin, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic}
 		if v.AtOp != nil {

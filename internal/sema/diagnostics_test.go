@@ -110,3 +110,114 @@ func TestDuplicateStructFieldHasRelatedLocation(t *testing.T) {
 		t.Fatalf("want duplicate with related field, got %+v", c.Diags)
 	}
 }
+
+func TestConstantReassignmentPointsToUseAndDeclaration(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst Answer = 42\nfn main() {\n  Answer = 43\n}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one reassignment diagnostic, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Constant reassignment" || d.Help == "" || len(d.Related) != 1 {
+		t.Fatalf("missing structured constant diagnostic: %+v", d)
+	}
+	if !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "Answer" {
+		t.Fatalf("want constant name highlighted: %+v", d.Span)
+	}
+	line, _ := d.Span.File.Position(d.Span.Start)
+	previous, _ := d.Related[0].Span.File.Position(d.Related[0].Span.Start)
+	if line != 4 || previous != 2 {
+		t.Fatalf("want reassignment on 4 and declaration on 2, got %d and %d", line, previous)
+	}
+}
+
+func TestConstantOverflowHasAValueHighlight(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst TooLarge u8 = 256\nfn main() {}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one overflow diagnostic, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Constant overflow" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "256" {
+		t.Fatalf("want structured overflow diagnostic highlighting 256, got %+v", d)
+	}
+}
+
+func TestConstantUseChecksTheDestinationRange(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst Count = 256\nfn main() {\n  count u8 := Count\n}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one constant overflow, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Constant overflow" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "Count" {
+		t.Fatalf("want overflow at the constant use, got %+v", d)
+	}
+}
+
+func TestRuntimeConstantInitializerExplainsCompileTimeRequirement(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nfn get() i32 {\nreturn 42\n}\nconst Answer = get()\nfn main() {}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one nonconstant initializer diagnostic, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Nonconstant initializer" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "get()" {
+		t.Fatalf("want structured initializer diagnostic highlighting get(), got %+v", d)
+	}
+}
+
+func TestBitwiseOperandsExplainTheIntegerRequirement(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nfn main() {\n  value := true | false\n}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one invalid operand diagnostic, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Invalid bitwise operands" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "true | false" {
+		t.Fatalf("want structured bitwise diagnostic, got %+v", d)
+	}
+}
+
+func TestOtherInvalidBitwiseOperandsHaveStructuredDiagnostics(t *testing.T) {
+	for _, body := range []string{"value := ~1.5", "a u32 := 1\nb u64 := 2\nvalue := a & b"} {
+		c := checkDiagnostics(t, "package main\nfn main() {\n"+body+"\n}\n")
+		if len(c.Diags) != 1 || c.Diags[0].Title != "Invalid bitwise operands" || c.Diags[0].Help == "" || !c.Diags[0].Span.Valid() {
+			t.Fatalf("want structured bitwise diagnostic for %s, got %+v", body, c.Diags)
+		}
+	}
+}
+
+func TestUndefinedNestedExternTypeHighlightsTheTypeName(t *testing.T) {
+	c := checkDiagnostics(t, "package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value **Missing)\n}\nfn main() {}\n")
+	if len(c.Diags) != 1 {
+		t.Fatalf("want one undefined type diagnostic, got %+v", c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Unknown type" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "Missing" {
+		t.Fatalf("want a structured diagnostic at the nested type name, got %+v", d)
+	}
+}
+
+func TestConstantsDoNotExposeMutableStorage(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst Answer = 42\nfn main() {\n  pointer := &Answer\n}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Not addressable" || !c.Diags[0].Span.Valid() || c.Diags[0].Span.File.Text[c.Diags[0].Span.Start:c.Diags[0].Span.End] != "Answer" {
+		t.Fatalf("want a structured addressability diagnostic on Answer, got %+v", c.Diags)
+	}
+}
+
+func TestFloatingConstantOverflowIsDiagnosedBeforeCodeGeneration(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst Huge f32 = 9999999999999999999999999999999999999999.0\nfn main() {}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Constant overflow" || !c.Diags[0].Span.Valid() {
+		t.Fatalf("want a structured floating-point overflow diagnostic, got %+v", c.Diags)
+	}
+}
+
+func TestTypedConstantIntermediateOverflowIsNotHidden(t *testing.T) {
+	c := checkDiagnostics(t, "package main\nconst Limit u8 = 255\nconst Value u8 = (Limit + 1) - 1\nfn main() {}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Constant overflow" || !c.Diags[0].Span.Valid() {
+		t.Fatalf("want intermediate overflow diagnostic, got %+v", c.Diags)
+	}
+}
+
+func TestUnnamedExternDuplicateParameterHasRelatedLocation(t *testing.T) {
+	c := checkDiagnostics(t, "package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value i32, value i32)\n}\nfn main() {}\n")
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Duplicate parameter" || len(c.Diags[0].Related) != 1 || !c.Diags[0].Span.Valid() || !c.Diags[0].Related[0].Span.Valid() {
+		t.Fatalf("want structured duplicate parameter diagnostic, got %+v", c.Diags)
+	}
+}

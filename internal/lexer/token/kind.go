@@ -29,6 +29,14 @@ const (
 	USE
 	DEFER
 	STRUCT
+	CONST
+	ENUM
+	MATCH
+	YIELD
+	FAT_ARROW
+	SHIFT_LEFT
+	SHIFT_RIGHT
+	OPAQUE
 
 	// Types
 	BASIC_TYPE_START // basic type start delimiter
@@ -85,6 +93,9 @@ const (
 	CLOSE_BRACKET
 
 	AMPERSAND
+	PIPE
+	CARET
+	TILDE
 
 	COMMA
 	SEMICOLON
@@ -138,6 +149,11 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"use":     USE,
 	"defer":   DEFER,
 	"struct":  STRUCT,
+	"const":   CONST,
+	"enum":    ENUM,
+	"match":   MATCH,
+	"yield":   YIELD,
+	"opaque":  OPAQUE,
 
 	"true":  BOOL_TYPE,
 	"false": BOOL_TYPE,
@@ -231,10 +247,36 @@ func (k Kind) IsCmpOp() bool {
 	return k > CMP_OP_START && k < CMP_OP_END
 }
 
+func (k Kind) IsBitwiseOp() bool {
+	return k == AMPERSAND || k == PIPE || k == CARET || k == TILDE
+}
+
 func (k Kind) String() string {
 	switch k {
 	case EOF:
 		return "end of file"
+	case CONST:
+		return "const"
+	case ENUM:
+		return "enum"
+	case MATCH:
+		return "match"
+	case YIELD:
+		return "yield"
+	case FAT_ARROW:
+		return "=>"
+	case SHIFT_LEFT:
+		return "<<"
+	case SHIFT_RIGHT:
+		return ">>"
+	case OPAQUE:
+		return "opaque"
+	case PIPE:
+		return "|"
+	case CARET:
+		return "^"
+	case TILDE:
+		return "~"
 	case INVALID:
 		return "INVALID"
 	case NEWLINE:

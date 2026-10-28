@@ -225,6 +225,15 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 	case '&':
 		lex.consumeTokenNoLex(tok, token.AMPERSAND)
 		lex.nextChar()
+	case '|':
+		lex.consumeTokenNoLex(tok, token.PIPE)
+		lex.nextChar()
+	case '^':
+		lex.consumeTokenNoLex(tok, token.CARET)
+		lex.nextChar()
+	case '~':
+		lex.consumeTokenNoLex(tok, token.TILDE)
+		lex.nextChar()
 	case '!':
 		lex.nextChar()
 
@@ -270,6 +279,11 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 		lex.nextChar() // =
 
 		next := lex.peekChar()
+		if next == '>' {
+			lex.nextChar()
+			tok.Kind = token.FAT_ARROW
+			return tok
+		}
 		if next != '=' {
 			return tok
 		}

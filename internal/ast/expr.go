@@ -31,6 +31,7 @@ var FACTOR map[token.Kind]bool = map[token.Kind]bool{
 }
 
 var UNARY map[token.Kind]bool = map[token.Kind]bool{
+	token.TILDE: true,
 	token.NOT:   true,
 	token.MINUS: true,
 }
@@ -45,7 +46,8 @@ func (literal *LiteralExpr) String() string {
 }
 
 type IdExpr struct {
-	Name *token.Token
+	Name     *token.Token
+	Constant *LiteralExpr
 
 	// Codegen
 	N *Node
@@ -57,9 +59,12 @@ func (idExpr IdExpr) String() string {
 }
 
 type NamespaceAccess struct {
-	IsImport bool
-	Left     *IdExpr
-	Right    *Node
+	EnumVariant *EnumVariant
+	EnumDecl    *EnumDecl
+	TypeArgs    []*ExprType
+	IsImport    bool
+	Left        *IdExpr
+	Right       *Node
 }
 
 func (n *NamespaceAccess) String() string {
@@ -86,6 +91,7 @@ func (f *FieldAccess) String() string {
 type UnaryExpr struct {
 	Op    token.Kind
 	Value *Node
+	Type  *ExprType
 }
 
 func (unary *UnaryExpr) String() string {
@@ -97,6 +103,7 @@ type BinExpr struct {
 	Op          token.Kind
 	Right       *Node
 	OperandType *ExprType
+	RightType   *ExprType
 }
 
 func (binExpr *BinExpr) String() string {
@@ -164,7 +171,10 @@ type IndexExpr struct {
 
 func (n *Node) IsAddressable() bool {
 	switch n.Kind {
-	case KIND_ID_EXPR, KIND_FIELD_ACCESS, KIND_DEREF_POINTER_EXPR:
+	case KIND_ID_EXPR:
+		id := n.Node.(*IdExpr)
+		return id.N == nil || id.N.Kind != KIND_CONST_DECL
+	case KIND_FIELD_ACCESS, KIND_DEREF_POINTER_EXPR:
 		return true
 	case KIND_INDEX_EXPR:
 		i := n.Node.(*IndexExpr)

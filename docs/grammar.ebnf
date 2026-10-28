@@ -6,13 +6,20 @@ Declaration    = UseDecl
                | ExternDecl
                | StructDecl
                | TypeDecl
+               | ConstDecl
+               | EnumDecl
                | FnDecl
                ;
 
 UseDecl        = "use" [ ID ] STRING NEWLINE ;
-ExternDecl     = "extern" [ ID ] [ Attributes ] "{" ( Prototype )* "}" ;
+ExternDecl     = [ Attributes ] "extern" [ ID ] "{" ( Prototype | OpaqueDecl )* "}" ;
+OpaqueDecl     = [ Attributes ] "opaque" ID NEWLINE ;
 StructDecl     = "struct" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
 TypeDecl       = "type" ID "=" Type NEWLINE ;
+ConstDecl      = "const" ID [ Type ] "=" Expr NEWLINE ;
+EnumDecl       = "enum" ID [ TypeParams ] [ Type ] "{" NEWLINE ( EnumVariant NEWLINE )* "}" ;
+EnumVariant    = ID [ "=" Expr ] [ "{" NEWLINE ( FieldDecl NEWLINE )* "}" ] ;
+TypeParams     = "<" ID ( "," ID )* ">" ;
 FnDecl         = "fn" ID Parameters [ Type ] Block ;
 
 Attributes     = "@[" Attribute ( "," Attribute )* "]" NEWLINE ;
@@ -39,11 +46,14 @@ BasicType      = "bool" | "rawptr" | "string" | "cstring"
                ;
 
 PointerType    = "*" Type ;
-IdType         = ID [ "::" ID ] ;
+IdType         = ID [ "::" ID ] [ TypeArgs ] ;
+TypeArgs       = "<" Type ( "," Type )* ">" ;
 TupleType      = "(" Type ( "," Type )* ")" ;
 
 Block          = "{" ( Statement )* "}" ;
 Statement      = ReturnStmt
+               | YieldStmt
+               | ConstDecl
                | VarStmt
                | IfStmt
                | ForStmt
@@ -53,6 +63,7 @@ Statement      = ReturnStmt
                ;
 
 ReturnStmt     = "return" [ Expr ] NEWLINE ;
+YieldStmt      = "yield" Expr NEWLINE ;
 VarStmt        = ( ID | ( "*" )+ ID ) ( "," ( ID | ( "*" )+ ID ) )* 
                  [ ":" Type ] ( ":=" | "=" ) Expr NEWLINE ;
 IfStmt         = "if" Expr Block ( "elif" Expr Block )* [ "else" Block ] ;
@@ -62,11 +73,16 @@ DeferStmt      = "defer" Statement ;
 ExprStmt       = Expr NEWLINE ;
 
 Expr           = LogicalExpr ;
-LogicalExpr    = ComparisonExpr [ ( "and" | "or" ) ComparisonExpr ] ;
-ComparisonExpr = Term [ ( "==" | "!=" | ">" | ">=" | "<" | "<=" ) Term ] ;
+LogicalExpr    = LogicalAndExpr ( "or" LogicalAndExpr )* ;
+LogicalAndExpr = ComparisonExpr ( "and" ComparisonExpr )* ;
+ComparisonExpr = BitwiseOrExpr [ ( "==" | "!=" | ">" | ">=" | "<" | "<=" ) BitwiseOrExpr ] ;
+BitwiseOrExpr  = BitwiseXorExpr ( "|" BitwiseXorExpr )* ;
+BitwiseXorExpr = BitwiseAndExpr ( "^" BitwiseAndExpr )* ;
+BitwiseAndExpr = ShiftExpr ( "&" ShiftExpr )* ;
+ShiftExpr      = Term ( ( "<<" | ">>" ) Term )* ;
 Term           = Factor [ ( "+" | "-" ) Factor ] ;
 Factor         = UnaryExpr [ ( "*" | "/" ) UnaryExpr ] ;
-UnaryExpr      = [ "!" | "-" | "&" | "*" ] PrimaryExpr ;
+UnaryExpr      = [ "not" | "~" | "-" | "&" | "*" ] PrimaryExpr ;
 PrimaryExpr    = AtomExpr ( IndexSuffix | SliceSuffix )* ;
 AtomExpr       = Literal
                | ID
@@ -76,6 +92,7 @@ AtomExpr       = Literal
                | NamespaceAccess
                 | StructLiteral
                | ArrayLiteral
+               | MatchExpr
                 ;
 
 IndexSuffix    = "[" Expr "]" ;
@@ -88,3 +105,7 @@ FieldAccess    = ID ( "." ID )+ ;
 NamespaceAccess= ID ( "::" ID )+ ;
 StructLiteral  = ID "." "{" [ FieldAssign ( "," FieldAssign )* ] "}" ;
 FieldAssign    = ID ":" Expr ;
+MatchExpr      = "match" Expr "{" NEWLINE ( MatchArm NEWLINE )* "}" ;
+MatchArm       = ( "_" | IdType "::" ID [ PayloadPattern ] ) "=>" ( Expr | Block ) ;
+PayloadPattern = "." "{" [ PatternField ( "," PatternField )* [ "," ".." ] | ".." ] "}" ;
+PatternField   = ID [ ":" ID ] ;

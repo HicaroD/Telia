@@ -12,9 +12,10 @@ import (
 // Validate names and operations which do not depend on substitution without
 // checking a template as a concrete function or modifying its syntax tree.
 type templateValidator struct {
-	s      *sema
-	params map[string]bool
-	locals map[string]*ast.ExprType
+	matchDepth int
+	s          *sema
+	params     map[string]bool
+	locals     map[string]*ast.ExprType
 }
 
 func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) error {
@@ -34,6 +35,8 @@ func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) e
 			for _, node := range file.Body {
 				var params []*token.Token
 				switch d := node.Node.(type) {
+				case *ast.EnumDecl:
+					params = d.TypeParams
 				case *ast.StructDecl:
 					params = d.TypeParams
 				case *ast.FnDecl:
@@ -48,6 +51,17 @@ func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) e
 						v.params[p.Name()] = true
 					}
 					switch d := node.Node.(type) {
+					case *ast.EnumDecl:
+						if err := v.typeExpr(d.Type, map[*ast.TypeAlias]bool{}); err != nil {
+							return err
+						}
+						for _, variant := range d.Variants {
+							for _, field := range variant.Fields {
+								if err := v.typeExpr(field.Type, map[*ast.TypeAlias]bool{}); err != nil {
+									return err
+								}
+							}
+						}
 					case *ast.StructDecl:
 						if err := s.checkStructDecl(d); err != nil {
 							return err
@@ -134,6 +148,10 @@ func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlia
 		switch d := sym.Node.(type) {
 		case *ast.StructDecl:
 			want = len(d.TypeParams)
+		case *ast.EnumDecl:
+			want = len(d.TypeParams)
+		case *ast.OpaqueDecl:
+			want = 0
 		case *ast.TypeAlias:
 			if aliases[d] {
 				return fmt.Errorf("%s: cyclic type alias '%s'", t.Name.Pos, t.Name.Name())
@@ -192,6 +210,54 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		return nil, nil
 	}
 	switch t := n.Node.(type) {
+	case *ast.MatchExpr:
+		v.matchDepth++
+		defer func() { v.matchDepth-- }()
+		if _, err := v.node(t.Value); err != nil {
+			return nil, err
+		}
+		for _, arm := range t.Arms {
+			if err := v.typeExpr(arm.PatternType, map[*ast.TypeAlias]bool{}); err != nil {
+				return nil, err
+			}
+			outer := v.locals
+			v.locals = map[string]*ast.ExprType{}
+			for name, ty := range outer {
+				v.locals[name] = ty
+			}
+			for _, f := range arm.Fields {
+				v.locals[f.Binding.Name.Name()] = nil
+			}
+			var err error
+			if arm.Block != nil {
+				err = v.block(arm.Block)
+			} else {
+				_, err = v.node(arm.Result)
+			}
+			v.locals = outer
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	case *ast.YieldStmt:
+		if v.matchDepth == 0 {
+			return nil, diagnostics.Diag{Title: "Yield outside match", Message: "yield is only valid inside a match arm block", Span: n.Span, Help: "Use return to return from a function, or yield inside a match arm."}
+		}
+		return v.node(t.Value)
+	case *ast.ConstDecl:
+		if err := v.typeExpr(t.Type, map[*ast.TypeAlias]bool{}); err != nil {
+			return nil, err
+		}
+		ty, err := v.node(t.Expr)
+		if err != nil {
+			return nil, err
+		}
+		if t.Type != nil {
+			ty = t.Type
+		}
+		v.locals[t.Name.Name()] = ty
+		return nil, nil
 	case *ast.ArrayLiteralExpr:
 		for _, value := range t.Values {
 			if _, err := v.node(value); err != nil {
@@ -213,6 +279,13 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		if ty, ok := v.locals[t.Name.Name()]; ok {
 			return ty, nil
 		}
+		if symbol, err := v.s.pkg.Scope.LookupAcrossScopes(t.Name.Name()); err == nil && symbol.Kind == ast.KIND_CONST_DECL {
+			d := symbol.Node.(*ast.ConstDecl)
+			if err := v.s.checkConstDecl(d); err != nil {
+				return nil, err
+			}
+			return d.Type, nil
+		}
 		return nil, fmt.Errorf("%s: '%s' not defined", t.Name.Pos, t.Name.Name())
 	case *ast.BinExpr:
 		left, err := v.node(t.Left)
@@ -225,6 +298,12 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		if left == nil || right == nil || left.Kind != ast.EXPR_TYPE_BASIC || right.Kind != ast.EXPR_TYPE_BASIC {
 			return nil, nil
+		}
+		if t.Op == token.SHIFT_LEFT || t.Op == token.SHIFT_RIGHT {
+			if !left.IsInteger() || !right.IsInteger() {
+				return nil, diagnostics.Diag{Title: "Invalid shift operands", Message: "shifts require integer operands", Span: n.Span, Help: "Use an integer left operand and an integer count."}
+			}
+			return left, nil
 		}
 		if (t.Op == token.EQUAL_EQUAL || t.Op == token.BANG_EQUAL) &&
 			(left.IsError() && right.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR || right.IsError() && left.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR) {
@@ -312,6 +391,31 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			}
 			if ext, ok := sym.Node.(*ast.ExternDecl); ok {
 				scope = ext.Scope
+			} else if d, ok := sym.Node.(*ast.EnumDecl); ok {
+				ty := &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: t.Left.Name, Args: t.TypeArgs}}
+				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+					return nil, err
+				}
+				var name *token.Token
+				switch right := t.Right.Node.(type) {
+				case *ast.IdExpr:
+					name = right.Name
+				case *ast.StructLiteralExpr:
+					name = right.Name
+					for _, f := range right.Values {
+						if _, err := v.node(f.Value); err != nil {
+							return nil, err
+						}
+					}
+				default:
+					return nil, diagnostics.Diag{Title: "Invalid enum construction", Message: "expected a named enum variant", Span: t.Left.Name.Span, Help: "Use Enum::Variant or Enum::Variant.{field: value}."}
+				}
+				for _, variant := range d.Variants {
+					if variant.Name.Name() == name.Name() {
+						return ty, nil
+					}
+				}
+				return nil, diagnostics.Diag{Title: "Unknown enum variant", Message: "enum does not declare this variant", Span: name.Span, Help: "Use a variant declared by this enum.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "enum declared here"}}}
 			} else {
 				return nil, fmt.Errorf("%s: invalid namespace", t.Left.Name.Pos)
 			}
@@ -362,6 +466,9 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 	case *ast.BlockStmt:
 		return nil, v.block(t)
 	case *ast.DeferStmt:
+		previousDepth := v.matchDepth
+		v.matchDepth = 0
+		defer func() { v.matchDepth = previousDepth }()
 		return v.node(t.Stmt)
 	case *ast.CondStmt:
 		conds := append([]*ast.IfElifCond{t.IfStmt}, t.ElifStmts...)

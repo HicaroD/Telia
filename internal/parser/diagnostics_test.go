@@ -64,6 +64,26 @@ func TestDuplicateFunctionHasRelatedDeclaration(t *testing.T) {
 	}
 }
 
+func TestConstantDeclarationExplainsIncorrectAssignmentOperator(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "main.t")
+	if err := os.WriteFile(path, []byte("package main\nconst Answer i32 := 42\nfn main() {}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	loc, err := ast.LocFromPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := diagnostics.New()
+	_, err = parser.New(c).ParseFileAsProgram(path, loc, c)
+	if err == nil || len(c.Diags) != 1 {
+		t.Fatalf("want one invalid constant diagnostic, got %v, %+v", err, c.Diags)
+	}
+	d := c.Diags[0]
+	if d.Title != "Expected =" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != ":=" {
+		t.Fatalf("want a diagnostic highlighting := with a correction, got %+v", d)
+	}
+}
+
 func TestPackageCollectsErrorsAcrossFiles(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"first.t", "second.t"} {

@@ -17,6 +17,9 @@ const (
 	KIND_USE_DECL
 	KIND_TYPE_ALIAS_DECL
 	KIND_STRUCT_DECL
+	KIND_CONST_DECL
+	KIND_ENUM_DECL
+	KIND_OPAQUE_DECL
 
 	DECL_END // declaration node end delimiter
 
@@ -26,6 +29,7 @@ const (
 	KIND_VAR_ID_STMT
 	KIND_VAR_STMT
 	KIND_RETURN_STMT
+	KIND_YIELD_STMT
 	KIND_COND_STMT
 	KIND_IF_ELIF_STMT
 	KIND_ELSE_STMT
@@ -54,6 +58,7 @@ const (
 	KIND_DEREF_POINTER_EXPR
 	KIND_ARRAY_LITERAL_EXPR
 	KIND_INDEX_EXPR
+	KIND_MATCH_EXPR
 
 	EXPR_END // expression node start delimiter
 
@@ -84,6 +89,12 @@ func (n *Node) DeclarationSpan() source.Span {
 	case *Proto:
 		return d.Name.Span
 	case *TypeAlias:
+		return d.Name.Span
+	case *ConstDecl:
+		return d.Name.Span
+	case *EnumDecl:
+		return d.Name.Span
+	case *OpaqueDecl:
 		return d.Name.Span
 	}
 	return n.Span
@@ -131,6 +142,10 @@ func (n *Node) String() string {
 		return "KIND_TYPE_ALIAS_DECL"
 	case KIND_STRUCT_DECL:
 		return "KIND_STRUCT_DECL"
+	case KIND_CONST_DECL:
+		return "KIND_CONST_DECL"
+	case KIND_ENUM_DECL:
+		return "KIND_ENUM_DECL"
 	case KIND_BLOCK_STMT:
 		return "KIND_BLOCK_STMT"
 	case KIND_ASSIGNMENT_STMT:

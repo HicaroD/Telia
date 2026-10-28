@@ -68,6 +68,9 @@ func (s *sema) checkMemoryBuiltin(call *ast.FnCall, scope, decl *ast.Scope, impo
 	if err != nil {
 		return nil, err
 	}
+	if err := rejectOpaqueValue(ty, call.Name.Span); err != nil {
+		return nil, err
+	}
 	if !valueType(ty) {
 		return nil, fmt.Errorf("%s requires a concrete value type", name)
 	}

@@ -20,6 +20,7 @@ type Program struct {
 	TupleTypes    []*ExprType
 	SequenceTypes []*ExprType
 	Structs       []*StructDecl
+	Enums         []*EnumDecl
 	ValueTypes    []*ExprType // dependency-ordered struct and tuple layouts
 	Functions     []*FnDecl   // concrete generic instances, in discovery order
 }

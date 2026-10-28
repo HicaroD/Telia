@@ -41,6 +41,20 @@ func (c *CCodegen) flushDefers(defers []*ast.DeferStmt, indent string) {
 // emitStmtNode dispatches to the correct statement emitter.
 func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 	switch node.Kind {
+	case ast.KIND_YIELD_STMT:
+		ctx := c.matchScopes[len(c.matchScopes)-1]
+		value := c.emitExpr(node.Node.(*ast.YieldStmt).Value)
+		fmt.Fprintf(c.buf, "%s = %s;\n", ctx.result, value)
+		for i := len(c.deferScopes) - 1; i >= ctx.deferDepth; i-- {
+			c.flushDefers(c.deferScopes[i], indent)
+		}
+		fmt.Fprintf(c.buf, "goto %s;\n", ctx.label)
+	case ast.KIND_CONST_DECL:
+		// Compile-time constants are inlined at their use sites.
+	case ast.KIND_BLOCK_STMT:
+		c.buf.WriteString("{\n")
+		c.emitBlock(node.Node.(*ast.BlockStmt), indent+"    ")
+		c.buf.WriteString(indent + "}\n")
 	case ast.KIND_RETURN_STMT:
 		c.emitReturn(node.Node.(*ast.ReturnStmt), indent)
 	case ast.KIND_VAR_STMT:
@@ -416,6 +430,9 @@ func (c *CCodegen) emitVarTarget(node *ast.Node) string {
 	switch node.Kind {
 	case ast.KIND_VAR_ID_STMT:
 		varId := node.Node.(*ast.VarIdStmt)
+		if varId.N != nil && varId.N.Kind == ast.KIND_PARAM {
+			return c.emitIdExpr(&ast.IdExpr{Name: varId.Name, N: varId.N})
+		}
 		if varId.N != nil && varId.N.Node != varId && varId.N.Kind == ast.KIND_VAR_ID_STMT {
 			return c.emitVarTarget(varId.N)
 		}

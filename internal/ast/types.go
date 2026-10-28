@@ -32,6 +32,8 @@ const (
 	EXPR_TYPE_TUPLE
 	EXPR_TYPE_ARRAY
 	EXPR_TYPE_SLICE
+	EXPR_TYPE_ENUM
+	EXPR_TYPE_OPAQUE
 )
 
 type ExprType struct {
@@ -46,6 +48,10 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 
 	switch t.Kind {
+	case EXPR_TYPE_OPAQUE:
+		return t.T.(*OpaqueType).Decl == other.T.(*OpaqueType).Decl
+	case EXPR_TYPE_ENUM:
+		return t.T.(*EnumType).Decl == other.T.(*EnumType).Decl
 	case EXPR_TYPE_ARRAY, EXPR_TYPE_SLICE:
 		a, b := t.T.(*SequenceType), other.T.(*SequenceType)
 		return a.Length == b.Length && a.Element.Equals(b.Element)
@@ -148,8 +154,7 @@ func (ty *ExprType) IsInteger() bool {
 		return false
 	}
 	basic := ty.T.(*BasicType)
-	return basic.Kind > token.INTEGER_TYPE_START && basic.Kind < token.NUMERIC_TYPE_END ||
-		basic.Kind == token.INTEGER_TYPE_END
+	return basic.Kind.IsInteger()
 }
 
 func (ty *ExprType) IsFloat() bool {
@@ -304,6 +309,7 @@ type OperatorTable map[token.Kind]OperatorValidation
 var POINTER_TYPE = &ExprType{Kind: EXPR_TYPE_POINTER, T: new(PointerType)}
 
 var UnaryOperators = OperatorTable{
+	token.TILDE: {ValidTypes: integerOperatorTypes()},
 	token.MINUS: {
 		ValidTypes: []*ExprType{
 			// integers
@@ -334,6 +340,9 @@ var UnaryOperators = OperatorTable{
 }
 
 var BinaryOperators = OperatorTable{
+	token.PIPE:      {ValidTypes: integerOperatorTypes()},
+	token.CARET:     {ValidTypes: integerOperatorTypes()},
+	token.AMPERSAND: {ValidTypes: integerOperatorTypes()},
 	token.PLUS: {
 		ValidTypes: []*ExprType{
 			// integers
@@ -578,6 +587,14 @@ var BinaryOperators = OperatorTable{
 		},
 		Handler: handleEqualityComparison,
 	},
+}
+
+func integerOperatorTypes() []*ExprType {
+	var types []*ExprType
+	for kind := token.INTEGER_TYPE_START + 1; kind < token.INTEGER_TYPE_END; kind++ {
+		types = append(types, NewBasicType(kind))
+	}
+	return types
 }
 
 func handleEqualityComparison(operands []*ExprType) (*ExprType, error) {

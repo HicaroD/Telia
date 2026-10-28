@@ -23,6 +23,7 @@ type sema struct {
 	file              *ast.File
 	program           *ast.Program // set by Check(); used by registerTupleType
 	currentReturnType *ast.ExprType
+	currentYield      *yieldContext
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -177,6 +178,21 @@ func (s *sema) checkFile(file *ast.File) (bool, error) {
 			continue
 		}
 		switch node.Kind {
+		case ast.KIND_ENUM_DECL:
+			if len(node.Node.(*ast.EnumDecl).TypeParams) != 0 {
+				continue
+			}
+			if err := s.resolveEnum(node.Node.(*ast.EnumDecl)); err != nil {
+				s.collector.ReportError(err, node.DeclarationSpan())
+				node.Invalid = true
+				failed = true
+			}
+		case ast.KIND_CONST_DECL:
+			if err := s.checkConstDecl(node.Node.(*ast.ConstDecl)); err != nil {
+				s.collector.ReportError(err, node.DeclarationSpan())
+				node.Invalid = true
+				failed = true
+			}
 		case ast.KIND_FN_DECL:
 			fnDecl := node.Node.(*ast.FnDecl)
 			if len(fnDecl.TypeParams) != 0 {
@@ -251,8 +267,10 @@ func (sema *sema) checkFnDecl(
 		return err
 	}
 	previousReturnType := sema.currentReturnType
+	previousYield := sema.currentYield
+	sema.currentYield = nil
 	sema.currentReturnType = function.RetType
-	defer func() { sema.currentReturnType = previousReturnType }()
+	defer func() { sema.currentReturnType = previousReturnType; sema.currentYield = previousYield }()
 	if token.IsAnyBuiltin(function.Name.Name()) {
 		return fmt.Errorf("impossible to redefine builtin '%s'", function.Name.Name())
 	}
@@ -374,6 +392,11 @@ func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
 	if err := sema.checkExternAttributes(extern.Attributes); err != nil {
 		return err
 	}
+	for _, d := range extern.Opaques {
+		if extern.Attributes.Header == "" {
+			return diagnostics.Diag{Title: "Opaque type requires a header", Message: "opaque declarations must belong to a header-owned extern block", Span: d.Name.Span, Help: "Add @[header=\"path/to/header.h\"] to the extern block."}
+		}
+	}
 
 	for _, proto := range extern.Prototypes {
 		err := sema.checkExternPrototype(extern, proto)
@@ -411,39 +434,36 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 		return err
 	}
 
-	symbols := make(map[string]bool, len(proto.Params.Fields))
+	symbols := make(map[string]*token.Token, len(proto.Params.Fields))
 	for _, param := range proto.Params.Fields {
 		// Id
-		if _, found := symbols[param.Name.Name()]; found {
-			// TODO(errors): add proper error here + tests
-			return fmt.Errorf(
-				"%s redeclaration of '%s' parameter of '%s' prototype on extern declaration '%s'",
-				param.Name.Pos,
-				param.Name.Name(),
-				proto.Name.Name(),
-				extern.Name.Name(),
-			)
+		if previous, found := symbols[param.Name.Name()]; found {
+			return diagnostics.Diag{
+				Title: "Duplicate parameter", Message: fmt.Sprintf("parameter '%s' is declared more than once in extern function '%s'", param.Name.Name(), proto.Name.Name()),
+				Span: param.Name.Span, Help: "Give each parameter a unique name.",
+				Related: []diagnostics.Related{{Span: previous.Span, Message: "previous parameter declaration"}},
+			}
 		}
-		symbols[param.Name.Name()] = true
+		symbols[param.Name.Name()] = param.Name
 
 		// Type
-		if param.Type.Kind == ast.EXPR_TYPE_ID {
-			idTy := param.Type.T.(*ast.IdType)
-			revealedTy, err := sema.checkIdType(idTy, extern.Scope)
-			if err != nil {
-				return err
-			}
-			param.Type = revealedTy
-		}
-	}
-
-	if proto.RetType.Kind == ast.EXPR_TYPE_ID {
-		idTy := proto.RetType.T.(*ast.IdType)
-		revealedTy, err := sema.checkIdType(idTy, extern.Scope)
+		revealedTy, err := sema.resolveType(param.Type, extern.Scope)
 		if err != nil {
 			return err
 		}
-		proto.RetType = revealedTy
+		param.Type = revealedTy
+		if err := rejectOpaqueValue(revealedTy, param.Name.Span); err != nil {
+			return err
+		}
+	}
+
+	revealedTy, err := sema.resolveType(proto.RetType, extern.Scope)
+	if err != nil {
+		return err
+	}
+	proto.RetType = revealedTy
+	if err := rejectOpaqueValue(revealedTy, proto.Name.Span); err != nil {
+		return err
 	}
 
 	return nil
@@ -471,6 +491,28 @@ func (sema *sema) checkStmt(
 	fromImportPackage, isArg bool,
 ) error {
 	switch stmt.Kind {
+	case ast.KIND_YIELD_STMT:
+		if sema.currentYield == nil {
+			return diagnostics.Diag{Title: "Yield outside match", Message: "yield is only valid inside a match arm block", Span: stmt.Span, Help: "Use return to return from a function, or yield inside a match arm."}
+		}
+		expr := stmt.Node.(*ast.YieldStmt).Value
+		ty, explicit, err := sema.inferExprTypeWithoutContext(expr, referenceScope, declScope, fromImportPackage, false)
+		if err != nil {
+			return err
+		}
+		sema.currentYield.sites = append(sema.currentYield.sites, yieldSite{expr: expr, scope: referenceScope, ty: ty, explicit: explicit})
+		return nil
+	case ast.KIND_CONST_DECL:
+		d := stmt.Node.(*ast.ConstDecl)
+		d.Scope = referenceScope
+		if err := referenceScope.Insert(d.Name.Name(), stmt); err != nil {
+			return diagnostics.Diag{Title: "Duplicate declaration", Message: fmt.Sprintf("constant '%s' already declared on scope", d.Name.Name()), Span: d.Name.Span, Related: []diagnostics.Related{{Span: referenceScope.Nodes[d.Name.Name()].DeclarationSpan(), Message: "previous declaration"}}}
+		}
+		if err := sema.checkConstDecl(d); err != nil {
+			stmt.Invalid = true
+			return err
+		}
+		return nil
 	case ast.KIND_FN_CALL:
 		_, err := sema.checkFnCall(
 			stmt.Node.(*ast.FnCall),
@@ -542,6 +584,9 @@ func (sema *sema) checkStmt(
 		return err
 	case ast.KIND_DEFER_STMT:
 		deferStmt := stmt.Node.(*ast.DeferStmt)
+		previousYield := sema.currentYield
+		sema.currentYield = nil
+		defer func() { sema.currentYield = previousYield }()
 		err := sema.checkStmt(
 			deferStmt.Stmt,
 			referenceScope,
@@ -770,6 +815,13 @@ func (sema *sema) checkNormalVarDecl(
 		}
 		if symbol.Invalid {
 			return diagnostics.COMPILER_ERROR_FOUND
+		}
+		if symbol.Kind == ast.KIND_CONST_DECL {
+			return diagnostics.Diag{
+				Title: "Constant reassignment", Message: fmt.Sprintf("cannot reassign constant '%s'", currentVar.Name.Name()),
+				Span: currentVar.Name.Span, Help: "Use a variable declared with := if the value needs to change.",
+				Related: []diagnostics.Related{{Span: symbol.DeclarationSpan(), Message: "constant declared here"}},
+			}
 		}
 		if currentVar.Type != nil {
 			return fmt.Errorf("impossible to define type for variable '%s' since you're reassigning", currentVar.Name.Name())
@@ -1017,6 +1069,14 @@ func (sema *sema) resolveFieldAccess(
 	fieldID, nestedAccess, err := immediateFieldAccess(fieldAccess)
 	if err != nil {
 		return nil, nil, err
+	}
+	base := receiverTy
+	for base != nil && base.IsPointer() {
+		base = base.T.(*ast.PointerType).Type
+	}
+	if base != nil && base.Kind == ast.EXPR_TYPE_OPAQUE {
+		d := base.T.(*ast.OpaqueType).Decl
+		return nil, nil, diagnostics.Diag{Title: "Opaque field access", Message: "opaque types do not expose fields", Span: fieldID.Name.Span, Help: "Use a header-declared accessor function instead.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "opaque type declared here"}}}
 	}
 
 	structDecl, field, err := sema.resolveFieldOnType(receiverTy, fieldID.Name.Name(), referenceScope)
@@ -1524,6 +1584,8 @@ func (s *sema) inferExprTypeWithContext(
 	}
 	*expectedType = *resolved
 	switch expr.Kind {
+	case ast.KIND_MATCH_EXPR:
+		return s.checkMatch(expr.Node.(*ast.MatchExpr), expectedType, referenceScope)
 	case ast.KIND_ARRAY_LITERAL_EXPR:
 		lit := expr.Node.(*ast.ArrayLiteralExpr)
 		if expectedType.Kind != ast.EXPR_TYPE_ARRAY {
@@ -1638,11 +1700,19 @@ func (s *sema) inferExprTypeWithContext(
 			// isArg,
 		)
 	case ast.KIND_NAMESPACE_ACCESS:
+		namespace := expr.Node.(*ast.NamespaceAccess)
+		if namespace.IsImport && namespace.Right.Kind == ast.KIND_ID_EXPR {
+			imp := s.file.Imports[namespace.Left.Name.Name()]
+			return s.inferImportedConstant(namespace.Right.Node.(*ast.IdExpr), imp.Package.Scope, expectedType)
+		}
 		actual, err := s.checkNamespaceAccess(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return nil, err
 		}
 		if !actual.Equals(expectedType) {
+			if actual.Kind == ast.EXPR_TYPE_ENUM {
+				return nil, enumTypeMismatch(actual, expectedType, expr.Span)
+			}
 			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, actual.T)
 		}
 		return actual, nil
@@ -1710,6 +1780,8 @@ func (sema *sema) inferIdExprTypeWithContext(
 	var idTy *ast.ExprType
 
 	switch symbol.Kind {
+	case ast.KIND_CONST_DECL:
+		return sema.inferConstReference(id, symbol.Node.(*ast.ConstDecl), expectedType)
 	case ast.KIND_VAR_ID_STMT:
 		idTy = symbol.Node.(*ast.VarIdStmt).Type
 	case ast.KIND_PARAM:
@@ -1720,6 +1792,11 @@ func (sema *sema) inferIdExprTypeWithContext(
 	}
 
 	switch idTy.Kind {
+	case ast.EXPR_TYPE_ENUM:
+		if !expectedType.Equals(idTy) {
+			return nil, enumTypeMismatch(idTy, expectedType, id.Name.Span)
+		}
+		return idTy, nil
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		if !idTy.Equals(expectedType) {
 			return nil, fmt.Errorf("collection type mismatch")
@@ -1805,6 +1882,9 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 			pointeeType.Type.T,
 		)
 	}
+	if err := rejectOpaqueValue(pointeeType.Type, deref.Expr.Span); err != nil {
+		return nil, err
+	}
 	deref.Type = pointeeType.Type
 	return pointeeType.Type, nil
 }
@@ -1833,6 +1913,9 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 	}
 
 	pointeeType := ty.T.(*ast.PointerType)
+	if err := rejectOpaqueValue(pointeeType.Type, deref.Expr.Span); err != nil {
+		return nil, false, err
+	}
 	deref.Type = pointeeType.Type
 	return pointeeType.Type, !pointeeType.Type.Explicit, nil
 }
@@ -1844,8 +1927,12 @@ func (s *sema) inferBinaryExprType(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
+	if binary.Op == token.SHIFT_LEFT || binary.Op == token.SHIFT_RIGHT {
+		return s.inferShift(binary, expectedType, referenceScope, declScope, fromImportPackage)
+	}
 	lhs, rhs, ctx, err := s.ensureBinaryOperatorsAreTheSame(
 		binary,
+		expectedType,
 		referenceScope,
 		declScope,
 		fromImportPackage,
@@ -1863,6 +1950,20 @@ func (s *sema) inferBinaryExprType(
 
 	commonType := lhs // since they are the same
 	binary.OperandType = commonType
+	if commonType.Kind == ast.EXPR_TYPE_ENUM {
+		d := commonType.T.(*ast.EnumType).Decl
+		if d.HasPayload {
+			return nil, false, diagnostics.Diag{Title: "Payload enum comparison", Message: "payload enums do not have implicit equality", Span: binary.Left.Span, Help: "Use match to inspect the variant and compare the fields explicitly.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "payload enum declared here"}}}
+		}
+		if binary.Op != token.EQUAL_EQUAL && binary.Op != token.BANG_EQUAL {
+			return nil, false, diagnostics.Diag{Title: "Invalid enum operator", Message: "enum values only support == and !=", Help: "Use integer aliases and constants for arithmetic or flags."}
+		}
+		result := ast.NewBasicType(token.BOOL_TYPE)
+		if expectedType != nil && !result.Equals(expectedType) {
+			return nil, false, fmt.Errorf("type mismatch: expected %s, got bool", expectedType.T)
+		}
+		return result, ctx, nil
+	}
 
 	// TODO(errors)
 	validation, exists := ast.BinaryOperators[binary.Op]
@@ -1878,6 +1979,9 @@ func (s *sema) inferBinaryExprType(
 		}
 	}
 	if !valid {
+		if binary.Op.IsBitwiseOp() {
+			return nil, false, diagnostics.Diag{Title: "Invalid bitwise operands", Message: fmt.Sprintf("invalid operand types for %s: %s and %s", binary.Op, lhs.T, rhs.T), Help: "Bitwise operators require integers of the same type; use and/or for boolean logic."}
+		}
 		return nil, false, fmt.Errorf(
 			"invalid operand types for %s: %s and %s\n",
 			binary.Op,
@@ -1925,6 +2029,7 @@ func (s *sema) inferBinaryExprType(
 
 func (s *sema) ensureBinaryOperatorsAreTheSame(
 	binary *ast.BinExpr,
+	expected *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
@@ -1934,24 +2039,35 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	var err error
 
 	var lhsHasContext, rhsHasContext bool
-	lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(
-		binary.Left,
-		referenceScope,
-		declScope,
-		fromImportPackage,
-		false,
-	)
+	contextualInteger := expected != nil && expected.IsInteger() && (binary.Op.IsBitwiseOp() || binary.Op == token.PLUS || binary.Op == token.MINUS || binary.Op == token.STAR || binary.Op == token.SLASH)
+	if contextualInteger {
+		lhs, err = s.inferExprTypeWithContext(binary.Left, expected, referenceScope, declScope, fromImportPackage, false)
+		lhsHasContext = true
+	} else {
+		lhs, lhsHasContext, err = s.inferExprTypeWithoutContext(
+			binary.Left,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			false,
+		)
+	}
 	if err != nil {
 		return nil, nil, ctx, err
 	}
 
-	rhs, rhsHasContext, err = s.inferExprTypeWithoutContext(
-		binary.Right,
-		referenceScope,
-		declScope,
-		fromImportPackage,
-		false,
-	)
+	if contextualInteger {
+		rhs, err = s.inferExprTypeWithContext(binary.Right, expected, referenceScope, declScope, fromImportPackage, false)
+		rhsHasContext = true
+	} else {
+		rhs, rhsHasContext, err = s.inferExprTypeWithoutContext(
+			binary.Right,
+			referenceScope,
+			declScope,
+			fromImportPackage,
+			false,
+		)
+	}
 	if err != nil {
 		return nil, nil, ctx, err
 	}
@@ -2012,6 +2128,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 				lhsBasic.Kind = rhsBasic.Kind
 				return lhs, rhs, ctx, nil
 			}
+		}
+		if binary.Op.IsBitwiseOp() {
+			return nil, nil, ctx, diagnostics.Diag{Title: "Invalid bitwise operands", Message: fmt.Sprintf("bitwise operands must have the same integer type, got %s and %s", lhs.T, rhs.T), Help: "Convert the operands explicitly to the same integer type."}
 		}
 		return nil, nil, ctx, fmt.Errorf("invalid operands types: %s and %s\n", lhs.T, rhs.T)
 	}
@@ -2115,6 +2234,9 @@ func (sema *sema) inferUnaryExprType(
 	valid := slices.ContainsFunc(validation.ValidTypes, operandType.Equals)
 
 	if !valid {
+		if unary.Op == token.TILDE {
+			return nil, false, diagnostics.Diag{Title: "Invalid bitwise operands", Message: fmt.Sprintf("bitwise NOT requires an integer, got %s", operandType.T), Help: "Use ~ with an integer operand; use not for boolean negation."}
+		}
 		return nil, false, fmt.Errorf(
 			"invalid operand type %s for operator %s\n",
 			operandType.T,
@@ -2135,6 +2257,7 @@ func (sema *sema) inferUnaryExprType(
 		)
 	}
 
+	unary.Type = resultType
 	return resultType, hasContext, nil
 }
 
@@ -2307,7 +2430,7 @@ func (s *sema) inferPtrExprWithContext(
 		return nil, err
 	}
 	if !ptr.Expr.IsAddressable() {
-		return nil, fmt.Errorf("address-of requires addressable storage")
+		return nil, diagnostics.Diag{Title: "Not addressable", Message: "address-of requires addressable storage", Span: ptr.Expr.Span, Help: "Store the value in a variable before taking its address; constants have no mutable storage."}
 	}
 
 	t := new(ast.ExprType)
@@ -2364,6 +2487,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 ) (result *ast.ExprType, isLiteral bool, resultErr error) {
 	defer func() { resultErr = diagnostics.WithSpan(resultErr, expr.Span) }()
 	switch expr.Kind {
+	case ast.KIND_MATCH_EXPR:
+		ty, err := sema.checkMatch(expr.Node.(*ast.MatchExpr), nil, referenceScope)
+		return ty, true, err
 	case ast.KIND_LITERAL_EXPR:
 		return sema.inferLiteralExprTypeWithoutContext(expr.Node.(*ast.LiteralExpr))
 	case ast.KIND_ARRAY_LITERAL_EXPR:
@@ -2496,6 +2622,10 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	}
 
 	switch variable.Kind {
+	case ast.KIND_CONST_DECL:
+		d := variable.Node.(*ast.ConstDecl)
+		ty, err := sema.inferConstReference(id, d, nil)
+		return ty, d.Type != nil && d.Type.Explicit, err
 	case ast.KIND_VAR_ID_STMT:
 		ty := variable.Node.(*ast.VarIdStmt).Type
 		return ty, ty.Explicit, nil
@@ -2530,6 +2660,9 @@ func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
 		declScope,
 		fromImportPackage,
 	)
+	if err == nil && namespaceAccess.IsImport && namespaceAccess.Right.Kind == ast.KIND_ID_EXPR {
+		return ty, ty.Explicit, nil
+	}
 	return ty, true, err
 }
 
@@ -2578,7 +2711,7 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 		return nil, false, err
 	}
 	if !ptr.Expr.IsAddressable() {
-		return nil, false, fmt.Errorf("address-of requires addressable storage")
+		return nil, false, diagnostics.Diag{Title: "Not addressable", Message: "address-of requires addressable storage", Span: ptr.Expr.Span, Help: "Store the value in a variable before taking its address; constants have no mutable storage."}
 	}
 	result := ast.NewPointerType(ty)
 	result.Explicit = true
@@ -2621,6 +2754,17 @@ func (sema *sema) checkNamespaceAccess(
 	}
 
 	namespaceAccess.Left.N = left
+	if left.Invalid {
+		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
+	if d, ok := left.Node.(*ast.EnumDecl); ok {
+		var err error
+		d, err = sema.enumInstance(d, namespaceAccess.TypeArgs, referenceScope, namespaceAccess.Left.Name)
+		if err != nil {
+			return nil, err
+		}
+		return sema.checkEnumAccess(namespaceAccess, d, referenceScope)
+	}
 
 	// TODO(errors)
 	if left.Kind != ast.KIND_EXTERN_DECL {
@@ -2659,6 +2803,8 @@ func (sema *sema) checkImportAccess(
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
 	switch node.Kind {
+	case ast.KIND_ID_EXPR:
+		return sema.inferImportedConstant(node.Node.(*ast.IdExpr), declScope, nil)
 	case ast.KIND_FN_CALL:
 		fnCall := node.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(

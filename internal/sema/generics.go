@@ -11,6 +11,7 @@ import (
 )
 
 type genericState struct {
+	enums     map[string]*ast.EnumDecl
 	functions map[string]*ast.FnDecl
 	structs   map[string]*ast.StructDecl
 	resolved  map[*ast.StructDecl]bool
@@ -28,12 +29,18 @@ func (s *sema) resolveSignature(fn *ast.FnDecl) error {
 				return err
 			}
 			param.Type = ty
+			if err := rejectOpaqueValue(ty, param.Name.Span); err != nil {
+				return err
+			}
 		}
 		ty, err := s.resolveType(fn.RetType, fn.Scope.Parent)
 		if err != nil {
 			return err
 		}
 		fn.RetType = ty
+		if err := rejectOpaqueValue(ty, fn.Name.Span); err != nil {
+			return err
+		}
 		return nil
 	})
 }
@@ -104,6 +111,19 @@ func concreteName(kind, key string) string {
 
 func typeKey(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_OPAQUE:
+		d := ty.T.(*ast.OpaqueType).Decl
+		path := d.Name.Pos.Filename
+		if d.Name.Span.Valid() {
+			path = d.Name.Span.File.Path
+		}
+		return fmt.Sprintf("opaque:%s:%d", path, d.Name.Span.Start)
+	case ast.EXPR_TYPE_ENUM:
+		d := ty.T.(*ast.EnumType).Decl
+		if d.CName != "" {
+			return d.CName
+		}
+		return declarationKey(d.Owner, d.Name.Name())
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		t := ty.T.(*ast.SequenceType)
 		return fmt.Sprintf("sequence%d:%d:%s", ty.Kind, t.Length, typeKey(t.Element))
@@ -169,18 +189,37 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		} else {
 			imp, ok := s.file.Imports[id.Namespace.Name()]
 			if !ok {
-				return nil, fmt.Errorf("%s: unknown type namespace %s", id.Name.Pos, id.Namespace.Name())
+				namespace, err := scope.LookupAcrossScopes(id.Namespace.Name())
+				if err != nil || namespace.Kind != ast.KIND_EXTERN_DECL {
+					return nil, diagnostics.Diag{Title: "Unknown type namespace", Message: "type namespace is not an imported package or extern block", Span: id.Namespace.Span, Help: "Use the declaring package or named extern block."}
+				}
+				scope = namespace.Node.(*ast.ExternDecl).Scope
+			} else {
+				scope = imp.Package.Scope
 			}
-			scope = imp.Package.Scope
 		}
 		sym, err := scope.LookupAcrossScopes(id.Name.Name())
 		if err != nil {
-			return nil, fmt.Errorf("%s: '%s' type not found on scope", id.Name.Pos, id.Name.Name())
+			return nil, diagnostics.Diag{Title: "Unknown type", Message: fmt.Sprintf("'%s' type not found on scope", id.Name.Name()), Span: id.Name.Span, Help: "Declare the type or use the correct imported package qualifier."}
 		}
 		if sym.Invalid {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
 		switch d := sym.Node.(type) {
+		case *ast.OpaqueDecl:
+			if len(id.Args) != 0 {
+				return nil, diagnostics.Diag{Title: "Invalid opaque type arguments", Message: "header-owned opaque types do not take type arguments", Span: id.Name.Span, Help: "Remove the type arguments.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "opaque type declared here"}}}
+			}
+			return &ast.ExprType{Kind: ast.EXPR_TYPE_OPAQUE, T: &ast.OpaqueType{Decl: d}}, nil
+		case *ast.EnumDecl:
+			d, err = s.enumInstance(d, id.Args, argumentScope, id.Name)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.resolveEnum(d); err != nil {
+				return nil, err
+			}
+			return &ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: d}}, nil
 		case *ast.TypeAlias:
 			if len(id.Args) != 0 {
 				return nil, fmt.Errorf("%s: alias '%s' does not take type arguments", id.Name.Pos, id.Name.Name())
@@ -254,6 +293,9 @@ func (s *sema) concreteArguments(params []*token.Token, args []*ast.ExprType, sc
 }
 
 func valueType(ty *ast.ExprType) bool {
+	if ty.Kind == ast.EXPR_TYPE_OPAQUE {
+		return false
+	}
 	if ty.IsVoid() {
 		return false
 	}
@@ -350,6 +392,9 @@ func (s *sema) literalType(lit *ast.StructLiteralExpr, scope *ast.Scope) (*ast.E
 		return nil, err
 	}
 	if ty.Kind != ast.EXPR_TYPE_STRUCT {
+		if err := rejectOpaqueValue(ty, lit.Name.Span); err != nil {
+			return nil, err
+		}
 		return nil, fmt.Errorf("%s: struct literal requires a struct type", lit.Name.Pos)
 	}
 	lit.Decl = ty.T.(*ast.StructType).Decl
@@ -362,7 +407,7 @@ func (s *sema) orderValueTypes() error {
 	state := map[string]int{}
 	var visit func(*ast.ExprType) error
 	visit = func(ty *ast.ExprType) error {
-		if ty.Kind != ast.EXPR_TYPE_STRUCT && ty.Kind != ast.EXPR_TYPE_TUPLE && ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
+		if ty.Kind != ast.EXPR_TYPE_ENUM && ty.Kind != ast.EXPR_TYPE_STRUCT && ty.Kind != ast.EXPR_TYPE_TUPLE && ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
 			return nil
 		}
 		key := typeKey(ty)
@@ -373,7 +418,15 @@ func (s *sema) orderValueTypes() error {
 			return fmt.Errorf("infinitely sized by-value layout involving %s", ty.T)
 		}
 		state[key] = 1
-		if ty.Kind == ast.EXPR_TYPE_STRUCT {
+		if ty.Kind == ast.EXPR_TYPE_ENUM {
+			for _, v := range ty.T.(*ast.EnumType).Decl.Variants {
+				for _, field := range v.Fields {
+					if err := visit(field.Type); err != nil {
+						return err
+					}
+				}
+			}
+		} else if ty.Kind == ast.EXPR_TYPE_STRUCT {
 			for _, field := range ty.T.(*ast.StructType).Decl.Fields {
 				if err := visit(field.Type); err != nil {
 					return fmt.Errorf("%s: %w", field.Name.Pos, err)
@@ -393,6 +446,11 @@ func (s *sema) orderValueTypes() error {
 		state[key] = 2
 		s.program.ValueTypes = append(s.program.ValueTypes, ty)
 		return nil
+	}
+	for _, d := range s.program.Enums {
+		if err := visit(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: d}}); err != nil {
+			return err
+		}
 	}
 	for _, d := range s.program.Structs {
 		if err := visit(&ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: d}}); err != nil {

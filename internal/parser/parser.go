@@ -313,6 +313,14 @@ peekAgain:
 		_, err := p.parseTypeAlias()
 		file.AnyDeclNodeFound = true
 		return nil, eof, err
+	case token.CONST:
+		node, err := p.parseConst(p.pkg.Scope)
+		file.AnyDeclNodeFound = true
+		return node, eof, err
+	case token.ENUM:
+		node, err := p.parseEnum()
+		file.AnyDeclNodeFound = true
+		return node, eof, err
 	case token.EXTERN:
 		externDecl, err := p.ParseExternDecl(attrs)
 		file.AnyDeclNodeFound = true
@@ -360,47 +368,58 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			return attributes, fmt.Errorf("expected '['")
 		}
 
-		attribute, ok := p.expect(token.ID)
-		if !ok {
-			return attributes, fmt.Errorf("expected identifier")
-		}
+		for {
+			attribute, ok := p.expect(token.ID)
+			if !ok {
+				return attributes, fmt.Errorf("expected identifier")
+			}
 
-		_, ok = p.expect(token.EQUAL)
-		if !ok {
-			return attributes, fmt.Errorf("expected '='")
-		}
+			_, ok = p.expect(token.EQUAL)
+			if !ok {
+				return attributes, fmt.Errorf("expected '='")
+			}
 
-		attributeValue, ok := p.expect(token.STRING_TYPE)
-		if !ok {
-			return attributes, fmt.Errorf("expected string literal")
-		}
+			attributeValue, ok := p.expect(token.STRING_TYPE)
+			if !ok {
+				return attributes, fmt.Errorf("expected string literal")
+			}
 
-		switch attribute.Name() {
-		case "default_cc":
-			if attributes.DefaultCallingConvention != "" {
-				return attributes, fmt.Errorf("repeated attribute")
+			switch attribute.Name() {
+			case "header":
+				if attributes.Header != "" {
+					return attributes, diagnostics.Diag{Title: "Repeated header attribute", Message: "header is already specified", Span: attribute.Span, Help: "Specify one header per extern block."}
+				}
+				attributes.Header = attributeValue.Name()
+			case "default_cc":
+				if attributes.DefaultCallingConvention != "" {
+					return attributes, fmt.Errorf("repeated attribute")
+				}
+				attributes.DefaultCallingConvention = attributeValue.Name()
+			case "link_prefix":
+				if attributes.LinkPrefix != "" {
+					return attributes, fmt.Errorf("repeated attribute")
+				}
+				attributes.LinkPrefix = attributeValue.Name()
+			case "link_name":
+				if attributes.LinkName != "" {
+					return attributes, fmt.Errorf("repeated attribute")
+				}
+				attributes.LinkName = attributeValue.Name()
+			case "linkage":
+				if attributes.Linkage != "" {
+					return attributes, fmt.Errorf("repeated attribute")
+				}
+				attributes.Linkage = attributeValue.Name()
+			default:
+				return attributes, fmt.Errorf(
+					"invalid attribute for extern declaration: %s\n",
+					attribute.Name(),
+				)
 			}
-			attributes.DefaultCallingConvention = attributeValue.Name()
-		case "link_prefix":
-			if attributes.LinkPrefix != "" {
-				return attributes, fmt.Errorf("repeated attribute")
+			if !p.lex.NextIs(token.COMMA) {
+				break
 			}
-			attributes.LinkPrefix = attributeValue.Name()
-		case "link_name":
-			if attributes.LinkName != "" {
-				return attributes, fmt.Errorf("repeated attribute")
-			}
-			attributes.LinkName = attributeValue.Name()
-		case "linkage":
-			if attributes.Linkage != "" {
-				return attributes, fmt.Errorf("repeated attribute")
-			}
-			attributes.Linkage = attributeValue.Name()
-		default:
-			return attributes, fmt.Errorf(
-				"invalid attribute for extern declaration: %s\n",
-				attribute.Name(),
-			)
+			p.lex.Skip()
 		}
 
 		_, ok = p.expect(token.CLOSE_BRACKET)
@@ -501,10 +520,27 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 			break
 		}
 
+		memberAttrs, err := p.parseAttributes()
+		if err != nil {
+			return nil, err
+		}
+		if p.lex.NextIs(token.OPAQUE) {
+			p.lex.Skip()
+			name, ok := p.expect(token.ID)
+			if !ok {
+				return nil, diagnostics.Diag{Title: "Expected opaque type name", Message: "expected a name after opaque", Span: name.Span, Help: "Write opaque Name inside a header-owned extern block."}
+			}
+			if _, ok := p.expect(token.NEWLINE); !ok {
+				return nil, diagnostics.Diag{Title: "Invalid opaque declaration", Message: "opaque declarations have no body", Span: name.Span, Help: "Write opaque Name on its own line; the header owns its definition."}
+			}
+			externDecl.Opaques = append(externDecl.Opaques, &ast.OpaqueDecl{Name: name, Attributes: memberAttrs})
+			continue
+		}
 		proto, err := p.parsePrototype()
 		if err != nil {
 			return nil, err
 		}
+		proto.Attributes = memberAttrs
 
 		prototypes = append(prototypes, proto)
 	}
@@ -535,6 +571,15 @@ AfterFields:
 		externDecl.Scope = externScope
 	}
 
+	for _, d := range externDecl.Opaques {
+		node := &ast.Node{Kind: ast.KIND_OPAQUE_DECL, Node: d, Span: d.Name.Span}
+		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
+			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "opaque type name is already declared", Span: d.Name.Span, Help: "Choose a distinct type name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+		}
+		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
+			return nil, err
+		}
+	}
 	for i, prototype := range prototypes {
 		n := new(ast.Node)
 		n.Kind = ast.KIND_PROTO
@@ -1065,8 +1110,8 @@ func (p *Parser) parseFnParams(
 			for p.lex.NextIs(token.AT) {
 				p.lex.Skip() // @
 
-				attributeName, ok := p.expect(token.ID)
-				if !ok {
+				attributeName := p.lex.Next()
+				if attributeName.Kind != token.ID && attributeName.Kind != token.CONST {
 					return nil, fmt.Errorf("expected parameter attribute name, got %s\n", p.lex.Peek().Kind)
 				}
 
@@ -1411,6 +1456,16 @@ func (p *Parser) ParseStmt(
 
 	tok := p.lex.Peek()
 	switch tok.Kind {
+	case token.CONST:
+		return p.parseConst(parentScope)
+	case token.YIELD:
+		p.lex.Skip()
+		value, err := p.ParseSingleExpr(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		n = &ast.Node{Kind: ast.KIND_YIELD_STMT, Node: &ast.YieldStmt{Value: value}}
+		endsWithNewLine = true
 	case token.RETURN:
 		endsWithNewLine = true
 
@@ -2086,36 +2141,15 @@ func (p *Parser) parseCatchOperator(parentScope *ast.Scope) (*ast.CatchAtOperato
 }
 
 func (p *Parser) parseLogical(parentScope *ast.Scope) (*ast.Node, error) {
-	lhs, err := p.parseComparasion(parentScope)
-	if err != nil {
-		return nil, err
-	}
+	return p.parseBinaryLevel(parentScope, p.parseLogicalAnd, token.OR)
+}
 
-	for {
-		next := p.lex.Peek()
-		if _, ok := ast.LOGICAL[next.Kind]; ok {
-			p.lex.Skip()
-			rhs, err := p.parseComparasion(parentScope)
-			// TODO(errors): add proper error
-			if err != nil {
-				return nil, err
-			}
-
-			l := new(ast.Node)
-			l.Kind = ast.KIND_BINARY_EXPR
-			l.Node = &ast.BinExpr{Left: lhs, Op: next.Kind, Right: rhs}
-			l.Span = p.lex.SpanFrom(lhs.Span)
-			lhs = l
-		} else {
-			break
-		}
-	}
-
-	return lhs, nil
+func (p *Parser) parseLogicalAnd(parentScope *ast.Scope) (*ast.Node, error) {
+	return p.parseBinaryLevel(parentScope, p.parseComparasion, token.AND)
 }
 
 func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
-	lhs, err := p.parseTerm(parentScope)
+	lhs, err := p.parseBitwiseOr(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -2124,7 +2158,7 @@ func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
 		next := p.lex.Peek()
 		if _, ok := ast.COMPARASION[next.Kind]; ok {
 			p.lex.Skip()
-			rhs, err := p.parseTerm(parentScope)
+			rhs, err := p.parseBitwiseOr(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -2137,6 +2171,61 @@ func (p *Parser) parseComparasion(parentScope *ast.Scope) (*ast.Node, error) {
 		} else {
 			break
 		}
+	}
+	return lhs, nil
+}
+
+func (p *Parser) parseBitwiseOr(parentScope *ast.Scope) (*ast.Node, error) {
+	return p.parseBinaryLevel(parentScope, p.parseBitwiseXor, token.PIPE)
+}
+
+func (p *Parser) parseBitwiseXor(parentScope *ast.Scope) (*ast.Node, error) {
+	return p.parseBinaryLevel(parentScope, p.parseBitwiseAnd, token.CARET)
+}
+
+func (p *Parser) parseBitwiseAnd(parentScope *ast.Scope) (*ast.Node, error) {
+	return p.parseBinaryLevel(parentScope, p.parseShift, token.AMPERSAND)
+}
+
+// Keep angle tokens separate in the lexer so nested generic applications still
+// close one type argument list at a time. Only adjacent pairs are shift operators.
+func (p *Parser) parseShift(scope *ast.Scope) (*ast.Node, error) {
+	left, err := p.parseTerm(scope)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		first, second := p.lex.Peek(), p.lex.Peek1()
+		if (first.Kind != token.LESS && first.Kind != token.GREATER) || first.Kind != second.Kind || first.Span.End != second.Span.Start {
+			break
+		}
+		op := token.SHIFT_LEFT
+		if first.Kind == token.GREATER {
+			op = token.SHIFT_RIGHT
+		}
+		p.lex.Skip()
+		p.lex.Skip()
+		right, err := p.parseTerm(scope)
+		if err != nil {
+			return nil, err
+		}
+		left = &ast.Node{Kind: ast.KIND_BINARY_EXPR, Node: &ast.BinExpr{Left: left, Op: op, Right: right}, Span: p.lex.SpanFrom(left.Span)}
+	}
+	return left, nil
+}
+
+func (p *Parser) parseBinaryLevel(parentScope *ast.Scope, operand func(*ast.Scope) (*ast.Node, error), op token.Kind) (*ast.Node, error) {
+	lhs, err := operand(parentScope)
+	if err != nil {
+		return nil, err
+	}
+	for p.lex.NextIs(op) {
+		p.lex.Skip()
+		rhs, err := operand(parentScope)
+		if err != nil {
+			return nil, err
+		}
+		lhs = &ast.Node{Kind: ast.KIND_BINARY_EXPR, Node: &ast.BinExpr{Left: lhs, Op: op, Right: rhs}, Span: p.lex.SpanFrom(lhs.Span)}
 	}
 	return lhs, nil
 }
@@ -2282,6 +2371,8 @@ func (p *Parser) parseAtom(parentScope *ast.Scope) (result *ast.Node, resultErr 
 	case token.INVALID:
 		p.lex.Skip()
 		return nil, diagnostics.COMPILER_ERROR_FOUND
+	case token.MATCH:
+		return p.parseMatch(parentScope)
 	case token.DOT:
 		p.lex.Skip()
 		if _, ok := p.expect(token.OPEN_CURLY); !ok {
@@ -2400,6 +2491,8 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		return p.parseFnCall(parentScope)
 	} else if suffix == token.DOT {
 		return p.parseStructLiteralExpr(parentScope)
+	} else if suffix == token.COLON_COLON {
+		return p.parseNamespaceAccess(parentScope)
 	}
 	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
@@ -2491,7 +2584,7 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 }
 
 func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error) {
-	if p.lex.Peek1().Kind != token.COLON_COLON {
+	if p.lex.Peek1().Kind != token.COLON_COLON && p.genericSuffix() != token.COLON_COLON {
 		return p.parseIdExpr(parentScope)
 	}
 	ahead := p.lex.Peek1()
@@ -2514,9 +2607,14 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 	n.Kind = ast.KIND_ID_EXPR
 	id := &ast.IdExpr{Name: tk}
 	n.Node = id
+	typeArgs, err := p.parseTypeArgs()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, ok = p.expect(token.COLON_COLON); ok {
 		access := new(ast.NamespaceAccess)
+		access.TypeArgs = typeArgs
 		access.Left = id
 		access.Right = nil
 		access.IsImport = isImport && lookupErr != nil
@@ -2526,7 +2624,7 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 			return nil, err
 		}
 		access.Right = right
-		if right.Kind == ast.KIND_STRUCT_EXPR {
+		if right.Kind == ast.KIND_STRUCT_EXPR && access.IsImport {
 			right.Node.(*ast.StructLiteralExpr).Namespace = tk
 			return right, nil
 		}

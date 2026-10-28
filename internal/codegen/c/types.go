@@ -22,6 +22,16 @@ type CVariable struct {
 // emitCType converts a Telia ExprType into its C type string.
 func emitCType(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_OPAQUE:
+		d := ty.T.(*ast.OpaqueType).Decl
+		if d.Attributes.LinkName != "" { return d.Attributes.LinkName }
+		return d.Name.Name()
+	case ast.EXPR_TYPE_ENUM:
+		d := ty.T.(*ast.EnumType).Decl
+		if d.HasPayload {
+			return d.CName
+		}
+		return emitCType(d.Type)
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		t := ty.T.(*ast.SequenceType)
 		return fmt.Sprintf("telia_seq_%x", sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s", ty.Kind, t.Length, emitCType(t.Element)))))

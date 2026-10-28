@@ -13,6 +13,8 @@ import (
 // it writes the declaration to c.buf and returns the temp name.
 func (c *CCodegen) emitExpr(node *ast.Node) string {
 	switch node.Kind {
+	case ast.KIND_MATCH_EXPR:
+		return c.emitMatch(node.Node.(*ast.MatchExpr))
 	case ast.KIND_ARRAY_LITERAL_EXPR:
 		lit := node.Node.(*ast.ArrayLiteralExpr)
 		if len(lit.Values) == 0 {
@@ -138,11 +140,16 @@ func emitStringLiteral(data []byte) string {
 
 // emitIdExpr resolves an identifier to its C name.
 func (c *CCodegen) emitIdExpr(id *ast.IdExpr) string {
+	if id.Constant != nil {
+		return c.emitConstant(id.Constant)
+	}
 	if id.N == nil {
 		// Unresolved — just use the name directly.
 		return id.Name.Name()
 	}
 	switch id.N.Kind {
+	case ast.KIND_CONST_DECL:
+		return c.emitConstant(id.N.Node.(*ast.ConstDecl).Value)
 	case ast.KIND_VAR_ID_STMT:
 		varId := id.N.Node.(*ast.VarIdStmt)
 		if varId.BackendType != nil {
@@ -162,6 +169,7 @@ func (c *CCodegen) emitIdExpr(id *ast.IdExpr) string {
 
 // emitBinExpr emits a binary expression with parentheses for safety.
 func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
+	if bin.Op == token.SHIFT_LEFT || bin.Op == token.SHIFT_RIGHT { return c.emitShift(bin) }
 	// Special case: error != nil — C can't compare structs by value.
 	// Emit e.msg != NULL instead.
 	if isErrorNilComparison(bin) {
@@ -235,6 +243,12 @@ func (c *CCodegen) emitErrorNilComparison(bin *ast.BinExpr) string {
 // binOpToC maps a Telia binary operator token to its C operator string.
 func binOpToC(op token.Kind) string {
 	switch op {
+	case token.PIPE:
+		return "|"
+	case token.CARET:
+		return "^"
+	case token.AMPERSAND:
+		return "&"
 	case token.PLUS:
 		return "+"
 	case token.MINUS:
@@ -268,6 +282,8 @@ func binOpToC(op token.Kind) string {
 func (c *CCodegen) emitUnaryExpr(u *ast.UnaryExpr) string {
 	val := c.emitExpr(u.Value)
 	switch u.Op {
+	case token.TILDE:
+		return fmt.Sprintf("((%s)(~(%s)))", emitCType(u.Type), val)
 	case token.MINUS:
 		return fmt.Sprintf("(-(%s))", val)
 	case token.NOT:
@@ -397,6 +413,9 @@ func (c *CCodegen) findPackageForFn(fn *ast.FnDecl, pkg *ast.Package) *ast.Packa
 
 // emitNamespaceAccess emits a namespace-qualified call (e.g. io::println or libc::printf).
 func (c *CCodegen) emitNamespaceAccess(ns *ast.NamespaceAccess) string {
+	if ns.EnumVariant != nil {
+		return c.emitEnumConstruction(ns)
+	}
 	if ns.Right.Kind == ast.KIND_FN_CALL {
 		return c.emitFnCall(ns.Right.Node.(*ast.FnCall))
 	}
