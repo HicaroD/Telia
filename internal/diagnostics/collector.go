@@ -113,7 +113,9 @@ func (collector *Collector) normalize(d Diag, preferred ...*source.File) Diag {
 		if len(preferred) > 0 && preferred[0] != nil && file != preferred[0] {
 			continue
 		}
-		if path != file.Path && !strings.HasSuffix(file.Path, "/"+path) && !strings.HasSuffix(path, ":"+file.Path) && path != ":"+file.Path {
+		if path != file.Path && !strings.HasSuffix(file.Path, "/"+path) &&
+			!strings.HasSuffix(path, ":"+file.Path) &&
+			path != ":"+file.Path {
 			continue
 		}
 		_, offset := file.Line(line)
@@ -125,7 +127,9 @@ func (collector *Collector) normalize(d Diag, preferred ...*source.File) Diag {
 		}
 		break
 	}
-	d.Message = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(d.Message, match[0])), ":"))
+	d.Message = strings.TrimSpace(
+		strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(d.Message, match[0])), ":"),
+	)
 	return d
 }
 

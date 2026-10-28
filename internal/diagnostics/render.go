@@ -42,7 +42,11 @@ func (r Renderer) Render(w io.Writer, c *Collector) error {
 			if !related.Span.Valid() {
 				continue
 			}
-			fmt.Fprintf(&out, "    %s\n\n", r.paint("36", location(related.Span)+" · "+related.Message))
+			fmt.Fprintf(
+				&out,
+				"    %s\n\n",
+				r.paint("36", location(related.Span)+" · "+related.Message),
+			)
 			r.excerpt(&out, related.Span, "36")
 		}
 	}
@@ -129,7 +133,13 @@ func (r Renderer) excerpt(out *strings.Builder, s source.Span, color string) {
 		}
 		gutter := fmt.Sprintf("    %*d │ ", width, line)
 		fmt.Fprintf(out, "%s%s\n", r.paint("90", gutter), expandTabs(text))
-		fmt.Fprintf(out, "%s%s%s\n", r.paint("90", strings.Repeat(" ", width+5)+"│ "), strings.Repeat(" ", prefix), r.paint(color, strings.Repeat("~", length)))
+		fmt.Fprintf(
+			out,
+			"%s%s%s\n",
+			r.paint("90", strings.Repeat(" ", width+5)+"│ "),
+			strings.Repeat(" ", prefix),
+			r.paint(color, strings.Repeat("~", length)),
+		)
 	}
 	out.WriteByte('\n')
 }

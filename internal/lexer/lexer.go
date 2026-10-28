@@ -239,7 +239,11 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 
 		next := lex.peekChar()
 		if next == eof {
-			lex.report(lex.offset-1, "Invalid character", "The character ! is not a valid operator; use != for inequality.")
+			lex.report(
+				lex.offset-1,
+				"Invalid character",
+				"The character ! is not a valid operator; use != for inequality.",
+			)
 			return tok
 		}
 		if next == '=' {
@@ -248,7 +252,11 @@ func (lex *Lexer) getToken(tok *token.Token, ch byte) *token.Token {
 			return tok
 		}
 
-		lex.report(lex.offset-1, "Invalid character", "The character ! is not a valid operator; use != for inequality.")
+		lex.report(
+			lex.offset-1,
+			"Invalid character",
+			"The character ! is not a valid operator; use != for inequality.",
+		)
 		return tok
 	case '>':
 		tok.Pos = lex.pos
@@ -371,7 +379,11 @@ func (lex *Lexer) getStringLit(tok *token.Token, isRaw bool) *token.Token {
 				escape = 0
 			default:
 				lex.nextChar()
-				lex.report(lex.offset-2, "Invalid escape sequence", fmt.Sprintf("Unknown escape \\%c.", escapeSym))
+				lex.report(
+					lex.offset-2,
+					"Invalid escape sequence",
+					fmt.Sprintf("Unknown escape \\%c.", escapeSym),
+				)
 				invalid = true
 				continue
 			}
@@ -492,7 +504,13 @@ func (lex *Lexer) report(start int, title, message string) {
 	if lex.speculative != 0 {
 		return
 	}
-	lex.Collector.ReportAndSave(diagnostics.Diag{Title: title, Message: message, Span: source.Span{File: lex.file, Start: start, End: lex.offset}})
+	lex.Collector.ReportAndSave(
+		diagnostics.Diag{
+			Title:   title,
+			Message: message,
+			Span:    source.Span{File: lex.file, Start: start, End: lex.offset},
+		},
+	)
 }
 
 func (lex *Lexer) peekChar() byte {

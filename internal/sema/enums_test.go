@@ -3,19 +3,29 @@ package sema_test
 import "testing"
 
 func TestEnumRejectsRepeatedTagsWithBothLocations(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nenum Event u8 {\nQuit = 7\nResize = 7\n}\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nenum Event u8 {\nQuit = 7\nResize = 7\n}\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one repeated-tag diagnostic, got %v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Duplicate enum tag" || !d.Span.Valid() || d.Help == "" || len(d.Related) != 1 || !d.Related[0].Span.Valid() {
+	if d.Title != "Duplicate enum tag" || !d.Span.Valid() || d.Help == "" || len(d.Related) != 1 ||
+		!d.Related[0].Span.Valid() {
 		t.Fatalf("want structured duplicate-tag diagnostic, got %+v", d)
 	}
 }
 
 func TestEnumRejectsTypeArgumentsOnNonGenericDeclaration(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nenum Event {\nQuit\n}\nfn main() {\nvalue Event<i32> := Event::Quit\n}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Invalid enum type arguments" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" || len(c.Diags[0].Related) != 1 {
+	c := checkDiagnostics(
+		t,
+		"package main\nenum Event {\nQuit\n}\nfn main() {\nvalue Event<i32> := Event::Quit\n}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Invalid enum type arguments" ||
+		!c.Diags[0].Span.Valid() ||
+		c.Diags[0].Help == "" ||
+		len(c.Diags[0].Related) != 1 {
 		t.Fatalf("want structured enum arity diagnostic, got %v", c.Diags)
 	}
 }
@@ -26,13 +36,17 @@ func TestEnumRejectsCyclicRepresentation(t *testing.T) {
 		t.Fatalf("want one cycle diagnostic, got %v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Cyclic enum declaration" || !d.Span.Valid() || d.Help == "" || len(d.Related) != 1 {
+	if d.Title != "Cyclic enum declaration" || !d.Span.Valid() || d.Help == "" ||
+		len(d.Related) != 1 {
 		t.Fatalf("want structured cycle diagnostic, got %+v", d)
 	}
 }
 
 func TestEnumTypesRemainDistinctFromTheirRepresentation(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nenum Event u8 {\nQuit\n}\nfn main() {\nvalue u8 := Event::Quit\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nenum Event u8 {\nQuit\n}\nfn main() {\nvalue u8 := Event::Quit\n}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one enum type mismatch, got %v", c.Diags)
 	}
@@ -52,7 +66,8 @@ func TestEnumTagValidationRegressions(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := checkDiagnostics(t, "package main\n"+tc.declaration+"\nfn main() {}\n")
-			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() ||
+				c.Diags[0].Help == "" {
 				t.Fatalf("want structured %s diagnostic, got %v", tc.title, c.Diags)
 			}
 		})
@@ -60,8 +75,14 @@ func TestEnumTagValidationRegressions(t *testing.T) {
 }
 
 func TestPayloadEnumsRequireMatchingInsteadOfTagOnlyEquality(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nenum Event {\nResize {\nwidth i32\n}\n}\nfn main() {\nsame := Event::Resize.{width: 1} == Event::Resize.{width: 2}\n}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Payload enum comparison" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" || len(c.Diags[0].Related) != 1 {
+	c := checkDiagnostics(
+		t,
+		"package main\nenum Event {\nResize {\nwidth i32\n}\n}\nfn main() {\nsame := Event::Resize.{width: 1} == Event::Resize.{width: 2}\n}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Payload enum comparison" ||
+		!c.Diags[0].Span.Valid() ||
+		c.Diags[0].Help == "" ||
+		len(c.Diags[0].Related) != 1 {
 		t.Fatalf("want structured payload-comparison diagnostic, got %v", c.Diags)
 	}
 }
@@ -74,8 +95,13 @@ func TestInvalidPayloadConstructionHasActionableDiagnostics(t *testing.T) {
 		{"Event::Resize.{width: 1, width: 2, height: 3}", "Duplicate payload initializer"},
 	} {
 		t.Run(tc.title+tc.expr, func(t *testing.T) {
-			c := checkDiagnostics(t, "package main\nenum Event {\nResize {\nwidth i32\nheight i32\n}\n}\nfn main() {\nvalue := "+tc.expr+"\n}\n")
-			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" || len(c.Diags[0].Related) != 1 {
+			c := checkDiagnostics(
+				t,
+				"package main\nenum Event {\nResize {\nwidth i32\nheight i32\n}\n}\nfn main() {\nvalue := "+tc.expr+"\n}\n",
+			)
+			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() ||
+				c.Diags[0].Help == "" ||
+				len(c.Diags[0].Related) != 1 {
 				t.Fatalf("want structured %s diagnostic, got %v", tc.title, c.Diags)
 			}
 		})

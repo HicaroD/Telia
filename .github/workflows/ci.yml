@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.check }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [build, test, fmt-check, lint]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Configure checkout paths
+        run: printf 'T_STD_PATH=%s/base/std\n' "$GITHUB_WORKSPACE" > config/env
+      - name: Verify C toolchain
+        if: matrix.check == 'test'
+        run: |
+          cc --version
+          printf 'int main(void) { return 0; }\n' | cc -x c - -o "$RUNNER_TEMP/cc-smoke"
+          "$RUNNER_TEMP/cc-smoke"
+      - name: Install formatting tool
+        if: matrix.check == 'fmt-check'
+        run: make install-format-tools
+      - name: Install lint tool
+        if: matrix.check == 'lint'
+        run: make install-lint-tools
+      - name: Run ${{ matrix.check }}
+        run: make ${{ matrix.check }}

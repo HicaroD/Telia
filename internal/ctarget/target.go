@@ -76,10 +76,16 @@ func Scalars() (map[string]Scalar, error) {
 		if err != nil || bytes != 1 && bytes != 2 && bytes != 4 && bytes != 8 && bytes != 16 {
 			return nil, fmt.Errorf("unsupported C target scalar %s size %q", spec.name, size)
 		}
-		if spec.floating && (spec.key == "float" && bytes != 4 || spec.key == "double" && bytes != 8) {
+		if spec.floating &&
+			(spec.key == "float" && bytes != 4 || spec.key == "double" && bytes != 8) {
 			return nil, fmt.Errorf("unsupported C floating-point representation: %s", spec.name)
 		}
-		result["__c_"+spec.key] = Scalar{Name: spec.name, Bytes: bytes, Unsigned: spec.unsigned, Float: spec.floating}
+		result["__c_"+spec.key] = Scalar{
+			Name:     spec.name,
+			Bytes:    bytes,
+			Unsigned: spec.unsigned,
+			Float:    spec.floating,
+		}
 	}
 	cache.Store(compiler, result)
 	return result, nil

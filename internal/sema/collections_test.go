@@ -30,7 +30,9 @@ func TestCollectionDiagnostics(t *testing.T) {
 }
 
 func TestSliceParameterRejectsScalarVariables(t *testing.T) {
-	diags := parseAndCheck("package main\nfn take(values i32[]) {}\nfn main() {\nwrong := 1\ntake(wrong)\n}\n")
+	diags := parseAndCheck(
+		"package main\nfn take(values i32[]) {}\nfn main() {\nwrong := 1\ntake(wrong)\n}\n",
+	)
 	if !containsDiag(diags.Diags, "type mismatch") {
 		t.Fatalf("expected slice/scalar mismatch, got %v", diags.Diags)
 	}
@@ -59,7 +61,9 @@ fn main() {
 }
 
 func TestArrayBorrowRequiresAddressableStorage(t *testing.T) {
-	diags := parseAndCheck("package main\nfn make_values() i32[1] {\nreturn .{42}\n}\nfn main() {\nx := make_values()[:]\n}\n")
+	diags := parseAndCheck(
+		"package main\nfn make_values() i32[1] {\nreturn .{42}\n}\nfn main() {\nx := make_values()[:]\n}\n",
+	)
 	if !containsDiag(diags.Diags, "borrowing requires addressable array storage") {
 		t.Fatalf("expected a Telia diagnostic, got %v", diags.Diags)
 	}

@@ -29,7 +29,16 @@ func TestCLIReportsMultipleErrorsToStderrAndFails(t *testing.T) {
 	if err := os.WriteFile(path, []byte("package main\nfn main() {\n  age i32 := \"twenty\"\n  count i32 := \"many\"\n}\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestCompilerDiagnosticProcess$", "--", "build", path, "--color=never", "-o", executable)
+	cmd := exec.Command(
+		os.Args[0],
+		"-test.run=^TestCompilerDiagnosticProcess$",
+		"--",
+		"build",
+		path,
+		"--color=never",
+		"-o",
+		executable,
+	)
 	cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -44,7 +53,8 @@ func TestCLIReportsMultipleErrorsToStderrAndFails(t *testing.T) {
 			t.Fatalf("missing %q in stderr:\n%s", want, stderr.String())
 		}
 	}
-	if strings.Contains(stderr.String(), "\x1b") || strings.Contains(stderr.String(), "compiler error found") {
+	if strings.Contains(stderr.String(), "\x1b") ||
+		strings.Contains(stderr.String(), "compiler error found") {
 		t.Fatalf("unexpected terminal output: %q", stderr.String())
 	}
 	if _, err := os.Stat(executable); !os.IsNotExist(err) {
@@ -64,7 +74,14 @@ func TestCLIColorFlagsAndEnvironment(t *testing.T) {
 		{"auto", false, false}, {"auto", true, false}, {"always", false, true}, {"always", true, true}, {"never", false, false},
 	} {
 		t.Run(tc.mode+"/"+fmt.Sprint(tc.noColor), func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=^TestCompilerDiagnosticProcess$", "--", "build", path, "--color="+tc.mode)
+			cmd := exec.Command(
+				os.Args[0],
+				"-test.run=^TestCompilerDiagnosticProcess$",
+				"--",
+				"build",
+				path,
+				"--color="+tc.mode,
+			)
 			for _, env := range os.Environ() {
 				if !strings.HasPrefix(env, "NO_COLOR=") {
 					cmd.Env = append(cmd.Env, env)

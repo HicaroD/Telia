@@ -17,7 +17,11 @@ func (p *Parser) parseTypeParams() ([]*token.Token, error) {
 	for {
 		name, ok := p.expect(token.ID)
 		if !ok {
-			return nil, fmt.Errorf("%s: expected type parameter name, not %s", name.Pos, name.Name())
+			return nil, fmt.Errorf(
+				"%s: expected type parameter name, not %s",
+				name.Pos,
+				name.Name(),
+			)
 		}
 		if seen[name.Name()] {
 			return nil, fmt.Errorf("%s: duplicate type parameter '%s'", name.Pos, name.Name())
@@ -42,7 +46,10 @@ func (p *Parser) parseTypeArgs() ([]*ast.ExprType, error) {
 	var args []*ast.ExprType
 	for {
 		if tok := p.lex.Peek(); tok.Literal {
-			return nil, fmt.Errorf("%s: invalid generic type argument: expected a type, got a literal", tok.Pos)
+			return nil, fmt.Errorf(
+				"%s: invalid generic type argument: expected a type, got a literal",
+				tok.Pos,
+			)
 		}
 		ty, err := p.ParseExprType()
 		if err != nil {
@@ -75,7 +82,8 @@ func (p *Parser) genericSuffix() token.Kind {
 			depth--
 			if depth == 0 {
 				next := p.lex.PeekN(i + 1).Kind
-				if next == token.COLON_COLON || next == token.OPEN_PAREN || next == token.DOT && p.lex.PeekN(i+2).Kind == token.OPEN_CURLY {
+				if next == token.COLON_COLON || next == token.OPEN_PAREN ||
+					next == token.DOT && p.lex.PeekN(i+2).Kind == token.OPEN_CURLY {
 					return next
 				}
 				return token.INVALID

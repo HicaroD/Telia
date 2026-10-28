@@ -1,5 +1,9 @@
 OUT=telia
 SRC=./cmd/compiler
+GOLINES_VERSION=v0.12.2
+GOLANGCI_LINT_VERSION=v1.64.8
+# Pin the tool build compiler too; lint must understand the project's Go version.
+TOOLS_GO_VERSION=go1.23.12
 
 .PHONY: all
 all: build
@@ -25,8 +29,20 @@ fmt-code:
 
 .PHONY: fmt-lines
 fmt-lines:
-	golines -w .
+	golines --base-formatter=gofmt -w .
+
+.PHONY: fmt-check
+fmt-check:
+	python3 scripts/check-format.py
+
+.PHONY: install-format-tools
+install-format-tools:
+	GOTOOLCHAIN=$(TOOLS_GO_VERSION) go install github.com/segmentio/golines@$(GOLINES_VERSION)
+
+.PHONY: install-lint-tools
+install-lint-tools:
+	GOTOOLCHAIN=$(TOOLS_GO_VERSION) go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	golangci-lint run --config .golangci.yml

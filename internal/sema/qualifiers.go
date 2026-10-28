@@ -8,7 +8,12 @@ import (
 )
 
 func constMutation(span source.Span) error {
-	return diagnostics.Diag{Title: "Const pointee mutation", Message: "cannot modify storage protected by a const pointer", Span: span, Help: "Use a mutable pointer only when the API permits writing to this storage."}
+	return diagnostics.Diag{
+		Title:   "Const pointee mutation",
+		Message: "cannot modify storage protected by a const pointer",
+		Span:    span,
+		Help:    "Use a mutable pointer only when the API permits writing to this storage.",
+	}
 }
 
 func (s *sema) readOnlyStorage(node *ast.Node, scope *ast.Scope) bool {

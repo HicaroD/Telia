@@ -39,13 +39,24 @@ func runRecordFixture(t *testing.T, source string) {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("header-owned record: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(exe))
+	defer removeTestBinary(t, exe)
 	if output, err := compiler.RunBinary(exe); err != nil {
 		t.Fatalf("record C fixture: %v: %s", err, output)
 	}
 }
 
-func compileRecordFixture(t *testing.T, source string, cflags ...string) (string, *diagnostics.Collector) {
+func removeTestBinary(t *testing.T, path string) {
+	t.Helper()
+	if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+		t.Errorf("remove test binary: %v", err)
+	}
+}
+
+func compileRecordFixture(
+	t *testing.T,
+	source string,
+	cflags ...string,
+) (string, *diagnostics.Collector) {
 	t.Helper()
 	header, err := filepath.Abs("testdata/records.h")
 	if err != nil {
@@ -62,7 +73,13 @@ func compileRecordFixture(t *testing.T, source string, cflags ...string) (string
 	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	flags := append([]string{fixture, "-Werror=incompatible-pointer-types", "-Werror=implicit-function-declaration"}, cflags...)
+	flags := append(
+		[]string{
+			fixture,
+			"-Werror=incompatible-pointer-types",
+			"-Werror=implicit-function-declaration",
+		},
+		cflags...)
 	return compiler.CompileOnlyWithCFlags(path, flags...)
 }
 

@@ -55,11 +55,27 @@ func (s *sema) resolveSignature(fn *ast.FnDecl) error {
 	})
 }
 
-func (s *sema) instantiateFunction(template *ast.FnDecl, args []*ast.ExprType, scope *ast.Scope, site *token.Token) (*ast.FnDecl, error) {
+func (s *sema) instantiateFunction(
+	template *ast.FnDecl,
+	args []*ast.ExprType,
+	scope *ast.Scope,
+	site *token.Token,
+) (*ast.FnDecl, error) {
 	if len(args) != len(template.TypeParams) {
-		return nil, fmt.Errorf("%s: '%s' requires %d explicit type arguments, got %d", site.Pos, template.Name.Name(), len(template.TypeParams), len(args))
+		return nil, fmt.Errorf(
+			"%s: '%s' requires %d explicit type arguments, got %d",
+			site.Pos,
+			template.Name.Name(),
+			len(template.TypeParams),
+			len(args),
+		)
 	}
-	bindings, suffix, err := s.concreteArguments(template.TypeParams, args, scope, map[*ast.TypeAlias]bool{})
+	bindings, suffix, err := s.concreteArguments(
+		template.TypeParams,
+		args,
+		scope,
+		map[*ast.TypeAlias]bool{},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +94,12 @@ func (s *sema) instantiateFunction(template *ast.FnDecl, args []*ast.ExprType, s
 		return s.checkFnDecl(instance, template.Owner.Scope, false, false)
 	})
 	if err != nil {
-		err = fmt.Errorf("%s: in generic function '%s': %w", template.Name.Pos, template.Name.Name(), err)
+		err = fmt.Errorf(
+			"%s: in generic function '%s': %w",
+			template.Name.Pos,
+			template.Name.Name(),
+			err,
+		)
 	}
 	return instance, s.endInstance(err)
 }
@@ -140,7 +161,13 @@ func typeKey(ty *ast.ExprType) string {
 		for _, p := range f.Params.Fields {
 			parts = append(parts, typeKey(p.Type))
 		}
-		return fmt.Sprintf("fn(%s)%s:%t:%s", strings.Join(parts, ","), typeKey(f.Result), f.Params.IsVariadic, f.Attributes.CallingConventionMacro)
+		return fmt.Sprintf(
+			"fn(%s)%s:%t:%s",
+			strings.Join(parts, ","),
+			typeKey(f.Result),
+			f.Params.IsVariadic,
+			f.Attributes.CallingConventionMacro,
+		)
 	case ast.EXPR_TYPE_OPAQUE:
 		d := ty.T.(*ast.OpaqueType).Decl
 		path := d.Name.Pos.Filename
@@ -179,7 +206,12 @@ func typeKey(ty *ast.ExprType) string {
 	}
 }
 
-func (s *sema) inContext(pkg *ast.Package, file *ast.File, bindings map[string]*ast.ExprType, work func() error) error {
+func (s *sema) inContext(
+	pkg *ast.Package,
+	file *ast.File,
+	bindings map[string]*ast.ExprType,
+	work func() error,
+) error {
 	oldPkg, oldFile, oldBindings := s.pkg, s.file, s.generics.bindings
 	s.pkg, s.file, s.generics.bindings = pkg, file, bindings
 	defer func() { s.pkg, s.file, s.generics.bindings = oldPkg, oldFile, oldBindings }()
@@ -190,7 +222,11 @@ func (s *sema) resolveType(ty *ast.ExprType, scope *ast.Scope) (*ast.ExprType, e
 	return s.resolveTypeAliases(ty, scope, map[*ast.TypeAlias]bool{})
 }
 
-func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases map[*ast.TypeAlias]bool) (*ast.ExprType, error) {
+func (s *sema) resolveTypeAliases(
+	ty *ast.ExprType,
+	scope *ast.Scope,
+	aliases map[*ast.TypeAlias]bool,
+) (*ast.ExprType, error) {
 	if ty == nil {
 		return nil, nil
 	}
@@ -241,7 +277,10 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		if !valueType(element) {
 			return nil, fmt.Errorf("collection element requires a value type")
 		}
-		resolved := &ast.ExprType{Kind: ty.Kind, T: &ast.SequenceType{Element: element, Length: t.Length, Foreign: t.Foreign}}
+		resolved := &ast.ExprType{
+			Kind: ty.Kind,
+			T:    &ast.SequenceType{Element: element, Length: t.Length, Foreign: t.Foreign},
+		}
 		s.program.SequenceTypes = append(s.program.SequenceTypes, resolved)
 		return resolved, nil
 	case ast.EXPR_TYPE_ID:
@@ -250,7 +289,11 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		if id.Namespace == nil {
 			if bound := s.generics.bindings[id.Name.Name()]; bound != nil {
 				if len(id.Args) != 0 {
-					return nil, fmt.Errorf("%s: type parameter '%s' cannot take type arguments", id.Name.Pos, id.Name.Name())
+					return nil, fmt.Errorf(
+						"%s: type parameter '%s' cannot take type arguments",
+						id.Name.Pos,
+						id.Name.Name(),
+					)
 				}
 				return bound, nil
 			}
@@ -269,15 +312,28 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		sym, err := scope.LookupAcrossScopes(id.Name.Name())
 		if err != nil {
 			if id.Namespace == nil && id.Name.Name() == "__c_va_list_owner" {
-				return &ast.ExprType{Kind: ast.EXPR_TYPE_VA_LIST_OWNER, Explicit: true, T: &ast.VaListOwnerType{}}, nil
+				return &ast.ExprType{
+					Kind:     ast.EXPR_TYPE_VA_LIST_OWNER,
+					Explicit: true,
+					T:        &ast.VaListOwnerType{},
+				}, nil
 			}
 			if id.Namespace == nil && id.Name.Name() == "__c_va_list" {
-				return &ast.ExprType{Kind: ast.EXPR_TYPE_C_VA_LIST, Explicit: true, T: &ast.CVaListType{}}, nil
+				return &ast.ExprType{
+					Kind:     ast.EXPR_TYPE_C_VA_LIST,
+					Explicit: true,
+					T:        &ast.CVaListType{},
+				}, nil
 			}
 			if id.Namespace == nil && strings.HasPrefix(id.Name.Name(), "__c_") {
 				return s.cScalar(id)
 			}
-			return nil, diagnostics.Diag{Title: "Unknown type", Message: fmt.Sprintf("'%s' type not found on scope", id.Name.Name()), Span: id.Name.Span, Help: "Declare the type or use the correct imported package qualifier."}
+			return nil, diagnostics.Diag{
+				Title:   "Unknown type",
+				Message: fmt.Sprintf("'%s' type not found on scope", id.Name.Name()),
+				Span:    id.Name.Span,
+				Help:    "Declare the type or use the correct imported package qualifier.",
+			}
 		}
 		if sym.Invalid {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
@@ -337,7 +393,11 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		if err := rejectVaListEscape(inner, source.Span{}); err != nil {
 			return nil, err
 		}
-		return &ast.ExprType{Kind: ast.EXPR_TYPE_POINTER, Explicit: ty.Explicit, T: &ast.PointerType{Type: inner, Const: ty.T.(*ast.PointerType).Const}}, nil
+		return &ast.ExprType{
+			Kind:     ast.EXPR_TYPE_POINTER,
+			Explicit: ty.Explicit,
+			T:        &ast.PointerType{Type: inner, Const: ty.T.(*ast.PointerType).Const},
+		}, nil
 	case ast.EXPR_TYPE_TUPLE:
 		result := &ast.TupleType{}
 		for _, t := range ty.T.(*ast.TupleType).Types {
@@ -355,7 +415,12 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 	}
 }
 
-func (s *sema) concreteArguments(params []*token.Token, args []*ast.ExprType, scope *ast.Scope, aliases map[*ast.TypeAlias]bool) (map[string]*ast.ExprType, string, error) {
+func (s *sema) concreteArguments(
+	params []*token.Token,
+	args []*ast.ExprType,
+	scope *ast.Scope,
+	aliases map[*ast.TypeAlias]bool,
+) (map[string]*ast.ExprType, string, error) {
 	bindings := map[string]*ast.ExprType{}
 	var keys []string
 	for i, arg := range args {
@@ -364,7 +429,10 @@ func (s *sema) concreteArguments(params []*token.Token, args []*ast.ExprType, sc
 			return nil, "", err
 		}
 		if !valueType(ty) {
-			return nil, "", fmt.Errorf("invalid generic type argument %s: requires a concrete value type", ty.T)
+			return nil, "", fmt.Errorf(
+				"invalid generic type argument %s: requires a concrete value type",
+				ty.T,
+			)
 		}
 		bindings[params[i].Name()] = ty
 		keys = append(keys, typeKey(ty))
@@ -419,7 +487,13 @@ func (s *sema) endInstance(err error) error {
 	return err
 }
 
-func (s *sema) instantiateStruct(template *ast.StructDecl, args []*ast.ExprType, scope *ast.Scope, site *token.Token, aliases map[*ast.TypeAlias]bool) (*ast.StructDecl, error) {
+func (s *sema) instantiateStruct(
+	template *ast.StructDecl,
+	args []*ast.ExprType,
+	scope *ast.Scope,
+	site *token.Token,
+	aliases map[*ast.TypeAlias]bool,
+) (*ast.StructDecl, error) {
 	bindings, suffix, err := s.concreteArguments(template.TypeParams, args, scope, aliases)
 	if err != nil {
 		return nil, err
@@ -431,7 +505,12 @@ func (s *sema) instantiateStruct(template *ast.StructDecl, args []*ast.ExprType,
 	if err := s.beginInstance(template.Name.Name()+suffix, site); err != nil {
 		return nil, err
 	}
-	instance := &ast.StructDecl{Name: template.Name, Owner: template.Owner, File: template.File, CName: concreteName("struct", key)}
+	instance := &ast.StructDecl{
+		Name:  template.Name,
+		Owner: template.Owner,
+		File:  template.File,
+		CName: concreteName("struct", key),
+	}
 	for _, field := range template.Fields {
 		copy := *field
 		instance.Fields = append(instance.Fields, &copy)
@@ -440,7 +519,12 @@ func (s *sema) instantiateStruct(template *ast.StructDecl, args []*ast.ExprType,
 	s.generics.origins[instance] = append([]string(nil), s.generics.chain...)
 	err = s.resolveStruct(instance, bindings)
 	if err != nil {
-		err = fmt.Errorf("%s: in generic struct '%s': %w", template.Name.Pos, template.Name.Name(), err)
+		err = fmt.Errorf(
+			"%s: in generic struct '%s': %w",
+			template.Name.Pos,
+			template.Name.Name(),
+			err,
+		)
 	}
 	return instance, s.endInstance(err)
 }
@@ -466,8 +550,14 @@ func (s *sema) resolveStruct(d *ast.StructDecl, bindings map[string]*ast.ExprTyp
 			}
 			if d.Foreign != nil && ty.Kind == ast.EXPR_TYPE_ARRAY {
 				seq := ty.T.(*ast.SequenceType)
-				if seq.Element.Kind == ast.EXPR_TYPE_ARRAY || seq.Element.Kind == ast.EXPR_TYPE_SLICE {
-					return diagnostics.Diag{Title: "Unsupported foreign declarator", Message: "multidimensional C array fields do not yet have a supported source representation", Span: field.Name.Span, Help: "Use a header-compiled C accessor or adapter for this field."}
+				if seq.Element.Kind == ast.EXPR_TYPE_ARRAY ||
+					seq.Element.Kind == ast.EXPR_TYPE_SLICE {
+					return diagnostics.Diag{
+						Title:   "Unsupported foreign declarator",
+						Message: "multidimensional C array fields do not yet have a supported source representation",
+						Span:    field.Name.Span,
+						Help:    "Use a header-compiled C accessor or adapter for this field.",
+					}
 				}
 				seq.Foreign = true
 			}
@@ -484,7 +574,13 @@ func (s *sema) literalType(lit *ast.StructLiteralExpr, scope *ast.Scope) (*ast.E
 	if lit.Decl != nil {
 		return &ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: lit.Decl}}, nil
 	}
-	ty, err := s.resolveType(&ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: lit.Name, Namespace: lit.Namespace, Args: lit.TypeArgs}}, scope)
+	ty, err := s.resolveType(
+		&ast.ExprType{
+			Kind: ast.EXPR_TYPE_ID,
+			T:    &ast.IdType{Name: lit.Name, Namespace: lit.Namespace, Args: lit.TypeArgs},
+		},
+		scope,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +600,10 @@ func (s *sema) orderValueTypes() error {
 	state := map[string]int{}
 	var visit func(*ast.ExprType) error
 	visit = func(ty *ast.ExprType) error {
-		if ty.Kind != ast.EXPR_TYPE_ENUM && ty.Kind != ast.EXPR_TYPE_STRUCT && ty.Kind != ast.EXPR_TYPE_TUPLE && ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
+		if ty.Kind != ast.EXPR_TYPE_ENUM && ty.Kind != ast.EXPR_TYPE_STRUCT &&
+			ty.Kind != ast.EXPR_TYPE_TUPLE &&
+			ty.Kind != ast.EXPR_TYPE_ARRAY &&
+			ty.Kind != ast.EXPR_TYPE_SLICE {
 			return nil
 		}
 		key := typeKey(ty)

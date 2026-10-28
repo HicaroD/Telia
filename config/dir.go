@@ -132,7 +132,7 @@ func loadTeliaEnvFile(path string) (map[string]string, error) {
 			return nil, err
 		}
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }() // Read-only handle; no buffered writes to flush.
 
 	// NOTE: if development mode and env file already exists, recreate
 	// it because developers might have changed the environment variables
@@ -186,14 +186,13 @@ func writeStringToFile(fileName, content string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-
 	_, err = file.WriteString(content)
+	closeErr := file.Close()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return closeErr
 }
 
 func MapEnvToStruct(data map[string]string, result any) error {

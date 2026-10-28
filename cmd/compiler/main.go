@@ -74,7 +74,13 @@ func run() int {
 	case COMMAND_BUILD:
 		collector := diagnostics.New()
 		_, noColor := os.LookupEnv("NO_COLOR")
-		renderer := diagnostics.Renderer{Color: diagnostics.ColorEnabled(args.Color, term.IsTerminal(int(os.Stderr.Fd())), noColor)}
+		renderer := diagnostics.Renderer{
+			Color: diagnostics.ColorEnabled(
+				args.Color,
+				term.IsTerminal(int(os.Stderr.Fd())),
+				noColor,
+			),
+		}
 		finish := func(err error) int {
 			if !collector.HasErrors() {
 				collector.ReportError(err, source.Span{})

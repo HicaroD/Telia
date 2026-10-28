@@ -665,7 +665,7 @@ func TestFnCall(t *testing.T) {
 				if string(fnCall.Name.Lexeme) != "foo" {
 					t.Errorf("expected name 'foo', got %s", fnCall.Name.Lexeme)
 				}
-				if fnCall.Args != nil && len(fnCall.Args) != 0 {
+				if len(fnCall.Args) != 0 {
 					t.Errorf("expected no args")
 				}
 			},

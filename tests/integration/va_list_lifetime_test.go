@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,19 +8,35 @@ import (
 )
 
 func TestVaListOwnersRequireCleanupOnEveryExecutedScopeExit(t *testing.T) {
-	runVaLifetimeFailure(t, "owner := libc::va_copy(args)\nreturn 1", "va_list owner left scope without va_end")
+	runVaLifetimeFailure(
+		t,
+		"owner := libc::va_copy(args)\nreturn 1",
+		"va_list owner left scope without va_end",
+	)
 }
 
 func TestVaEndRejectsEndingTheSameOwnerTwice(t *testing.T) {
-	runVaLifetimeFailure(t, "owner := libc::va_copy(args)\nlibc::va_end(&owner)\nlibc::va_end(&owner)\nreturn 0", "va_list has already ended")
+	runVaLifetimeFailure(
+		t,
+		"owner := libc::va_copy(args)\nlibc::va_end(&owner)\nlibc::va_end(&owner)\nreturn 0",
+		"va_list has already ended",
+	)
 }
 
 func TestVaArgRejectsReadingAnEndedOwner(t *testing.T) {
-	runVaLifetimeFailure(t, "owner := libc::va_copy(args)\nlibc::va_end(&owner)\nvalue := libc::va_arg<libc::c_int>(&owner)\nreturn 0", "va_list is ended or consumed")
+	runVaLifetimeFailure(
+		t,
+		"owner := libc::va_copy(args)\nlibc::va_end(&owner)\nvalue := libc::va_arg<libc::c_int>(&owner)\nreturn 0",
+		"va_list is ended or consumed",
+	)
 }
 
 func TestVaArgRejectsReusingAnOwnerConsumedByForeignCode(t *testing.T) {
-	runVaLifetimeFailure(t, "owner := libc::va_copy(args)\ndefer libc::va_end(&owner)\ncheck(libc::va_borrow(&owner))\nvalue := libc::va_arg<libc::c_int>(&owner)\nreturn 0", "va_list is ended or consumed")
+	runVaLifetimeFailure(
+		t,
+		"owner := libc::va_copy(args)\ndefer libc::va_end(&owner)\ncheck(libc::va_borrow(&owner))\nvalue := libc::va_arg<libc::c_int>(&owner)\nreturn 0",
+		"va_list is ended or consumed",
+	)
 }
 
 func runVaLifetimeFailure(t *testing.T, body, want string) {
@@ -48,7 +62,7 @@ return drive(inspect)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile lifetime fixture: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(exe))
+	defer removeTestBinary(t, exe)
 	output, err := compiler.RunBinary(exe)
 	if err == nil || !strings.Contains(output, want) {
 		t.Fatalf("want panic %q, got %v: %s", want, err, output)
@@ -66,9 +80,11 @@ borrowed := libc::va_borrow(&owner)
 fn main() {}
 `)
 	if exe != "" {
-		defer os.RemoveAll(filepath.Dir(exe))
+		defer removeTestBinary(t, exe)
 	}
-	if len(diags.Diags) != 1 || diags.Diags[0].Title != "Borrowed va_list copy" || !diags.Diags[0].Span.Valid() || diags.Diags[0].Help == "" {
+	if len(diags.Diags) != 1 || diags.Diags[0].Title != "Borrowed va_list copy" ||
+		!diags.Diags[0].Span.Valid() ||
+		diags.Diags[0].Help == "" {
 		t.Fatalf("want call-scoped borrow diagnostic, got %v", diags.Diags)
 	}
 }

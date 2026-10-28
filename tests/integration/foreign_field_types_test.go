@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -20,9 +18,12 @@ record := Record.{value: 42.0}
 }
 `)
 	if exe != "" {
-		defer os.RemoveAll(filepath.Dir(exe))
+		defer removeTestBinary(t, exe)
 	}
-	if len(diags.Diags) != 1 || diags.Diags[0].Title != "Foreign field type mismatch" || !diags.Diags[0].Span.Valid() || diags.Diags[0].Help == "" || len(diags.Diags[0].Related) != 1 {
+	if len(diags.Diags) != 1 || diags.Diags[0].Title != "Foreign field type mismatch" ||
+		!diags.Diags[0].Span.Valid() ||
+		diags.Diags[0].Help == "" ||
+		len(diags.Diags[0].Related) != 1 {
 		t.Fatalf("want header field type diagnostic, got %v", diags.Diags)
 	}
 	span := diags.Diags[0].Span

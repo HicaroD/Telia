@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -11,7 +9,9 @@ import (
 
 func TestVaListOwnerNativeABIUnderUBSan(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("Windows sanitizer runtime is not configured; ordinary native lifecycle fixtures still run")
+		t.Skip(
+			"Windows sanitizer runtime is not configured; ordinary native lifecycle fixtures still run",
+		)
 	}
 	exe, diags := compileRecordFixture(t, `package main
 use "std::libc"
@@ -44,7 +44,7 @@ return 0
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile sanitized va_list fixture: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(exe))
+	defer removeTestBinary(t, exe)
 	if output, err := compiler.RunBinary(exe); err != nil {
 		t.Fatalf("sanitized va_list ABI: %v: %s", err, output)
 	}

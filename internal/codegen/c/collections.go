@@ -11,7 +11,13 @@ func (c *CCodegen) emitIndex(index *ast.IndexExpr) string {
 	i := c.emitExpr(index.Index)
 	tmp := c.nextTmp()
 	fmt.Fprintf(c.buf, "uint64_t %s = %s;\n", tmp, i)
-	fmt.Fprintf(c.buf, "if (%s >= %s) _panic(%s);\n", tmp, length, emitStringLiteral([]byte("index out of bounds")))
+	fmt.Fprintf(
+		c.buf,
+		"if (%s >= %s) _panic(%s);\n",
+		tmp,
+		length,
+		emitStringLiteral([]byte("index out of bounds")),
+	)
 	return fmt.Sprintf("(%s)[%s]", data, tmp)
 }
 
@@ -33,8 +39,29 @@ func (c *CCodegen) emitSliceCall(call *ast.FnCall) string {
 	c.buf.WriteString(fmt.Sprintf("uint64_t %s = %s;\n", hi, end))
 	result := c.nextTmp()
 	c.buf.WriteString(fmt.Sprintf("%s %s = {0};\n", emitCType(call.ResultType), result))
-	c.buf.WriteString(fmt.Sprintf("if (%s > %s || %s > %s) { %s._1 = _TELIA_ERROR(\"slice range out of bounds\"); } else {\n", lo, hi, hi, length, result))
-	c.buf.WriteString(fmt.Sprintf("%s._0.data = %s == %s ? NULL : (%s + %s);\n%s._0.len = %s - %s;\n}\n", result, lo, hi, data, lo, result, hi, lo))
+	c.buf.WriteString(
+		fmt.Sprintf(
+			"if (%s > %s || %s > %s) { %s._1 = _TELIA_ERROR(\"slice range out of bounds\"); } else {\n",
+			lo,
+			hi,
+			hi,
+			length,
+			result,
+		),
+	)
+	c.buf.WriteString(
+		fmt.Sprintf(
+			"%s._0.data = %s == %s ? NULL : (%s + %s);\n%s._0.len = %s - %s;\n}\n",
+			result,
+			lo,
+			hi,
+			data,
+			lo,
+			result,
+			hi,
+			lo,
+		),
+	)
 	return result
 }
 
@@ -43,8 +70,13 @@ func (c *CCodegen) emitRangeLoop(stmt *ast.ForLoop, indent string) {
 	index := c.nextTmp()
 	seq := stmt.RangeType.T.(*ast.SequenceType)
 	element := fmt.Sprintf("(%s)[%s]", data, index)
-	c.buf.WriteString(fmt.Sprintf("for (uint64_t %s = 0; %s < %s; ++%s) {\n", index, index, length, index))
-	variable := &CVariable{CType: emitCType(seq.Element), Name: c.nextTmp() + "_" + stmt.Binding.Name.Name()}
+	c.buf.WriteString(
+		fmt.Sprintf("for (uint64_t %s = 0; %s < %s; ++%s) {\n", index, index, length, index),
+	)
+	variable := &CVariable{
+		CType: emitCType(seq.Element),
+		Name:  c.nextTmp() + "_" + stmt.Binding.Name.Name(),
+	}
 	stmt.Binding.BackendType = variable
 	c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", variable.CType, variable.Name, element))
 	c.emitBlock(stmt.Block, indent+"    ")

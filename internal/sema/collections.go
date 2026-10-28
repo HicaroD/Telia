@@ -16,7 +16,11 @@ func isMemoryBuiltin(name string) bool {
 	return false
 }
 
-func (s *sema) inferIndex(index *ast.IndexExpr, scope, decl *ast.Scope, imported bool) (*ast.ExprType, error) {
+func (s *sema) inferIndex(
+	index *ast.IndexExpr,
+	scope, decl *ast.Scope,
+	imported bool,
+) (*ast.ExprType, error) {
 	ty, _, err := s.inferExprTypeWithoutContext(index.Value, scope, decl, imported, false)
 	if err != nil {
 		return nil, err
@@ -39,7 +43,14 @@ func (s *sema) checkCollectionIndex(index *ast.Node, scope, decl *ast.Scope, imp
 		if _, err := strconv.ParseUint(string(literal.Value), 10, 64); err != nil {
 			return fmt.Errorf("collection index is outside u64 range")
 		}
-		_, err := s.inferExprTypeWithContext(index, concreteBasicType(token.U64_TYPE), scope, decl, imported, false)
+		_, err := s.inferExprTypeWithContext(
+			index,
+			concreteBasicType(token.U64_TYPE),
+			scope,
+			decl,
+			imported,
+			false,
+		)
 		return err
 	}
 	ty, _, err := s.inferExprTypeWithoutContext(index, scope, decl, imported, false)
@@ -47,12 +58,18 @@ func (s *sema) checkCollectionIndex(index *ast.Node, scope, decl *ast.Scope, imp
 		return err
 	}
 	if !ty.Equals(ast.NewBasicType(token.U64_TYPE)) {
-		return fmt.Errorf("collection index requires u64; other integer types need explicit conversion")
+		return fmt.Errorf(
+			"collection index requires u64; other integer types need explicit conversion",
+		)
 	}
 	return nil
 }
 
-func (s *sema) checkMemoryBuiltin(call *ast.FnCall, scope, decl *ast.Scope, imported bool) (*ast.ExprType, error) {
+func (s *sema) checkMemoryBuiltin(
+	call *ast.FnCall,
+	scope, decl *ast.Scope,
+	imported bool,
+) (*ast.ExprType, error) {
 	name := call.Name.Name()
 	count := 0
 	if name == "slice_from_raw" {
@@ -102,10 +119,18 @@ func (s *sema) checkMemoryBuiltin(call *ast.FnCall, scope, decl *ast.Scope, impo
 }
 
 func concreteBasicType(kind token.Kind) *ast.ExprType {
-	return &ast.ExprType{Kind: ast.EXPR_TYPE_BASIC, Explicit: true, T: &ast.BasicType{Kind: kind, Explicit: true}}
+	return &ast.ExprType{
+		Kind:     ast.EXPR_TYPE_BASIC,
+		Explicit: true,
+		T:        &ast.BasicType{Kind: kind, Explicit: true},
+	}
 }
 
-func (s *sema) checkSliceCall(call *ast.FnCall, scope, decl *ast.Scope, imported bool) (*ast.ExprType, error) {
+func (s *sema) checkSliceCall(
+	call *ast.FnCall,
+	scope, decl *ast.Scope,
+	imported bool,
+) (*ast.ExprType, error) {
 	ty, _, err := s.inferExprTypeWithoutContext(call.Args[0], scope, decl, imported, false)
 	if err != nil {
 		return nil, err
@@ -127,11 +152,17 @@ func (s *sema) checkSliceCall(call *ast.FnCall, scope, decl *ast.Scope, imported
 		}
 	}
 	call.BuiltinType = ty
-	view := &ast.ExprType{Kind: ast.EXPR_TYPE_SLICE, T: &ast.SequenceType{Element: ty.T.(*ast.SequenceType).Element}}
+	view := &ast.ExprType{
+		Kind: ast.EXPR_TYPE_SLICE,
+		T:    &ast.SequenceType{Element: ty.T.(*ast.SequenceType).Element},
+	}
 	s.program.SequenceTypes = append(s.program.SequenceTypes, view)
 	call.ResultType = view
 	if call.Builtin == "slice" {
-		call.ResultType = &ast.ExprType{Kind: ast.EXPR_TYPE_TUPLE, T: &ast.TupleType{Types: []*ast.ExprType{view, ast.NewBasicType(token.ERROR_TYPE)}}}
+		call.ResultType = &ast.ExprType{
+			Kind: ast.EXPR_TYPE_TUPLE,
+			T:    &ast.TupleType{Types: []*ast.ExprType{view, ast.NewBasicType(token.ERROR_TYPE)}},
+		}
 		s.registerTupleType(call.ResultType)
 	}
 	return call.ResultType, nil

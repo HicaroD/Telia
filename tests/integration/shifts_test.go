@@ -77,11 +77,15 @@ return 0
 	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	exe, diags := compiler.CompileOnlyWithCFlags(path, "-fsanitize=undefined", "-fno-sanitize-recover=undefined")
+	exe, diags := compiler.CompileOnlyWithCFlags(
+		path,
+		"-fsanitize=undefined",
+		"-fno-sanitize-recover=undefined",
+	)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("runtime shift lowering: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(exe))
+	defer removeTestBinary(t, exe)
 	if output, err := compiler.RunBinary(exe); err != nil {
 		t.Fatalf("runtime shifts: %v: %s", err, output)
 	}
@@ -99,11 +103,15 @@ func TestInvalidDynamicShiftCountsPanic(t *testing.T) {
 			if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 				t.Fatal(err)
 			}
-			exe, diags := compiler.CompileOnlyWithCFlags(path, "-fsanitize=undefined", "-fno-sanitize-recover=undefined")
+			exe, diags := compiler.CompileOnlyWithCFlags(
+				path,
+				"-fsanitize=undefined",
+				"-fno-sanitize-recover=undefined",
+			)
 			if len(diags.Diags) != 0 {
 				t.Fatalf("dynamic shift: %v", diags.Diags)
 			}
-			defer os.RemoveAll(filepath.Dir(exe))
+			defer removeTestBinary(t, exe)
 			output, err := compiler.RunBinary(exe)
 			if err == nil || !strings.Contains(output, "shift count out of range") {
 				t.Fatalf("want shift panic, got %v: %s", err, output)

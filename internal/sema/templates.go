@@ -574,7 +574,11 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 			count = 1
 		}
 		if len(call.TypeArgs) != 1 || len(call.Args) != count {
-			return nil, fmt.Errorf("%s requires one type argument and %d value arguments", call.Name.Name(), count)
+			return nil, fmt.Errorf(
+				"%s requires one type argument and %d value arguments",
+				call.Name.Name(),
+				count,
+			)
 		}
 		if err := v.typeExpr(call.TypeArgs[0], map[*ast.TypeAlias]bool{}); err != nil {
 			return nil, err
@@ -604,7 +608,12 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 			count = 1
 		}
 		if len(call.Args) != 1 || len(call.TypeArgs) != count || call.AtOp != nil {
-			return nil, diagnostics.Diag{Title: "Invalid va_list operation", Message: "invalid argument count for va_list intrinsic", Span: call.Name.Span, Help: "Use va_start(args), va_copy(borrowed), va_arg<T>(&owner), va_borrow(&owner), or va_end(&owner)."}
+			return nil, diagnostics.Diag{
+				Title:   "Invalid va_list operation",
+				Message: "invalid argument count for va_list intrinsic",
+				Span:    call.Name.Span,
+				Help:    "Use va_start(args), va_copy(borrowed), va_arg<T>(&owner), va_borrow(&owner), or va_end(&owner).",
+			}
 		}
 		for _, ty := range call.TypeArgs {
 			if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
@@ -618,9 +627,17 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		}
 		switch call.Name.Name() {
 		case "va_start", "va_copy":
-			return &ast.ExprType{Kind: ast.EXPR_TYPE_VA_LIST_OWNER, T: &ast.VaListOwnerType{}, Explicit: true}, nil
+			return &ast.ExprType{
+				Kind:     ast.EXPR_TYPE_VA_LIST_OWNER,
+				T:        &ast.VaListOwnerType{},
+				Explicit: true,
+			}, nil
 		case "va_borrow":
-			return &ast.ExprType{Kind: ast.EXPR_TYPE_C_VA_LIST, T: &ast.CVaListType{}, Explicit: true}, nil
+			return &ast.ExprType{
+				Kind:     ast.EXPR_TYPE_C_VA_LIST,
+				T:        &ast.CVaListType{},
+				Explicit: true,
+			}, nil
 		case "va_arg":
 			return call.TypeArgs[0], nil
 		default:
@@ -641,10 +658,23 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		return nil, fmt.Errorf("%s: '%s' is not callable", call.Name.Pos, call.Name.Name())
 	}
 	if len(params) != len(call.TypeArgs) {
-		return nil, fmt.Errorf("%s: '%s' requires %d explicit type arguments, got %d", call.Name.Pos, call.Name.Name(), len(params), len(call.TypeArgs))
+		return nil, fmt.Errorf(
+			"%s: '%s' requires %d explicit type arguments, got %d",
+			call.Name.Pos,
+			call.Name.Name(),
+			len(params),
+			len(call.TypeArgs),
+		)
 	}
-	if !valueParams.IsVariadic && len(call.Args) != len(valueParams.Fields) || valueParams.IsVariadic && len(call.Args) < len(valueParams.Fields)-1 {
-		return nil, fmt.Errorf("%s: '%s' requires %d value arguments, got %d", call.Name.Pos, call.Name.Name(), len(valueParams.Fields), len(call.Args))
+	if !valueParams.IsVariadic && len(call.Args) != len(valueParams.Fields) ||
+		valueParams.IsVariadic && len(call.Args) < len(valueParams.Fields)-1 {
+		return nil, fmt.Errorf(
+			"%s: '%s' requires %d value arguments, got %d",
+			call.Name.Pos,
+			call.Name.Name(),
+			len(valueParams.Fields),
+			len(call.Args),
+		)
 	}
 	bindings := map[string]*ast.ExprType{}
 	for i, arg := range call.TypeArgs {

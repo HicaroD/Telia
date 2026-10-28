@@ -15,7 +15,9 @@ func TestMissingRuntimeArtifactReportsSetupBeforeCompilation(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := native.Resolve(path, "linux-amd64")
-	if err == nil || !strings.Contains(err.Error(), "libmissing.so") || !strings.Contains(err.Error(), "setup") || !strings.Contains(err.Error(), "linux-amd64") {
+	if err == nil || !strings.Contains(err.Error(), "libmissing.so") ||
+		!strings.Contains(err.Error(), "setup") ||
+		!strings.Contains(err.Error(), "linux-amd64") {
 		t.Fatalf("want actionable missing-runtime error, got %v", err)
 	}
 }
@@ -55,7 +57,8 @@ func TestMissingOrInvalidNativeBuildInputsReportSetup(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err := native.Resolve(path, "linux-amd64")
-			if err == nil || !strings.Contains(err.Error(), "setup") || !strings.Contains(err.Error(), "linux-amd64") {
+			if err == nil || !strings.Contains(err.Error(), "setup") ||
+				!strings.Contains(err.Error(), "linux-amd64") {
 				t.Fatalf("want actionable invalid-input error, got %v", err)
 			}
 		})

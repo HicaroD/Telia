@@ -79,7 +79,8 @@ func TestConstantDeclarationExplainsIncorrectAssignmentOperator(t *testing.T) {
 		t.Fatalf("want one invalid constant diagnostic, got %v, %+v", err, c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Expected =" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != ":=" {
+	if d.Title != "Expected =" || d.Help == "" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != ":=" {
 		t.Fatalf("want a diagnostic highlighting := with a correction, got %+v", d)
 	}
 }

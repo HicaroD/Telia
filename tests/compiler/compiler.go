@@ -15,13 +15,7 @@ import (
 	"github.com/HicaroD/Telia/internal/source"
 )
 
-var initialized bool
-
 func init() {
-	defer func() {
-		initialized = true
-	}()
-
 	config.SetDevMode(true)
 	err := config.SetupConfigDir()
 	if err != nil {
@@ -38,7 +32,9 @@ func CompileFile(path string) (string, *diagnostics.Collector) {
 
 	loc, err := ast.LocFromPath(path)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)},
+		)
 		return "", collector
 	}
 
@@ -47,11 +43,13 @@ func CompileFile(path string) (string, *diagnostics.Collector) {
 		collector.ReportError(err, source.Span{})
 		return "", collector
 	}
-	defer os.RemoveAll(filepath.Dir(exePath))
+	defer func() { _ = os.RemoveAll(filepath.Dir(exePath)) }() // Best-effort temporary cleanup.
 
 	output, err := RunBinary(exePath)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)},
+		)
 		return "", collector
 	}
 
@@ -81,7 +79,9 @@ func CompileOnlyWithCFlags(path string, flags ...string) (string, *diagnostics.C
 	collector := diagnostics.New()
 	loc, err := ast.LocFromPath(path)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)},
+		)
 		return "", collector
 	}
 	exePath, err := compilePipeline(loc, config.BUILD_OPT_DEBUG, collector, flags...)
@@ -97,7 +97,9 @@ func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
 
 	loc, err := ast.LocFromPath(dirPath)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)},
+		)
 		return "", collector
 	}
 
@@ -106,18 +108,25 @@ func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
 		collector.ReportError(err, source.Span{})
 		return "", collector
 	}
-	defer os.RemoveAll(filepath.Dir(exePath))
+	defer func() { _ = os.RemoveAll(filepath.Dir(exePath)) }() // Best-effort temporary cleanup.
 
 	output, err := RunBinary(exePath)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to run binary: %v", err)},
+		)
 		return "", collector
 	}
 
 	return output, collector
 }
 
-func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector, flags ...string) (string, error) {
+func compilePipeline(
+	loc *ast.Loc,
+	buildType config.BuildOptimizationType,
+	collector *diagnostics.Collector,
+	flags ...string,
+) (string, error) {
 	p := parser.New(collector)
 	program, err := p.ParseFileAsProgram(loc.Path, loc, collector)
 	if err != nil {
@@ -135,7 +144,12 @@ func compilePipeline(loc *ast.Loc, buildType config.BuildOptimizationType, colle
 	return generateTestBinary(cg, buildType)
 }
 
-func compilePackagePipeline(dirPath string, loc *ast.Loc, buildType config.BuildOptimizationType, collector *diagnostics.Collector) (string, error) {
+func compilePackagePipeline(
+	dirPath string,
+	loc *ast.Loc,
+	buildType config.BuildOptimizationType,
+	collector *diagnostics.Collector,
+) (string, error) {
 	p := parser.New(collector)
 	program, err := p.ParsePackageAsProgram(dirPath, loc)
 	if err != nil {
@@ -152,7 +166,10 @@ func compilePackagePipeline(dirPath string, loc *ast.Loc, buildType config.Build
 	return generateTestBinary(cg, buildType)
 }
 
-func generateTestBinary(cg *ccodegen.CCodegen, buildType config.BuildOptimizationType) (string, error) {
+func generateTestBinary(
+	cg *ccodegen.CCodegen,
+	buildType config.BuildOptimizationType,
+) (string, error) {
 	dir, err := os.MkdirTemp("", "telia-test-")
 	if err != nil {
 		return "", err
@@ -160,7 +177,7 @@ func generateTestBinary(cg *ccodegen.CCodegen, buildType config.BuildOptimizatio
 	cg.SetOutputPath(filepath.Join(dir, "program"))
 	err = cg.Generate(buildType)
 	if err != nil {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir) // Preserve the code generation error if cleanup also fails.
 		return "", fmt.Errorf("codegen failed: %w", err)
 	}
 

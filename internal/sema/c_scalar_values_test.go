@@ -25,12 +25,17 @@ func TestCScalarValueCompatibilityDoesNotErasePointerOrCallbackIdentity(t *testi
 }
 
 func TestCFloatArithmeticNarrowingHasAnActionableDiagnostic(t *testing.T) {
-	c := checkDiagnostics(t, "package main\ntype CFloat = __c_float\nfn narrow(value f64) CFloat {\nreturn value / 2.0\n}\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\ntype CFloat = __c_float\nfn narrow(value f64) CFloat {\nreturn value / 2.0\n}\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one narrowing error, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Type mismatch" || !d.Span.Valid() || d.Help == "" || !strings.Contains(d.Message, "f64") || !strings.Contains(d.Message, "float") {
+	if d.Title != "Type mismatch" || !d.Span.Valid() || d.Help == "" ||
+		!strings.Contains(d.Message, "f64") ||
+		!strings.Contains(d.Message, "float") {
 		t.Fatalf("want structured scalar mismatch, got %+v", d)
 	}
 	if got := d.Span.File.Text[d.Span.Start:d.Span.End]; got != "value / 2.0" {

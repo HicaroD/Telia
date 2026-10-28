@@ -23,6 +23,10 @@ func (s *sema) functionValue(id *ast.IdExpr, symbol *ast.Node) (*ast.ExprType, e
 		params, result = d.Params, d.RetType
 		attrs = d.Attributes
 	}
-	ty := &ast.ExprType{Kind: ast.EXPR_TYPE_FUNCTION, Explicit: true, T: &ast.FunctionType{Params: params, Result: result, Attributes: attrs}}
+	ty := &ast.ExprType{
+		Kind:     ast.EXPR_TYPE_FUNCTION,
+		Explicit: true,
+		T:        &ast.FunctionType{Params: params, Result: result, Attributes: attrs},
+	}
 	return s.resolveType(ty, s.pkg.Scope)
 }

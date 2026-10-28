@@ -17,14 +17,25 @@ func (s *sema) checkConstDecl(d *ast.ConstDecl) error {
 	if d.Foreign != nil {
 		return s.inContext(d.Owner, d.File, nil, func() error {
 			if d.Foreign.Attributes.Header == "" {
-				return diagnostics.Diag{Title: "Foreign constant requires a header", Message: "foreign constants obtain their values from a C header", Span: d.Name.Span, Help: "Add a header attribute to the extern block."}
+				return diagnostics.Diag{
+					Title:   "Foreign constant requires a header",
+					Message: "foreign constants obtain their values from a C header",
+					Span:    d.Name.Span,
+					Help:    "Add a header attribute to the extern block.",
+				}
 			}
 			ty, err := s.resolveType(d.Type, d.Scope)
 			if err != nil {
 				return err
 			}
-			if ty.Kind != ast.EXPR_TYPE_BASIC || (!ty.IsNumeric() && ty.T.(*ast.BasicType).Kind != token.BOOL_TYPE && ty.T.(*ast.BasicType).Kind != token.CSTRING_TYPE) {
-				return diagnostics.Diag{Title: "Invalid foreign constant type", Message: "foreign constants require a numeric, boolean, or C-text type", Span: d.Name.Span, Help: "Use the header's numeric or boolean type, or const cstring for borrowed NUL-terminated text."}
+			if ty.Kind != ast.EXPR_TYPE_BASIC ||
+				(!ty.IsNumeric() && ty.T.(*ast.BasicType).Kind != token.BOOL_TYPE && ty.T.(*ast.BasicType).Kind != token.CSTRING_TYPE) {
+				return diagnostics.Diag{
+					Title:   "Invalid foreign constant type",
+					Message: "foreign constants require a numeric, boolean, or C-text type",
+					Span:    d.Name.Span,
+					Help:    "Use the header's numeric or boolean type, or const cstring for borrowed NUL-terminated text.",
+				}
 			}
 			d.Type = ty
 			return nil
@@ -44,7 +55,13 @@ func (s *sema) checkConstDecl(d *ast.ConstDecl) error {
 
 func (s *sema) evaluateConstDecl(d *ast.ConstDecl) error {
 	if d.Evaluating {
-		return diagnostics.Diag{Title: "Cyclic constant", Message: fmt.Sprintf("cyclic constant '%s'", d.Name.Name()), Span: d.Expr.Span, Help: "Remove the dependency that leads back to this constant.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "constant declared here"}}}
+		return diagnostics.Diag{
+			Title:   "Cyclic constant",
+			Message: fmt.Sprintf("cyclic constant '%s'", d.Name.Name()),
+			Span:    d.Expr.Span,
+			Help:    "Remove the dependency that leads back to this constant.",
+			Related: []diagnostics.Related{{Span: d.Name.Span, Message: "constant declared here"}},
+		}
 	}
 	d.Evaluating = true
 	defer func() { d.Evaluating = false }()
@@ -95,8 +112,18 @@ func checkConstantRange(value constant.Value, ty *ast.ExprType, span source.Span
 		if !unsigned {
 			minimum = constant.UnaryOp(gotoken.SUB, limit, 0)
 		}
-		if value.Kind() != constant.Int || constant.Compare(value, gotoken.LSS, minimum) || !constant.Compare(value, gotoken.LSS, limit) {
-			return diagnostics.Diag{Title: "Constant overflow", Message: fmt.Sprintf("constant value %s is outside the range of %s", value.ExactString(), kind), Span: span, Help: "Choose a wider integer type or a value representable by the declared type."}
+		if value.Kind() != constant.Int || constant.Compare(value, gotoken.LSS, minimum) ||
+			!constant.Compare(value, gotoken.LSS, limit) {
+			return diagnostics.Diag{
+				Title: "Constant overflow",
+				Message: fmt.Sprintf(
+					"constant value %s is outside the range of %s",
+					value.ExactString(),
+					kind,
+				),
+				Span: span,
+				Help: "Choose a wider integer type or a value representable by the declared type.",
+			}
 		}
 	}
 	if ty.IsNumeric() && ty.T.(*ast.BasicType).Kind.IsFloat() {
@@ -107,19 +134,36 @@ func checkConstantRange(value constant.Value, ty *ast.ExprType, span source.Span
 			f = float64(f32)
 		}
 		if math.IsInf(f, 0) {
-			return diagnostics.Diag{Title: "Constant overflow", Message: fmt.Sprintf("constant value is outside the finite range of %s", kind), Span: span, Help: "Choose a wider floating-point type or a smaller value."}
+			return diagnostics.Diag{
+				Title:   "Constant overflow",
+				Message: fmt.Sprintf("constant value is outside the finite range of %s", kind),
+				Span:    span,
+				Help:    "Choose a wider floating-point type or a smaller value.",
+			}
 		}
 	}
 	return nil
 }
 
-func (s *sema) inferConstReference(id *ast.IdExpr, d *ast.ConstDecl, expected *ast.ExprType) (*ast.ExprType, error) {
+func (s *sema) inferConstReference(
+	id *ast.IdExpr,
+	d *ast.ConstDecl,
+	expected *ast.ExprType,
+) (*ast.ExprType, error) {
 	if err := s.checkConstDecl(d); err != nil {
 		return nil, err
 	}
 	if d.Foreign != nil {
 		if expected != nil && !typeAssignable(d.Type, expected) {
-			return nil, diagnostics.Diag{Title: "Foreign constant type mismatch", Message: fmt.Sprintf("expected %s, got %s", expected.T, d.Type.T), Span: id.Name.Span, Help: "Use the declared foreign constant type or an explicit conversion.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "foreign constant declared here"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Foreign constant type mismatch",
+				Message: fmt.Sprintf("expected %s, got %s", expected.T, d.Type.T),
+				Span:    id.Name.Span,
+				Help:    "Use the declared foreign constant type or an explicit conversion.",
+				Related: []diagnostics.Related{
+					{Span: d.Name.Span, Message: "foreign constant declared here"},
+				},
+			}
 		}
 		return d.Type, nil
 	}
@@ -200,7 +244,12 @@ func evaluateConstant(node *ast.Node) (constant.Value, error) {
 		}
 		if b.Op == token.SLASH {
 			if constant.Sign(right) == 0 {
-				return nil, diagnostics.Diag{Title: "Division by zero", Message: "division by zero in constant expression", Span: b.Right.Span, Help: "Use a nonzero divisor in this constant expression."}
+				return nil, diagnostics.Diag{
+					Title:   "Division by zero",
+					Message: "division by zero in constant expression",
+					Span:    b.Right.Span,
+					Help:    "Use a nonzero divisor in this constant expression.",
+				}
 			}
 			if left.Kind() == constant.Int && right.Kind() == constant.Int {
 				op = gotoken.QUO_ASSIGN
@@ -212,10 +261,19 @@ func evaluateConstant(node *ast.Node) (constant.Value, error) {
 		}
 		return result, nil
 	}
-	return nil, diagnostics.Diag{Title: "Nonconstant initializer", Message: "constant initializer must be a compile-time expression", Span: node.Span, Help: "Use literals and other constants, or declare a runtime variable with :=."}
+	return nil, diagnostics.Diag{
+		Title:   "Nonconstant initializer",
+		Message: "constant initializer must be a compile-time expression",
+		Span:    node.Span,
+		Help:    "Use literals and other constants, or declare a runtime variable with :=.",
+	}
 }
 
-func (s *sema) inferImportedValue(id *ast.IdExpr, scope *ast.Scope, expected *ast.ExprType) (*ast.ExprType, error) {
+func (s *sema) inferImportedValue(
+	id *ast.IdExpr,
+	scope *ast.Scope,
+	expected *ast.ExprType,
+) (*ast.ExprType, error) {
 	symbol, err := scope.LookupCurrentScope(id.Name.Name())
 	if err == nil && symbol.Kind == ast.KIND_VA_INTRINSIC {
 		return nil, vaIntrinsicValueDiagnostic(id.Name.Span)
@@ -230,12 +288,24 @@ func (s *sema) inferImportedValue(id *ast.IdExpr, scope *ast.Scope, expected *as
 			return nil, err
 		}
 		if expected != nil && !ty.Equals(expected) {
-			return nil, diagnostics.Diag{Title: "Callback signature mismatch", Message: "imported function does not have the required callback signature", Span: id.Name.Span, Help: "Match its parameter types, return type, and calling convention.", Related: []diagnostics.Related{{Span: symbol.DeclarationSpan(), Message: "function declared here"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Callback signature mismatch",
+				Message: "imported function does not have the required callback signature",
+				Span:    id.Name.Span,
+				Help:    "Match its parameter types, return type, and calling convention.",
+				Related: []diagnostics.Related{
+					{Span: symbol.DeclarationSpan(), Message: "function declared here"},
+				},
+			}
 		}
 		return ty, nil
 	}
 	if err != nil || symbol.Kind != ast.KIND_CONST_DECL {
-		return nil, diagnostics.Diag{Title: "Unknown imported constant", Message: fmt.Sprintf("package has no constant '%s'", id.Name.Name()), Span: id.Name.Span}
+		return nil, diagnostics.Diag{
+			Title:   "Unknown imported constant",
+			Message: fmt.Sprintf("package has no constant '%s'", id.Name.Name()),
+			Span:    id.Name.Span,
+		}
 	}
 	id.N = symbol
 	if symbol.Invalid {

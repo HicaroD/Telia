@@ -46,11 +46,16 @@ return 0
 	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	exe, diags := compiler.CompileOnlyWithCFlags(path, fixture, "-Werror=incompatible-pointer-types", "-Werror=implicit-function-declaration")
+	exe, diags := compiler.CompileOnlyWithCFlags(
+		path,
+		fixture,
+		"-Werror=incompatible-pointer-types",
+		"-Werror=implicit-function-declaration",
+	)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("header-owned opaque pointer: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(exe))
+	defer removeTestBinary(t, exe)
 	if output, err := compiler.RunBinary(exe); err != nil {
 		t.Fatalf("opaque C fixture: %v: %s", err, output)
 	}

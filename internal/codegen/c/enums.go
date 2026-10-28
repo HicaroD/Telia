@@ -72,7 +72,15 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 	value := c.emitExpr(m.Value)
 	scrutinee, result := c.nextTmp(), c.nextTmp()
 	label := c.nextTmp()
-	fmt.Fprintf(c.buf, "%s %s = %s;\n%s %s;\n", emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: m.Enum}}), scrutinee, value, emitCType(m.Type), result)
+	fmt.Fprintf(
+		c.buf,
+		"%s %s = %s;\n%s %s;\n",
+		emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: m.Enum}}),
+		scrutinee,
+		value,
+		emitCType(m.Type),
+		result,
+	)
 	tag := scrutinee
 	if m.Enum.HasPayload {
 		tag += ".tag"
@@ -94,10 +102,21 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 		for _, field := range arm.Fields {
 			name := c.nextTmp()
 			field.Binding.BackendType = &CVariable{Name: name, CType: emitCType(field.Binding.Type)}
-			fmt.Fprintf(c.buf, "%s %s = %s.payload.v%d.%s;\n", emitCType(field.Binding.Type), name, scrutinee, arm.Variant.Index, field.Name.Name())
+			fmt.Fprintf(
+				c.buf,
+				"%s %s = %s.payload.v%d.%s;\n",
+				emitCType(field.Binding.Type),
+				name,
+				scrutinee,
+				arm.Variant.Index,
+				field.Name.Name(),
+			)
 		}
 		if arm.Block != nil {
-			c.matchScopes = append(c.matchScopes, matchScope{result: result, label: label, deferDepth: len(c.deferScopes)})
+			c.matchScopes = append(
+				c.matchScopes,
+				matchScope{result: result, label: label, deferDepth: len(c.deferScopes)},
+			)
 			c.emitBlock(arm.Block, "")
 			c.matchScopes = c.matchScopes[:len(c.matchScopes)-1]
 		} else {

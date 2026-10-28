@@ -32,7 +32,11 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		}
 		if hasVaEffects(node) {
 			return c.vaExpression(func() string {
-				return fmt.Sprintf("(%s){.data = %s}", emitCType(lit.Type), c.emitVaArrayInitializer(lit))
+				return fmt.Sprintf(
+					"(%s){.data = %s}",
+					emitCType(lit.Type),
+					c.emitVaArrayInitializer(lit),
+				)
 			})
 		}
 		var values []string
@@ -44,7 +48,9 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		index := node.Node.(*ast.IndexExpr)
 		if hasVaEffects(node) {
 			if node.IsAddressable() {
-				return "(*" + c.vaExpression(func() string { return "&(" + c.emitIndex(index) + ")" }) + ")"
+				return "(*" + c.vaExpression(
+					func() string { return "&(" + c.emitIndex(index) + ")" },
+				) + ")"
 			}
 			return c.vaExpression(func() string { return c.emitIndex(index) })
 		}
@@ -85,7 +91,13 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 			return "(*" + c.vaExpression(func() string {
 				inner := c.emitExpr(node.Node.(*ast.DerefPointerExpr).Expr)
 				pointer := c.nextTmp()
-				fmt.Fprintf(c.buf, "__auto_type %s = (%s);\n_check_nil_pointer_deref((void *)(%s));\n", pointer, inner, pointer)
+				fmt.Fprintf(
+					c.buf,
+					"__auto_type %s = (%s);\n_check_nil_pointer_deref((void *)(%s));\n",
+					pointer,
+					inner,
+					pointer,
+				)
 				return pointer
 			}) + ")"
 		}
@@ -98,13 +110,17 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 
 	case ast.KIND_STRUCT_EXPR:
 		if hasVaEffects(node) {
-			return c.vaExpression(func() string { return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr)) })
+			return c.vaExpression(
+				func() string { return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr)) },
+			)
 		}
 		return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr))
 
 	case ast.KIND_TUPLE_LITERAL_EXPR:
 		if hasVaEffects(node) {
-			return c.vaExpression(func() string { return c.emitTupleLiteral(node.Node.(*ast.TupleExpr)) })
+			return c.vaExpression(
+				func() string { return c.emitTupleLiteral(node.Node.(*ast.TupleExpr)) },
+			)
 		}
 		return c.emitTupleLiteral(node.Node.(*ast.TupleExpr))
 
@@ -223,7 +239,8 @@ func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
 	if isErrorNilComparison(bin) {
 		return c.emitErrorNilComparison(bin)
 	}
-	if bin.Op != token.AND && bin.Op != token.OR && (hasVaEffects(bin.Left) || hasVaEffects(bin.Right)) {
+	if bin.Op != token.AND && bin.Op != token.OR &&
+		(hasVaEffects(bin.Left) || hasVaEffects(bin.Right)) {
 		return c.emitSequencedVaBinary(bin)
 	}
 	left := c.emitExpr(bin.Left)
@@ -361,7 +378,13 @@ func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
 		return fmt.Sprintf("(%s){0}", emitCType(call.BuiltinType))
 	case "slice_from_raw":
 		data, count := c.emitExpr(call.Args[0]), c.emitExpr(call.Args[1])
-		return fmt.Sprintf("(%s){(%s *)%s, %s}", emitCType(call.ResultType), emitCType(call.BuiltinType), data, count)
+		return fmt.Sprintf(
+			"(%s){(%s *)%s, %s}",
+			emitCType(call.ResultType),
+			emitCType(call.BuiltinType),
+			data,
+			count,
+		)
 	case "slice_data":
 		return fmt.Sprintf("((void *)(%s).data)", c.emitExpr(call.Args[0]))
 	}
@@ -563,7 +586,8 @@ func (c *CCodegen) emitStructLiteral(sl *ast.StructLiteralExpr) string {
 	}
 	for _, fv := range sl.Values {
 		var val string
-		if lit, ok := fv.Value.Node.(*ast.ArrayLiteralExpr); sequence && ok && lit.Type.T.(*ast.SequenceType).Foreign {
+		if lit, ok := fv.Value.Node.(*ast.ArrayLiteralExpr); sequence && ok &&
+			lit.Type.T.(*ast.SequenceType).Foreign {
 			val = c.emitVaArrayInitializer(lit)
 		} else {
 			val = c.emitExpr(fv.Value)

@@ -71,7 +71,15 @@ func (c *CCodegen) emitExternDecl(ext *ast.ExternDecl) {
 		if ext.Attributes.Header != "" {
 			fmt.Fprintf(c.buf, "#ifndef %s\n", cName)
 		}
-		c.buf.WriteString(fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(proto.Attributes), cName, params))
+		c.buf.WriteString(
+			fmt.Sprintf(
+				"%s %s%s(%s);\n",
+				retType,
+				callingConvention(proto.Attributes),
+				cName,
+				params,
+			),
+		)
 		if ext.Attributes.Header != "" {
 			c.buf.WriteString("#endif\n")
 		}
@@ -120,7 +128,9 @@ func (c *CCodegen) emitFnForwardDecl(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)
 	name := c.mangledName(fn)
 	params := c.emitFnParams(fn)
-	c.buf.WriteString(fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(fn.Attributes), name, params))
+	c.buf.WriteString(
+		fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(fn.Attributes), name, params),
+	)
 }
 
 // emitFnParams renders the C parameter list for a function declaration.
@@ -165,7 +175,9 @@ func (c *CCodegen) emitFnBody(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)
 	name := c.mangledName(fn)
 	params := c.emitFnParams(fn)
-	c.buf.WriteString(fmt.Sprintf("%s %s%s(%s) {\n", retType, callingConvention(fn.Attributes), name, params))
+	c.buf.WriteString(
+		fmt.Sprintf("%s %s%s(%s) {\n", retType, callingConvention(fn.Attributes), name, params),
+	)
 	prevRetTy := c.currentRetTy
 	c.currentRetTy = fn.RetType
 	c.emitBlock(fn.Block, "    ")

@@ -34,7 +34,10 @@ func checkDiagnostics(t *testing.T, text string) *diagnostics.Collector {
 }
 
 func TestIndependentTypeErrorsAreCollected(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn main() {\n  age i32 := \"twenty\"\n  count i32 := \"many\"\n}\nfn other() {\n  size i32 := \"large\"\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nfn main() {\n  age i32 := \"twenty\"\n  count i32 := \"many\"\n}\nfn other() {\n  size i32 := \"large\"\n}\n",
+	)
 	if len(c.Diags) != 3 {
 		t.Fatalf("want three independent errors, got %v", c.Diags)
 	}
@@ -50,7 +53,10 @@ func TestIndependentTypeErrorsAreCollected(t *testing.T) {
 }
 
 func TestFailedInferenceSuppressesDependentErrors(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn main() {\n  broken := missing\n  dependent := broken + 1\n  chained := dependent + 1\n  independent i32 := \"bad\"\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nfn main() {\n  broken := missing\n  dependent := broken + 1\n  chained := dependent + 1\n  independent i32 := \"bad\"\n}\n",
+	)
 	if len(c.Diags) != 2 {
 		t.Fatalf("want only root errors, got %v", c.Diags)
 	}
@@ -76,7 +82,10 @@ func TestDuplicateVariablePointsToBothDeclarations(t *testing.T) {
 }
 
 func TestGenericErrorRetainsExpressionLocation(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn double<T>(value T) T {\n  return value + value\n}\nfn main() {\n  result := double<string>(\"bad\")\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nfn double<T>(value T) T {\n  return value + value\n}\nfn main() {\n  result := double<string>(\"bad\")\n}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one generic error, got %v", c.Diags)
 	}
@@ -89,7 +98,10 @@ func TestGenericErrorRetainsExpressionLocation(t *testing.T) {
 func TestInvalidValuesDoNotCrashOtherExpressionForms(t *testing.T) {
 	for _, expr := range []string{"broken.field", "broken[0]", "*broken", "&broken", "broken()"} {
 		t.Run(expr, func(t *testing.T) {
-			c := checkDiagnostics(t, "package main\nfn main() {\n  broken := missing\n  next := "+expr+"\n  independent i32 := \"bad\"\n}\n")
+			c := checkDiagnostics(
+				t,
+				"package main\nfn main() {\n  broken := missing\n  next := "+expr+"\n  independent i32 := \"bad\"\n}\n",
+			)
 			if len(c.Diags) != 2 {
 				t.Fatalf("want root errors only, got %v", c.Diags)
 			}
@@ -98,7 +110,10 @@ func TestInvalidValuesDoNotCrashOtherExpressionForms(t *testing.T) {
 }
 
 func TestTemplateErrorsDoNotHideIndependentDeclarations(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn first<T>(value Missing) {}\nfn second<T>(value Unknown) {}\nfn main() {\n  independent i32 := \"bad\"\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nfn first<T>(value Missing) {}\nfn second<T>(value Unknown) {}\nfn main() {\n  independent i32 := \"bad\"\n}\n",
+	)
 	if len(c.Diags) != 3 {
 		t.Fatalf("want two template errors and one ordinary error, got %v", c.Diags)
 	}
@@ -136,29 +151,38 @@ func TestConstantOverflowHasAValueHighlight(t *testing.T) {
 		t.Fatalf("want one overflow diagnostic, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Constant overflow" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "256" {
+	if d.Title != "Constant overflow" || d.Help == "" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != "256" {
 		t.Fatalf("want structured overflow diagnostic highlighting 256, got %+v", d)
 	}
 }
 
 func TestConstantUseChecksTheDestinationRange(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nconst Count = 256\nfn main() {\n  count u8 := Count\n}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nconst Count = 256\nfn main() {\n  count u8 := Count\n}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one constant overflow, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Constant overflow" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "Count" {
+	if d.Title != "Constant overflow" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != "Count" {
 		t.Fatalf("want overflow at the constant use, got %+v", d)
 	}
 }
 
 func TestRuntimeConstantInitializerExplainsCompileTimeRequirement(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn get() i32 {\nreturn 42\n}\nconst Answer = get()\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nfn get() i32 {\nreturn 42\n}\nconst Answer = get()\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one nonconstant initializer diagnostic, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Nonconstant initializer" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "get()" {
+	if d.Title != "Nonconstant initializer" || d.Help == "" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != "get()" {
 		t.Fatalf("want structured initializer diagnostic highlighting get(), got %+v", d)
 	}
 }
@@ -169,7 +193,8 @@ func TestBitwiseOperandsExplainTheIntegerRequirement(t *testing.T) {
 		t.Fatalf("want one invalid operand diagnostic, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Invalid bitwise operands" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "true | false" {
+	if d.Title != "Invalid bitwise operands" || d.Help == "" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != "true | false" {
 		t.Fatalf("want structured bitwise diagnostic, got %+v", d)
 	}
 }
@@ -177,47 +202,69 @@ func TestBitwiseOperandsExplainTheIntegerRequirement(t *testing.T) {
 func TestOtherInvalidBitwiseOperandsHaveStructuredDiagnostics(t *testing.T) {
 	for _, body := range []string{"value := ~1.5", "a u32 := 1\nb u64 := 2\nvalue := a & b"} {
 		c := checkDiagnostics(t, "package main\nfn main() {\n"+body+"\n}\n")
-		if len(c.Diags) != 1 || c.Diags[0].Title != "Invalid bitwise operands" || c.Diags[0].Help == "" || !c.Diags[0].Span.Valid() {
+		if len(c.Diags) != 1 || c.Diags[0].Title != "Invalid bitwise operands" ||
+			c.Diags[0].Help == "" ||
+			!c.Diags[0].Span.Valid() {
 			t.Fatalf("want structured bitwise diagnostic for %s, got %+v", body, c.Diags)
 		}
 	}
 }
 
 func TestUndefinedNestedExternTypeHighlightsTheTypeName(t *testing.T) {
-	c := checkDiagnostics(t, "package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value **Missing)\n}\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value **Missing)\n}\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 {
 		t.Fatalf("want one undefined type diagnostic, got %+v", c.Diags)
 	}
 	d := c.Diags[0]
-	if d.Title != "Unknown type" || d.Help == "" || !d.Span.Valid() || d.Span.File.Text[d.Span.Start:d.Span.End] != "Missing" {
+	if d.Title != "Unknown type" || d.Help == "" || !d.Span.Valid() ||
+		d.Span.File.Text[d.Span.Start:d.Span.End] != "Missing" {
 		t.Fatalf("want a structured diagnostic at the nested type name, got %+v", d)
 	}
 }
 
 func TestConstantsDoNotExposeMutableStorage(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nconst Answer = 42\nfn main() {\n  pointer := &Answer\n}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Not addressable" || !c.Diags[0].Span.Valid() || c.Diags[0].Span.File.Text[c.Diags[0].Span.Start:c.Diags[0].Span.End] != "Answer" {
+	c := checkDiagnostics(
+		t,
+		"package main\nconst Answer = 42\nfn main() {\n  pointer := &Answer\n}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Not addressable" || !c.Diags[0].Span.Valid() ||
+		c.Diags[0].Span.File.Text[c.Diags[0].Span.Start:c.Diags[0].Span.End] != "Answer" {
 		t.Fatalf("want a structured addressability diagnostic on Answer, got %+v", c.Diags)
 	}
 }
 
 func TestFloatingConstantOverflowIsDiagnosedBeforeCodeGeneration(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nconst Huge f32 = 9999999999999999999999999999999999999999.0\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nconst Huge f32 = 9999999999999999999999999999999999999999.0\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 || c.Diags[0].Title != "Constant overflow" || !c.Diags[0].Span.Valid() {
 		t.Fatalf("want a structured floating-point overflow diagnostic, got %+v", c.Diags)
 	}
 }
 
 func TestTypedConstantIntermediateOverflowIsNotHidden(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nconst Limit u8 = 255\nconst Value u8 = (Limit + 1) - 1\nfn main() {}\n")
+	c := checkDiagnostics(
+		t,
+		"package main\nconst Limit u8 = 255\nconst Value u8 = (Limit + 1) - 1\nfn main() {}\n",
+	)
 	if len(c.Diags) != 1 || c.Diags[0].Title != "Constant overflow" || !c.Diags[0].Span.Valid() {
 		t.Fatalf("want intermediate overflow diagnostic, got %+v", c.Diags)
 	}
 }
 
 func TestUnnamedExternDuplicateParameterHasRelatedLocation(t *testing.T) {
-	c := checkDiagnostics(t, "package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value i32, value i32)\n}\nfn main() {}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Duplicate parameter" || len(c.Diags[0].Related) != 1 || !c.Diags[0].Span.Valid() || !c.Diags[0].Related[0].Span.Valid() {
+	c := checkDiagnostics(
+		t,
+		"package main\n@[default_cc=\"c\"]\nextern {\nfn foreign(value i32, value i32)\n}\nfn main() {}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Duplicate parameter" ||
+		len(c.Diags[0].Related) != 1 ||
+		!c.Diags[0].Span.Valid() ||
+		!c.Diags[0].Related[0].Span.Valid() {
 		t.Fatalf("want structured duplicate parameter diagnostic, got %+v", c.Diags)
 	}
 }

@@ -9,7 +9,12 @@ import (
 func (p *Parser) matchExpect(kind token.Kind, help string) (*token.Token, error) {
 	tk, ok := p.expect(kind)
 	if !ok {
-		return nil, diagnostics.Diag{Title: "Invalid match syntax", Message: "expected " + kind.String(), Span: tk.Span, Help: help}
+		return nil, diagnostics.Diag{
+			Title:   "Invalid match syntax",
+			Message: "expected " + kind.String(),
+			Span:    tk.Span,
+			Help:    help,
+		}
 	}
 	return tk, nil
 }

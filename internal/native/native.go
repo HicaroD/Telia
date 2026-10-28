@@ -51,7 +51,11 @@ func Resolve(manifestPath, target string) (Requirements, error) {
 	}
 	entry, ok := manifest.Targets[target]
 	if !ok {
-		return result, fmt.Errorf("native package %s does not support target %s", manifestPath, target)
+		return result, fmt.Errorf(
+			"native package %s does not support target %s",
+			manifestPath,
+			target,
+		)
 	}
 	dir := filepath.Dir(manifestPath)
 	for _, input := range []struct {
@@ -62,16 +66,28 @@ func Resolve(manifestPath, target string) (Requirements, error) {
 		{entry.Libraries, false}, {entry.RuntimeFiles, false},
 	} {
 		for _, path := range input.paths {
-			if path == "" || filepath.IsAbs(path) || filepath.VolumeName(path) != "" || strings.Contains(path, "\\") || !filepath.IsLocal(path) {
+			if path == "" || filepath.IsAbs(path) || filepath.VolumeName(path) != "" ||
+				strings.Contains(path, "\\") ||
+				!filepath.IsLocal(path) {
 				return result, fmt.Errorf("native path %q must be package-relative", path)
 			}
 			fullPath := filepath.Join(dir, path)
 			info, err := os.Stat(fullPath)
 			if err != nil {
-				return result, fmt.Errorf("missing native artifact for %s: %s; run the package setup script: %w", target, fullPath, err)
+				return result, fmt.Errorf(
+					"missing native artifact for %s: %s; run the package setup script: %w",
+					target,
+					fullPath,
+					err,
+				)
 			}
-			if (input.directory && !info.IsDir()) || (!input.directory && !info.Mode().IsRegular()) {
-				return result, fmt.Errorf("invalid native artifact for %s: %s; run the package setup script", target, fullPath)
+			if (input.directory && !info.IsDir()) ||
+				(!input.directory && !info.Mode().IsRegular()) {
+				return result, fmt.Errorf(
+					"invalid native artifact for %s: %s; run the package setup script",
+					target,
+					fullPath,
+				)
 			}
 		}
 	}

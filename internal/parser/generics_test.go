@@ -12,7 +12,8 @@ func TestParseGenericStructDeclaration(t *testing.T) {
 		t.Fatalf("generic declaration should parse: %v", err)
 	}
 	decl := node.Node.(*ast.StructDecl)
-	if len(decl.TypeParams) != 2 || decl.TypeParams[0].Name() != "A" || decl.TypeParams[1].Name() != "B" {
+	if len(decl.TypeParams) != 2 || decl.TypeParams[0].Name() != "A" ||
+		decl.TypeParams[1].Name() != "B" {
 		t.Fatalf("type parameters were not preserved: %v", decl.TypeParams)
 	}
 	if len(decl.Fields) != 2 || decl.Fields[1].Name.Name() != "second" {

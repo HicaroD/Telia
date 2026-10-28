@@ -10,13 +10,28 @@ func (p *Parser) parseEnum() (*ast.Node, error) {
 	return p.parseEnumDeclaration(nil, ast.Attributes{})
 }
 
-func (p *Parser) parseEnumDeclaration(foreign *ast.ExternDecl, attrs ast.Attributes) (*ast.Node, error) {
+func (p *Parser) parseEnumDeclaration(
+	foreign *ast.ExternDecl,
+	attrs ast.Attributes,
+) (*ast.Node, error) {
 	start := p.lex.Next()
 	name, ok := p.expect(token.ID)
 	if !ok {
-		return nil, diagnostics.Diag{Title: "Expected enum name", Message: "expected a name after enum", Span: name.Span, Help: "Write enum Name { followed by named variants."}
+		return nil, diagnostics.Diag{
+			Title:   "Expected enum name",
+			Message: "expected a name after enum",
+			Span:    name.Span,
+			Help:    "Write enum Name { followed by named variants.",
+		}
 	}
-	d := &ast.EnumDecl{Owner: p.pkg, File: p.file, Name: name, Type: ast.NewBasicType(token.INT_TYPE), Foreign: foreign, Attributes: attrs}
+	d := &ast.EnumDecl{
+		Owner:      p.pkg,
+		File:       p.file,
+		Name:       name,
+		Type:       ast.NewBasicType(token.INT_TYPE),
+		Foreign:    foreign,
+		Attributes: attrs,
+	}
 	if foreign != nil {
 		d.Type = nil
 	}
@@ -33,7 +48,12 @@ func (p *Parser) parseEnumDeclaration(foreign *ast.ExternDecl, attrs ast.Attribu
 		}
 	}
 	if found, ok := p.expect(token.OPEN_CURLY); !ok {
-		return nil, diagnostics.Diag{Title: "Expected enum body", Message: "expected { after enum name", Span: found.Span, Help: "Put each variant on its own line inside braces."}
+		return nil, diagnostics.Diag{
+			Title:   "Expected enum body",
+			Message: "expected { after enum name",
+			Span:    found.Span,
+			Help:    "Put each variant on its own line inside braces.",
+		}
 	}
 	for p.lex.NextIs(token.NEWLINE) {
 		p.lex.Skip()
@@ -45,7 +65,12 @@ func (p *Parser) parseEnumDeclaration(foreign *ast.ExternDecl, attrs ast.Attribu
 		}
 		variant, ok := p.expect(token.ID)
 		if !ok {
-			return nil, diagnostics.Diag{Title: "Expected enum variant", Message: "expected a named enum variant", Span: variant.Span, Help: "Write a variant name or close the enum with }."}
+			return nil, diagnostics.Diag{
+				Title:   "Expected enum variant",
+				Message: "expected a named enum variant",
+				Span:    variant.Span,
+				Help:    "Write a variant name or close the enum with }.",
+			}
 		}
 		v := &ast.EnumVariant{Name: variant, Attributes: attrs}
 		if p.lex.NextIs(token.EQUAL) {
@@ -77,7 +102,15 @@ func (p *Parser) parseEnumDeclaration(foreign *ast.ExternDecl, attrs ast.Attribu
 		return node, nil
 	}
 	if previous, ok := p.pkg.Scope.Nodes[name.Name()]; ok {
-		return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "enum name is already declared", Span: name.Span, Help: "Choose a distinct enum name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+		return nil, diagnostics.Diag{
+			Title:   "Duplicate declaration",
+			Message: "enum name is already declared",
+			Span:    name.Span,
+			Help:    "Choose a distinct enum name.",
+			Related: []diagnostics.Related{
+				{Span: previous.DeclarationSpan(), Message: "previous declaration"},
+			},
+		}
 	}
 	if err := p.pkg.Scope.Insert(name.Name(), node); err != nil {
 		return nil, err

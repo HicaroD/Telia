@@ -106,7 +106,11 @@ func TestStringAllocationFailurePreservesExistingOwners(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, diags := compiler.CompileOnlyWithCFlags("testdata/string_allocation_failure.t", "-include", header)
+	path, diags := compiler.CompileOnlyWithCFlags(
+		"testdata/string_allocation_failure.t",
+		"-include",
+		header,
+	)
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
@@ -169,8 +173,14 @@ func TestStringMemoryWithNativeSanitizers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			path, diags := compiler.CompileOnlyWithCFlags("testdata/"+fixture,
-				"-fsanitize="+sanitizers, "-fno-sanitize-recover=all", "-fno-omit-frame-pointer", "-include", header)
+			path, diags := compiler.CompileOnlyWithCFlags(
+				"testdata/"+fixture,
+				"-fsanitize="+sanitizers,
+				"-fno-sanitize-recover=all",
+				"-fno-omit-frame-pointer",
+				"-include",
+				header,
+			)
 			if len(diags.Diags) > 0 {
 				t.Fatalf("sanitized compilation: %v", diags.Diags)
 			}
@@ -181,7 +191,8 @@ func TestStringMemoryWithNativeSanitizers(t *testing.T) {
 			if err != nil {
 				t.Fatalf("sanitized execution: %v\n%s", err, output)
 			}
-			if bytes.Contains(output, []byte("runtime error:")) || bytes.Contains(output, []byte("Sanitizer")) {
+			if bytes.Contains(output, []byte("runtime error:")) ||
+				bytes.Contains(output, []byte("Sanitizer")) {
 				t.Fatalf("sanitizer finding: %s", output)
 			}
 		})
@@ -516,7 +527,11 @@ func TestErrorCatchVoid(t *testing.T) {
 	}
 	output := stdout.String() + stderr.String()
 	if !strings.Contains(output, "boom") {
-		t.Errorf("expected output to contain 'boom', got stdout=%q stderr=%q", stdout.String(), stderr.String())
+		t.Errorf(
+			"expected output to contain 'boom', got stdout=%q stderr=%q",
+			stdout.String(),
+			stderr.String(),
+		)
 	}
 }
 
@@ -554,7 +569,11 @@ func TestErrorCatchTupleFail(t *testing.T) {
 	}
 	output := stdout.String() + stderr.String()
 	if !strings.Contains(output, "connection refused") {
-		t.Errorf("expected output to contain 'connection refused', got stdout=%q stderr=%q", stdout.String(), stderr.String())
+		t.Errorf(
+			"expected output to contain 'connection refused', got stdout=%q stderr=%q",
+			stdout.String(),
+			stderr.String(),
+		)
 	}
 }
 

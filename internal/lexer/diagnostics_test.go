@@ -17,8 +17,16 @@ func TestTokenSpansCoverOriginalSpelling(t *testing.T) {
 		start, end int
 	}{{token.STRING_TYPE, 2, 7}, {token.BANG_EQUAL, 8, 10}, {token.INT_TYPE, 11, 13}, {token.NEWLINE, 13, 14}, {token.EOF, 14, 14}} {
 		tok := l.Next()
-		if tok.Kind != want.kind || !tok.Span.Valid() || tok.Span.Start != want.start || tok.Span.End != want.end {
-			t.Fatalf("token %v: span %+v; want %v [%d,%d)", tok, tok.Span, want.kind, want.start, want.end)
+		if tok.Kind != want.kind || !tok.Span.Valid() || tok.Span.Start != want.start ||
+			tok.Span.End != want.end {
+			t.Fatalf(
+				"token %v: span %+v; want %v [%d,%d)",
+				tok,
+				tok.Span,
+				want.kind,
+				want.start,
+				want.end,
+			)
 		}
 		if tok.Span.File.Path != "pkg/main.t" {
 			t.Fatal(tok.Span.File.Path)
@@ -35,8 +43,10 @@ func TestLookaheadDoesNotReportAndInvalidTokensMakeProgress(t *testing.T) {
 	if len(c.Diags) != 0 {
 		t.Fatalf("lookahead emitted %d diagnostics", len(c.Diags))
 	}
-	if l.Next().Kind != token.INVALID || l.Next().Kind != token.INVALID || l.Next().Kind != token.ID || l.Next().Kind != token.EOF {
-		t.Fatal("invalid tokens did not advance")
+	for _, want := range []token.Kind{token.INVALID, token.INVALID, token.ID, token.EOF} {
+		if got := l.Next().Kind; got != want {
+			t.Fatalf("invalid tokens did not advance: got %v, want %v", got, want)
+		}
 	}
 	if len(c.Diags) != 2 {
 		t.Fatalf("want two errors, got %v", c.Diags)

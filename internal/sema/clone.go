@@ -53,7 +53,11 @@ func (c syntaxClone) block(b *ast.BlockStmt, scope *ast.Scope) *ast.BlockStmt {
 	if b == nil {
 		return nil
 	}
-	copy := &ast.BlockStmt{OpenCurly: b.OpenCurly, CloseCurly: b.CloseCurly, FoundReturn: b.FoundReturn}
+	copy := &ast.BlockStmt{
+		OpenCurly:   b.OpenCurly,
+		CloseCurly:  b.CloseCurly,
+		FoundReturn: b.FoundReturn,
+	}
 	copy.Statements = c.nodes(b.Statements, scope)
 	for _, n := range copy.Statements {
 		if n.Kind == ast.KIND_DEFER_STMT {
@@ -174,16 +178,33 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 
 func (c syntaxClone) ifCond(v *ast.IfElifCond, scope *ast.Scope) *ast.IfElifCond {
 	inner := ast.NewScope(scope)
-	return &ast.IfElifCond{If: v.If, Scope: inner, Expr: c.node(v.Expr, inner), Block: c.block(v.Block, inner)}
+	return &ast.IfElifCond{
+		If:    v.If,
+		Scope: inner,
+		Expr:  c.node(v.Expr, inner),
+		Block: c.block(v.Block, inner),
+	}
 }
 
 func cloneFunction(template *ast.FnDecl, bindings map[string]*ast.ExprType) *ast.FnDecl {
-	fn := &ast.FnDecl{Name: template.Name, Owner: template.Owner, File: template.File, Attributes: template.Attributes, Scope: ast.NewScope(template.Owner.Scope), RetType: cloneType(template.RetType, bindings)}
+	fn := &ast.FnDecl{
+		Name:       template.Name,
+		Owner:      template.Owner,
+		File:       template.File,
+		Attributes: template.Attributes,
+		Scope:      ast.NewScope(template.Owner.Scope),
+		RetType:    cloneType(template.RetType, bindings),
+	}
 	params := *template.Params
 	params.Fields = nil
 	fn.Params = &params
 	for _, p := range template.Params.Fields {
-		param := &ast.Param{Name: p.Name, Attributes: p.Attributes, Variadic: p.Variadic, Type: cloneType(p.Type, bindings)}
+		param := &ast.Param{
+			Name:       p.Name,
+			Attributes: p.Attributes,
+			Variadic:   p.Variadic,
+			Type:       cloneType(p.Type, bindings),
+		}
 		fn.Params.Fields = append(fn.Params.Fields, param)
 		fn.Scope.Nodes[param.Name.Name()] = &ast.Node{Kind: ast.KIND_PARAM, Node: param}
 	}

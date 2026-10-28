@@ -44,9 +44,18 @@ func vendorLibraryFixture(t *testing.T) (string, string) {
 	if out, err := exec.Command("cc", flags...).CombinedOutput(); err != nil {
 		t.Fatalf("build fixture: %v\n%s", err, out)
 	}
-	write("bridge.c", "int vendor_answer(void);\nint bridge_answer(void) { return vendor_answer(); }\n")
-	write("answer.t", "package answer\n@[default_cc=\"c\"]\nextern {\n @[link_name=\"bridge_answer\"]\n fn vendor_answer() i32\n}\n")
-	write("native.json", `{"version":"1","targets":{"`+runtime.GOOS+"-"+runtime.GOARCH+`":{"sources":["bridge.c"],"libraries":["`+lib+`"],"runtime_files":["`+lib+`"]}}}`)
+	write(
+		"bridge.c",
+		"int vendor_answer(void);\nint bridge_answer(void) { return vendor_answer(); }\n",
+	)
+	write(
+		"answer.t",
+		"package answer\n@[default_cc=\"c\"]\nextern {\n @[link_name=\"bridge_answer\"]\n fn vendor_answer() i32\n}\n",
+	)
+	write(
+		"native.json",
+		`{"version":"1","targets":{"`+runtime.GOOS+"-"+runtime.GOARCH+`":{"sources":["bridge.c"],"libraries":["`+lib+`"],"runtime_files":["`+lib+`"]}}}`,
+	)
 	return root, pkg
 }
 
@@ -63,7 +72,7 @@ func TestVendorImportLinksAndDeploysSharedLibrary(t *testing.T) {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile vendor import: %v", diags.Diags)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+	t.Cleanup(func() { removeTestBinary(t, binary) })
 	if err := os.Rename(pkg, pkg+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +153,7 @@ func TestVendorRuntimeNameConflictsAreRejected(t *testing.T) {
 	}
 	binary, diags := compiler.CompileOnly(source)
 	if binary != "" {
-		t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+		t.Cleanup(func() { removeTestBinary(t, binary) })
 	}
 	if !strings.Contains(fmt.Sprint(diags.Diags), "runtime file name conflict") {
 		t.Fatalf("want runtime name conflict, got %v", diags.Diags)
@@ -173,7 +182,8 @@ func TestVendorIncompatibleArtifactReportsTargetAndSetup(t *testing.T) {
 	}
 	_, diags := compiler.CompileOnly(source)
 	message := fmt.Sprint(diags.Diags)
-	if !strings.Contains(message, runtime.GOOS+"-"+runtime.GOARCH) || !strings.Contains(message, "setup") {
+	if !strings.Contains(message, runtime.GOOS+"-"+runtime.GOARCH) ||
+		!strings.Contains(message, "setup") {
 		t.Fatalf("want target and recovery instructions, got %s", message)
 	}
 }
@@ -191,11 +201,16 @@ func TestSDL3ExampleDrawsAndCleansUp(t *testing.T) {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile SDL example: %v", diags.Diags)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+	t.Cleanup(func() { removeTestBinary(t, binary) })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary)
-	cmd.Env = append(os.Environ(), "SDL_VIDEO_DRIVER=dummy", "SDL_RENDER_DRIVER=software", "TELIA_SDL_EXAMPLE_FRAMES=3")
+	cmd.Env = append(
+		os.Environ(),
+		"SDL_VIDEO_DRIVER=dummy",
+		"SDL_RENDER_DRIVER=software",
+		"TELIA_SDL_EXAMPLE_FRAMES=3",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("SDL example: %v\n%s", err, out)
 	}
@@ -214,7 +229,7 @@ func TestSDL3ExampleStaysOpenUntilQuitByDefault(t *testing.T) {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile SDL example: %v", diags.Diags)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+	t.Cleanup(func() { removeTestBinary(t, binary) })
 	cmd := exec.Command(binary)
 	for _, env := range os.Environ() {
 		if !strings.HasPrefix(env, "TELIA_SDL_EXAMPLE_FRAMES=") {
@@ -288,7 +303,7 @@ fn main() i32 {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile SDL event test: %v", diags.Diags)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+	t.Cleanup(func() { removeTestBinary(t, binary) })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary)
@@ -311,12 +326,12 @@ func TestSDL3ReleaseBundleWorksWithoutConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }() // Read-only archive handle.
 	gz, err := gzip.NewReader(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }() // Read-only decompressor.
 	bundle := t.TempDir()
 	reader := tar.NewReader(gz)
 	for {
@@ -363,7 +378,8 @@ func TestSDL3ReleaseBundleWorksWithoutConfiguration(t *testing.T) {
 	cmd = exec.Command(filepath.Join(bundle, name), "build", source, "-o", output, "--color=never")
 	cmd.Dir = t.TempDir()
 	for _, env := range os.Environ() {
-		if !strings.HasPrefix(env, "T_STD_PATH=") && !strings.HasPrefix(env, "T_VENDOR_PATH=") && !strings.HasPrefix(env, "XDG_CONFIG_HOME=") {
+		if !strings.HasPrefix(env, "T_STD_PATH=") && !strings.HasPrefix(env, "T_VENDOR_PATH=") &&
+			!strings.HasPrefix(env, "XDG_CONFIG_HOME=") {
 			cmd.Env = append(cmd.Env, env)
 		}
 	}
@@ -377,7 +393,12 @@ func TestSDL3ReleaseBundleWorksWithoutConfiguration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, output)
-	cmd.Env = append(os.Environ(), "SDL_VIDEO_DRIVER=dummy", "SDL_RENDER_DRIVER=software", "TELIA_SDL_EXAMPLE_FRAMES=3")
+	cmd.Env = append(
+		os.Environ(),
+		"SDL_VIDEO_DRIVER=dummy",
+		"SDL_RENDER_DRIVER=software",
+		"TELIA_SDL_EXAMPLE_FRAMES=3",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("run bundled SDL example: %v\n%s", err, out)
 	}

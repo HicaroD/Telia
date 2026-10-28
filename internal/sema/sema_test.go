@@ -92,7 +92,12 @@ func TestTypeInference(t *testing.T) {
 			collector := parseAndCheck(tt.src)
 			hasError := len(collector.Diags) > 0
 			if hasError != tt.hasError {
-				t.Errorf("expected hasError=%v, got=%v. Diags: %v", tt.hasError, hasError, collector.Diags)
+				t.Errorf(
+					"expected hasError=%v, got=%v. Diags: %v",
+					tt.hasError,
+					hasError,
+					collector.Diags,
+				)
 			}
 		})
 	}
@@ -638,7 +643,7 @@ func TestParseNextDecl(t *testing.T) {
 		t.Errorf("expected not done after package decl")
 	}
 	if node == nil {
-		t.Errorf("expected node, got nil")
+		t.Fatalf("expected node, got nil")
 	}
 	if node.Kind != ast.KIND_PKG_DECL {
 		t.Errorf("expected KIND_PKG_DECL, got %v", node.Kind)
@@ -652,7 +657,7 @@ func TestParseNextDecl(t *testing.T) {
 		t.Errorf("expected not done after first decl")
 	}
 	if node == nil {
-		t.Errorf("expected node, got nil")
+		t.Fatalf("expected node, got nil")
 	}
 	if node.Kind != ast.KIND_FN_DECL {
 		t.Errorf("expected KIND_FN_DECL, got %v", node.Kind)
@@ -670,7 +675,7 @@ func TestParseNextDecl(t *testing.T) {
 		t.Errorf("expected not done after second decl")
 	}
 	if node == nil {
-		t.Errorf("expected node, got nil")
+		t.Fatalf("expected node, got nil")
 	}
 	if node.Kind != ast.KIND_FN_DECL {
 		t.Errorf("expected KIND_FN_DECL, got %v", node.Kind)

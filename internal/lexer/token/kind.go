@@ -192,10 +192,7 @@ var BUILTIN_FN_NAMES []string = []string{
 }
 
 func IsAnyBuiltin(name string) bool {
-	if slices.Contains(BUILTIN_FN_NAMES, name) {
-		return true
-	}
-	return false
+	return slices.Contains(BUILTIN_FN_NAMES, name)
 }
 
 func (k Kind) BitSize() int {

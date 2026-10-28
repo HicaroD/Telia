@@ -109,26 +109,3 @@ func ParseWhileLoopFrom(input, filename string) (*ast.WhileLoop, error) {
 	whileLoop, err := p.ParseWhileLoop(tempScope)
 	return whileLoop.Node.(*ast.WhileLoop), err
 }
-
-func parseFnDeclFrom(filename, input string, scope *ast.Scope) (*ast.FnDecl, error) {
-	_, p, _ := newParserContext([]byte(input), filename)
-	p.pkg.Scope = scope
-
-	fnDecl, err := p.ParseFnDecl(ast.Attributes{})
-	if err != nil {
-		return nil, err
-	}
-
-	return fnDecl.Node.(*ast.FnDecl), nil
-}
-
-func parseVarFrom(filename, input string) (*ast.VarIdStmt, error) {
-	_, p, _ := newParserContext([]byte(input), filename)
-
-	tmpScope := ast.NewScope(nil)
-	stmt, err := p.ParseIdStmt(tmpScope)
-	if err != nil {
-		return nil, err
-	}
-	return stmt.Node.(*ast.VarIdStmt), nil
-}

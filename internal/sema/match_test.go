@@ -13,8 +13,12 @@ func TestInvalidMatchesHaveActionableDiagnostics(t *testing.T) {
 		{"unreachable arm", "value := match Event::Quit {\n_ => 0\nEvent::Quit => 1\n}", "Unreachable match arm"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c := checkDiagnostics(t, "package main\nenum Event {\nQuit\nResize {\nwidth i32\nheight i32\n}\n}\nfn main() {\n"+tc.body+"\n}\n")
-			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+			c := checkDiagnostics(
+				t,
+				"package main\nenum Event {\nQuit\nResize {\nwidth i32\nheight i32\n}\n}\nfn main() {\n"+tc.body+"\n}\n",
+			)
+			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() ||
+				c.Diags[0].Help == "" {
 				t.Fatalf("want structured %s diagnostic, got %v", tc.title, c.Diags)
 			}
 		})
@@ -22,15 +26,23 @@ func TestInvalidMatchesHaveActionableDiagnostics(t *testing.T) {
 }
 
 func TestUnusedGenericFunctionsRejectYieldOutsideMatch(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nfn invalid<T>(value T) {\nyield value\n}\nfn main() {}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Yield outside match" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+	c := checkDiagnostics(
+		t,
+		"package main\nfn invalid<T>(value T) {\nyield value\n}\nfn main() {}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Yield outside match" || !c.Diags[0].Span.Valid() ||
+		c.Diags[0].Help == "" {
 		t.Fatalf("want structured yield-context diagnostic, got %v", c.Diags)
 	}
 }
 
 func TestDeferredCodeCannotYieldFromTheEnclosingMatch(t *testing.T) {
-	c := checkDiagnostics(t, "package main\nenum Event {\nQuit\n}\nfn main() {\nvalue := match Event::Quit {\nEvent::Quit => {\ndefer yield 1\nyield 0\n}\n}\n}\n")
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Yield outside match" || !c.Diags[0].Span.Valid() || c.Diags[0].Help == "" {
+	c := checkDiagnostics(
+		t,
+		"package main\nenum Event {\nQuit\n}\nfn main() {\nvalue := match Event::Quit {\nEvent::Quit => {\ndefer yield 1\nyield 0\n}\n}\n}\n",
+	)
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Yield outside match" || !c.Diags[0].Span.Valid() ||
+		c.Diags[0].Help == "" {
 		t.Fatalf("want a yield-context diagnostic instead of recursive cleanup, got %v", c.Diags)
 	}
 }

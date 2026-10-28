@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/HicaroD/Telia/tests/compiler"
@@ -49,11 +47,15 @@ func TestGenericTypeParametersCanConstructConcreteStructs(t *testing.T) {
 }
 
 func TestGenericBodiesWithNativeSanitizers(t *testing.T) {
-	path, diags := compiler.CompileOnlyWithCFlags("testdata/generic_control.t", "-fsanitize=undefined", "-fno-sanitize-recover=all")
+	path, diags := compiler.CompileOnlyWithCFlags(
+		"testdata/generic_control.t",
+		"-fsanitize=undefined",
+		"-fno-sanitize-recover=all",
+	)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("sanitized generic compilation: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(path))
+	defer removeTestBinary(t, path)
 	output, err := compiler.RunBinary(path)
 	if err != nil {
 		t.Fatalf("sanitized execution: %v: %s", err, output)

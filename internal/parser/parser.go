@@ -393,7 +393,12 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 				attributes.DefaultCallingConventionMacro = attributeValue.Name()
 			case "header":
 				if attributes.Header != "" {
-					return attributes, diagnostics.Diag{Title: "Repeated header attribute", Message: "header is already specified", Span: attribute.Span, Help: "Specify one header per extern block."}
+					return attributes, diagnostics.Diag{
+						Title:   "Repeated header attribute",
+						Message: "header is already specified",
+						Span:    attribute.Span,
+						Help:    "Specify one header per extern block.",
+					}
 				}
 				attributes.Header = attributeValue.Name()
 			case "default_cc":
@@ -542,16 +547,36 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 			p.lex.Skip()
 			name, ok := p.expect(token.ID)
 			if !ok {
-				return nil, diagnostics.Diag{Title: "Expected foreign constant name", Message: "foreign constants require a name and type", Span: name.Span, Help: "Write const Name Type without an initializer."}
+				return nil, diagnostics.Diag{
+					Title:   "Expected foreign constant name",
+					Message: "foreign constants require a name and type",
+					Span:    name.Span,
+					Help:    "Write const Name Type without an initializer.",
+				}
 			}
 			ty, err := p.ParseExprType()
 			if err != nil {
 				return nil, err
 			}
 			if tk, ok := p.expect(token.NEWLINE); !ok {
-				return nil, diagnostics.Diag{Title: "Foreign constant initializer", Message: "the header supplies the constant value", Span: tk.Span, Help: "Remove the initializer; write const Name Type."}
+				return nil, diagnostics.Diag{
+					Title:   "Foreign constant initializer",
+					Message: "the header supplies the constant value",
+					Span:    tk.Span,
+					Help:    "Remove the initializer; write const Name Type.",
+				}
 			}
-			externDecl.Constants = append(externDecl.Constants, &ast.ConstDecl{Owner: p.pkg, File: p.file, Name: name, Type: ty, Foreign: externDecl, Attributes: memberAttrs})
+			externDecl.Constants = append(
+				externDecl.Constants,
+				&ast.ConstDecl{
+					Owner:      p.pkg,
+					File:       p.file,
+					Name:       name,
+					Type:       ty,
+					Foreign:    externDecl,
+					Attributes: memberAttrs,
+				},
+			)
 			continue
 		}
 		if p.lex.NextIs(token.STRUCT) || p.lex.NextIs(token.UNION) {
@@ -568,12 +593,25 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 			p.lex.Skip()
 			name, ok := p.expect(token.ID)
 			if !ok {
-				return nil, diagnostics.Diag{Title: "Expected opaque type name", Message: "expected a name after opaque", Span: name.Span, Help: "Write opaque Name inside a header-owned extern block."}
+				return nil, diagnostics.Diag{
+					Title:   "Expected opaque type name",
+					Message: "expected a name after opaque",
+					Span:    name.Span,
+					Help:    "Write opaque Name inside a header-owned extern block.",
+				}
 			}
 			if _, ok := p.expect(token.NEWLINE); !ok {
-				return nil, diagnostics.Diag{Title: "Invalid opaque declaration", Message: "opaque declarations have no body", Span: name.Span, Help: "Write opaque Name on its own line; the header owns its definition."}
+				return nil, diagnostics.Diag{
+					Title:   "Invalid opaque declaration",
+					Message: "opaque declarations have no body",
+					Span:    name.Span,
+					Help:    "Write opaque Name on its own line; the header owns its definition.",
+				}
 			}
-			externDecl.Opaques = append(externDecl.Opaques, &ast.OpaqueDecl{Name: name, Attributes: memberAttrs})
+			externDecl.Opaques = append(
+				externDecl.Opaques,
+				&ast.OpaqueDecl{Name: name, Attributes: memberAttrs},
+			)
 			continue
 		}
 		proto, err := p.parsePrototype()
@@ -614,7 +652,15 @@ AfterFields:
 	for _, d := range externDecl.Enums {
 		node := &ast.Node{Kind: ast.KIND_ENUM_DECL, Node: d, Span: d.Name.Span}
 		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
-			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign enum name is already declared", Span: d.Name.Span, Help: "Choose a distinct name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Duplicate declaration",
+				Message: "foreign enum name is already declared",
+				Span:    d.Name.Span,
+				Help:    "Choose a distinct name.",
+				Related: []diagnostics.Related{
+					{Span: previous.DeclarationSpan(), Message: "previous declaration"},
+				},
+			}
 		}
 		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
 			return nil, err
@@ -624,7 +670,15 @@ AfterFields:
 		d.Scope = externDecl.Scope
 		node := &ast.Node{Kind: ast.KIND_CONST_DECL, Node: d, Span: d.Name.Span}
 		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
-			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign constant name is already declared", Span: d.Name.Span, Help: "Choose a distinct name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Duplicate declaration",
+				Message: "foreign constant name is already declared",
+				Span:    d.Name.Span,
+				Help:    "Choose a distinct name.",
+				Related: []diagnostics.Related{
+					{Span: previous.DeclarationSpan(), Message: "previous declaration"},
+				},
+			}
 		}
 		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
 			return nil, err
@@ -633,7 +687,15 @@ AfterFields:
 	for _, d := range externDecl.Records {
 		node := &ast.Node{Kind: ast.KIND_STRUCT_DECL, Node: d, Span: d.Name.Span}
 		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
-			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign record name is already declared", Span: d.Name.Span, Help: "Choose a distinct type name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Duplicate declaration",
+				Message: "foreign record name is already declared",
+				Span:    d.Name.Span,
+				Help:    "Choose a distinct type name.",
+				Related: []diagnostics.Related{
+					{Span: previous.DeclarationSpan(), Message: "previous declaration"},
+				},
+			}
 		}
 		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
 			return nil, err
@@ -642,7 +704,15 @@ AfterFields:
 	for _, d := range externDecl.Opaques {
 		node := &ast.Node{Kind: ast.KIND_OPAQUE_DECL, Node: d, Span: d.Name.Span}
 		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
-			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "opaque type name is already declared", Span: d.Name.Span, Help: "Choose a distinct type name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+			return nil, diagnostics.Diag{
+				Title:   "Duplicate declaration",
+				Message: "opaque type name is already declared",
+				Span:    d.Name.Span,
+				Help:    "Choose a distinct type name.",
+				Related: []diagnostics.Related{
+					{Span: previous.DeclarationSpan(), Message: "previous declaration"},
+				},
+			}
 		}
 		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
 			return nil, err
@@ -1139,7 +1209,9 @@ func (p *Parser) ParseFnDecl(attrs ast.Attributes) (*ast.Node, error) {
 				Title:   "Duplicate declaration",
 				Message: fmt.Sprintf("Function '%s' already declared on scope.", name.Name()),
 				Span:    name.Span,
-				Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "Previously declared here"}},
+				Related: []diagnostics.Related{
+					{Span: previous.DeclarationSpan(), Message: "Previously declared here"},
+				},
 			}
 			p.collector.ReportAndSave(functionRedeclaration)
 		}
@@ -1207,7 +1279,10 @@ func (p *Parser) parseFnParams(
 
 				attributeName := p.lex.Next()
 				if attributeName.Kind != token.ID && attributeName.Kind != token.CONST {
-					return nil, fmt.Errorf("expected parameter attribute name, got %s\n", p.lex.Peek().Kind)
+					return nil, fmt.Errorf(
+						"expected parameter attribute name, got %s\n",
+						p.lex.Peek().Kind,
+					)
 				}
 
 				switch attributeName.Name() {
@@ -1218,7 +1293,12 @@ func (p *Parser) parseFnParams(
 					}
 					attributes.C = true
 				case "const":
-					return nil, diagnostics.Diag{Title: "Invalid parameter attribute", Message: "const is a pointer qualifier, not a parameter attribute", Span: attributeName.Span, Help: "Write const *T or const cstring as the parameter type."}
+					return nil, diagnostics.Diag{
+						Title:   "Invalid parameter attribute",
+						Message: "const is a pointer qualifier, not a parameter attribute",
+						Span:    attributeName.Span,
+						Help:    "Write const *T or const cstring as the parameter type.",
+					}
 				}
 			}
 		}
@@ -1401,20 +1481,6 @@ func (p *Parser) expect(expectedKind token.Kind) (*token.Token, bool) {
 	return tok, true
 }
 
-func (p *Parser) expectOneOf(kinds []token.Kind) (*token.Token, bool) {
-	var found *token.Token
-	var ok bool
-
-	for _, expected := range kinds {
-		found, ok = p.expect(expected)
-		if ok {
-			break
-		}
-	}
-
-	return found, ok
-}
-
 func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 	t := new(ast.ExprType)
 	t.Explicit = true
@@ -1432,7 +1498,12 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 		}
 		result := ast.NewBasicType(token.VOID_TYPE)
 		switch p.lex.Peek().Kind {
-		case token.NEWLINE, token.COMMA, token.CLOSE_PAREN, token.OPEN_CURLY, token.CLOSE_CURLY, token.CLOSE_BRACKET:
+		case token.NEWLINE,
+			token.COMMA,
+			token.CLOSE_PAREN,
+			token.OPEN_CURLY,
+			token.CLOSE_CURLY,
+			token.CLOSE_BRACKET:
 		default:
 			result, err = p.ParseExprType()
 			if err != nil {
@@ -1450,7 +1521,12 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 			return p.parseSequenceType(t)
 		}
 		if found, ok := p.expect(token.STAR); !ok {
-			return nil, diagnostics.Diag{Title: "Expected qualified pointer", Message: "const protects the immediate pointee of a pointer", Span: found.Span, Help: "Write const *T."}
+			return nil, diagnostics.Diag{
+				Title:   "Expected qualified pointer",
+				Message: "const protects the immediate pointee of a pointer",
+				Span:    found.Span,
+				Help:    "Write const *T.",
+			}
 		}
 		ty, err := p.ParseExprType()
 		if err != nil {
@@ -1516,7 +1592,10 @@ func (p *Parser) parseSequenceType(t *ast.ExprType) (*ast.ExprType, error) {
 		if !p.lex.NextIs(token.CLOSE_BRACKET) {
 			tok := p.lex.Peek()
 			if !tok.Literal || tok.Kind != token.INT_TYPE {
-				return nil, fmt.Errorf("%s: array length must be a nonnegative integer literal", tok.Pos)
+				return nil, fmt.Errorf(
+					"%s: array length must be a nonnegative integer literal",
+					tok.Pos,
+				)
 			}
 			length, err := strconv.ParseUint(string(tok.Lexeme), 10, 64)
 			if err != nil {
@@ -1825,10 +1904,14 @@ func (p *Parser) parseStarStatement(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("cannot declare variable with dereference expression")
 
 	case token.COMMA, token.COLON, token.SEMICOLON, token.CLOSE_PAREN, token.NEWLINE, token.EOF:
-		return nil, fmt.Errorf("pointer receiver syntax not yet supported for statement-level declarations")
+		return nil, fmt.Errorf(
+			"pointer receiver syntax not yet supported for statement-level declarations",
+		)
 
 	default:
-		return nil, fmt.Errorf("pointer receiver syntax not yet supported for statement-level declarations")
+		return nil, fmt.Errorf(
+			"pointer receiver syntax not yet supported for statement-level declarations",
+		)
 	}
 }
 
@@ -2323,7 +2406,8 @@ func (p *Parser) parseShift(scope *ast.Scope) (*ast.Node, error) {
 	}
 	for {
 		first, second := p.lex.Peek(), p.lex.Peek1()
-		if (first.Kind != token.LESS && first.Kind != token.GREATER) || first.Kind != second.Kind || first.Span.End != second.Span.Start {
+		if (first.Kind != token.LESS && first.Kind != token.GREATER) || first.Kind != second.Kind ||
+			first.Span.End != second.Span.Start {
 			break
 		}
 		op := token.SHIFT_LEFT
@@ -2336,12 +2420,20 @@ func (p *Parser) parseShift(scope *ast.Scope) (*ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		left = &ast.Node{Kind: ast.KIND_BINARY_EXPR, Node: &ast.BinExpr{Left: left, Op: op, Right: right}, Span: p.lex.SpanFrom(left.Span)}
+		left = &ast.Node{
+			Kind: ast.KIND_BINARY_EXPR,
+			Node: &ast.BinExpr{Left: left, Op: op, Right: right},
+			Span: p.lex.SpanFrom(left.Span),
+		}
 	}
 	return left, nil
 }
 
-func (p *Parser) parseBinaryLevel(parentScope *ast.Scope, operand func(*ast.Scope) (*ast.Node, error), op token.Kind) (*ast.Node, error) {
+func (p *Parser) parseBinaryLevel(
+	parentScope *ast.Scope,
+	operand func(*ast.Scope) (*ast.Node, error),
+	op token.Kind,
+) (*ast.Node, error) {
 	lhs, err := operand(parentScope)
 	if err != nil {
 		return nil, err
@@ -2352,7 +2444,11 @@ func (p *Parser) parseBinaryLevel(parentScope *ast.Scope, operand func(*ast.Scop
 		if err != nil {
 			return nil, err
 		}
-		lhs = &ast.Node{Kind: ast.KIND_BINARY_EXPR, Node: &ast.BinExpr{Left: lhs, Op: op, Right: rhs}, Span: p.lex.SpanFrom(lhs.Span)}
+		lhs = &ast.Node{
+			Kind: ast.KIND_BINARY_EXPR,
+			Node: &ast.BinExpr{Left: lhs, Op: op, Right: rhs},
+			Span: p.lex.SpanFrom(lhs.Span),
+		}
 	}
 	return lhs, nil
 }
@@ -2466,7 +2562,11 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (result *ast.Node, resultE
 			if index == nil && end == nil {
 				builtin = "view"
 			}
-			call := &ast.FnCall{Name: token.New([]byte("slice"), token.ID, pos), Builtin: builtin, Args: []*ast.Node{n, index, end}}
+			call := &ast.FnCall{
+				Name:    token.New([]byte("slice"), token.ID, pos),
+				Builtin: builtin,
+				Args:    []*ast.Node{n, index, end},
+			}
 			if p.lex.NextIs(token.AT) {
 				call.AtOp, err = p.parseAtOperator(parentScope)
 				if err != nil {
@@ -2694,7 +2794,12 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 	return parser.parseCallTail(name, typeArgs, parentScope, nil)
 }
 
-func (parser *Parser) parseCallTail(name *token.Token, typeArgs []*ast.ExprType, parentScope *ast.Scope, callee *ast.Node) (*ast.Node, error) {
+func (parser *Parser) parseCallTail(
+	name *token.Token,
+	typeArgs []*ast.ExprType,
+	parentScope *ast.Scope,
+	callee *ast.Node,
+) (*ast.Node, error) {
 	_, ok := parser.expect(token.OPEN_PAREN)
 	// TODO(errors): add proper error
 	if !ok {
@@ -2767,7 +2872,8 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 			return nil, err
 		}
 		access.Right = right
-		if right.Kind == ast.KIND_STRUCT_EXPR && (access.IsImport || lookupErr == nil && namespaceSymbol.Kind == ast.KIND_EXTERN_DECL) {
+		if right.Kind == ast.KIND_STRUCT_EXPR &&
+			(access.IsImport || lookupErr == nil && namespaceSymbol.Kind == ast.KIND_EXTERN_DECL) {
 			right.Node.(*ast.StructLiteralExpr).Namespace = tk
 			return right, nil
 		}
@@ -2937,7 +3043,15 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.Node{Kind: ast.KIND_FOR_LOOP_STMT, Node: &ast.ForLoop{Range: source, Binding: &ast.VarIdStmt{Name: name}, Scope: scope, Block: block}}, nil
+		return &ast.Node{
+			Kind: ast.KIND_FOR_LOOP_STMT,
+			Node: &ast.ForLoop{
+				Range:   source,
+				Binding: &ast.VarIdStmt{Name: name},
+				Scope:   scope,
+				Block:   block,
+			},
+		}, nil
 	}
 	init, err := parser.ParseVar(parentScope, true)
 	if err != nil {

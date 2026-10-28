@@ -29,11 +29,16 @@ func runSDLSource(t *testing.T, source string) {
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile SDL program: %v", diags.Diags)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(binary)) })
+	t.Cleanup(func() { removeTestBinary(t, binary) })
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary)
-	cmd.Env = append(os.Environ(), "SDL_VIDEO_DRIVER=dummy", "SDL_RENDER_DRIVER=software", "SDL_AUDIO_DRIVER=dummy")
+	cmd.Env = append(
+		os.Environ(),
+		"SDL_VIDEO_DRIVER=dummy",
+		"SDL_RENDER_DRIVER=software",
+		"SDL_AUDIO_DRIVER=dummy",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("SDL program: %v\n%s", err, out)
 	}

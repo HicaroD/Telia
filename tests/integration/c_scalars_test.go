@@ -60,7 +60,7 @@ func TestCScalarABIChangingFlagsCannotSilentlyChangeSemantics(t *testing.T) {
 	}
 	exe, diags := compiler.CompileOnlyWithCFlags(path, flag)
 	if exe != "" {
-		defer os.RemoveAll(filepath.Dir(exe))
+		defer removeTestBinary(t, exe)
 	}
 	for _, d := range diags.Diags {
 		if strings.Contains(d.Message, "C scalar ABI mismatch: char") {

@@ -128,11 +128,16 @@ c := box<string>("hello")
 		t.Fatal(err)
 	}
 	if len(program.Functions) != 2 || len(program.Structs) != 2 {
-		t.Fatalf("want two concrete functions and layouts, got %d and %d", len(program.Functions), len(program.Structs))
+		t.Fatalf(
+			"want two concrete functions and layouts, got %d and %d",
+			len(program.Functions),
+			len(program.Structs),
+		)
 	}
 	templateNode, _ := pkg.Scope.LookupCurrentScope("box")
 	template := templateNode.Node.(*ast.FnDecl)
-	if template.Params.Fields[0].Type.Kind != ast.EXPR_TYPE_ID || template.RetType.Kind != ast.EXPR_TYPE_ID {
+	if template.Params.Fields[0].Type.Kind != ast.EXPR_TYPE_ID ||
+		template.RetType.Kind != ast.EXPR_TYPE_ID {
 		t.Fatal("specializing changed the template signature")
 	}
 	literal := template.Block.Statements[1].Node.(*ast.ReturnStmt).Value.Node.(*ast.StructLiteralExpr)
@@ -145,7 +150,9 @@ c := box<string>("hello")
 	second := main.Block.Statements[1].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
 	third := main.Block.Statements[2].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
 	if first != second || first == third {
-		t.Fatal("canonical aliases must reuse an instance while different arguments stay independent")
+		t.Fatal(
+			"canonical aliases must reuse an instance while different arguments stay independent",
+		)
 	}
 	if first.Scope == third.Scope || first.Block == third.Block {
 		t.Fatal("concrete functions share mutable semantic state")
@@ -158,7 +165,9 @@ func TestExternFunctionsRejectGenericArguments(t *testing.T) {
 		if strings.HasPrefix(call, "ffi") {
 			extern = "extern ffi {\nfn foreign(value i32) i32\n}\n"
 		}
-		diags := parseAndCheck("package main\n@[default_cc=\"c\"]\n" + extern + "fn main() {\nvalue := " + call + "\n}\n")
+		diags := parseAndCheck(
+			"package main\n@[default_cc=\"c\"]\n" + extern + "fn main() {\nvalue := " + call + "\n}\n",
+		)
 		if !containsDiag(diags.Diags, "does not take type arguments") {
 			t.Fatalf("expected concrete C ABI diagnostic, got %v", diags.Diags)
 		}
@@ -189,7 +198,9 @@ value := outer<string>("bad")
 }
 
 func TestGenericLayoutFailureIncludesInstantiation(t *testing.T) {
-	diags := parseAndCheck("package main\nstruct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>.{}\n}\n")
+	diags := parseAndCheck(
+		"package main\nstruct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>.{}\n}\n",
+	)
 	if !containsDiag(diags.Diags, "instantiated Node<i32>") {
 		t.Fatalf("want layout instantiation context, got %v", diags.Diags)
 	}

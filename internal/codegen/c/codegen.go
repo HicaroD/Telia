@@ -130,10 +130,22 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 			continue
 		}
 		seenScalars[basic.CName] = true
-		fmt.Fprintf(c.buf, "_Static_assert(sizeof(%s) * CHAR_BIT == %d, \"C scalar ABI mismatch: %s\");\n", basic.CName, basic.Kind.BitSize(), basic.CName)
+		fmt.Fprintf(
+			c.buf,
+			"_Static_assert(sizeof(%s) * CHAR_BIT == %d, \"C scalar ABI mismatch: %s\");\n",
+			basic.CName,
+			basic.Kind.BitSize(),
+			basic.CName,
+		)
 		if basic.Kind.IsInteger() {
 			unsigned := basic.Kind >= token.UINT_TYPE && basic.Kind <= token.U128_TYPE
-			fmt.Fprintf(c.buf, "_Static_assert((((%s)-1) > 0) == %t, \"C scalar ABI mismatch: %s signedness\");\n", basic.CName, unsigned, basic.CName)
+			fmt.Fprintf(
+				c.buf,
+				"_Static_assert((((%s)-1) > 0) == %t, \"C scalar ABI mismatch: %s signedness\");\n",
+				basic.CName,
+				unsigned,
+				basic.CName,
+			)
 		}
 	}
 	// Reset processed flags so each Generate() call is clean
@@ -168,7 +180,14 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		}
 		callbacks[f.CName] = true
 		proto := &ast.Proto{Params: f.Params}
-		fmt.Fprintf(c.buf, "typedef %s (%s*%s)(%s);\n", emitCType(f.Result), callingConvention(f.Attributes), f.CName, c.emitProtoParams(proto))
+		fmt.Fprintf(
+			c.buf,
+			"typedef %s (%s*%s)(%s);\n",
+			emitCType(f.Result),
+			callingConvention(f.Attributes),
+			f.CName,
+			c.emitProtoParams(proto),
+		)
 	}
 	sequences := map[string]bool{}
 	for _, ty := range c.program.ValueTypes {
@@ -216,9 +235,12 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		return err
 	}
 	_, err = cFile.WriteString(c.buf.String())
-	cFile.Close()
+	closeErr := cFile.Close()
 	if err != nil {
 		return err
+	}
+	if closeErr != nil {
+		return closeErr
 	}
 
 	// Determine optimisation level
@@ -252,7 +274,12 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 			return diagnostic
 		}
 		if len(requirements.LinkArgs) > 0 || len(requirements.CompileArgs) > 0 {
-			return fmt.Errorf("C compiler/linker error for native target %s-%s; verify artifacts and toolchain compatibility or rerun the package setup script:\n%s", runtime.GOOS, runtime.GOARCH, out)
+			return fmt.Errorf(
+				"C compiler/linker error for native target %s-%s; verify artifacts and toolchain compatibility or rerun the package setup script:\n%s",
+				runtime.GOOS,
+				runtime.GOARCH,
+				out,
+			)
 		}
 		return fmt.Errorf("C compiler error:\n%s", string(out))
 	}
@@ -305,7 +332,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		if writeErr := os.WriteFile(outputPath, data, 0755); writeErr != nil {
 			return fmt.Errorf("failed to write binary to %s: %w", outputPath, writeErr)
 		}
-		os.Remove(exePath)
+		if err := os.Remove(exePath); err != nil {
+			return fmt.Errorf("failed to remove temporary binary: %w", err)
+		}
 	}
 
 	c.exePath = outputPath
@@ -360,7 +389,11 @@ func nativeRequirements(root *ast.Package) (native.Requirements, error) {
 				name = strings.ToLower(name)
 			}
 			if previous, ok := names[name]; ok && previous != file {
-				return result, fmt.Errorf("native runtime file name conflict: %s and %s", previous, file)
+				return result, fmt.Errorf(
+					"native runtime file name conflict: %s and %s",
+					previous,
+					file,
+				)
 			}
 			names[name] = file
 		}

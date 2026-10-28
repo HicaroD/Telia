@@ -45,7 +45,10 @@ func emitCType(ty *ast.ExprType) string {
 		return emitCType(d.Type)
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		t := ty.T.(*ast.SequenceType)
-		return fmt.Sprintf("telia_seq_%x", sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s", ty.Kind, t.Length, emitCType(t.Element)))))
+		return fmt.Sprintf(
+			"telia_seq_%x",
+			sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s", ty.Kind, t.Length, emitCType(t.Element)))),
+		)
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
 		if b.CName != "" {

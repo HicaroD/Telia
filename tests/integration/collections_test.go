@@ -35,11 +35,16 @@ func TestCollectionBoundsChecksInDebugAndRelease(t *testing.T) {
 				if err := os.WriteFile(file, []byte("package main\nfn main() i32 {\n"+tc.body+"\nreturn 0\n}\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
-				path, diags := compiler.CompileOnlyWithCFlags(file, opt, "-fsanitize=undefined", "-fno-sanitize-recover=all")
+				path, diags := compiler.CompileOnlyWithCFlags(
+					file,
+					opt,
+					"-fsanitize=undefined",
+					"-fno-sanitize-recover=all",
+				)
 				if len(diags.Diags) != 0 {
 					t.Fatalf("bounds program should compile: %v", diags.Diags)
 				}
-				defer os.RemoveAll(filepath.Dir(path))
+				defer removeTestBinary(t, path)
 				output, err := compiler.RunBinary(path)
 				if err == nil || output != "runtime panic: "+tc.want+"\n" {
 					t.Fatalf("want bounds panic, got %q, %v", output, err)
@@ -60,11 +65,18 @@ func TestCollectionsWithNativeSanitizers(t *testing.T) {
 	}
 	for _, fixture := range []string{"arrays.t", "slices.t", "collection_iteration.t", "collection_memory.t", "collection_evaluation.t", "collection_composition.t", "collection_ownership.t", "list_aliasing.t", "list_lifecycle.t", "list_failure.t", "list_empty_struct.t"} {
 		t.Run(fixture, func(t *testing.T) {
-			path, diags := compiler.CompileOnlyWithCFlags("testdata/"+fixture, "-include", header, "-fsanitize="+sanitizers, "-fno-sanitize-recover=all", "-fno-omit-frame-pointer")
+			path, diags := compiler.CompileOnlyWithCFlags(
+				"testdata/"+fixture,
+				"-include",
+				header,
+				"-fsanitize="+sanitizers,
+				"-fno-sanitize-recover=all",
+				"-fno-omit-frame-pointer",
+			)
 			if len(diags.Diags) != 0 {
 				t.Fatalf("sanitized compilation: %v", diags.Diags)
 			}
-			defer os.RemoveAll(filepath.Dir(path))
+			defer removeTestBinary(t, path)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			output, err := exec.CommandContext(ctx, path).CombinedOutput()
@@ -86,11 +98,15 @@ func TestCollectionsComposeWithStructsArraysPointersAndNestedLists(t *testing.T)
 }
 
 func TestListsSupportEmptyStructElementsWithoutZeroSizeAllocation(t *testing.T) {
-	path, diags := compiler.CompileOnlyWithCFlags("testdata/list_empty_struct.t", "-fsanitize=undefined", "-fno-sanitize-recover=all")
+	path, diags := compiler.CompileOnlyWithCFlags(
+		"testdata/list_empty_struct.t",
+		"-fsanitize=undefined",
+		"-fno-sanitize-recover=all",
+	)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("empty element structs should compile: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(path))
+	defer removeTestBinary(t, path)
 	output, err := compiler.RunBinary(path)
 	if err != nil || output != "1\n1\n" {
 		t.Fatalf("want one stored nonzero-size value, got %q, %v", output, err)
@@ -122,11 +138,17 @@ func TestListFailuresPreserveStorageAndReleaseAllocations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, diags := compiler.CompileOnlyWithCFlags("testdata/list_failure.t", "-include", header, "-fsanitize=undefined", "-fno-sanitize-recover=all")
+	path, diags := compiler.CompileOnlyWithCFlags(
+		"testdata/list_failure.t",
+		"-include",
+		header,
+		"-fsanitize=undefined",
+		"-fno-sanitize-recover=all",
+	)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("list failure fixture should compile: %v", diags.Diags)
 	}
-	defer os.RemoveAll(filepath.Dir(path))
+	defer removeTestBinary(t, path)
 	output, err := compiler.RunBinary(path)
 	if err != nil {
 		t.Fatalf("execution: %v: %s", err, output)

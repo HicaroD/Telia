@@ -95,7 +95,8 @@ func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, indent string) {
 	var value string
 	if ret.Value != nil && ret.Value.Kind != ast.KIND_VOID_EXPR {
 		value = c.emitExpr(ret.Value)
-		if ret.Value.Kind == ast.KIND_NULLPTR_EXPR && c.currentRetTy != nil && c.currentRetTy.IsError() {
+		if ret.Value.Kind == ast.KIND_NULLPTR_EXPR && c.currentRetTy != nil &&
+			c.currentRetTy.IsError() {
 			value = "(_Error){0}"
 		}
 		// Copy the result before cleanup can mutate locals or release owners.
@@ -206,12 +207,22 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 
 				tt := fullRetType.T.(*ast.TupleType)
 				errIdx := len(tt.Types) - 1
-				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+				c.buf.WriteString(
+					fmt.Sprintf(
+						"if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n",
+						tmp,
+						errIdx,
+						tmp,
+						errIdx,
+					),
+				)
 
 				if len(tt.Types) > 2 {
 					for i := 0; i < errIdx; i++ {
 						elemType := emitCType(tt.Types[i])
-						c.buf.WriteString(fmt.Sprintf("%s %s_%d = %s._%d;\n", elemType, tmp, i, tmp, i))
+						c.buf.WriteString(
+							fmt.Sprintf("%s %s_%d = %s._%d;\n", elemType, tmp, i, tmp, i),
+						)
 					}
 				} else {
 					c.buf.WriteString(fmt.Sprintf("%s %s = %s._0;\n", cType, cVar.Name, tmp))
@@ -371,7 +382,9 @@ func (c *CCodegen) emitForLoop(stmt *ast.ForLoop, indent string) {
 	ownerScope := false
 	if stmt.Init != nil && stmt.Init.Kind == ast.KIND_VAR_STMT {
 		declaration := stmt.Init.Node.(*ast.VarStmt)
-		if declaration.IsDecl && len(declaration.Names) == 1 && declaration.Names[0].Kind == ast.KIND_VAR_ID_STMT && declaration.Names[0].Node.(*ast.VarIdStmt).Type.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+		if declaration.IsDecl && len(declaration.Names) == 1 &&
+			declaration.Names[0].Kind == ast.KIND_VAR_ID_STMT &&
+			declaration.Names[0].Node.(*ast.VarIdStmt).Type.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
 			ownerScope = true
 			c.buf.WriteString("{\n")
 			c.emitVarStmt(declaration, inner)

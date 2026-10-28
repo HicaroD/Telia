@@ -15,7 +15,8 @@ func (f *FunctionType) Equals(g *FunctionType) bool {
 	if f.Attributes.CallingConventionMacro != g.Attributes.CallingConventionMacro {
 		return false
 	}
-	if f.Params.IsVariadic != g.Params.IsVariadic || len(f.Params.Fields) != len(g.Params.Fields) || !f.Result.Equals(g.Result) {
+	if f.Params.IsVariadic != g.Params.IsVariadic || len(f.Params.Fields) != len(g.Params.Fields) ||
+		!f.Result.Equals(g.Result) {
 		return false
 	}
 	for i, p := range f.Params.Fields {

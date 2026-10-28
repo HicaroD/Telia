@@ -168,12 +168,22 @@ func (c *CCodegen) emitSequencedVaCall(call *ast.FnCall) string {
 		for _, arg := range arguments {
 			if borrow := vaCall(arg); borrow != nil && borrow.Builtin == "va_borrow" {
 				owner := borrow.VaOwner.BackendType.(*CVariable).Name
-				fmt.Fprintf(c.buf, "if (%s.state != 1) _panic(%s);\n%s.state = 2;\n", owner, vaPanicMessage(borrow, "va_list is ended or consumed"), owner)
+				fmt.Fprintf(
+					c.buf,
+					"if (%s.state != 1) _panic(%s);\n%s.state = 2;\n",
+					owner,
+					vaPanicMessage(borrow, "va_list is ended or consumed"),
+					owner,
+				)
 				values = append(values, owner+".args")
 				continue
 			}
-			if id, ok := arg.Node.(*ast.IdExpr); ok && id.N != nil && id.N.Kind == ast.KIND_PARAM && id.N.Node.(*ast.Param).Type.Kind == ast.EXPR_TYPE_C_VA_LIST {
-				values = append(values, c.emitExpr(arg)) // Native array adjustment, no cursor assignment.
+			if id, ok := arg.Node.(*ast.IdExpr); ok && id.N != nil && id.N.Kind == ast.KIND_PARAM &&
+				id.N.Node.(*ast.Param).Type.Kind == ast.EXPR_TYPE_C_VA_LIST {
+				values = append(
+					values,
+					c.emitExpr(arg),
+				) // Native array adjustment, no cursor assignment.
 				continue
 			}
 			value, tmp := c.emitExpr(arg), c.nextTmp()
