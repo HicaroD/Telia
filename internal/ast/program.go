@@ -69,15 +69,17 @@ type PackageType int
 const (
 	PACKAGE_STD = iota
 	PACKAGE_USER
+	PACKAGE_VENDOR
 )
 
 type Package struct {
-	Loc       *Loc
-	Files     []*File
-	Scope     *Scope
-	IsRoot    bool // If true, "Scope" represents the universe
-	Analyzed  bool
-	Processed bool
+	NativeManifest string // vendor package's native.json; empty for ordinary packages
+	Loc            *Loc
+	Files          []*File
+	Scope          *Scope
+	IsRoot         bool // If true, "Scope" represents the universe
+	Analyzed       bool
+	Processed      bool
 }
 
 func (p *Package) String() string {

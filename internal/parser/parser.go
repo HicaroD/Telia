@@ -86,6 +86,13 @@ func (p *Parser) addPackage(
 		prefixPath = config.ENVS.STD
 	case ast.PACKAGE_USER:
 		prefixPath = p.argLoc
+	case ast.PACKAGE_VENDOR:
+		prefixPath = config.VendorPath()
+		for _, part := range path {
+			if part == "" || part == "." || part == ".." || strings.ContainsAny(part, `/\\`) {
+				return "", "", nil, fmt.Errorf("invalid vendor import path")
+			}
+		}
 	default:
 		panic(fmt.Sprintf("unknown package type: %d\n", pkgTy))
 	}
@@ -120,6 +127,9 @@ func (p *Parser) addPackage(
 	pkg, err := p.parsePackage(loc, false)
 	if err != nil {
 		return "", "", nil, err
+	}
+	if pkgTy == ast.PACKAGE_VENDOR {
+		pkg.NativeManifest = filepath.Join(fullPkgPath, "native.json")
 	}
 
 	p.imports[fullPkgPath] = pkg
@@ -664,6 +674,8 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 		pkgType = ast.PACKAGE_STD
 	case "pkg":
 		pkgType = ast.PACKAGE_USER
+	case "vendor":
+		pkgType = ast.PACKAGE_VENDOR
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("error: invalid use string prefix")

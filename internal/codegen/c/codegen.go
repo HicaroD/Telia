@@ -5,10 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/native"
 )
 
 const preamble = `#include <stdint.h>
@@ -78,6 +81,10 @@ func (c *CCodegen) SetCFlags(flags ...string) {
 }
 
 func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
+	requirements, err := nativeRequirements(c.program.Root)
+	if err != nil {
+		return err
+	}
 	compiler, err := detectCCompiler()
 	if err != nil {
 		return err
@@ -91,6 +98,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	filenameNoExt := strings.TrimSuffix(filepath.Base(c.loc.Name), filepath.Ext(c.loc.Name))
 	cFilePath := filepath.Join(dir, filenameNoExt+".c")
 	exePath := filepath.Join(dir, filenameNoExt)
+	if runtime.GOOS == "windows" {
+		exePath += ".exe"
+	}
 
 	// Emit into buf
 	c.buf.Reset()
@@ -164,9 +174,23 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 
 	// Compile into temp dir
 	args := append([]string{optFlag}, c.cFlags...)
-	args = append(args, "-o", exePath, cFilePath, "-lm")
+	args = append(args, requirements.CompileArgs...)
+	args = append(args, "-o", exePath, cFilePath)
+	args = append(args, requirements.LinkArgs...)
+	args = append(args, "-lm")
+	if len(requirements.RuntimeFiles) > 0 {
+		switch runtime.GOOS {
+		case "darwin":
+			args = append(args, "-Wl,-rpath,@loader_path")
+		case "linux":
+			args = append(args, "-Wl,-rpath,$ORIGIN")
+		}
+	}
 	cmd := exec.Command(compiler, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
+		if len(requirements.LinkArgs) > 0 || len(requirements.CompileArgs) > 0 {
+			return fmt.Errorf("C compiler/linker error for native target %s-%s; verify artifacts and toolchain compatibility or rerun the package setup script:\n%s", runtime.GOOS, runtime.GOARCH, out)
+		}
 		return fmt.Errorf("C compiler error:\n%s", string(out))
 	}
 
@@ -191,9 +215,21 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 
 	// Ensure output directory exists
+	if runtime.GOOS == "windows" && filepath.Ext(outputPath) == "" {
+		outputPath += ".exe"
+	}
 	outDir := filepath.Dir(outputPath)
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory %s: %w", outDir, err)
+	}
+	for _, file := range requirements.RuntimeFiles {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("deploy native runtime %s: %w", file, err)
+		}
+		if err := os.WriteFile(filepath.Join(outDir, filepath.Base(file)), data, 0755); err != nil {
+			return err
+		}
 	}
 
 	// Move executable to output path
@@ -218,6 +254,55 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 
 	return nil
+}
+
+func nativeRequirements(root *ast.Package) (native.Requirements, error) {
+	var result native.Requirements
+	seen := make(map[*ast.Package]bool)
+	var visit func(*ast.Package) error
+	visit = func(pkg *ast.Package) error {
+		if pkg == nil || seen[pkg] {
+			return nil
+		}
+		seen[pkg] = true
+		if pkg.NativeManifest != "" {
+			r, err := native.Resolve(pkg.NativeManifest, runtime.GOOS+"-"+runtime.GOARCH)
+			if err != nil {
+				return err
+			}
+			result.CompileArgs = append(result.CompileArgs, r.CompileArgs...)
+			result.LinkArgs = append(result.LinkArgs, r.LinkArgs...)
+			result.RuntimeFiles = append(result.RuntimeFiles, r.RuntimeFiles...)
+		}
+		for _, file := range pkg.Files {
+			keys := make([]string, 0, len(file.Imports))
+			for key := range file.Imports {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				if err := visit(file.Imports[key].Package); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	err := visit(root)
+	if err == nil {
+		names := make(map[string]string)
+		for _, file := range result.RuntimeFiles {
+			name := filepath.Base(file)
+			if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+				name = strings.ToLower(name)
+			}
+			if previous, ok := names[name]; ok && previous != file {
+				return result, fmt.Errorf("native runtime file name conflict: %s and %s", previous, file)
+			}
+			names[name] = file
+		}
+	}
+	return result, err
 }
 
 func (c *CCodegen) ExePath() string {

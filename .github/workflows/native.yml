@@ -1,0 +1,75 @@
+name: Native vendor packages
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  sdl:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-amd64
+          - os: macos-15-intel
+            target: darwin-amd64
+          - os: macos-15
+            target: darwin-arm64
+          - os: windows-2022
+            target: windows-amd64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+      - uses: actions/setup-python@v5
+        if: runner.os != 'Windows'
+        with:
+          python-version: '3.12'
+      - name: Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libx11-dev libxcursor-dev libxext-dev libxi-dev libxfixes-dev libxrandr-dev libxss-dev libxtst-dev libasound2-dev libpulse-dev libudev-dev libdrm-dev libgbm-dev libgl1-mesa-dev libegl1-mesa-dev
+      - name: macOS prerequisites
+        if: runner.os == 'macOS'
+        run: python3 -m pip install cmake ninja
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-python
+      - name: Select Windows native toolchain
+        if: runner.os == 'Windows'
+        run: echo 'C:\msys64\ucrt64\bin' >> "$GITHUB_PATH"
+      - name: Configure checkout paths
+        run: |
+          python3 -c 'from pathlib import Path; Path("config/env").write_text("T_STD_PATH=" + str(Path("base/std").resolve()) + "\n")'
+      - name: Build pinned SDL3
+        run: python3 scripts/setup-sdl.py
+      - name: Native import and headless SDL checks
+        env:
+          TELIA_TEST_SDL: '1'
+        run: go test ./internal/native ./tests/integration -run 'TestInvalidNative|TestMissing|TestVendor|TestSDL3|TestBoolean|TestCString' -count=1
+      - name: Full suite on Linux
+        if: runner.os == 'Linux'
+        run: go test ./...
+      - name: Archive native artifacts without losing symlinks
+        run: tar -czf sdl-${{ matrix.target }}.tar.gz -C base/vendor/sdl artifacts/${{ matrix.target }} LICENSE-SDL.txt
+      - name: Package ready-to-use Telia release
+        run: python3 scripts/package-release.py --output telia-${{ matrix.target }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdl-3.2.28-${{ matrix.target }}
+          path: sdl-${{ matrix.target }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telia-${{ matrix.target }}
+          path: telia-${{ matrix.target }}.tar.gz

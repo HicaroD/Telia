@@ -520,6 +520,8 @@ var BinaryOperators = OperatorTable{
 	},
 	token.EQUAL_EQUAL: {
 		ValidTypes: []*ExprType{
+			NewBasicType(token.CSTRING_TYPE),
+			NewBasicType(token.BOOL_TYPE),
 			NewBasicType(token.STRING_TYPE),
 			// integers
 			NewBasicType(token.UINT_TYPE),
@@ -549,6 +551,8 @@ var BinaryOperators = OperatorTable{
 	},
 	token.BANG_EQUAL: {
 		ValidTypes: []*ExprType{
+			NewBasicType(token.CSTRING_TYPE),
+			NewBasicType(token.BOOL_TYPE),
 			NewBasicType(token.STRING_TYPE),
 			NewBasicType(token.UINT_TYPE),
 			NewBasicType(token.INT_TYPE),

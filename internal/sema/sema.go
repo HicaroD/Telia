@@ -2328,7 +2328,8 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	// fromImportPackage bool,
 	// isArg bool,
 ) (*ast.ExprType, error) {
-	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() {
+	isCString := expectedType.Kind == ast.EXPR_TYPE_BASIC && expectedType.T.(*ast.BasicType).Kind == token.CSTRING_TYPE
+	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() && !isCString {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
 	nullptr.Type = expectedType

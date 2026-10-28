@@ -5,15 +5,13 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 )
 
 // TODO: properly map these paths to user
-var DEFAULT_ENV_FILE string = `T_STD=
+var DEFAULT_ENV_FILE string = `T_STD_PATH=
 `
 
 //go:embed env
@@ -25,6 +23,14 @@ var ENVS *Envs
 
 type Envs struct {
 	STD string `env:"T_STD_PATH"`
+}
+
+// VendorPath follows the std installation layout unless explicitly overridden.
+func VendorPath() string {
+	if path := os.Getenv("T_VENDOR_PATH"); path != "" {
+		return path
+	}
+	return filepath.Join(filepath.Dir(ENVS.STD), "vendor")
 }
 
 func (e *Envs) ShowAll() {
@@ -62,9 +68,25 @@ func SetupEnvFile() error {
 	}
 
 	parsedEnvs := Envs{}
+	if value := os.Getenv("T_STD_PATH"); value != "" {
+		envs["T_STD_PATH"] = value
+	}
 	err = MapEnvToStruct(envs, &parsedEnvs)
 	if err != nil {
 		return err
+	}
+	if parsedEnvs.STD == "" {
+		executable, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		if resolved, err := filepath.EvalSymlinks(executable); err == nil {
+			executable = resolved
+		}
+		bundled := filepath.Join(filepath.Dir(executable), "base", "std")
+		if info, err := os.Stat(bundled); err == nil && info.IsDir() {
+			parsedEnvs.STD = bundled
+		}
 	}
 
 	ENVS = &parsedEnvs
@@ -192,27 +214,15 @@ func MapEnvToStruct(data map[string]string, result any) error {
 				if strings.HasSuffix(envTag, "PATH") && value != "" {
 					fullPath := value
 
-					switch runtime.GOOS {
-					case "linux":
-						usr, _ := user.Current()
-						homeDir := usr.HomeDir
-
+					if value == "~" || strings.HasPrefix(value, "~/") {
+						homeDir, err := os.UserHomeDir()
+						if err != nil {
+							return err
+						}
+						fullPath = filepath.Join(homeDir, strings.TrimPrefix(value, "~/"))
 						if value == "~" {
 							fullPath = homeDir
-						} else if len(value) >= 2 && value[:2] == "~/" {
-							fullPath = filepath.Join(homeDir, value[2:])
 						}
-					case "darwin":
-						usr, _ := user.Current()
-						homeDir := usr.HomeDir
-
-						if value == "~" {
-							fullPath = homeDir
-						} else if len(value) >= 2 && value[:2] == "~/" {
-							fullPath = filepath.Join(homeDir, value[2:])
-						}
-					default:
-						return fmt.Errorf("unsupported os: %s", runtime.GOOS)
 					}
 
 					_, err := os.Stat(fullPath)
