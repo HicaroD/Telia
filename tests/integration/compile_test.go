@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -89,7 +90,13 @@ func TestCStringConversionOwnsTerminatedStorageAndRejectsZeros(t *testing.T) {
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
-	if want := "Olá\nOlá\n[]\nrejected\nstatic\n"; output != want {
+	want := "Olá\nOlá\n[]\nrejected\nstatic\n"
+	// These lines use C stdio, whose Windows text mode translates LF to CRLF.
+	// Keep captured output untouched so byte-preservation tests remain strict.
+	if runtime.GOOS == "windows" {
+		want = strings.ReplaceAll(want, "\n", "\r\n")
+	}
+	if output != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
