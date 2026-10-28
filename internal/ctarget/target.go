@@ -42,16 +42,29 @@ func Scalars() (map[string]Scalar, error) {
 	if err != nil {
 		return nil, fmt.Errorf("query C target scalar properties: %w: %s", err, output)
 	}
+	result, err := parseScalars(string(output))
+	if err != nil {
+		return nil, err
+	}
+	cache.Store(compiler, result)
+	return result, nil
+}
+
+func parseScalars(output string) (map[string]Scalar, error) {
 	macros := map[string]string{}
-	for _, line := range strings.Split(string(output), "\n") {
+	for _, line := range strings.Split(output, "\n") {
 		parts := strings.Fields(line)
 		if len(parts) >= 3 && parts[0] == "#define" {
-			macros[parts[1]] = parts[2]
+			macros[parts[1]] = strings.Join(parts[2:], " ")
 		}
 	}
 	if macros["__CHAR_BIT__"] != "8" {
 		return nil, fmt.Errorf("unsupported C target: requires 8-bit bytes")
 	}
+	// Clang defines __WCHAR_UNSIGNED__, but MinGW GCC may expose unsignedness
+	// only through __WCHAR_TYPE__ (for example, "short unsigned int").
+	wcharUnsigned := macros["__WCHAR_UNSIGNED__"] != "" ||
+		strings.Contains(" "+macros["__WCHAR_TYPE__"]+" ", " unsigned ")
 	result := map[string]Scalar{}
 	for _, spec := range []struct {
 		key, name, size    string
@@ -64,7 +77,7 @@ func Scalars() (map[string]Scalar, error) {
 		{"long", "long", "__SIZEOF_LONG__", false, false}, {"ulong", "unsigned long", "__SIZEOF_LONG__", true, false},
 		{"longlong", "long long", "__SIZEOF_LONG_LONG__", false, false}, {"ulonglong", "unsigned long long", "__SIZEOF_LONG_LONG__", true, false},
 		{"size_t", "size_t", "__SIZEOF_SIZE_T__", true, false}, {"ptrdiff_t", "ptrdiff_t", "__SIZEOF_PTRDIFF_T__", false, false},
-		{"wchar_t", "wchar_t", "__SIZEOF_WCHAR_T__", macros["__WCHAR_UNSIGNED__"] != "", false},
+		{"wchar_t", "wchar_t", "__SIZEOF_WCHAR_T__", wcharUnsigned, false},
 		{"intptr_t", "intptr_t", "__SIZEOF_POINTER__", false, false}, {"uintptr_t", "uintptr_t", "__SIZEOF_POINTER__", true, false},
 		{"float", "float", "__SIZEOF_FLOAT__", false, true}, {"double", "double", "__SIZEOF_DOUBLE__", false, true},
 	} {
@@ -87,6 +100,5 @@ func Scalars() (map[string]Scalar, error) {
 			Float:    spec.floating,
 		}
 	}
-	cache.Store(compiler, result)
 	return result, nil
 }

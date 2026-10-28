@@ -57,7 +57,7 @@ jobs:
       - name: Native import and headless SDL checks
         env:
           TELIA_TEST_SDL: '1'
-        run: go test ./internal/native ./tests/integration -run 'TestInvalidNative|TestMissing|TestVendor|TestSDL3|TestBoolean|TestCString' -count=1
+        run: go test ./internal/ctarget ./internal/native ./tests/integration -run 'TestWchar|TestScalars|TestInvalidNative|TestMissing|TestVendor|TestSDL3|TestBoolean|TestCString' -count=1
       - name: Foreign ABI regression fixtures
         run: go test ./internal/sema ./tests/integration -run 'Test(HeaderOwned|Foreign|NamedExtern|Const|Callback|Callbacks|LibcScalar|CScalar|CVariadic|GenericCallback|BorrowedVaList|NativeCallback|LegacyRawPointerVa|ImportedBareFunction|Va|GenericVa|DereferencingVaArg)' -count=1
       - name: Full suite on Linux
