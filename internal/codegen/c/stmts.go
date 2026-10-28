@@ -189,6 +189,10 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			cType := emitCType(varId.Type)
 			cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + varId.Name.Name()}
 			varId.BackendType = cVar
+			if varId.Type.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+				c.emitVaOwnerInitialization(varId, stmt.Expr)
+				return
+			}
 
 			// @fail on a tuple-returning function: store full tuple in temp,
 			// check error field, panic if non-nil, then extract non-error fields.
@@ -363,13 +367,28 @@ func (c *CCodegen) emitForLoop(stmt *ast.ForLoop, indent string) {
 	inner := indent + "    "
 
 	// Emit init inline without trailing newline/semicolon so it can go into the for(;;)
-	init := c.emitForInit(stmt.Init)
+	init := ""
+	ownerScope := false
+	if stmt.Init != nil && stmt.Init.Kind == ast.KIND_VAR_STMT {
+		declaration := stmt.Init.Node.(*ast.VarStmt)
+		if declaration.IsDecl && len(declaration.Names) == 1 && declaration.Names[0].Kind == ast.KIND_VAR_ID_STMT && declaration.Names[0].Node.(*ast.VarIdStmt).Type.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+			ownerScope = true
+			c.buf.WriteString("{\n")
+			c.emitVarStmt(declaration, inner)
+		}
+	}
+	if !ownerScope {
+		init = c.emitForInit(stmt.Init)
+	}
 	cond := c.emitExpr(stmt.Cond)
 	update := c.emitForUpdate(stmt.Update)
 
 	c.buf.WriteString(fmt.Sprintf("for (%s; %s; %s) {\n", init, cond, update))
 	c.emitBlock(stmt.Block, inner)
 	c.buf.WriteString(indent + "}\n")
+	if ownerScope {
+		c.buf.WriteString(indent + "}\n")
+	}
 }
 
 // emitForInit extracts the init expression/declaration for a for loop header.

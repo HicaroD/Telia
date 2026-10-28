@@ -22,12 +22,23 @@ type CVariable struct {
 // emitCType converts a Telia ExprType into its C type string.
 func emitCType(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_VA_LIST_OWNER:
+		return "_TeliaVaList"
+	case ast.EXPR_TYPE_C_VA_LIST:
+		return "va_list"
+	case ast.EXPR_TYPE_FUNCTION:
+		return ty.T.(*ast.FunctionType).CName
 	case ast.EXPR_TYPE_OPAQUE:
 		d := ty.T.(*ast.OpaqueType).Decl
-		if d.Attributes.LinkName != "" { return d.Attributes.LinkName }
+		if d.Attributes.LinkName != "" {
+			return d.Attributes.LinkName
+		}
 		return d.Name.Name()
 	case ast.EXPR_TYPE_ENUM:
 		d := ty.T.(*ast.EnumType).Decl
+		if d.Foreign != nil {
+			return d.CName
+		}
 		if d.HasPayload {
 			return d.CName
 		}
@@ -37,6 +48,9 @@ func emitCType(ty *ast.ExprType) string {
 		return fmt.Sprintf("telia_seq_%x", sha256.Sum256([]byte(fmt.Sprintf("%d:%d:%s", ty.Kind, t.Length, emitCType(t.Element)))))
 	case ast.EXPR_TYPE_BASIC:
 		b := ty.T.(*ast.BasicType)
+		if b.CName != "" {
+			return b.CName
+		}
 		switch b.Kind {
 		case token.BOOL_TYPE:
 			return "_Bool"
@@ -73,6 +87,9 @@ func emitCType(ty *ast.ExprType) string {
 		case token.STRING_TYPE:
 			return "_String"
 		case token.CSTRING_TYPE:
+			if b.Const {
+				return "const char *"
+			}
 			return "char *"
 		case token.RAWPTR_TYPE:
 			return "void *"
@@ -83,7 +100,11 @@ func emitCType(ty *ast.ExprType) string {
 		}
 	case ast.EXPR_TYPE_POINTER:
 		ptr := ty.T.(*ast.PointerType)
-		return emitCType(ptr.Type) + " *"
+		inner := emitCType(ptr.Type)
+		if ptr.Const {
+			inner = constCType(ptr.Type)
+		}
+		return inner + " *"
 	case ast.EXPR_TYPE_STRUCT:
 		st := ty.T.(*ast.StructType)
 		if st.Decl.CName != "" {
@@ -99,6 +120,19 @@ func emitCType(ty *ast.ExprType) string {
 	default:
 		panic(fmt.Sprintf("emitCType: unhandled ExprType kind: %v", ty.Kind))
 	}
+}
+
+func constCType(ty *ast.ExprType) string {
+	name := emitCType(ty)
+	pointerLike := ty.IsPointer()
+	if ty.Kind == ast.EXPR_TYPE_BASIC {
+		kind := ty.T.(*ast.BasicType).Kind
+		pointerLike = kind == token.CSTRING_TYPE || kind == token.RAWPTR_TYPE
+	}
+	if pointerLike {
+		return name + " const"
+	}
+	return "const " + name
 }
 
 // tupleTypedefName returns the C typedef name for a tuple type.

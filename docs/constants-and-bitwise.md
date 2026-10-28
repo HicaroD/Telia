@@ -91,7 +91,8 @@ and unsigned boundaries, including 128-bit values, under UBSan on macOS arm64.
 
 The constants/bitwise foundation and the first [enum slice](enums.md) of issue
 #93 are implemented, along with [header-owned opaque pointers](foreign-opaque.md).
-Header-supplied constants, header-owned foreign records/enums,
-pointer-level qualifiers, function pointers, and target-aware C scalar/`va_list`
-support are not implemented by this slice. Array lengths still require literal
-lengths. The existing parameter-level `@const` spelling is unchanged.
+Further [C interoperability](foreign-interop.md) includes header-supplied
+constants, records/enums, pointer qualifiers, callbacks, target-aware C scalars,
+and native borrowed/owning `va_list` operations. Header constants remain C expressions,
+not inputs to Telia's compile-time evaluator. Array lengths still require literal
+lengths. Standard-library declarations now use pointer-level const qualification.

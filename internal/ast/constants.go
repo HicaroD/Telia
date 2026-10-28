@@ -3,6 +3,8 @@ package ast
 import "github.com/HicaroD/Telia/internal/lexer/token"
 
 type ConstDecl struct {
+	Foreign    *ExternDecl
+	Attributes Attributes
 	Owner      *Package
 	File       *File
 	Scope      *Scope

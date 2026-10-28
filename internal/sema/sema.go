@@ -24,6 +24,8 @@ type sema struct {
 	program           *ast.Program // set by Check(); used by registerTupleType
 	currentReturnType *ast.ExprType
 	currentYield      *yieldContext
+	currentFunction   *ast.FnDecl
+	vaInitializer     *ast.FnCall
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -267,6 +269,9 @@ func (sema *sema) checkFnDecl(
 		return err
 	}
 	previousReturnType := sema.currentReturnType
+	previousFunction := sema.currentFunction
+	sema.currentFunction = function
+	defer func() { sema.currentFunction = previousFunction }()
 	previousYield := sema.currentYield
 	sema.currentYield = nil
 	sema.currentReturnType = function.RetType
@@ -370,10 +375,6 @@ func (sema *sema) checkBlockStmt(
 	return nil
 }
 
-var VALID_CALLING_CONVENTIONS []string = []string{
-	"c", "fast", "cold",
-}
-
 func (sema *sema) checkExternAttributes(attributes ast.Attributes) error {
 	if attributes.Linkage != "" {
 		return fmt.Errorf("'linkage' is not a valid attribute for extern declaration\n")
@@ -381,16 +382,33 @@ func (sema *sema) checkExternAttributes(attributes ast.Attributes) error {
 
 	// TODO: check linkage
 
-	ccFound := slices.Contains(VALID_CALLING_CONVENTIONS, attributes.DefaultCallingConvention)
-	if !ccFound {
-		return fmt.Errorf("invalid calling convention: '%s'\n", attributes.DefaultCallingConvention)
-	}
-	return nil
+	return validateCallingConvention(attributes.DefaultCallingConvention, attributes.DefaultCallingConventionMacro)
 }
 
 func (sema *sema) checkExternDecl(extern *ast.ExternDecl) error {
 	if err := sema.checkExternAttributes(extern.Attributes); err != nil {
 		return err
+	}
+	for _, d := range extern.Enums {
+		if err := sema.resolveEnum(d); err != nil {
+			return err
+		}
+	}
+	for _, d := range extern.Constants {
+		if err := sema.checkConstDecl(d); err != nil {
+			return err
+		}
+	}
+	for _, d := range extern.Records {
+		if extern.Attributes.Header == "" {
+			return diagnostics.Diag{Title: "Foreign record requires a header", Message: "foreign records must belong to a header-owned extern block", Span: d.Name.Span, Help: "Add @[header=\"path/to/header.h\"] to the extern block."}
+		}
+		if len(d.TypeParams) != 0 {
+			return diagnostics.Diag{Title: "Generic foreign record", Message: "header-owned records cannot have type parameters", Span: d.Name.Span, Help: "Declare the concrete C type without type parameters."}
+		}
+		if err := sema.resolveStruct(d, nil); err != nil {
+			return err
+		}
 	}
 	for _, d := range extern.Opaques {
 		if extern.Attributes.Header == "" {
@@ -413,6 +431,9 @@ var VALID_FUNCTION_LINKAGES []string = []string{
 }
 
 func (sema *sema) checkFnAttributes(attributes ast.Attributes) error {
+	if err := validateCallingConvention(attributes.CallingConvention, attributes.CallingConventionMacro); err != nil {
+		return err
+	}
 	linkageFound := false
 
 	if attributes.Linkage != "" {
@@ -429,6 +450,13 @@ func (sema *sema) checkFnAttributes(attributes ast.Attributes) error {
 }
 
 func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto) error {
+	if err := checkCVariadicParams(proto.Params); err != nil {
+		return err
+	}
+	if proto.Attributes.CallingConvention == "" && proto.Attributes.CallingConventionMacro == "" {
+		proto.Attributes.CallingConvention = extern.Attributes.DefaultCallingConvention
+		proto.Attributes.CallingConventionMacro = extern.Attributes.DefaultCallingConventionMacro
+	}
 	err := sema.checkFnAttributes(proto.Attributes)
 	if err != nil {
 		return err
@@ -452,6 +480,15 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 			return err
 		}
 		param.Type = revealedTy
+		if revealedTy.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+			return rejectVaListEscape(revealedTy, param.Name.Span)
+		}
+		if err := checkForeignPointerDeclarator(revealedTy, param.Name.Span); err != nil {
+			return err
+		}
+		if revealedTy.Kind == ast.EXPR_TYPE_ARRAY || revealedTy.Kind == ast.EXPR_TYPE_SLICE {
+			return diagnostics.Diag{Title: "Foreign array parameter", Message: "Telia wrapper arrays and slices are not C array parameters", Span: param.Name.Span, Help: "Declare an explicit element pointer, such as *u8, and pass &array[0]; pass the length separately when required."}
+		}
 		if err := rejectOpaqueValue(revealedTy, param.Name.Span); err != nil {
 			return err
 		}
@@ -462,6 +499,12 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 		return err
 	}
 	proto.RetType = revealedTy
+	if err := checkForeignPointerDeclarator(revealedTy, proto.Name.Span); err != nil {
+		return err
+	}
+	if err := rejectVaListEscape(revealedTy, proto.Name.Span); err != nil {
+		return err
+	}
 	if err := rejectOpaqueValue(revealedTy, proto.Name.Span); err != nil {
 		return err
 	}
@@ -622,6 +665,12 @@ func (sema *sema) checkVar(
 	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) (resultErr error) {
+	previousInitializer := sema.vaInitializer
+	sema.vaInitializer = nil
+	if variable.IsDecl && len(variable.Names) == 1 && variable.Names[0].Kind == ast.KIND_VAR_ID_STMT {
+		sema.vaInitializer = terminalVaCall(variable.Expr)
+	}
+	defer func() { sema.vaInitializer = previousInitializer }()
 	defer func() {
 		if resultErr == nil || !variable.IsDecl {
 			return
@@ -694,6 +743,26 @@ func (sema *sema) checkVar(
 			if err != nil {
 				return err
 			}
+		}
+		if fnRetType.Kind == ast.EXPR_TYPE_C_VA_LIST {
+			return diagnostics.Diag{Title: "Borrowed va_list copy", Message: "a va_list borrow cannot be stored in ordinary local value storage", Span: variable.Expr.Span, Help: "Use va_borrow(&owner) directly as a call argument, or create independent storage with va_copy."}
+		}
+		if fnRetType.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+			if !variable.IsDecl || len(variable.Names) != 1 || variable.Names[0].Kind != ast.KIND_VAR_ID_STMT || sema.vaInitializer != fnCall {
+				return ownerCopyDiagnostic(variable.Expr.Span)
+			}
+			local := variable.Names[0].Node.(*ast.VarIdStmt)
+			if local.Type != nil {
+				ty, err := sema.resolveType(local.Type, referenceScope)
+				if err != nil {
+					return err
+				}
+				if !ty.Equals(fnRetType) {
+					return diagnostics.Diag{Title: "va_list owner type mismatch", Message: "a va_list initializer requires local owning storage", Span: local.Name.Span, Help: "Use owner := va_copy(...) or annotate it with libc::VaList."}
+				}
+			}
+			local.Type = fnRetType
+			return nil
 		}
 
 		// @fail and @catch unwrap the error from the tuple — only non-error elements
@@ -827,12 +896,6 @@ func (sema *sema) checkNormalVarDecl(
 			return fmt.Errorf("impossible to define type for variable '%s' since you're reassigning", currentVar.Name.Name())
 		}
 
-		if symbol.Kind == ast.KIND_PARAM {
-			param := symbol.Node.(*ast.Param)
-			if param.Attributes.Const {
-				return fmt.Errorf("impossible to reassign constant parameter '%s'", param.Name.Name())
-			}
-		}
 		currentVar.N = symbol
 	}
 	return nil
@@ -888,6 +951,9 @@ func (sema *sema) checkVarExpr(
 		if e != nil {
 			return e
 		}
+		if sema.readOnlyStorage(variable, referenceScope) {
+			return constMutation(variable.Span)
+		}
 		_, err = sema.inferExprTypeWithContext(expr, ty, referenceScope, declScope, fromImportPackage, isArg)
 	case ast.KIND_VAR_ID_STMT:
 		varId := variable.Node.(*ast.VarIdStmt)
@@ -928,6 +994,13 @@ func (s *sema) checkDerefPointerVar(
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) (*ast.ExprType, error) {
+	ptr, _, pointerErr := s.inferExprTypeWithoutContext(deref.Expr, referenceScope, declScope, fromImportPackage, isArg)
+	if pointerErr != nil {
+		return nil, pointerErr
+	}
+	if ptr.IsPointer() && ptr.T.(*ast.PointerType).Const {
+		return nil, diagnostics.Diag{Title: "Const pointee mutation", Message: "cannot write through a pointer to a const pointee", Span: deref.Expr.Span, Help: "Use a mutable pointer only when the API permits writing to this storage."}
+	}
 	var err error
 
 	varTy, _, err := s.inferDerefPtrExprTypeWithoutContext(
@@ -984,6 +1057,15 @@ func (sema *sema) checkNormalVarExpr(
 		if err != nil {
 			return nil, err
 		}
+		if exprTy.Kind == ast.EXPR_TYPE_ARRAY && exprTy.T.(*ast.SequenceType).Foreign {
+			return nil, diagnostics.Diag{Title: "Foreign array copy", Message: "inline C array storage is not a Telia wrapper-array value", Span: expr.Span, Help: "Copy elements explicitly, borrow a slice, or pass &record.field[0] to a pointer parameter."}
+		}
+		if exprTy.Kind == ast.EXPR_TYPE_C_VA_LIST {
+			return nil, diagnostics.Diag{Title: "Borrowed va_list copy", Message: "a borrowed va_list cannot be copied with assignment", Span: expr.Span, Help: "Forward it directly during this call, or create independent owning storage with libc::va_copy."}
+		}
+		if exprTy.Kind == ast.EXPR_TYPE_VA_LIST_OWNER && (terminalVaCall(expr) == nil || terminalVaCall(expr) != sema.vaInitializer) {
+			return nil, ownerCopyDiagnostic(expr.Span)
+		}
 		variable.Type = exprTy
 		return exprTy, nil
 	} else {
@@ -993,6 +1075,9 @@ func (sema *sema) checkNormalVarExpr(
 		}
 
 		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
+		if err == nil && exprTy.Kind == ast.EXPR_TYPE_C_VA_LIST {
+			return nil, diagnostics.Diag{Title: "Borrowed va_list copy", Message: "a borrowed va_list cannot be copied or reassigned", Span: expr.Span, Help: "Forward it directly to a libc::c_va_list parameter during this call."}
+		}
 		return exprTy, err
 	}
 }
@@ -1007,7 +1092,13 @@ func (sema *sema) checkFieldAccessExpr(
 	if err != nil {
 		return nil, err
 	}
+	if field.Type.Kind == ast.EXPR_TYPE_ARRAY && field.Type.T.(*ast.SequenceType).Foreign {
+		return nil, diagnostics.Diag{Title: "Foreign array copy", Message: "C array fields cannot be assigned as whole-array values", Span: variable.Left.Name.Span, Help: "Initialize the field in its record literal or assign individual elements.", Related: []diagnostics.Related{{Span: field.Name.Span, Message: "C array field declared here"}}}
+	}
 
+	if sema.readOnlyStorage(&ast.Node{Node: variable}, referenceScope) {
+		return nil, constMutation(expr.Span)
+	}
 	exprTy, err := sema.inferExprTypeWithContext(
 		expr,
 		field.Type,
@@ -1071,9 +1162,13 @@ func (sema *sema) resolveFieldAccess(
 		return nil, nil, err
 	}
 	base := receiverTy
+	readOnly := fieldAccess.ReadOnly
 	for base != nil && base.IsPointer() {
-		base = base.T.(*ast.PointerType).Type
+		ptr := base.T.(*ast.PointerType)
+		readOnly = ptr.Const
+		base = ptr.Type
 	}
+	fieldAccess.ReadOnly = readOnly
 	if base != nil && base.Kind == ast.EXPR_TYPE_OPAQUE {
 		d := base.T.(*ast.OpaqueType).Decl
 		return nil, nil, diagnostics.Diag{Title: "Opaque field access", Message: "opaque types do not expose fields", Span: fieldID.Name.Span, Help: "Use a header-declared accessor function instead.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "opaque type declared here"}}}
@@ -1088,6 +1183,7 @@ func (sema *sema) resolveFieldAccess(
 	fieldAccess.AccessedField = field
 
 	if nestedAccess != nil {
+		nestedAccess.ReadOnly = readOnly
 		return sema.resolveFieldAccess(nestedAccess, field.Type, referenceScope)
 	}
 
@@ -1261,6 +1357,20 @@ func (sema *sema) checkFnCall(
 	fromImportPackage bool,
 	isArg bool,
 ) (*ast.ExprType, error) {
+	if fnCall.CalleeExpr != nil {
+		ty, _, err := sema.inferExprTypeWithoutContext(fnCall.CalleeExpr, referenceScope, declScope, fromImportPackage, false)
+		if err != nil {
+			return nil, err
+		}
+		if ty.Kind != ast.EXPR_TYPE_FUNCTION {
+			return nil, diagnostics.Diag{Title: "Not callable", Message: "the field is not a callback value", Span: fnCall.Name.Span, Help: "Call a field whose type is fn(...) Result."}
+		}
+		f := ty.T.(*ast.FunctionType)
+		if err := sema.checkFnCallArgs(fnCall, f.Params, referenceScope, declScope, fromImportPackage); err != nil {
+			return nil, err
+		}
+		return sema.checkCallAtOperator(fnCall, f.Result, referenceScope, fromImportPackage, isArg)
+	}
 	var symbol *ast.Node
 	var err error
 	_, localBuiltinLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
@@ -1327,6 +1437,27 @@ func (sema *sema) checkFnCall(
 
 	if symbol.Invalid {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
+	if symbol.Kind == ast.KIND_VA_INTRINSIC {
+		return sema.checkVaIntrinsic(fnCall, referenceScope, declScope, fromImportPackage)
+	}
+	if symbol.Kind == ast.KIND_VAR_ID_STMT || symbol.Kind == ast.KIND_PARAM {
+		callee := &ast.IdExpr{Name: fnCall.Name, N: symbol}
+		ty, _, err := sema.inferIdExprTypeWithoutContext(callee, referenceScope)
+		if err != nil {
+			return nil, err
+		}
+		if ty.Kind == ast.EXPR_TYPE_FUNCTION {
+			if len(fnCall.TypeArgs) != 0 {
+				return nil, diagnostics.Diag{Title: "Callback type arguments", Message: "callback values do not accept type arguments", Span: fnCall.Name.Span, Help: "Call the callback without type arguments."}
+			}
+			f := ty.T.(*ast.FunctionType)
+			if err := sema.checkFnCallArgs(fnCall, f.Params, referenceScope, declScope, fromImportPackage); err != nil {
+				return nil, err
+			}
+			fnCall.Callee = callee
+			return sema.checkCallAtOperator(fnCall, f.Result, referenceScope, fromImportPackage, isArg)
+		}
 	}
 	if symbol.Kind != ast.KIND_FN_DECL && symbol.Kind != ast.KIND_PROTO {
 		pos := fnCall.Name.Pos
@@ -1463,6 +1594,17 @@ func (sema *sema) checkFnCallArgs(
 	referenceScope, declScope *ast.Scope,
 	fromImportPackage bool,
 ) error {
+	// Calls may be checked again with an expected result type. Restore source
+	// arguments before validating; never treat the lowering wrapper as a value.
+	var arguments []*ast.Node
+	for _, argument := range fnCall.Args {
+		if argument.Kind == ast.KIND_VARG_EXPR {
+			arguments = append(arguments, argument.Node.(*ast.VarArgsExpr).Args...)
+		} else {
+			arguments = append(arguments, argument)
+		}
+	}
+	fnCall.Args = arguments
 	if params.IsVariadic && len(fnCall.Args) < params.Len {
 		pos := fnCall.Name.Pos
 		// TODO(errors): show which arguments were passed and which types we
@@ -1525,6 +1667,9 @@ func (sema *sema) checkFnCallArgs(
 				}
 				if argType.Equals(ast.NewBasicType(token.STRING_TYPE)) {
 					return fmt.Errorf("borrowed string in C variadic call requires explicit C string conversion")
+				}
+				if !cVariadicType(argType) {
+					return diagnostics.Diag{Title: "Unsupported C variadic argument", Message: "this value does not have a supported C variadic representation", Span: variadicArg.Span, Help: "Pass a C scalar, typed pointer, callback, or payload-free enum; use explicit storage and pointers for aggregates.", Related: []diagnostics.Related{{Span: variadicParam.Name.Span, Message: "C variadic parameter declared here"}}}
 				}
 			} else {
 				if _, err := sema.inferExprTypeWithContext(variadicArg, variadicParam.Type, referenceScope, declScope, fromImportPackage, true); err != nil {
@@ -1644,7 +1789,7 @@ func (s *sema) inferExprTypeWithContext(
 		if err != nil {
 			return nil, err
 		}
-		if !actual.Equals(expectedType) {
+		if !typeAssignable(actual, expectedType) {
 			return nil, fmt.Errorf("type mismatch: expected %s, got %s", expectedType.T, actual.T)
 		}
 		return actual, nil
@@ -1703,13 +1848,13 @@ func (s *sema) inferExprTypeWithContext(
 		namespace := expr.Node.(*ast.NamespaceAccess)
 		if namespace.IsImport && namespace.Right.Kind == ast.KIND_ID_EXPR {
 			imp := s.file.Imports[namespace.Left.Name.Name()]
-			return s.inferImportedConstant(namespace.Right.Node.(*ast.IdExpr), imp.Package.Scope, expectedType)
+			return s.inferImportedValue(namespace.Right.Node.(*ast.IdExpr), imp.Package.Scope, expectedType)
 		}
 		actual, err := s.checkNamespaceAccess(expr.Node.(*ast.NamespaceAccess), referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return nil, err
 		}
-		if !actual.Equals(expectedType) {
+		if !typeAssignable(actual, expectedType) {
 			if actual.Kind == ast.EXPR_TYPE_ENUM {
 				return nil, enumTypeMismatch(actual, expectedType, expr.Span)
 			}
@@ -1780,18 +1925,45 @@ func (sema *sema) inferIdExprTypeWithContext(
 	var idTy *ast.ExprType
 
 	switch symbol.Kind {
+	case ast.KIND_VA_INTRINSIC:
+		return nil, vaIntrinsicValueDiagnostic(id.Name.Span)
+	case ast.KIND_FN_DECL, ast.KIND_PROTO:
+		actual, err := sema.functionValue(id, symbol)
+		if err != nil {
+			return nil, err
+		}
+		if !actual.Equals(expectedType) {
+			return nil, diagnostics.Diag{Title: "Callback signature mismatch", Message: "function does not have the required callback signature", Span: id.Name.Span, Help: "Match the callback parameter and return types.", Related: []diagnostics.Related{{Span: symbol.DeclarationSpan(), Message: "function declared here"}}}
+		}
+		return expectedType, nil
 	case ast.KIND_CONST_DECL:
 		return sema.inferConstReference(id, symbol.Node.(*ast.ConstDecl), expectedType)
 	case ast.KIND_VAR_ID_STMT:
 		idTy = symbol.Node.(*ast.VarIdStmt).Type
 	case ast.KIND_PARAM:
-		idTy = symbol.Node.(*ast.Param).Type
+		param := symbol.Node.(*ast.Param)
+		if err := rejectCVariadicValue(param, id.Name.Span); err != nil {
+			return nil, err
+		}
+		idTy = param.Type
 	default:
 		// TODO(errors)
 		return nil, fmt.Errorf("expected to be a variable or parameter, but got %v", symbol.Kind)
 	}
 
 	switch idTy.Kind {
+	case ast.EXPR_TYPE_VA_LIST_OWNER:
+		return nil, ownerCopyDiagnostic(id.Name.Span)
+	case ast.EXPR_TYPE_C_VA_LIST:
+		if !idTy.Equals(expectedType) {
+			return nil, diagnostics.Diag{Title: "va_list type mismatch", Message: "a borrowed va_list is not a raw pointer or ordinary value", Span: id.Name.Span, Help: "Forward it to a libc::c_va_list parameter during the current call."}
+		}
+		return expectedType, nil
+	case ast.EXPR_TYPE_FUNCTION:
+		if !idTy.Equals(expectedType) {
+			return nil, diagnostics.Diag{Title: "Callback signature mismatch", Message: "callback value has an incompatible signature", Span: id.Name.Span, Help: "Use a callback with matching parameter and return types."}
+		}
+		return expectedType, nil
 	case ast.EXPR_TYPE_ENUM:
 		if !expectedType.Equals(idTy) {
 			return nil, enumTypeMismatch(idTy, expectedType, id.Name.Span)
@@ -1831,7 +2003,10 @@ func (sema *sema) inferIdExprTypeWithContext(
 		}
 		return expectedType, err
 	case ast.EXPR_TYPE_POINTER:
-		if !expectedType.Equals(idTy) {
+		if !pointerAssignable(idTy, expectedType) {
+			if expectedType.IsPointer() && idTy.T.(*ast.PointerType).Const && !expectedType.T.(*ast.PointerType).Const {
+				return nil, diagnostics.Diag{Title: "Const qualifier removed", Message: "cannot discard the pointer's immediate-pointee const qualifier", Span: id.Name.Span, Help: "Keep the destination const-qualified or copy into separately owned mutable storage."}
+			}
 			return nil, fmt.Errorf(
 				"type mismatch, expected %s, but got %s\n",
 				expectedType.T,
@@ -1875,7 +2050,7 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 	}
 
 	pointeeType := ty.T.(*ast.PointerType)
-	if !pointeeType.Type.Equals(expectedType) {
+	if !typeAssignable(pointeeType.Type, expectedType) {
 		return nil, fmt.Errorf(
 			"type mismatch, expected %s, got %s\n",
 			expectedType.T,
@@ -1886,6 +2061,7 @@ func (s *sema) inferDerefPtrExprTypeWithContext(
 		return nil, err
 	}
 	deref.Type = pointeeType.Type
+	deref.ReadOnly = pointeeType.Const
 	return pointeeType.Type, nil
 }
 
@@ -1917,6 +2093,7 @@ func (s *sema) inferDerefPtrExprTypeWithoutContext(
 		return nil, false, err
 	}
 	deref.Type = pointeeType.Type
+	deref.ReadOnly = pointeeType.Const
 	return pointeeType.Type, !pointeeType.Type.Explicit, nil
 }
 
@@ -1947,6 +2124,9 @@ func (s *sema) inferBinaryExprType(
 	if lhs.Kind == ast.EXPR_TYPE_POINTER && (binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
 		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
 	}
+	if lhs.Kind == ast.EXPR_TYPE_FUNCTION && rhs.Kind == ast.EXPR_TYPE_FUNCTION && (binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
+		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
+	}
 
 	commonType := lhs // since they are the same
 	binary.OperandType = commonType
@@ -1973,7 +2153,7 @@ func (s *sema) inferBinaryExprType(
 
 	valid := false
 	for _, validType := range validation.ValidTypes {
-		if validType.Equals(commonType) {
+		if operatorTypeMatches(validType, commonType) {
 			valid = true
 			break
 		}
@@ -2106,6 +2286,9 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 	if s.isErrorNilComparison(lhs, rhs) {
 		return lhs, rhs, ctx, nil
 	}
+	if lhs.IsNumeric() && rhs.IsNumeric() && lhs.T.(*ast.BasicType).Kind == rhs.T.(*ast.BasicType).Kind {
+		return lhs, lhs, ctx, nil
+	}
 
 	if !lhs.Equals(rhs) {
 		// Allow one side to be an untyped literal whose basic type is compatible
@@ -2120,13 +2303,13 @@ func (s *sema) ensureBinaryOperatorsAreTheSame(
 				binary.Right.Kind == ast.KIND_LITERAL_EXPR &&
 				rhsBasic.IsCompatibleWith(lhsBasic) {
 				rhsBasic.Kind = lhsBasic.Kind
-				return lhs, rhs, ctx, nil
+				return lhs, lhs, ctx, nil
 			}
 			if rhsBasic.Explicit && !lhsBasic.Explicit &&
 				binary.Left.Kind == ast.KIND_LITERAL_EXPR &&
 				lhsBasic.IsCompatibleWith(rhsBasic) {
 				lhsBasic.Kind = rhsBasic.Kind
-				return lhs, rhs, ctx, nil
+				return rhs, rhs, ctx, nil
 			}
 		}
 		if binary.Op.IsBitwiseOp() {
@@ -2231,7 +2414,7 @@ func (sema *sema) inferUnaryExprType(
 		return nil, false, fmt.Errorf("invalid unary operator: %s\n", unary.Op)
 	}
 
-	valid := slices.ContainsFunc(validation.ValidTypes, operandType.Equals)
+	valid := slices.ContainsFunc(validation.ValidTypes, func(valid *ast.ExprType) bool { return operatorTypeMatches(valid, operandType) })
 
 	if !valid {
 		if unary.Op == token.TILDE {
@@ -2348,6 +2531,9 @@ func (sema *sema) inferStructLiteralExprWithContext(
 		)
 	}
 	st := actual.T.(*ast.StructType)
+	if st.Decl.IsUnion && len(stLit.Values) != 1 {
+		return nil, diagnostics.Diag{Title: "Union member selection", Message: "a union literal must initialize exactly one member", Span: stLit.Name.Span, Help: "Write Union.{member: value} with one member.", Related: []diagnostics.Related{{Span: st.Decl.Name.Span, Message: "union declared here"}}}
+	}
 	seen := make(map[string]bool)
 	for _, value := range stLit.Values {
 		name := value.Name.Name()
@@ -2394,7 +2580,7 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 	if err != nil {
 		return nil, err
 	}
-	if !field.Type.Equals(expectedType) {
+	if !typeAssignable(field.Type, expectedType) {
 		return nil, fmt.Errorf(
 			"%s type mismatch on struct field access, expected %s, got %s\n",
 			fieldAccess.Left.Name.Pos,
@@ -2432,12 +2618,19 @@ func (s *sema) inferPtrExprWithContext(
 	if !ptr.Expr.IsAddressable() {
 		return nil, diagnostics.Diag{Title: "Not addressable", Message: "address-of requires addressable storage", Span: ptr.Expr.Span, Help: "Store the value in a variable before taking its address; constants have no mutable storage."}
 	}
+	if err := rejectVaListEscape(underlyingPtrExprType, ptr.Expr.Span); err != nil {
+		return nil, err
+	}
 
 	t := new(ast.ExprType)
 	t.Kind = ast.EXPR_TYPE_POINTER
-	t.T = &ast.PointerType{Type: underlyingPtrExprType}
+	readOnly := s.readOnlyStorage(ptr.Expr, referenceScope)
+	t.T = &ast.PointerType{Type: underlyingPtrExprType, Const: readOnly}
+	if readOnly && !expectedPtrType.Const {
+		return nil, constMutation(ptr.Expr.Span)
+	}
 
-	if !expectedType.Equals(t) {
+	if !pointerAssignable(t, expectedType) {
 		return nil, fmt.Errorf("pointer type mismatch: expected %s, got %s\n", expectedType.T, t.T)
 	}
 	return t, err
@@ -2452,7 +2645,7 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	// isArg bool,
 ) (*ast.ExprType, error) {
 	isCString := expectedType.Kind == ast.EXPR_TYPE_BASIC && expectedType.T.(*ast.BasicType).Kind == token.CSTRING_TYPE
-	if !expectedType.IsPointer() && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() && !isCString {
+	if !expectedType.IsPointer() && expectedType.Kind != ast.EXPR_TYPE_FUNCTION && !expectedType.Equals(ast.RAWPTR_TYPE) && !expectedType.IsError() && !isCString {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
 	nullptr.Type = expectedType
@@ -2463,6 +2656,15 @@ func (s *sema) inferBasicExprTypeWithContext(
 	actual *ast.BasicType,
 	expected *ast.BasicType,
 ) (*ast.BasicType, error) {
+	if actual.Kind.IsNumeric() && actual.Kind == expected.Kind {
+		return expected, nil
+	}
+	if actual.Kind == token.CSTRING_TYPE && expected.Kind == token.CSTRING_TYPE {
+		if actual.Const && !expected.Const {
+			return nil, diagnostics.Diag{Title: "Const qualifier removed", Message: "cannot convert const C text to writable C text", Help: "Keep const cstring, or explicitly copy into owned writable storage."}
+		}
+		return expected, nil
+	}
 	if !actual.Explicit || !expected.Explicit {
 		if !actual.IsCompatibleWith(expected) {
 			return nil, fmt.Errorf("cannot use %s as %s\n", actual, expected)
@@ -2622,6 +2824,11 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 	}
 
 	switch variable.Kind {
+	case ast.KIND_VA_INTRINSIC:
+		return nil, false, vaIntrinsicValueDiagnostic(id.Name.Span)
+	case ast.KIND_FN_DECL, ast.KIND_PROTO:
+		ty, err := sema.functionValue(id, variable)
+		return ty, true, err
 	case ast.KIND_CONST_DECL:
 		d := variable.Node.(*ast.ConstDecl)
 		ty, err := sema.inferConstReference(id, d, nil)
@@ -2630,7 +2837,11 @@ func (sema *sema) inferIdExprTypeWithoutContext(
 		ty := variable.Node.(*ast.VarIdStmt).Type
 		return ty, ty.Explicit, nil
 	case ast.KIND_PARAM:
-		return variable.Node.(*ast.Param).Type, true, nil
+		param := variable.Node.(*ast.Param)
+		if err := rejectCVariadicValue(param, id.Name.Span); err != nil {
+			return nil, false, err
+		}
+		return param.Type, true, nil
 	default:
 		// TODO(errors)
 		return nil, false, fmt.Errorf("'%s' is not a variable or parameter", variableName)
@@ -2710,10 +2921,17 @@ func (sema *sema) inferAddressOfExprWithoutContext(
 	if err != nil {
 		return nil, false, err
 	}
+	if err := rejectVaListEscape(ty, ptr.Expr.Span); err != nil {
+		return nil, false, err
+	}
 	if !ptr.Expr.IsAddressable() {
 		return nil, false, diagnostics.Diag{Title: "Not addressable", Message: "address-of requires addressable storage", Span: ptr.Expr.Span, Help: "Store the value in a variable before taking its address; constants have no mutable storage."}
 	}
 	result := ast.NewPointerType(ty)
+	if err := checkForeignPointerDeclarator(result, ptr.Expr.Span); err != nil && ty.Kind == ast.EXPR_TYPE_ARRAY && ty.T.(*ast.SequenceType).Foreign {
+		return nil, false, err
+	}
+	result.T.(*ast.PointerType).Const = sema.readOnlyStorage(ptr.Expr, referenceScope)
 	result.Explicit = true
 	return result, true, nil
 }
@@ -2772,6 +2990,12 @@ func (sema *sema) checkNamespaceAccess(
 	}
 
 	externDecl := left.Node.(*ast.ExternDecl)
+	if namespaceAccess.Right.Kind == ast.KIND_NAMESPACE_ACCESS {
+		return sema.checkNamespaceAccess(namespaceAccess.Right.Node.(*ast.NamespaceAccess), referenceScope, externDecl.Scope, true)
+	}
+	if namespaceAccess.Right.Kind == ast.KIND_ID_EXPR {
+		return sema.inferImportedValue(namespaceAccess.Right.Node.(*ast.IdExpr), externDecl.Scope, nil)
+	}
 	if namespaceAccess.Right.Kind != ast.KIND_FN_CALL {
 		return nil, fmt.Errorf("expected prototype call")
 	}
@@ -2804,7 +3028,7 @@ func (sema *sema) checkImportAccess(
 ) (*ast.ExprType, error) {
 	switch node.Kind {
 	case ast.KIND_ID_EXPR:
-		return sema.inferImportedConstant(node.Node.(*ast.IdExpr), declScope, nil)
+		return sema.inferImportedValue(node.Node.(*ast.IdExpr), declScope, nil)
 	case ast.KIND_FN_CALL:
 		fnCall := node.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(
@@ -3013,16 +3237,8 @@ func (s *sema) checkAssignment(
 					return err
 				}
 
-				switch symbol.Kind {
-				case ast.KIND_PARAM:
-					param := symbol.Node.(*ast.Param)
-					// TODO(errors)
-					if param.Attributes.Const {
-						return fmt.Errorf(
-							"not allowed to reassign '%s' since it is declared as a constant parameter",
-							param.Name.Name(),
-						)
-					}
+				if symbol.Invalid {
+					return diagnostics.COMPILER_ERROR_FOUND
 				}
 			default:
 				// TODO(errors)

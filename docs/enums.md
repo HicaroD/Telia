@@ -80,8 +80,8 @@ The current C backend uses the selected integer representation for payload-free
 values and private tagged unions for payload enums. Match expressions currently
 use GCC/Clang statement expressions to preserve their evaluation site. These
 are internal lowering details, **not a foreign C enum ABI guarantee**.
-Header-owned foreign enums and their required fallback matches remain pending,
-along with header-owned records/constants, pointer qualifiers,
-function pointers, calling conventions/macros, C scalar mappings, and `va_list`.
+Header-owned foreign enums and their required fallback matches are described in
+[C interoperability](foreign-interop.md), along with records/constants,
+qualifiers, callbacks, convention macros, C scalars, and native `va_list` lifecycle.
 Integration tests compile and execute generated C on the local macOS arm64
 host; this does not establish compatibility on other targets.

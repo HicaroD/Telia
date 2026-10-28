@@ -19,6 +19,8 @@ type Program struct {
 	// without a separate discovery pass.
 	TupleTypes    []*ExprType
 	SequenceTypes []*ExprType
+	FunctionTypes []*ExprType
+	CScalars      []*ExprType
 	Structs       []*StructDecl
 	Enums         []*EnumDecl
 	ValueTypes    []*ExprType // dependency-ordered struct and tuple layouts

@@ -11,10 +11,15 @@ import (
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/ctarget"
+	"github.com/HicaroD/Telia/internal/lexer/token"
 	"github.com/HicaroD/Telia/internal/native"
 )
 
 const preamble = `#include <stdint.h>
+#include <stddef.h>
+#include <limits.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -48,6 +53,14 @@ static inline void _panic(_String msg) {
 }
 
 typedef struct { _String msg; } _Error;
+typedef struct { va_list args; unsigned char state; _String origin; } _TeliaVaList;
+static inline void _telia_va_scope_end(_TeliaVaList *owner) {
+    if (owner->state != 0) {
+        va_end(owner->args);
+        owner->state = 0;
+        _panic(owner->origin);
+    }
+}
 
 `
 
@@ -110,6 +123,19 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	c.emitHeaderIncludes(c.program.Root, map[*ast.Package]bool{}, map[string]bool{})
 	c.buf.WriteString(runtimeSource)
 
+	seenScalars := map[string]bool{}
+	for _, ty := range c.program.CScalars {
+		basic := ty.T.(*ast.BasicType)
+		if seenScalars[basic.CName] {
+			continue
+		}
+		seenScalars[basic.CName] = true
+		fmt.Fprintf(c.buf, "_Static_assert(sizeof(%s) * CHAR_BIT == %d, \"C scalar ABI mismatch: %s\");\n", basic.CName, basic.Kind.BitSize(), basic.CName)
+		if basic.Kind.IsInteger() {
+			unsigned := basic.Kind >= token.UINT_TYPE && basic.Kind <= token.U128_TYPE
+			fmt.Fprintf(c.buf, "_Static_assert((((%s)-1) > 0) == %t, \"C scalar ABI mismatch: %s signedness\");\n", basic.CName, unsigned, basic.CName)
+		}
+	}
 	// Reset processed flags so each Generate() call is clean
 	resetProcessed(c.program.Root)
 	for _, d := range c.program.Enums {
@@ -118,6 +144,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		}
 	}
 	for _, st := range c.program.Structs {
+		if st.Foreign != nil {
+			continue
+		}
 		name := emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: st}})
 		c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
 	}
@@ -131,11 +160,24 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 			c.buf.WriteString(fmt.Sprintf("typedef struct %s %s;\n", name, name))
 		}
 	}
+	callbacks := map[string]bool{}
+	for _, ty := range c.program.FunctionTypes {
+		f := ty.T.(*ast.FunctionType)
+		if callbacks[f.CName] {
+			continue
+		}
+		callbacks[f.CName] = true
+		proto := &ast.Proto{Params: f.Params}
+		fmt.Fprintf(c.buf, "typedef %s (%s*%s)(%s);\n", emitCType(f.Result), callingConvention(f.Attributes), f.CName, c.emitProtoParams(proto))
+	}
 	for _, ty := range c.program.ValueTypes {
 		if ty.Kind == ast.EXPR_TYPE_ENUM {
 			c.emitEnumDecl(ty.T.(*ast.EnumType).Decl)
 		} else if ty.Kind == ast.EXPR_TYPE_STRUCT {
-			c.emitStructDecl(ty.T.(*ast.StructType).Decl)
+			st := ty.T.(*ast.StructType).Decl
+			if st.Foreign == nil {
+				c.emitStructDecl(st)
+			}
 		} else if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
 			t := ty.T.(*ast.SequenceType)
 			name := emitCType(ty)
@@ -151,6 +193,7 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		}
 	}
 
+	c.emitForeignFieldChecks()
 	// Two-pass emission: declarations then bodies, DFS over import graph
 	for _, fn := range c.program.Functions {
 		c.emitFnForwardDecl(fn)
@@ -198,6 +241,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 	cmd := exec.Command(compiler, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
+		if diagnostic := c.foreignFieldDiagnostic(string(out)); diagnostic != nil {
+			return diagnostic
+		}
 		if len(requirements.LinkArgs) > 0 || len(requirements.CompileArgs) > 0 {
 			return fmt.Errorf("C compiler/linker error for native target %s-%s; verify artifacts and toolchain compatibility or rerun the package setup script:\n%s", runtime.GOOS, runtime.GOARCH, out)
 		}
@@ -410,10 +456,5 @@ func resetProcessed(pkg *ast.Package) {
 // detectCCompiler tries cc, gcc, then clang in order and returns the path
 // of the first one found on PATH. Returns an error if none are available.
 func detectCCompiler() (string, error) {
-	for _, candidate := range []string{"cc", "gcc", "clang"} {
-		if path, err := exec.LookPath(candidate); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("no C compiler found on PATH; install gcc or clang")
+	return ctarget.Compiler()
 }

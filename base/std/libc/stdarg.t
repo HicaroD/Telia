@@ -1,13 +1,4 @@
 package libc
 
-@[default_cc="c"]
-extern {
-  @[link_name="llvm.va_start"]
-  fn _va_start(arglist rawptr)
-
-  @[link_name="llvm.va_end"]
-  fn _va_end(arglist rawptr)
-
-  @[link_name="llvm.va_copy"]
-  fn _va_copy(dst rawptr, src rawptr)
-}
+type c_va_list = __c_va_list
+type VaList = __c_va_list_owner

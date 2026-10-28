@@ -31,16 +31,11 @@ returns, links, and executes with incompatible-pointer diagnostics promoted to
 errors on the local macOS arm64 host. This verifies those pointer interactions,
 not foreign record layout or untested platforms.
 
-## Remaining issue #93 scope
+## Further interoperability
 
-- Header-owned structs, unions, enums, constants, and actual-C record literals.
-- Foreign array fields/declarators and verified aggregate argument/return ABI.
-- Pointer-level `const`, function pointers/callbacks, and calling conventions
-  (`cc`/`default_cc`, `cc_macro`/`default_cc_macro`).
-- Target-aware `std::libc` C scalars and `c_va_list`, plus C-variadic validation.
-- The supported Windows/Linux/macOS target matrix, not just the local host.
-
-Legacy parameter `@const` migration, complex C declarator support, and `va_list`
-lifecycle still require explicit decisions before implementation. Existing
-`cstring` and explicit string conversions remain unchanged. No layout or
-callback ABI compatibility is implied by the native enum implementation.
+See [header-owned C interoperability](foreign-interop.md) for records, unions,
+enums, constants, fixed-array fields, pointer qualifiers, callbacks, C scalars,
+variadic validation, and borrowed native `va_list` forwarding. These extensions
+have local C fixtures, not a completed cross-platform ABI guarantee. Native
+`va_list` lifecycle operations are implemented too; broader declarators and full
+target verification remain pending regardless of tracking-issue closure.

@@ -29,6 +29,7 @@ const (
 	USE
 	DEFER
 	STRUCT
+	UNION
 	CONST
 	ENUM
 	MATCH
@@ -149,6 +150,7 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"use":     USE,
 	"defer":   DEFER,
 	"struct":  STRUCT,
+	"union":   UNION,
 	"const":   CONST,
 	"enum":    ENUM,
 	"match":   MATCH,
@@ -315,6 +317,8 @@ func (k Kind) String() string {
 		return "defer"
 	case STRUCT:
 		return "struct"
+	case UNION:
+		return "union"
 	case RAWPTR_TYPE:
 		return "rawptr"
 	case BOOL_TYPE:

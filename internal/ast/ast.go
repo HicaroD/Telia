@@ -66,6 +66,7 @@ const (
 	KIND_PARAM
 	KIND_STRUCT_FIELD
 	KIND_PROTO
+	KIND_VA_INTRINSIC
 )
 
 type Node struct {
@@ -78,6 +79,8 @@ type Node struct {
 // DeclarationSpan selects the name rather than the entire declaration body.
 func (n *Node) DeclarationSpan() source.Span {
 	switch d := n.Node.(type) {
+	case *VaIntrinsic:
+		return d.Name.Span
 	case *FnDecl:
 		return d.Name.Span
 	case *StructDecl:

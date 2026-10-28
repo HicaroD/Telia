@@ -65,12 +65,12 @@ func (c *CCodegen) emitExternDecl(ext *ast.ExternDecl) {
 
 		retType := emitCType(proto.RetType)
 		params := c.emitProtoParams(proto)
-		c.buf.WriteString(fmt.Sprintf("%s %s(%s);\n", retType, cName, params))
+		c.buf.WriteString(fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(proto.Attributes), cName, params))
 	}
 }
 
 // emitProtoParams renders the C parameter list for a prototype, including
-// variadic handling and @const qualifiers.
+// variadic handling and pointer qualifiers.
 func (c *CCodegen) emitProtoParams(proto *ast.Proto) string {
 	var parts []string
 	for _, param := range proto.Params.Fields {
@@ -80,9 +80,6 @@ func (c *CCodegen) emitProtoParams(proto *ast.Proto) string {
 			continue
 		}
 		cType := emitCType(param.Type)
-		if param.Attributes != nil && param.Attributes.Const {
-			cType = "const " + cType
-		}
 		parts = append(parts, cType)
 	}
 	if proto.Params.IsVariadic && len(parts) > 0 {
@@ -114,13 +111,17 @@ func (c *CCodegen) emitFnForwardDecl(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)
 	name := c.mangledName(fn)
 	params := c.emitFnParams(fn)
-	c.buf.WriteString(fmt.Sprintf("%s %s(%s);\n", retType, name, params))
+	c.buf.WriteString(fmt.Sprintf("%s %s%s(%s);\n", retType, callingConvention(fn.Attributes), name, params))
 }
 
 // emitFnParams renders the C parameter list for a function declaration.
 func (c *CCodegen) emitFnParams(fn *ast.FnDecl) string {
 	var parts []string
 	for _, param := range fn.Params.Fields {
+		if param.Variadic && param.Attributes != nil && param.Attributes.C {
+			parts = append(parts, "...")
+			continue
+		}
 		cType := emitCType(param.Type)
 		cVar := &CVariable{CType: cType, Name: c.nextTmp() + "_" + param.Name.Name()}
 		param.BackendType = cVar
@@ -155,7 +156,7 @@ func (c *CCodegen) emitFnBody(fn *ast.FnDecl) {
 	retType := emitCType(fn.RetType)
 	name := c.mangledName(fn)
 	params := c.emitFnParams(fn)
-	c.buf.WriteString(fmt.Sprintf("%s %s(%s) {\n", retType, name, params))
+	c.buf.WriteString(fmt.Sprintf("%s %s%s(%s) {\n", retType, callingConvention(fn.Attributes), name, params))
 	prevRetTy := c.currentRetTy
 	c.currentRetTy = fn.RetType
 	c.emitBlock(fn.Block, "    ")

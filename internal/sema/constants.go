@@ -14,6 +14,20 @@ import (
 )
 
 func (s *sema) checkConstDecl(d *ast.ConstDecl) error {
+	if d.Foreign != nil {
+		if d.Foreign.Attributes.Header == "" {
+			return diagnostics.Diag{Title: "Foreign constant requires a header", Message: "foreign constants obtain their values from a C header", Span: d.Name.Span, Help: "Add a header attribute to the extern block."}
+		}
+		ty, err := s.resolveType(d.Type, d.Scope)
+		if err != nil {
+			return err
+		}
+		if ty.Kind != ast.EXPR_TYPE_BASIC || (!ty.IsNumeric() && ty.T.(*ast.BasicType).Kind != token.BOOL_TYPE) {
+			return diagnostics.Diag{Title: "Invalid foreign constant type", Message: "foreign constants require a scalar type", Span: d.Name.Span, Help: "Declare the header constant with its numeric or boolean type."}
+		}
+		d.Type = ty
+		return nil
+	}
 	if d.Value != nil {
 		return nil
 	}
@@ -101,6 +115,12 @@ func (s *sema) inferConstReference(id *ast.IdExpr, d *ast.ConstDecl, expected *a
 	if err := s.checkConstDecl(d); err != nil {
 		return nil, err
 	}
+	if d.Foreign != nil {
+		if expected != nil && !expected.Equals(d.Type) {
+			return nil, diagnostics.Diag{Title: "Foreign constant type mismatch", Message: fmt.Sprintf("expected %s, got %s", expected.T, d.Type.T), Span: id.Name.Span, Help: "Use the declared foreign constant type or an explicit conversion.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "foreign constant declared here"}}}
+		}
+		return d.Type, nil
+	}
 	lit := &ast.LiteralExpr{Type: cloneType(d.Type, nil), Value: d.Value.Value}
 	if expected != nil {
 		if _, err := s.inferLiteralExprTypeWithContext(lit, cloneType(expected, nil)); err != nil {
@@ -137,7 +157,7 @@ func evaluateConstant(node *ast.Node) (constant.Value, error) {
 		}
 	case ast.KIND_ID_EXPR:
 		id := node.Node.(*ast.IdExpr)
-		if id.N != nil && id.N.Kind == ast.KIND_CONST_DECL {
+		if id.N != nil && id.N.Kind == ast.KIND_CONST_DECL && id.Constant != nil {
 			return evaluateConstant(&ast.Node{Kind: ast.KIND_LITERAL_EXPR, Node: id.Constant})
 		}
 	case ast.KIND_UNARY_EXPR:
@@ -169,7 +189,9 @@ func evaluateConstant(node *ast.Node) (constant.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		if b.Op == token.SHIFT_LEFT || b.Op == token.SHIFT_RIGHT { return evaluateShift(left, right, b) }
+		if b.Op == token.SHIFT_LEFT || b.Op == token.SHIFT_RIGHT {
+			return evaluateShift(left, right, b)
+		}
 		op := constantOperator(b.Op)
 		if b.Op.IsCmpOp() {
 			return constant.MakeBool(constant.Compare(left, op, right)), nil
@@ -191,8 +213,25 @@ func evaluateConstant(node *ast.Node) (constant.Value, error) {
 	return nil, diagnostics.Diag{Title: "Nonconstant initializer", Message: "constant initializer must be a compile-time expression", Span: node.Span, Help: "Use literals and other constants, or declare a runtime variable with :=."}
 }
 
-func (s *sema) inferImportedConstant(id *ast.IdExpr, scope *ast.Scope, expected *ast.ExprType) (*ast.ExprType, error) {
+func (s *sema) inferImportedValue(id *ast.IdExpr, scope *ast.Scope, expected *ast.ExprType) (*ast.ExprType, error) {
 	symbol, err := scope.LookupCurrentScope(id.Name.Name())
+	if err == nil && symbol.Kind == ast.KIND_VA_INTRINSIC {
+		return nil, vaIntrinsicValueDiagnostic(id.Name.Span)
+	}
+	if err == nil && (symbol.Kind == ast.KIND_FN_DECL || symbol.Kind == ast.KIND_PROTO) {
+		id.N = symbol
+		if symbol.Invalid {
+			return nil, diagnostics.COMPILER_ERROR_FOUND
+		}
+		ty, err := s.functionValue(id, symbol)
+		if err != nil {
+			return nil, err
+		}
+		if expected != nil && !ty.Equals(expected) {
+			return nil, diagnostics.Diag{Title: "Callback signature mismatch", Message: "imported function does not have the required callback signature", Span: id.Name.Span, Help: "Match its parameter types, return type, and calling convention.", Related: []diagnostics.Related{{Span: symbol.DeclarationSpan(), Message: "function declared here"}}}
+		}
+		return ty, nil
+	}
 	if err != nil || symbol.Kind != ast.KIND_CONST_DECL {
 		return nil, diagnostics.Diag{Title: "Unknown imported constant", Message: fmt.Sprintf("package has no constant '%s'", id.Name.Name()), Span: id.Name.Span}
 	}

@@ -7,12 +7,19 @@ import (
 )
 
 func (p *Parser) parseEnum() (*ast.Node, error) {
+	return p.parseEnumDeclaration(nil, ast.Attributes{})
+}
+
+func (p *Parser) parseEnumDeclaration(foreign *ast.ExternDecl, attrs ast.Attributes) (*ast.Node, error) {
 	start := p.lex.Next()
 	name, ok := p.expect(token.ID)
 	if !ok {
 		return nil, diagnostics.Diag{Title: "Expected enum name", Message: "expected a name after enum", Span: name.Span, Help: "Write enum Name { followed by named variants."}
 	}
-	d := &ast.EnumDecl{Owner: p.pkg, File: p.file, Name: name, Type: ast.NewBasicType(token.INT_TYPE)}
+	d := &ast.EnumDecl{Owner: p.pkg, File: p.file, Name: name, Type: ast.NewBasicType(token.INT_TYPE), Foreign: foreign, Attributes: attrs}
+	if foreign != nil {
+		d.Type = nil
+	}
 	var err error
 	d.TypeParams, err = p.parseTypeParams()
 	if err != nil {
@@ -32,11 +39,15 @@ func (p *Parser) parseEnum() (*ast.Node, error) {
 		p.lex.Skip()
 	}
 	for !p.lex.NextIs(token.CLOSE_CURLY) {
+		attrs, err := p.parseAttributes()
+		if err != nil {
+			return nil, err
+		}
 		variant, ok := p.expect(token.ID)
 		if !ok {
 			return nil, diagnostics.Diag{Title: "Expected enum variant", Message: "expected a named enum variant", Span: variant.Span, Help: "Write a variant name or close the enum with }."}
 		}
-		v := &ast.EnumVariant{Name: variant}
+		v := &ast.EnumVariant{Name: variant, Attributes: attrs}
 		if p.lex.NextIs(token.EQUAL) {
 			p.lex.Skip()
 			var err error
@@ -62,6 +73,9 @@ func (p *Parser) parseEnum() (*ast.Node, error) {
 	}
 	p.lex.Skip()
 	node := &ast.Node{Kind: ast.KIND_ENUM_DECL, Node: d, Span: p.lex.SpanFrom(start.Span)}
+	if foreign != nil {
+		return node, nil
+	}
 	if previous, ok := p.pkg.Scope.Nodes[name.Name()]; ok {
 		return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "enum name is already declared", Span: name.Span, Help: "Choose a distinct enum name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
 	}

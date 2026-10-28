@@ -161,7 +161,7 @@ func generateTestBinary(cg *ccodegen.CCodegen, buildType config.BuildOptimizatio
 	err = cg.Generate(buildType)
 	if err != nil {
 		os.RemoveAll(dir)
-		return "", fmt.Errorf("codegen failed: %v", err)
+		return "", fmt.Errorf("codegen failed: %w", err)
 	}
 
 	return cg.ExePath(), nil

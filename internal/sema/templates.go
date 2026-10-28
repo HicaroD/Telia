@@ -3,6 +3,7 @@ package sema
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
@@ -123,6 +124,13 @@ func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlia
 		return nil
 	}
 	switch t := ty.T.(type) {
+	case *ast.FunctionType:
+		for _, p := range t.Params.Fields {
+			if err := v.typeExpr(p.Type, aliases); err != nil {
+				return err
+			}
+		}
+		return v.typeExpr(t.Result, aliases)
 	case *ast.SequenceType:
 		return v.typeExpr(t.Element, aliases)
 	case *ast.IdType:
@@ -142,6 +150,10 @@ func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlia
 		}
 		sym, err := scope.LookupAcrossScopes(t.Name.Name())
 		if err != nil {
+			if t.Namespace == nil && strings.HasPrefix(t.Name.Name(), "__c_") {
+				_, err := v.s.resolveType(ty, scope)
+				return err
+			}
 			return fmt.Errorf("%s: '%s' type not found on scope", t.Name.Pos, t.Name.Name())
 		}
 		want := 0
@@ -322,7 +334,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		valid := false
 		for _, ty := range op.ValidTypes {
-			if ty.Equals(left) && ty.Equals(right) {
+			if operatorTypeMatches(ty, left) && operatorTypeMatches(ty, right) {
 				valid = true
 				break
 			}
@@ -341,7 +353,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		op := ast.UnaryOperators[t.Op]
 		for _, ty := range op.ValidTypes {
-			if ty.Equals(operand) {
+			if operatorTypeMatches(ty, operand) {
 				if op.Handler != nil {
 					return op.Handler([]*ast.ExprType{operand})
 				}
@@ -530,6 +542,28 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 }
 
 func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprType, error) {
+	if call.CalleeExpr != nil {
+		if _, err := v.node(call.CalleeExpr); err != nil {
+			return nil, err
+		}
+		for _, arg := range call.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	}
+	if ty, local := v.locals[call.Name.Name()]; local {
+		for _, arg := range call.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		if ty != nil && ty.Kind == ast.EXPR_TYPE_FUNCTION {
+			return ty.T.(*ast.FunctionType).Result, nil
+		}
+		return nil, nil // Concrete specialization checks dependent callback types.
+	}
 	_, lookupErr := scope.LookupAcrossScopes(call.Name.Name())
 	if isMemoryBuiltin(call.Name.Name()) && lookupErr != nil {
 		count := 0
@@ -563,6 +597,35 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 	sym, err := scope.LookupAcrossScopes(call.Name.Name())
 	if err != nil {
 		return nil, fmt.Errorf("%s: '%s' not defined", call.Name.Pos, call.Name.Name())
+	}
+	if sym.Kind == ast.KIND_VA_INTRINSIC {
+		count := 0
+		if call.Name.Name() == "va_arg" {
+			count = 1
+		}
+		if len(call.Args) != 1 || len(call.TypeArgs) != count || call.AtOp != nil {
+			return nil, diagnostics.Diag{Title: "Invalid va_list operation", Message: "invalid argument count for va_list intrinsic", Span: call.Name.Span, Help: "Use va_start(args), va_copy(borrowed), va_arg<T>(&owner), va_borrow(&owner), or va_end(&owner)."}
+		}
+		for _, ty := range call.TypeArgs {
+			if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+				return nil, err
+			}
+		}
+		for _, arg := range call.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		switch call.Name.Name() {
+		case "va_start", "va_copy":
+			return &ast.ExprType{Kind: ast.EXPR_TYPE_VA_LIST_OWNER, T: &ast.VaListOwnerType{}, Explicit: true}, nil
+		case "va_borrow":
+			return &ast.ExprType{Kind: ast.EXPR_TYPE_C_VA_LIST, T: &ast.CVaListType{}, Explicit: true}, nil
+		case "va_arg":
+			return call.TypeArgs[0], nil
+		default:
+			return ast.NewBasicType(token.VOID_TYPE), nil
+		}
 	}
 	var params []*token.Token
 	var valueParams *ast.Params

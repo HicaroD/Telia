@@ -88,6 +88,9 @@ func (s *sema) checkMatch(m *ast.MatchExpr, expected *ast.ExprType, scope *ast.S
 			return nil, diagnostics.Diag{Title: "Incomplete payload pattern", Message: "pattern omits payload fields without ..", Span: arm.VariantName.Span, Help: "Bind every payload field or add .. to omit the remaining fields.", Related: []diagnostics.Related{{Span: arm.Variant.Name.Span, Message: "variant declared here"}}}
 		}
 	}
+	if fallback == nil && d.Foreign != nil {
+		return nil, diagnostics.Diag{Title: "Foreign enum match requires fallback", Message: "foreign enums may contain values not named in the declaration", Span: m.Value.Span, Help: "Add a final _ => result arm for unknown C enum values.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "foreign enum declared here"}}}
+	}
 	if fallback == nil && len(seen) != len(d.Variants) {
 		var missing []string
 		var related []diagnostics.Related

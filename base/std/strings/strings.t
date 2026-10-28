@@ -34,7 +34,7 @@ extern {
   fn c_pointer(text string) cstring
 
   @[link_name="_telia_string_from_c"]
-  fn from_c(text cstring) string
+  fn from_c(text const cstring) string
 
   @[link_name="_telia_arena_string_concat"]
   fn concat_in_into(state *rawptr, left string, right string, result *string) error

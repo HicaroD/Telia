@@ -4,6 +4,8 @@ import "github.com/HicaroD/Telia/internal/lexer/token"
 
 // EnumDecl has nominal identity independent of its integer representation.
 type EnumDecl struct {
+	Foreign    *ExternDecl
+	Attributes Attributes
 	Owner      *Package
 	File       *File
 	Name       *token.Token
@@ -17,11 +19,12 @@ type EnumDecl struct {
 }
 
 type EnumVariant struct {
-	Name   *token.Token
-	Expr   *Node
-	Value  *LiteralExpr
-	Fields []*StructField
-	Index  int
+	Attributes Attributes
+	Name       *token.Token
+	Expr       *Node
+	Value      *LiteralExpr
+	Fields     []*StructField
+	Index      int
 }
 
 type EnumType struct{ Decl *EnumDecl }

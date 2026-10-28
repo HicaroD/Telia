@@ -63,6 +63,10 @@ func (ret ReturnStmt) String() string {
 }
 
 type FnCall struct {
+	VaOwner     *VarIdStmt
+	VaLast      *Param
+	Callee      *IdExpr
+	CalleeExpr  *Node
 	Builtin     string
 	BuiltinType *ExprType
 	ResultType  *ExprType

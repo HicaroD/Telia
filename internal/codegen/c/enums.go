@@ -33,6 +33,9 @@ func (c *CCodegen) emitEnumDecl(d *ast.EnumDecl) {
 
 func (c *CCodegen) emitEnumConstruction(ns *ast.NamespaceAccess) string {
 	d, v := ns.EnumDecl, ns.EnumVariant
+	if d.Foreign != nil {
+		return foreignEnumTag(v)
+	}
 	if !d.HasPayload {
 		return c.emitConstant(v.Value)
 	}
@@ -79,7 +82,13 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 			c.buf.WriteString("else ")
 		}
 		if !arm.Fallback {
-			fmt.Fprintf(c.buf, "if (%s == %s) ", tag, c.emitConstant(arm.Variant.Value))
+			value := ""
+			if m.Enum.Foreign != nil {
+				value = foreignEnumTag(arm.Variant)
+			} else {
+				value = c.emitConstant(arm.Variant.Value)
+			}
+			fmt.Fprintf(c.buf, "if (%s == %s) ", tag, value)
 		}
 		c.buf.WriteString("{\n")
 		for _, field := range arm.Fields {
@@ -99,4 +108,11 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 	}
 	fmt.Fprintf(c.buf, "%s: ;\n%s;\n", label, result)
 	return "({\n" + c.buf.String() + "})"
+}
+
+func foreignEnumTag(v *ast.EnumVariant) string {
+	if v.Attributes.LinkName != "" {
+		return v.Attributes.LinkName
+	}
+	return v.Name.Name()
 }

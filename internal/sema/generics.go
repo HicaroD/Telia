@@ -8,6 +8,7 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/internal/lexer/token"
+	"github.com/HicaroD/Telia/internal/source"
 )
 
 type genericState struct {
@@ -22,6 +23,9 @@ type genericState struct {
 }
 
 func (s *sema) resolveSignature(fn *ast.FnDecl) error {
+	if err := checkCVariadicParams(fn.Params); err != nil {
+		return err
+	}
 	return s.inContext(fn.Owner, fn.File, nil, func() error {
 		for _, param := range fn.Params.Fields {
 			ty, err := s.resolveType(param.Type, fn.Scope.Parent)
@@ -29,6 +33,9 @@ func (s *sema) resolveSignature(fn *ast.FnDecl) error {
 				return err
 			}
 			param.Type = ty
+			if ty.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+				return rejectVaListEscape(ty, param.Name.Span)
+			}
 			if err := rejectOpaqueValue(ty, param.Name.Span); err != nil {
 				return err
 			}
@@ -38,6 +45,9 @@ func (s *sema) resolveSignature(fn *ast.FnDecl) error {
 			return err
 		}
 		fn.RetType = ty
+		if err := rejectVaListEscape(ty, fn.Name.Span); err != nil {
+			return err
+		}
 		if err := rejectOpaqueValue(ty, fn.Name.Span); err != nil {
 			return err
 		}
@@ -78,12 +88,21 @@ func (s *sema) prepareGenerics(pkg *ast.Package, seen map[*ast.Package]bool) {
 		return
 	}
 	seen[pkg] = true
+	s.prepareVaIntrinsics(pkg)
 	for _, file := range pkg.Files {
 		for _, imp := range file.Imports {
 			s.prepareGenerics(imp.Package, seen)
 		}
 		for _, node := range file.Body {
 			switch d := node.Node.(type) {
+			case *ast.ExternDecl:
+				for _, record := range d.Records {
+					record.Owner, record.File = pkg, file
+					record.CName = record.Attributes.LinkName
+					if record.CName == "" {
+						record.CName = record.Name.Name()
+					}
+				}
 			case *ast.StructDecl:
 				d.Owner, d.File = pkg, file
 				if len(d.TypeParams) == 0 {
@@ -111,6 +130,17 @@ func concreteName(kind, key string) string {
 
 func typeKey(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_C_VA_LIST:
+		return "c_va_list"
+	case ast.EXPR_TYPE_VA_LIST_OWNER:
+		return "va_list_owner"
+	case ast.EXPR_TYPE_FUNCTION:
+		f := ty.T.(*ast.FunctionType)
+		var parts []string
+		for _, p := range f.Params.Fields {
+			parts = append(parts, typeKey(p.Type))
+		}
+		return fmt.Sprintf("fn(%s)%s:%t:%s", strings.Join(parts, ","), typeKey(f.Result), f.Params.IsVariadic, f.Attributes.CallingConventionMacro)
 	case ast.EXPR_TYPE_OPAQUE:
 		d := ty.T.(*ast.OpaqueType).Decl
 		path := d.Name.Pos.Filename
@@ -126,11 +156,12 @@ func typeKey(ty *ast.ExprType) string {
 		return declarationKey(d.Owner, d.Name.Name())
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		t := ty.T.(*ast.SequenceType)
-		return fmt.Sprintf("sequence%d:%d:%s", ty.Kind, t.Length, typeKey(t.Element))
+		return fmt.Sprintf("sequence%d:%t:%d:%s", ty.Kind, t.Foreign, t.Length, typeKey(t.Element))
 	case ast.EXPR_TYPE_BASIC:
-		return ty.T.(*ast.BasicType).Kind.String()
+		return ty.T.(*ast.BasicType).String()
 	case ast.EXPR_TYPE_POINTER:
-		return "*" + typeKey(ty.T.(*ast.PointerType).Type)
+		p := ty.T.(*ast.PointerType)
+		return fmt.Sprintf("*%t:%s", p.Const, typeKey(p.Type))
 	case ast.EXPR_TYPE_STRUCT:
 		d := ty.T.(*ast.StructType).Decl
 		if d.CName != "" {
@@ -164,6 +195,43 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		return nil, nil
 	}
 	switch ty.Kind {
+	case ast.EXPR_TYPE_FUNCTION:
+		f := ty.T.(*ast.FunctionType)
+		if err := validateCallingConvention(f.Attributes.CallingConvention, f.Attributes.CallingConventionMacro); err != nil {
+			return nil, err
+		}
+		if err := checkCVariadicParams(f.Params); err != nil {
+			return nil, err
+		}
+		for _, p := range f.Params.Fields {
+			resolved, err := s.resolveTypeAliases(p.Type, scope, aliases)
+			if err != nil {
+				return nil, err
+			}
+			if err := rejectOpaqueValue(resolved, p.Name.Span); err != nil {
+				return nil, err
+			}
+			p.Type = resolved
+			if resolved.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+				return nil, rejectVaListEscape(resolved, p.Name.Span)
+			}
+		}
+		result, err := s.resolveTypeAliases(f.Result, scope, aliases)
+		if err != nil {
+			return nil, err
+		}
+		f.Result = result
+		if err := rejectVaListEscape(result, f.Params.Open.Span); err != nil {
+			return nil, err
+		}
+		if err := rejectOpaqueValue(result, f.Params.Open.Span); err != nil {
+			return nil, err
+		}
+		if f.CName == "" {
+			f.CName = concreteName("callback", typeKey(ty))
+			s.program.FunctionTypes = append(s.program.FunctionTypes, ty)
+		}
+		return ty, nil
 	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
 		t := ty.T.(*ast.SequenceType)
 		element, err := s.resolveTypeAliases(t.Element, scope, aliases)
@@ -173,7 +241,7 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		if !valueType(element) {
 			return nil, fmt.Errorf("collection element requires a value type")
 		}
-		resolved := &ast.ExprType{Kind: ty.Kind, T: &ast.SequenceType{Element: element, Length: t.Length}}
+		resolved := &ast.ExprType{Kind: ty.Kind, T: &ast.SequenceType{Element: element, Length: t.Length, Foreign: t.Foreign}}
 		s.program.SequenceTypes = append(s.program.SequenceTypes, resolved)
 		return resolved, nil
 	case ast.EXPR_TYPE_ID:
@@ -200,6 +268,15 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		}
 		sym, err := scope.LookupAcrossScopes(id.Name.Name())
 		if err != nil {
+			if id.Namespace == nil && id.Name.Name() == "__c_va_list_owner" {
+				return &ast.ExprType{Kind: ast.EXPR_TYPE_VA_LIST_OWNER, Explicit: true, T: &ast.VaListOwnerType{}}, nil
+			}
+			if id.Namespace == nil && id.Name.Name() == "__c_va_list" {
+				return &ast.ExprType{Kind: ast.EXPR_TYPE_C_VA_LIST, Explicit: true, T: &ast.CVaListType{}}, nil
+			}
+			if id.Namespace == nil && strings.HasPrefix(id.Name.Name(), "__c_") {
+				return s.cScalar(id)
+			}
 			return nil, diagnostics.Diag{Title: "Unknown type", Message: fmt.Sprintf("'%s' type not found on scope", id.Name.Name()), Span: id.Name.Span, Help: "Declare the type or use the correct imported package qualifier."}
 		}
 		if sym.Invalid {
@@ -257,7 +334,10 @@ func (s *sema) resolveTypeAliases(ty *ast.ExprType, scope *ast.Scope, aliases ma
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewPointerType(inner), nil
+		if err := rejectVaListEscape(inner, source.Span{}); err != nil {
+			return nil, err
+		}
+		return &ast.ExprType{Kind: ast.EXPR_TYPE_POINTER, Explicit: ty.Explicit, T: &ast.PointerType{Type: inner, Const: ty.T.(*ast.PointerType).Const}}, nil
 	case ast.EXPR_TYPE_TUPLE:
 		result := &ast.TupleType{}
 		for _, t := range ty.T.(*ast.TupleType).Types {
@@ -293,6 +373,12 @@ func (s *sema) concreteArguments(params []*token.Token, args []*ast.ExprType, sc
 }
 
 func valueType(ty *ast.ExprType) bool {
+	if ty.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
+		return false
+	}
+	if ty.Kind == ast.EXPR_TYPE_C_VA_LIST {
+		return false
+	}
 	if ty.Kind == ast.EXPR_TYPE_OPAQUE {
 		return false
 	}
@@ -369,10 +455,21 @@ func (s *sema) resolveStruct(d *ast.StructDecl, bindings map[string]*ast.ExprTyp
 		if err := s.checkStructDecl(d); err != nil {
 			return err
 		}
+		scope := d.Owner.Scope
+		if d.Foreign != nil {
+			scope = d.Foreign.Scope
+		}
 		for _, field := range d.Fields {
-			ty, err := s.resolveType(field.Type, d.Owner.Scope)
+			ty, err := s.resolveType(field.Type, scope)
 			if err != nil {
 				return err
+			}
+			if d.Foreign != nil && ty.Kind == ast.EXPR_TYPE_ARRAY {
+				seq := ty.T.(*ast.SequenceType)
+				if seq.Element.Kind == ast.EXPR_TYPE_ARRAY || seq.Element.Kind == ast.EXPR_TYPE_SLICE {
+					return diagnostics.Diag{Title: "Unsupported foreign declarator", Message: "multidimensional C array fields do not yet have a supported source representation", Span: field.Name.Span, Help: "Use a header-compiled C accessor or adapter for this field."}
+				}
+				seq.Foreign = true
 			}
 			if !valueType(ty) {
 				return fmt.Errorf("%s: field requires a value type", field.Name.Pos)
@@ -444,7 +541,9 @@ func (s *sema) orderValueTypes() error {
 			}
 		}
 		state[key] = 2
-		s.program.ValueTypes = append(s.program.ValueTypes, ty)
+		if ty.Kind != ast.EXPR_TYPE_ARRAY || !ty.T.(*ast.SequenceType).Foreign {
+			s.program.ValueTypes = append(s.program.ValueTypes, ty)
+		}
 		return nil
 	}
 	for _, d := range s.program.Enums {

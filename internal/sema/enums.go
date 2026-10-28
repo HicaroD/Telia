@@ -54,6 +54,41 @@ func (s *sema) resolveEnum(d *ast.EnumDecl) error {
 	if d.Resolved {
 		return nil
 	}
+	if d.Foreign != nil {
+		if d.Type != nil {
+			ty, err := s.resolveType(d.Type, d.Foreign.Scope)
+			if err != nil {
+				return err
+			}
+			if !ty.IsInteger() {
+				return diagnostics.Diag{Title: "Invalid enum representation", Message: "a foreign enum representation annotation must be an integer type", Span: d.Name.Span, Help: "Omit the annotation to use the header's enum type, or name its exact integer representation."}
+			}
+			d.Type = ty
+		}
+		if d.Foreign.Attributes.Header == "" {
+			return diagnostics.Diag{Title: "Foreign enum requires a header", Message: "foreign enums use C header types and tags", Span: d.Name.Span, Help: "Add a header attribute to the extern block."}
+		}
+		if d.HasPayload || len(d.TypeParams) != 0 {
+			return diagnostics.Diag{Title: "Invalid foreign enum", Message: "foreign enums cannot have payloads or type parameters", Span: d.Name.Span, Help: "Declare only the named C enum members."}
+		}
+		d.CName = d.Attributes.LinkName
+		if d.CName == "" {
+			d.CName = d.Name.Name()
+		}
+		seen := map[string]*token.Token{}
+		for _, v := range d.Variants {
+			if previous := seen[v.Name.Name()]; previous != nil {
+				return diagnostics.Diag{Title: "Duplicate enum variant", Message: "foreign enum member is already declared", Span: v.Name.Span, Help: "Choose a distinct member name.", Related: []diagnostics.Related{{Span: previous.Span, Message: "previous member"}}}
+			}
+			seen[v.Name.Name()] = v.Name
+			if v.Expr != nil {
+				return diagnostics.Diag{Title: "Foreign enum initializer", Message: "the header supplies foreign enum tag values", Span: v.Expr.Span, Help: "Remove the tag initializer and use link_name to select the C member."}
+			}
+		}
+		d.Resolved = true
+		s.program.Enums = append(s.program.Enums, d)
+		return nil
+	}
 	if d.Resolving {
 		return diagnostics.Diag{Title: "Cyclic enum declaration", Message: "enum representation or tags depend on the enum being defined", Span: d.Name.Span, Help: "Use an independent integer representation and constant tag expressions.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "resolution started here"}}}
 	}

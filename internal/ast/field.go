@@ -7,12 +7,11 @@ import (
 )
 
 type ParamAttributes struct {
-	Const bool // @const
-	C     bool // @c - only allowed on variadic arguments of prototypes
+	C bool // @c - only allowed on variadic arguments of prototypes
 }
 
 func (p *ParamAttributes) String() string {
-	return fmt.Sprintf("ATTRIBUTES - @c=%v @const=%v\n", p.C, p.Const)
+	return fmt.Sprintf("ATTRIBUTES - @c=%v\n", p.C)
 }
 
 type Param struct {

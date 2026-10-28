@@ -1,7 +1,17 @@
 package libc
 
-type c_char = i8
-type c_int = i32
-type c_size_t = u64
-type c_float = f32
-type c_double = f64
+type c_char = __c_char
+type c_schar = __c_schar
+type c_uchar = __c_uchar
+type c_short = __c_short
+type c_ushort = __c_ushort
+type c_int = __c_int
+type c_uint = __c_uint
+type c_long = __c_long
+type c_ulong = __c_ulong
+type c_longlong = __c_longlong
+type c_ulonglong = __c_ulonglong
+type c_size_t = __c_size_t
+type c_ptrdiff_t = __c_ptrdiff_t
+type c_float = __c_float
+type c_double = __c_double

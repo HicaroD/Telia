@@ -110,6 +110,9 @@ func (s *sema) checkSliceCall(call *ast.FnCall, scope, decl *ast.Scope, imported
 	if err != nil {
 		return nil, err
 	}
+	if s.readOnlyStorage(call.Args[0], scope) {
+		return nil, constMutation(call.Args[0].Span)
+	}
 	if ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
 		return nil, fmt.Errorf("slicing requires an array or slice")
 	}

@@ -34,6 +34,9 @@ const (
 	EXPR_TYPE_SLICE
 	EXPR_TYPE_ENUM
 	EXPR_TYPE_OPAQUE
+	EXPR_TYPE_FUNCTION
+	EXPR_TYPE_C_VA_LIST
+	EXPR_TYPE_VA_LIST_OWNER
 )
 
 type ExprType struct {
@@ -48,13 +51,17 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 
 	switch t.Kind {
+	case EXPR_TYPE_C_VA_LIST, EXPR_TYPE_VA_LIST_OWNER:
+		return true
+	case EXPR_TYPE_FUNCTION:
+		return t.T.(*FunctionType).Equals(other.T.(*FunctionType))
 	case EXPR_TYPE_OPAQUE:
 		return t.T.(*OpaqueType).Decl == other.T.(*OpaqueType).Decl
 	case EXPR_TYPE_ENUM:
 		return t.T.(*EnumType).Decl == other.T.(*EnumType).Decl
 	case EXPR_TYPE_ARRAY, EXPR_TYPE_SLICE:
 		a, b := t.T.(*SequenceType), other.T.(*SequenceType)
-		return a.Length == b.Length && a.Element.Equals(b.Element)
+		return a.Foreign == b.Foreign && a.Length == b.Length && a.Element.Equals(b.Element)
 	case EXPR_TYPE_BASIC:
 		return t.T.(*BasicType).Equals(other.T.(*BasicType))
 	case EXPR_TYPE_POINTER:
@@ -74,6 +81,7 @@ func (t *ExprType) Equals(other *ExprType) bool {
 
 // SequenceType describes inline arrays and borrowed pointer-plus-length slices.
 type SequenceType struct {
+	Foreign bool // Inline C array storage, never a Telia wrapper.
 	Element *ExprType
 	Length  uint64
 }
@@ -179,6 +187,8 @@ func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
 }
 
 type BasicType struct {
+	CName    string // Native C scalar spelling, with target-probed Kind.
+	Const    bool   // cstring shorthand: protects the pointed-to C characters.
 	Kind     token.Kind
 	Explicit bool
 }
@@ -198,7 +208,7 @@ func NewPointerType(ty *ExprType) *ExprType {
 }
 
 func (left *BasicType) Equals(right *BasicType) bool {
-	return left.Kind == right.Kind
+	return left.Kind == right.Kind && left.Const == right.Const && left.CName == right.CName
 }
 
 func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
@@ -225,6 +235,12 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 }
 
 func (basicType BasicType) String() string {
+	if basicType.CName != "" {
+		return basicType.CName
+	}
+	if basicType.Const {
+		return "const " + basicType.Kind.String()
+	}
 	return basicType.Kind.String()
 }
 
@@ -239,15 +255,19 @@ func (idType IdType) String() string {
 }
 
 type PointerType struct {
+	Const    bool // Protects the immediate pointee, not the pointer value.
 	Type     *ExprType
 	Explicit bool
 }
 
 func (p *PointerType) Equals(other *PointerType) bool {
-	return p.Type.Equals(other.Type)
+	return p.Const == other.Const && p.Type.Equals(other.Type)
 }
 
 func (pointer PointerType) String() string {
+	if pointer.Const {
+		return fmt.Sprintf("const *%s", pointer.Type.T)
+	}
 	return fmt.Sprintf("*%s", pointer.Type.T)
 }
 

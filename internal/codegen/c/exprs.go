@@ -17,8 +17,23 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return c.emitMatch(node.Node.(*ast.MatchExpr))
 	case ast.KIND_ARRAY_LITERAL_EXPR:
 		lit := node.Node.(*ast.ArrayLiteralExpr)
+		if lit.Type.T.(*ast.SequenceType).Foreign {
+			var values []string
+			for _, value := range lit.Values {
+				values = append(values, c.emitExpr(value))
+			}
+			if len(values) == 0 {
+				return "{0}"
+			}
+			return "{" + strings.Join(values, ", ") + "}"
+		}
 		if len(lit.Values) == 0 {
 			return fmt.Sprintf("(%s){0}", emitCType(lit.Type))
+		}
+		if hasVaEffects(node) {
+			return c.vaExpression(func() string {
+				return fmt.Sprintf("(%s){.data = %s}", emitCType(lit.Type), c.emitVaArrayInitializer(lit))
+			})
 		}
 		var values []string
 		for _, value := range lit.Values {
@@ -27,12 +42,13 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return fmt.Sprintf("(%s){.data = {%s}}", emitCType(lit.Type), strings.Join(values, ", "))
 	case ast.KIND_INDEX_EXPR:
 		index := node.Node.(*ast.IndexExpr)
-		data, length := c.captureSequence(index.Value, index.Type)
-		i := c.emitExpr(index.Index)
-		tmp := c.nextTmp()
-		c.buf.WriteString(fmt.Sprintf("uint64_t %s = %s;\n", tmp, i))
-		c.buf.WriteString(fmt.Sprintf("if (%s >= %s) _panic(%s);\n", tmp, length, emitStringLiteral([]byte("index out of bounds"))))
-		return fmt.Sprintf("(%s)[%s]", data, tmp)
+		if hasVaEffects(node) {
+			if node.IsAddressable() {
+				return "(*" + c.vaExpression(func() string { return "&(" + c.emitIndex(index) + ")" }) + ")"
+			}
+			return c.vaExpression(func() string { return c.emitIndex(index) })
+		}
+		return c.emitIndex(index)
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteral(node.Node.(*ast.LiteralExpr))
 
@@ -65,6 +81,14 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return fmt.Sprintf("(&(%s))", inner)
 
 	case ast.KIND_DEREF_POINTER_EXPR:
+		if hasVaEffects(node.Node.(*ast.DerefPointerExpr).Expr) {
+			return "(*" + c.vaExpression(func() string {
+				inner := c.emitExpr(node.Node.(*ast.DerefPointerExpr).Expr)
+				pointer := c.nextTmp()
+				fmt.Fprintf(c.buf, "__auto_type %s = (%s);\n_check_nil_pointer_deref((void *)(%s));\n", pointer, inner, pointer)
+				return pointer
+			}) + ")"
+		}
 		inner := c.emitExpr(node.Node.(*ast.DerefPointerExpr).Expr)
 		c.buf.WriteString(fmt.Sprintf("_check_nil_pointer_deref((void *)(%s));\n", inner))
 		return fmt.Sprintf("(*(%s))", inner)
@@ -73,9 +97,15 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return c.emitFieldAccess(node.Node.(*ast.FieldAccess))
 
 	case ast.KIND_STRUCT_EXPR:
+		if hasVaEffects(node) {
+			return c.vaExpression(func() string { return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr)) })
+		}
 		return c.emitStructLiteral(node.Node.(*ast.StructLiteralExpr))
 
 	case ast.KIND_TUPLE_LITERAL_EXPR:
+		if hasVaEffects(node) {
+			return c.vaExpression(func() string { return c.emitTupleLiteral(node.Node.(*ast.TupleExpr)) })
+		}
 		return c.emitTupleLiteral(node.Node.(*ast.TupleExpr))
 
 	case ast.KIND_VARG_EXPR:
@@ -148,8 +178,24 @@ func (c *CCodegen) emitIdExpr(id *ast.IdExpr) string {
 		return id.Name.Name()
 	}
 	switch id.N.Kind {
+	case ast.KIND_FN_DECL:
+		return c.mangledFnDeclName(id.N.Node.(*ast.FnDecl))
+	case ast.KIND_PROTO:
+		d := id.N.Node.(*ast.Proto)
+		if d.Attributes.LinkName != "" {
+			return d.Attributes.LinkName
+		}
+		return d.Name.Name()
 	case ast.KIND_CONST_DECL:
-		return c.emitConstant(id.N.Node.(*ast.ConstDecl).Value)
+		d := id.N.Node.(*ast.ConstDecl)
+		if d.Foreign != nil {
+			name := d.Attributes.LinkName
+			if name == "" {
+				name = d.Name.Name()
+			}
+			return fmt.Sprintf("((%s)(%s))", emitCType(d.Type), name)
+		}
+		return c.emitConstant(d.Value)
 	case ast.KIND_VAR_ID_STMT:
 		varId := id.N.Node.(*ast.VarIdStmt)
 		if varId.BackendType != nil {
@@ -169,14 +215,23 @@ func (c *CCodegen) emitIdExpr(id *ast.IdExpr) string {
 
 // emitBinExpr emits a binary expression with parentheses for safety.
 func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
-	if bin.Op == token.SHIFT_LEFT || bin.Op == token.SHIFT_RIGHT { return c.emitShift(bin) }
+	if bin.Op == token.SHIFT_LEFT || bin.Op == token.SHIFT_RIGHT {
+		return c.emitShift(bin)
+	}
 	// Special case: error != nil — C can't compare structs by value.
 	// Emit e.msg != NULL instead.
 	if isErrorNilComparison(bin) {
 		return c.emitErrorNilComparison(bin)
 	}
+	if bin.Op != token.AND && bin.Op != token.OR && (hasVaEffects(bin.Left) || hasVaEffects(bin.Right)) {
+		return c.emitSequencedVaBinary(bin)
+	}
 	left := c.emitExpr(bin.Left)
 	right := c.emitExpr(bin.Right)
+	return emitBinaryOperation(bin, left, right)
+}
+
+func emitBinaryOperation(bin *ast.BinExpr, left, right string) string {
 	if bin.OperandType != nil && bin.OperandType.Equals(ast.NewBasicType(token.STRING_TYPE)) {
 		comparison := fmt.Sprintf("_telia_string_equal(%s, %s)", left, right)
 		if bin.Op == token.BANG_EQUAL {
@@ -296,6 +351,8 @@ func (c *CCodegen) emitUnaryExpr(u *ast.UnaryExpr) string {
 // emitFnCall emits a function call expression, handling variadic args.
 func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
 	switch call.Builtin {
+	case "va_end", "va_borrow", "va_arg":
+		return c.emitVaOperation(call)
 	case "sizeof":
 		return fmt.Sprintf("((uint64_t)sizeof(%s))", emitCType(call.BuiltinType))
 	case "alignof":
@@ -318,6 +375,11 @@ func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
 			return fmt.Sprintf("UINT64_C(%d)", call.BuiltinType.T.(*ast.SequenceType).Length)
 		}
 		return fmt.Sprintf("(%s).len", value)
+	}
+	for _, argument := range call.Args {
+		if hasVaEffects(argument) {
+			return c.emitSequencedVaCall(call)
+		}
 	}
 	name := c.getFnCallName(call)
 	args := c.emitCallArgs(call.Args)
@@ -343,6 +405,12 @@ func (c *CCodegen) emitCallArgs(args []*ast.Node) string {
 // getFnCallName resolves the C function name for a call.
 // Handles link_name, mangled names, and direct proto names.
 func (c *CCodegen) getFnCallName(call *ast.FnCall) string {
+	if call.CalleeExpr != nil {
+		return "(" + c.emitExpr(call.CalleeExpr) + ")"
+	}
+	if call.Callee != nil {
+		return c.emitIdExpr(call.Callee)
+	}
 	if call.Proto != nil {
 		if call.Proto.Attributes.LinkName != "" {
 			return call.Proto.Attributes.LinkName
@@ -414,6 +482,9 @@ func (c *CCodegen) findPackageForFn(fn *ast.FnDecl, pkg *ast.Package) *ast.Packa
 // emitNamespaceAccess emits a namespace-qualified call (e.g. io::println or libc::printf).
 func (c *CCodegen) emitNamespaceAccess(ns *ast.NamespaceAccess) string {
 	if ns.EnumVariant != nil {
+		if hasVaEffects(ns.Right) {
+			return c.vaExpression(func() string { return c.emitEnumConstruction(ns) })
+		}
 		return c.emitEnumConstruction(ns)
 	}
 	if ns.Right.Kind == ast.KIND_FN_CALL {
@@ -486,8 +557,22 @@ func (c *CCodegen) emitStructLiteral(sl *ast.StructLiteralExpr) string {
 		return fmt.Sprintf("(%s){0}", name)
 	}
 	var fields []string
+	sequence := false
+	for _, value := range sl.Values {
+		sequence = sequence || hasVaEffects(value.Value)
+	}
 	for _, fv := range sl.Values {
-		val := c.emitExpr(fv.Value)
+		var val string
+		if lit, ok := fv.Value.Node.(*ast.ArrayLiteralExpr); sequence && ok && lit.Type.T.(*ast.SequenceType).Foreign {
+			val = c.emitVaArrayInitializer(lit)
+		} else {
+			val = c.emitExpr(fv.Value)
+			if sequence {
+				tmp := c.nextTmp()
+				fmt.Fprintf(c.buf, "%s %s = (%s);\n", vaTemporaryType(fv.Value), tmp, val)
+				val = tmp
+			}
+		}
 		fields = append(fields, fmt.Sprintf(".%s = %s", fv.Name.Name(), val))
 	}
 	return fmt.Sprintf("(%s){%s}", name, strings.Join(fields, ", "))
@@ -503,8 +588,18 @@ func (c *CCodegen) emitTupleLiteral(te *ast.TupleExpr) string {
 	}
 	name := tupleTypedefName(tupleType)
 	parts := make([]string, len(te.Exprs))
+	sequence := false
+	for _, expr := range te.Exprs {
+		sequence = sequence || hasVaEffects(expr)
+	}
 	for i, expr := range te.Exprs {
-		parts[i] = fmt.Sprintf("._%d = %s", i, c.emitExpr(expr))
+		value := c.emitExpr(expr)
+		if sequence {
+			tmp := c.nextTmp()
+			fmt.Fprintf(c.buf, "%s %s = (%s);\n", vaTemporaryType(expr), tmp, value)
+			value = tmp
+		}
+		parts[i] = fmt.Sprintf("._%d = %s", i, value)
 	}
 	return fmt.Sprintf("(%s){%s}", name, strings.Join(parts, ", "))
 }

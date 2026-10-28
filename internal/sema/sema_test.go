@@ -233,9 +233,9 @@ func TestScopeResolution(t *testing.T) {
 			errSubstr: "",
 		},
 		{
-			name:      "function shadows variable",
+			name:      "bare function is a value",
 			src:       "package main\n\nfn foo() int {\n  return 1\n}\nfn main() {\n  a := foo\n}",
-			errSubstr: "not a variable",
+			errSubstr: "",
 		},
 		{
 			name:      "nested scope variable",
@@ -269,7 +269,7 @@ func TestCVariadicRejectsBorrowedString(t *testing.T) {
 	collector := parseAndCheck(`package main
 @[default_cc="c"]
 extern {
-  fn printf(format cstring, args @c ...int) int
+  fn printf(format cstring, args @c ...) int
 }
 fn main() {
   text := "hello"
@@ -344,7 +344,7 @@ func TestSemanticErrors(t *testing.T) {
 		{
 			name:      "extern function not found",
 			src:       "package main\nextern libc {}\nfn main() {\n  libc::puts()\n}",
-			errSubstr: "invalid calling convention",
+			errSubstr: "not declared on extern",
 		},
 		{
 			name:      "extern not defined",

@@ -6,6 +6,15 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 )
 
+func (c *CCodegen) emitIndex(index *ast.IndexExpr) string {
+	data, length := c.captureSequence(index.Value, index.Type)
+	i := c.emitExpr(index.Index)
+	tmp := c.nextTmp()
+	fmt.Fprintf(c.buf, "uint64_t %s = %s;\n", tmp, i)
+	fmt.Fprintf(c.buf, "if (%s >= %s) _panic(%s);\n", tmp, length, emitStringLiteral([]byte("index out of bounds")))
+	return fmt.Sprintf("(%s)[%s]", data, tmp)
+}
+
 func (c *CCodegen) emitSliceCall(call *ast.FnCall) string {
 	data, length := c.captureSequence(call.Args[0], call.BuiltinType)
 	if call.Builtin == "view" {
@@ -46,15 +55,38 @@ func (c *CCodegen) emitRangeLoop(stmt *ast.ForLoop, indent string) {
 // storage. Slice handles and temporary array values can safely be copied.
 func (c *CCodegen) captureSequence(node *ast.Node, ty *ast.ExprType) (data, length string) {
 	value := c.emitExpr(node)
+	seq := ty.T.(*ast.SequenceType)
+	readOnly := false
+	if deref, ok := node.Node.(*ast.DerefPointerExpr); ok {
+		readOnly = deref.ReadOnly
+	}
+	if field, ok := node.Node.(*ast.FieldAccess); ok {
+		for field.Right.Kind == ast.KIND_FIELD_ACCESS {
+			field = field.Right.Node.(*ast.FieldAccess)
+		}
+		readOnly = field.ReadOnly
+	}
+	if seq.Foreign {
+		base := c.nextTmp()
+		element := emitCType(seq.Element)
+		if readOnly {
+			element = constCType(seq.Element)
+		}
+		fmt.Fprintf(c.buf, "%s *%s = %s;\n", element, base, value)
+		return base, fmt.Sprint(seq.Length)
+	}
 	base := c.nextTmp()
 	access := base + "."
 	if ty.Kind == ast.EXPR_TYPE_ARRAY && node.IsAddressable() {
-		c.buf.WriteString(fmt.Sprintf("%s *%s = &(%s);\n", emitCType(ty), base, value))
+		ctype := emitCType(ty)
+		if readOnly {
+			ctype = constCType(ty)
+		}
+		c.buf.WriteString(fmt.Sprintf("%s *%s = &(%s);\n", ctype, base, value))
 		access = base + "->"
 	} else {
 		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", emitCType(ty), base, value))
 	}
-	seq := ty.T.(*ast.SequenceType)
 	if ty.Kind == ast.EXPR_TYPE_ARRAY {
 		if seq.Length == 0 {
 			return fmt.Sprintf("((%s *)NULL)", emitCType(seq.Element)), "0"

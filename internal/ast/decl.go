@@ -7,6 +7,8 @@ import (
 )
 
 type StructDecl struct {
+	Foreign    *ExternDecl
+	IsUnion    bool
 	Owner      *Package
 	File       *File
 	CName      string
@@ -65,6 +67,9 @@ type ExternDecl struct {
 	Name        *token.Token
 	Prototypes  []*Proto
 	Opaques     []*OpaqueDecl
+	Records     []*StructDecl
+	Constants   []*ConstDecl
+	Enums       []*EnumDecl
 	BackendType any // LLVM: *values.Extern
 }
 
@@ -97,9 +102,12 @@ func (imp *UseDecl) String() string {
 }
 
 type Attributes struct {
-	Header   string
-	LinkName string
-	Linkage  string
+	CallingConvention             string
+	CallingConventionMacro        string
+	DefaultCallingConventionMacro string
+	Header                        string
+	LinkName                      string
+	Linkage                       string
 
 	// Specific for extern declaration
 	DefaultCallingConvention string

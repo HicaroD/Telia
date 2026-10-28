@@ -64,7 +64,7 @@ static inline char *_telia_string_c_view(_String text) {
     return (char *)text.data;
 }
 
-static inline _String _telia_string_from_c(char *text) {
+static inline _String _telia_string_from_c(const char *text) {
     return (_String){(const unsigned char *)text, strlen(text)};
 }
 

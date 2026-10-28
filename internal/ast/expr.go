@@ -72,8 +72,9 @@ func (n *NamespaceAccess) String() string {
 }
 
 type FieldAccess struct {
-	Left  *IdExpr
-	Right *Node
+	ReadOnly bool
+	Left     *IdExpr
+	Right    *Node
 
 	// Codegen
 	AccessedField *StructField
@@ -150,8 +151,9 @@ type AddressOfExpr struct {
 }
 
 type DerefPointerExpr struct {
-	Expr *Node
-	Type *ExprType
+	ReadOnly bool
+	Expr     *Node
+	Type     *ExprType
 }
 
 type NullPtrExpr struct {

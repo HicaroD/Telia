@@ -310,7 +310,7 @@ peekAgain:
 		imp, err := p.parseUse()
 		return imp, eof, err
 	case token.TYPE:
-		_, err := p.parseTypeAlias()
+		_, err := p.parseTypeAlias(attrs)
 		file.AnyDeclNodeFound = true
 		return nil, eof, err
 	case token.CONST:
@@ -385,6 +385,12 @@ func (p *Parser) parseAttributes() (ast.Attributes, error) {
 			}
 
 			switch attribute.Name() {
+			case "cc":
+				attributes.CallingConvention = attributeValue.Name()
+			case "cc_macro":
+				attributes.CallingConventionMacro = attributeValue.Name()
+			case "default_cc_macro":
+				attributes.DefaultCallingConventionMacro = attributeValue.Name()
 			case "header":
 				if attributes.Header != "" {
 					return attributes, diagnostics.Diag{Title: "Repeated header attribute", Message: "header is already specified", Span: attribute.Span, Help: "Specify one header per extern block."}
@@ -524,6 +530,40 @@ func (p *Parser) ParseExternDecl(attrs ast.Attributes) (*ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if p.lex.NextIs(token.ENUM) {
+			node, err := p.parseEnumDeclaration(externDecl, memberAttrs)
+			if err != nil {
+				return nil, err
+			}
+			externDecl.Enums = append(externDecl.Enums, node.Node.(*ast.EnumDecl))
+			continue
+		}
+		if p.lex.NextIs(token.CONST) {
+			p.lex.Skip()
+			name, ok := p.expect(token.ID)
+			if !ok {
+				return nil, diagnostics.Diag{Title: "Expected foreign constant name", Message: "foreign constants require a name and type", Span: name.Span, Help: "Write const Name Type without an initializer."}
+			}
+			ty, err := p.ParseExprType()
+			if err != nil {
+				return nil, err
+			}
+			if tk, ok := p.expect(token.NEWLINE); !ok {
+				return nil, diagnostics.Diag{Title: "Foreign constant initializer", Message: "the header supplies the constant value", Span: tk.Span, Help: "Remove the initializer; write const Name Type."}
+			}
+			externDecl.Constants = append(externDecl.Constants, &ast.ConstDecl{Owner: p.pkg, File: p.file, Name: name, Type: ty, Foreign: externDecl, Attributes: memberAttrs})
+			continue
+		}
+		if p.lex.NextIs(token.STRUCT) || p.lex.NextIs(token.UNION) {
+			node, err := p.parseStruct(memberAttrs, false)
+			if err != nil {
+				return nil, err
+			}
+			d := node.Node.(*ast.StructDecl)
+			d.Foreign = externDecl
+			externDecl.Records = append(externDecl.Records, d)
+			continue
+		}
 		if p.lex.NextIs(token.OPAQUE) {
 			p.lex.Skip()
 			name, ok := p.expect(token.ID)
@@ -571,6 +611,34 @@ AfterFields:
 		externDecl.Scope = externScope
 	}
 
+	for _, d := range externDecl.Enums {
+		node := &ast.Node{Kind: ast.KIND_ENUM_DECL, Node: d, Span: d.Name.Span}
+		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
+			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign enum name is already declared", Span: d.Name.Span, Help: "Choose a distinct name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+		}
+		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
+			return nil, err
+		}
+	}
+	for _, d := range externDecl.Constants {
+		d.Scope = externDecl.Scope
+		node := &ast.Node{Kind: ast.KIND_CONST_DECL, Node: d, Span: d.Name.Span}
+		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
+			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign constant name is already declared", Span: d.Name.Span, Help: "Choose a distinct name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+		}
+		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
+			return nil, err
+		}
+	}
+	for _, d := range externDecl.Records {
+		node := &ast.Node{Kind: ast.KIND_STRUCT_DECL, Node: d, Span: d.Name.Span}
+		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
+			return nil, diagnostics.Diag{Title: "Duplicate declaration", Message: "foreign record name is already declared", Span: d.Name.Span, Help: "Choose a distinct type name.", Related: []diagnostics.Related{{Span: previous.DeclarationSpan(), Message: "previous declaration"}}}
+		}
+		if err := externDecl.Scope.Insert(d.Name.Name(), node); err != nil {
+			return nil, err
+		}
+	}
 	for _, d := range externDecl.Opaques {
 		node := &ast.Node{Kind: ast.KIND_OPAQUE_DECL, Node: d, Span: d.Name.Span}
 		if previous := externDecl.Scope.Nodes[d.Name.Name()]; previous != nil {
@@ -752,14 +820,19 @@ func (p *Parser) parseUse() (*ast.Node, error) {
 }
 
 func (p *Parser) ParseStruct(attrs ast.Attributes) (*ast.Node, error) {
+	return p.parseStruct(attrs, true)
+}
+
+func (p *Parser) parseStruct(attrs ast.Attributes, register bool) (*ast.Node, error) {
 	n := new(ast.Node)
 	n.Kind = ast.KIND_STRUCT_DECL
 
 	st := new(ast.StructDecl)
 	st.Attributes = attrs
 
-	structKw, ok := p.expect(token.STRUCT)
-	if !ok {
+	structKw := p.lex.Next()
+	st.IsUnion = structKw.Kind == token.UNION
+	if structKw.Kind != token.STRUCT && !st.IsUnion {
 		return nil, fmt.Errorf("expected struct keyword, not %s\n", structKw.Name())
 	}
 
@@ -781,6 +854,9 @@ func (p *Parser) ParseStruct(attrs ast.Attributes) (*ast.Node, error) {
 	st.Fields = fields
 	n.Node = st
 
+	if !register {
+		return n, nil
+	}
 	err = p.pkg.Scope.Insert(name.Name(), n)
 	// TODO(errors): struct already defined on package
 	if err != nil {
@@ -851,7 +927,7 @@ AfterFields:
 	return fields, nil
 }
 
-func (p *Parser) parseTypeAlias() (*ast.Node, error) {
+func (p *Parser) parseTypeAlias(attrs ast.Attributes) (*ast.Node, error) {
 	tyKw, ok := p.expect(token.TYPE)
 	// TODO(errors)
 	if !ok {
@@ -889,6 +965,9 @@ func (p *Parser) parseTypeAlias() (*ast.Node, error) {
 	alias.Owner, alias.File = p.pkg, p.file
 	alias.Name = name
 	alias.Type = ty
+	if ty.Kind == ast.EXPR_TYPE_FUNCTION {
+		ty.T.(*ast.FunctionType).Attributes = attrs
+	}
 
 	node.Node = alias
 
@@ -1118,20 +1197,12 @@ func (p *Parser) parseFnParams(
 				switch attributeName.Name() {
 				case "c":
 					// TODO(errors)
-					if !isPrototype {
-						return nil, fmt.Errorf("@c only allowed on prototypes\n")
-					}
-					// TODO(errors)
 					if attributes.C {
 						return nil, fmt.Errorf("cannot redeclare @c attribute\n")
 					}
 					attributes.C = true
 				case "const":
-					// TODO(errors)
-					if attributes.Const {
-						return nil, fmt.Errorf("cannot redeclare @const attribute\n")
-					}
-					attributes.Const = true
+					return nil, diagnostics.Diag{Title: "Invalid parameter attribute", Message: "const is a pointer qualifier, not a parameter attribute", Span: attributeName.Span, Help: "Write const *T or const cstring as the parameter type."}
 				}
 			}
 		}
@@ -1147,7 +1218,13 @@ func (p *Parser) parseFnParams(
 			return nil, fmt.Errorf("@c attribute only allowed on variadic arguments")
 		}
 
-		ty, err := p.ParseExprType()
+		var ty *ast.ExprType
+		var err error
+		if param.Variadic && attributes.C && p.lex.NextIs(token.CLOSE_PAREN) {
+			ty = ast.NewBasicType(token.VOID_TYPE)
+		} else {
+			ty, err = p.ParseExprType()
+		}
 		if err != nil {
 			if errors.Is(err, diagnostics.COMPILER_ERROR_FOUND) {
 				return nil, err
@@ -1331,6 +1408,40 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 		return nil, fmt.Errorf("%s: expected type, got a literal", tok.Pos)
 	}
 	switch tok.Kind {
+	case token.FN:
+		p.lex.Skip()
+		params, err := p.parseFnParams(tok, ast.NewScope(p.pkg.Scope), true)
+		if err != nil {
+			return nil, err
+		}
+		result := ast.NewBasicType(token.VOID_TYPE)
+		switch p.lex.Peek().Kind {
+		case token.NEWLINE, token.COMMA, token.CLOSE_PAREN, token.OPEN_CURLY, token.CLOSE_CURLY, token.CLOSE_BRACKET:
+		default:
+			result, err = p.ParseExprType()
+			if err != nil {
+				return nil, err
+			}
+		}
+		t.Kind = ast.EXPR_TYPE_FUNCTION
+		t.T = &ast.FunctionType{Params: params, Result: result}
+	case token.CONST:
+		p.lex.Skip()
+		if p.lex.NextIs(token.CSTRING_TYPE) {
+			p.lex.Skip()
+			t.Kind = ast.EXPR_TYPE_BASIC
+			t.T = &ast.BasicType{Kind: token.CSTRING_TYPE, Explicit: true, Const: true}
+			return p.parseSequenceType(t)
+		}
+		if found, ok := p.expect(token.STAR); !ok {
+			return nil, diagnostics.Diag{Title: "Expected qualified pointer", Message: "const protects the immediate pointee of a pointer", Span: found.Span, Help: "Write const *T."}
+		}
+		ty, err := p.ParseExprType()
+		if err != nil {
+			return nil, err
+		}
+		t.Kind = ast.EXPR_TYPE_POINTER
+		t.T = &ast.PointerType{Type: ty, Const: true, Explicit: true}
 	case token.INVALID:
 		p.lex.Skip()
 		return nil, diagnostics.COMPILER_ERROR_FOUND
@@ -2505,7 +2616,19 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		namespaceAccess, err := p.parseNamespaceAccess(parentScope)
 		return namespaceAccess, err
 	case token.DOT:
-		return p.parseFieldAccess()
+		field, err := p.parseFieldAccess()
+		if err != nil {
+			return nil, err
+		}
+		if p.lex.NextIs(token.OPEN_PAREN) {
+			access := field.Node.(*ast.FieldAccess)
+			for access.Right.Kind == ast.KIND_FIELD_ACCESS {
+				access = access.Right.Node.(*ast.FieldAccess)
+			}
+			name := access.Right.Node.(*ast.IdExpr).Name
+			return p.parseCallTail(name, nil, parentScope, field)
+		}
+		return field, nil
 	}
 
 	p.lex.Skip()
@@ -2552,7 +2675,11 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, ok = parser.expect(token.OPEN_PAREN)
+	return parser.parseCallTail(name, typeArgs, parentScope, nil)
+}
+
+func (parser *Parser) parseCallTail(name *token.Token, typeArgs []*ast.ExprType, parentScope *ast.Scope, callee *ast.Node) (*ast.Node, error) {
+	_, ok := parser.expect(token.OPEN_PAREN)
 	// TODO(errors): add proper error
 	if !ok {
 		return nil, fmt.Errorf("expected '('")
@@ -2579,7 +2706,7 @@ func (parser *Parser) parseFnCall(parentScope *ast.Scope) (*ast.Node, error) {
 
 	n := new(ast.Node)
 	n.Kind = ast.KIND_FN_CALL
-	n.Node = &ast.FnCall{Name: name, TypeArgs: typeArgs, Args: args, AtOp: atOp}
+	n.Node = &ast.FnCall{Name: name, TypeArgs: typeArgs, Args: args, AtOp: atOp, CalleeExpr: callee}
 	return n, nil
 }
 
@@ -2600,7 +2727,7 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 		return nil, fmt.Errorf("expected identifier for namespace access")
 	}
 
-	_, lookupErr := parentScope.LookupAcrossScopes(tk.Name())
+	namespaceSymbol, lookupErr := parentScope.LookupAcrossScopes(tk.Name())
 	_, isImport := p.file.Imports[tk.Name()]
 
 	n := new(ast.Node)
@@ -2624,7 +2751,7 @@ func (p *Parser) parseNamespaceAccess(parentScope *ast.Scope) (*ast.Node, error)
 			return nil, err
 		}
 		access.Right = right
-		if right.Kind == ast.KIND_STRUCT_EXPR && access.IsImport {
+		if right.Kind == ast.KIND_STRUCT_EXPR && (access.IsImport || lookupErr == nil && namespaceSymbol.Kind == ast.KIND_EXTERN_DECL) {
 			right.Node.(*ast.StructLiteralExpr).Namespace = tk
 			return right, nil
 		}

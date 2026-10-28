@@ -12,13 +12,16 @@ Declaration    = UseDecl
                ;
 
 UseDecl        = "use" [ ID ] STRING NEWLINE ;
-ExternDecl     = [ Attributes ] "extern" [ ID ] "{" ( Prototype | OpaqueDecl )* "}" ;
+ExternDecl     = [ Attributes ] "extern" [ ID ] "{" ( ExternMember )* "}" ;
+ExternMember   = [ Attributes ] ( Prototype | OpaqueDecl | StructDecl | UnionDecl | ForeignConst | EnumDecl ) ;
+ForeignConst   = "const" ID Type NEWLINE ;
+UnionDecl      = "union" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
 OpaqueDecl     = [ Attributes ] "opaque" ID NEWLINE ;
 StructDecl     = "struct" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
 TypeDecl       = "type" ID "=" Type NEWLINE ;
 ConstDecl      = "const" ID [ Type ] "=" Expr NEWLINE ;
 EnumDecl       = "enum" ID [ TypeParams ] [ Type ] "{" NEWLINE ( EnumVariant NEWLINE )* "}" ;
-EnumVariant    = ID [ "=" Expr ] [ "{" NEWLINE ( FieldDecl NEWLINE )* "}" ] ;
+EnumVariant    = [ Attributes ] ID [ "=" Expr ] [ "{" NEWLINE ( FieldDecl NEWLINE )* "}" ] ;
 TypeParams     = "<" ID ( "," ID )* ">" ;
 FnDecl         = "fn" ID Parameters [ Type ] Block ;
 
@@ -27,7 +30,7 @@ Attribute      = ID "=" STRING ;
 
 Prototype      = "fn" ID Parameters [ Type ] NEWLINE ;
 Parameters     = "(" [ Param ( "," Param )* ] ")" ;
-Param          = ID [ Attributes ] [ "..." ] Type ;
+Param          = ID ( "@c" "..." | [ "..." ] Type ) ;
 
 FieldDecl      = ID Type ;
 
@@ -35,7 +38,8 @@ Type           = TypeAtom ( SequenceSuffix )* ;
 TypeAtom       = BasicType
                | PointerType
                | IdType
-               | TupleType
+                | TupleType
+                | FunctionType
                 ;
 SequenceSuffix = "[" [ INT ] "]" ;
 
@@ -45,7 +49,8 @@ BasicType      = "bool" | "rawptr" | "string" | "cstring"
                | "int" | "uint" | "float" | "void"
                ;
 
-PointerType    = "*" Type ;
+PointerType    = [ "const" ] "*" Type | "const" "cstring" ;
+FunctionType   = "fn" Parameters [ Type ] ;
 IdType         = ID [ "::" ID ] [ TypeArgs ] ;
 TypeArgs       = "<" Type ( "," Type )* ">" ;
 TupleType      = "(" Type ( "," Type )* ")" ;

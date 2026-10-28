@@ -10,15 +10,24 @@ func cloneType(t *ast.ExprType, bindings map[string]*ast.ExprType) *ast.ExprType
 	}
 	copy := *t
 	switch v := t.T.(type) {
+	case *ast.FunctionType:
+		params := *v.Params
+		params.Fields = nil
+		for _, p := range v.Params.Fields {
+			param := *p
+			param.Type = cloneType(p.Type, bindings)
+			params.Fields = append(params.Fields, &param)
+		}
+		copy.T = &ast.FunctionType{Params: &params, Result: cloneType(v.Result, bindings), Attributes: v.Attributes}
 	case *ast.SequenceType:
-		copy.T = &ast.SequenceType{Element: cloneType(v.Element, bindings), Length: v.Length}
+		copy.T = &ast.SequenceType{Element: cloneType(v.Element, bindings), Length: v.Length, Foreign: v.Foreign}
 	case *ast.IdType:
 		if v.Namespace == nil && len(v.Args) == 0 && bindings[v.Name.Name()] != nil {
 			return cloneType(bindings[v.Name.Name()], nil)
 		}
 		copy.T = &ast.IdType{Name: v.Name, Namespace: v.Namespace, Args: cloneTypes(v.Args, bindings)}
 	case *ast.PointerType:
-		copy.T = &ast.PointerType{Type: cloneType(v.Type, bindings), Explicit: v.Explicit}
+		copy.T = &ast.PointerType{Type: cloneType(v.Type, bindings), Explicit: v.Explicit, Const: v.Const}
 	case *ast.TupleType:
 		copy.T = &ast.TupleType{Types: cloneTypes(v.Types, bindings)}
 	case *ast.BasicType:
@@ -117,7 +126,7 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	case *ast.NamespaceAccess:
 		copy.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope), IsImport: v.IsImport, TypeArgs: cloneTypes(v.TypeArgs, c.bindings)}
 	case *ast.FnCall:
-		call := &ast.FnCall{Name: v.Name, Builtin: v.Builtin, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic}
+		call := &ast.FnCall{Name: v.Name, Builtin: v.Builtin, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic, CalleeExpr: c.node(v.CalleeExpr, scope)}
 		if v.AtOp != nil {
 			call.AtOp = &ast.AtOperator{Kind: v.AtOp.Kind}
 			if op, ok := v.AtOp.Op.(*ast.CatchAtOperator); ok {

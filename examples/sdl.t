@@ -6,8 +6,8 @@ use "vendor::sdl"
 
 @[default_cc="c"]
 extern {
-  fn getenv(name @const cstring) cstring
-  fn atoi(text @const cstring) i32
+  fn getenv(name const cstring) cstring
+  fn atoi(text const cstring) i32
 }
 
 fn main() i32 {
