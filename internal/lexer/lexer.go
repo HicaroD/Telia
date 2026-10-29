@@ -24,6 +24,18 @@ type Lexer struct {
 	pos         token.Pos
 	file        *source.File
 	speculative int
+	lookahead   []lookaheadToken
+	lookHead    int
+	lookStrict  bool
+	pending     []diagnostics.Diag
+}
+
+// Each entry owns its token; returned pointers remain valid after buffer reuse.
+type lookaheadToken struct {
+	token  *token.Token
+	pos    token.Pos
+	offset int
+	diags  []diagnostics.Diag
 }
 
 func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
@@ -61,52 +73,66 @@ func (lex *Lexer) SpanFrom(start source.Span) source.Span {
 }
 
 func (lex *Lexer) Peek() *token.Token {
-	lex.speculative++
-	defer func() { lex.speculative-- }()
-	prevPos := lex.pos
-	prevOffset := lex.offset
-
-	token := lex.Next()
-
-	lex.pos.SetPosition(prevPos)
-	lex.offset = prevOffset
-	return token
+	return lex.PeekN(0)
 }
 
 func (lex *Lexer) Peek1() *token.Token {
-	lex.speculative++
-	defer func() { lex.speculative-- }()
-	prevPos := lex.pos
-	prevOffset := lex.offset
-
-	var token *token.Token
-
-	_ = lex.Next()
-	token = lex.Next()
-
-	lex.pos.SetPosition(prevPos)
-	lex.offset = prevOffset
-
-	return token
+	return lex.PeekN(1)
 }
 
 func (lex *Lexer) PeekN(n int) *token.Token {
-	lex.speculative++
-	defer func() { lex.speculative-- }()
-	prevPos := lex.pos
-	prevOffset := lex.offset
-
-	var token *token.Token
-
-	for n != 0 {
-		lex.Next()
-		n--
+	if n < 0 {
+		panic("negative lexer lookahead")
 	}
-	token = lex.Next()
+	lex.fillLookahead(n)
+	index := lex.lookHead + n
+	if index >= len(lex.lookahead) {
+		// Lookahead beyond the end reuses EOF instead of growing without bound.
+		index = len(lex.lookahead) - 1
+	}
+	return lex.lookahead[index].token
+}
 
-	lex.pos.SetPosition(prevPos)
-	lex.offset = prevOffset
-	return token
+func (lex *Lexer) fillLookahead(n int) {
+	// StrictNewline is public and changed directly by the parser. Re-lex any
+	// unconsumed suffix when its interpretation changes, from the consumed cursor.
+	if lex.lookStrict != lex.StrictNewline {
+		clear(lex.lookahead)
+		lex.lookahead = lex.lookahead[:0]
+		lex.lookHead = 0
+		lex.lookStrict = lex.StrictNewline
+	}
+	if len(lex.lookahead)-lex.lookHead > n {
+		return
+	}
+	prevPos, prevOffset := lex.pos, lex.offset
+	if len(lex.lookahead) > lex.lookHead {
+		last := lex.lookahead[len(lex.lookahead)-1]
+		if last.token.Kind == token.EOF {
+			return
+		}
+		lex.pos, lex.offset = last.pos, last.offset
+	}
+	lex.speculative++
+	for len(lex.lookahead)-lex.lookHead <= n {
+		// Reclaim consumed slots only when needed, avoiding a copy on every Next.
+		if len(lex.lookahead) == cap(lex.lookahead) && lex.lookHead > 0 {
+			count := copy(lex.lookahead, lex.lookahead[lex.lookHead:])
+			clear(lex.lookahead[count:])
+			lex.lookahead = lex.lookahead[:count]
+			lex.lookHead = 0
+		}
+		lex.pending = nil
+		tok := lex.scanToken()
+		entry := lookaheadToken{tok, lex.pos, lex.offset, lex.pending}
+		lex.pending = nil
+		lex.lookahead = append(lex.lookahead, entry)
+		if tok.Kind == token.EOF {
+			break
+		}
+	}
+	lex.speculative--
+	lex.pos, lex.offset = prevPos, prevOffset
 }
 
 func (lex *Lexer) Skip() {
@@ -119,6 +145,26 @@ func (lex *Lexer) NextIs(expectedKind token.Kind) bool {
 }
 
 func (lex *Lexer) Next() *token.Token {
+	lex.fillLookahead(0)
+	entry := lex.lookahead[lex.lookHead]
+	lex.lookahead[lex.lookHead] = lookaheadToken{}
+	lex.lookHead++
+	lex.pos, lex.offset = entry.pos, entry.offset
+	for _, diag := range entry.diags {
+		lex.Collector.ReportAndSave(diag)
+	}
+	if entry.token.Kind == token.OPEN_CURLY {
+		lex.BraceDepth++
+	}
+	if entry.token.Kind == token.CLOSE_CURLY {
+		lex.BraceDepth--
+	}
+	return entry.token
+}
+
+// scanToken advances the scan cursor, not the parser's consumed cursor. Errors
+// are buffered during lookahead and published only when Next consumes the token.
+func (lex *Lexer) scanToken() *token.Token {
 	lex.skipWhitespace()
 	start := lex.offset
 	character := lex.peekChar()
@@ -127,14 +173,6 @@ func (lex *Lexer) Next() *token.Token {
 	defer func() {
 		tok.Span = source.Span{File: lex.file, Start: start, End: lex.offset}
 		lex.Collector.RegisterSpan(tok.Span)
-		if lex.speculative == 0 {
-			if tok.Kind == token.OPEN_CURLY {
-				lex.BraceDepth++
-			}
-			if tok.Kind == token.CLOSE_CURLY {
-				lex.BraceDepth--
-			}
-		}
 	}()
 	tok.Kind = token.INVALID
 
@@ -501,16 +539,16 @@ func (lex *Lexer) nextChar() byte {
 }
 
 func (lex *Lexer) report(start int, title, message string) {
+	diag := diagnostics.Diag{
+		Title:   title,
+		Message: message,
+		Span:    source.Span{File: lex.file, Start: start, End: lex.offset},
+	}
 	if lex.speculative != 0 {
+		lex.pending = append(lex.pending, diag)
 		return
 	}
-	lex.Collector.ReportAndSave(
-		diagnostics.Diag{
-			Title:   title,
-			Message: message,
-			Span:    source.Span{File: lex.file, Start: start, End: lex.offset},
-		},
-	)
+	lex.Collector.ReportAndSave(diag)
 }
 
 func (lex *Lexer) peekChar() byte {

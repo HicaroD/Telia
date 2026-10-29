@@ -34,3 +34,7 @@ config/env
 # Explicitly prepared native dependencies
 .native-cache/
 base/vendor/*/artifacts/
+
+# Local performance investigations (publish selected summaries in bench/analysis.md)
+bench/results/*
+!bench/results/.gitkeep

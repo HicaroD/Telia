@@ -1,63 +1,81 @@
-# Benchmarking Fibonacci
+# Performance investigations
 
-This directory contains benchmarking tests for the Fibonacci algorithm
-implemented in different programming languages: Telia, C, and Go. The benchmark
-evaluates both the **compilation time** and **execution time** for Fibonacci
-numbers **35, 40, and 45**.
+Find Telia bottlenecks, explain why they occur, and validate improvements. This
+is not a language comparison suite. Historical C/Go Fibonacci examples and
+`imgs/` are retained, but are not used by the runner.
 
-## Setup
+## Run
 
-To perform the benchmarks, we use
-[Hyperfine](https://github.com/sharkdp/hyperfine), a command-line benchmarking
-tool. Install Hyperfine using the following commands:
+Requires Go, a C compiler available as `cc`, and Python 3; no Python packages.
+Run from any directory:
 
-```bash
-wget https://github.com/sharkdp/hyperfine/releases/download/v1.19.0/hyperfine_1.19.0_amd64.deb
-sudo dpkg -i hyperfine_1.19.0_amd64.deb
+```sh
+./bench/bench.sh
+./bench/bench.sh -runs 10 -sizes 100,500,1000,2000 -profile-time 10s
 ```
 
-Ensure that you have the necessary compilers installed:
+The shell runner builds `profile.go` and creates a unique `results/<UTC>-<PID>/`:
 
-- **Telia:** Ensure the Telia compiler binary is compiled in the root project directory.
-- **C:** Requires `clang`.
-- **Go:** Requires the Go compiler (`go`).
+- `results.json`: every sample, commit/worktree state, toolchain and machine details.
+- `functions_*.t`: generated scaling workloads, with all functions called and a
+  checked result. Optimizing the final executable is fine: this tests compilation.
+- `phases.svg`: phase medians, total ranges, toolchain time, allocation volume.
+- `cpu.pprof` / `cpu.txt`: frontend-only CPU sampling, with parse/sema labels.
+- `allocs.pprof` / `allocs.txt`: sampled cumulative Go allocation volume.
+- `toolchain.jsonl`: commands from the last build, including target probes.
 
-## Usage
+The growing workload stresses parsing, symbol lookup, function checking, and
+C emission. It does **not** represent imports, generics, collections, strings,
+or runtime behavior; add targeted workloads when investigating those areas.
 
-The following command will run all benchmarks for compilation and execution time.
+## Interpret correctly
 
-```bash 
-./bench.sh
+Each size gets one discarded warmup and then measured in-process builds. A GC
+runs before each build, outside timing; filesystem/toolchain caches remain warm.
+The harness bypasses CLI configuration/startup. It checks the executable exits
+successfully outside build timing. No execution-speed claim is made.
+
+`backend_ms` includes C generation, target probes, compilation/linking, and output
+deployment. `toolchain_ms` measures subprocess wall time inside a `cc` wrapper,
+including probes; it is a **subset**, not another additive phase. The difference
+also includes wrapper startup and filesystem/process overhead: do not call it
+pure C-emission time. Child compiler CPU/memory is not in Go profiles.
+
+`allocated_bytes` counts total Go bytes allocated during a build, not peak memory
+or native compiler memory. Allocation profiles cover the entire harness process
+and use Go's default sampling rate. CPU profiles are collected separately by
+repeating the largest frontend workload; they do not distort build samples.
+
+## Diagnose why, then test how
+
+```sh
+go tool pprof -http=127.0.0.1:8080 bench/results/<run>/profile bench/results/<run>/cpu.pprof
+go tool pprof -top -cum bench/results/<run>/profile bench/results/<run>/cpu.pprof
+go tool pprof -list 'parse|check' bench/results/<run>/profile bench/results/<run>/cpu.pprof
+go tool pprof -top -alloc_space bench/results/<run>/profile bench/results/<run>/allocs.pprof
 ```
 
-If you need to change the code for testing more inputs, go to `code/fib` and
-change according to your needs.
+1. Locate the dominant phase and check how it scales with workload size.
+2. Inspect cumulative call stacks and source lines, not just flat rankings.
+3. Record evidence, cause, proposed fix, and tradeoffs in `analysis.md`.
+4. Make one targeted change, run correctness tests, and repeat identical settings.
+5. Compare per-phase distributions and allocation volume, not single timings.
 
-Once the benchmark is executed, the results will provide insights into:
+Generate a before/after chart of parse time and allocation volume:
 
-- **Compilation speed**: How fast each language compiles the Fibonacci program.
-- **Execution performance**: How efficiently each implementation computes
-  Fibonacci numbers.
+```sh
+python3 bench/charts.py bench/results/<after>/results.json \
+  --baseline bench/results/<before>/results.json
+```
 
-## Results
+This writes `comparison.svg` into the after-run directory. Compare the same
+workload sizes and settings on the same machine, without competing benchmark jobs.
 
-![bench.png](./imgs/bench.png)
+If the external toolchain dominates, inspect its recorded commands and generated
+C before optimizing Telia's frontend. If a runtime workload is slow, use native
+profiling (Instruments on macOS, `perf` on Linux) and inspect the lowering and
+standard-library implementation. Do not substitute Go compiler profiles for
+generated-program profiles.
 
-
-| Input  | Telia  | C      | Go     |
-|--------|--------|--------|--------|
-| Fib(35) | ~21 ms | ~24 ms | ~44 ms |
-| Fib(40) | ~220 ms | ~230 ms | ~500 ms |
-| Fib(45) | ~2500 ms | ~2600 ms | ~5400 ms |
-
-### **Interpretation**
-- **Telia is consistently as fast as, or slightly faster than, C.**
-- **Go is significantly slower across all Fibonacci inputs**, with the gap
-  increasing as the input size grows.
-- **The execution time scales exponentially**, which is expected due to the
-  recursive nature of the Fibonacci algorithm without optimization techniques
-  such as memoization.
-
-These results demonstrate that Telia's performance is comparable to C, while Go
-exhibits slower execution times for this specific algorithm.
-
+Local results are ignored by Git. Keep reviewed findings in `analysis.md` and
+explicitly publish selected raw results/charts when a finding needs a baseline.
