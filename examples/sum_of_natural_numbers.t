@@ -1,6 +1,6 @@
 package main
 
-use "std::io"
+use "std::libc"
 
 fn sum_of_natural_numbers(n int) int {
   sum, i := 0, 1
@@ -19,9 +19,9 @@ fn formula(n int) int {
 
 fn main() {
   n, sum := 10, sum_of_natural_numbers(n)
-  io::printf("Sum of %d first natural numbers: %d", n, sum)
+  libc::printf("Sum of %d first natural numbers: %d", n, sum)
 
   sum = formula(n)
-  io::printf("Sum of %d first natural numbers with formula: %d", n, sum)
+  libc::printf("Sum of %d first natural numbers with formula: %d", n, sum)
   return
 }

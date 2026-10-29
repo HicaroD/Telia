@@ -4,17 +4,11 @@ use "std::libc"
 use "std::strings"
 use "vendor::sdl"
 
-@[default_cc="c"]
-extern {
-  fn getenv(name const cstring) cstring
-  fn atoi(text const cstring) i32
-}
-
 fn main() i32 {
   frame_limit i32 := 0
-  configured_limit := getenv("TELIA_SDL_EXAMPLE_FRAMES")
+  configured_limit := libc::getenv("TELIA_SDL_EXAMPLE_FRAMES")
   if configured_limit != nil {
-    frame_limit = atoi(configured_limit)
+    frame_limit = libc::atoi(configured_limit)
     if frame_limit <= 0 {
       libc::println("TELIA_SDL_EXAMPLE_FRAMES must be a positive integer")
       return 9

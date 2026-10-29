@@ -5,7 +5,9 @@ import "testing"
 func TestImportedBareFunctionNamesAreCallbackValues(t *testing.T) {
 	runRecordFixture(t, `package main
 use "std::libc"
-type Allocate = fn(size libc::c_size_t) rawptr
+use "std::ffi::c"
+@[cc="c"]
+type Allocate = fn(size c::c_size_t) rawptr
 fn main() i32 {
 allocate Allocate := libc::malloc
 pointer := allocate(1)

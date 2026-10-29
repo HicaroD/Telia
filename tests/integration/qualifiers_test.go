@@ -4,7 +4,8 @@ import "testing"
 
 func TestConstCStringAliasesComposeThroughPointerOutputSlots(t *testing.T) {
 	runRecordFixture(t, `package main
-type Text = const cstring
+use "std::ffi::c"
+type Text = c::ConstCString
 @[header=%q, default_cc="c"]
 extern {
 @[link_name="fixture_text_replace"]

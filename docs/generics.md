@@ -39,7 +39,7 @@ instantiated with a non-struct type.
 ## Type arguments and scope
 
 Arguments must be concrete value types: numeric types, `bool`, `string`,
-`cstring`, `rawptr`, typed pointers, structs, tuples, `error`, and fully applied
+imported C-string types, `rawptr`, typed pointers, structs, tuples, `error`, and fully applied
 generic types, including arrays and slices such as `i32[3]` and `i32[]`.
 Bare `void`, literals, `nil`, and generic declarations missing
 their arguments are invalid arguments. Aliases are transparent: an alias and

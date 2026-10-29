@@ -6,11 +6,11 @@ import "github.com/HicaroD/Telia/internal/lexer/token"
 // <stdarg.h>, including targets where a va_list parameter undergoes adjustment.
 type CVaListType struct{}
 
-func (*CVaListType) String() string { return "libc::c_va_list" }
+func (*CVaListType) String() string { return "c::c_va_list" }
 
 // VaListOwnerType owns local native storage initialized in place, never copied.
 type VaListOwnerType struct{}
 
-func (*VaListOwnerType) String() string { return "libc::VaList" }
+func (*VaListOwnerType) String() string { return "c::VaList" }
 
 type VaIntrinsic struct{ Name *token.Token }

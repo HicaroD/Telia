@@ -7,7 +7,7 @@ fn main() i32 {
   b *i32 := nil
   c := &a
   if *c == b {
-    io::puts("ptr equal")
+    io::println("ptr equal")
   }
   return 0
 }

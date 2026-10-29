@@ -490,6 +490,10 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 	if proto.Attributes.CallingConvention == "" && proto.Attributes.CallingConventionMacro == "" {
 		proto.Attributes.CallingConvention = extern.Attributes.DefaultCallingConvention
 		proto.Attributes.CallingConventionMacro = extern.Attributes.DefaultCallingConventionMacro
+		if proto.Attributes.CallingConvention == "" &&
+			proto.Attributes.CallingConventionMacro == "" {
+			proto.Attributes.CallingConvention = "c"
+		}
 	}
 	err := sema.checkFnAttributes(proto.Attributes)
 	if err != nil {
@@ -516,6 +520,9 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 			return err
 		}
 		param.Type = revealedTy
+		if err := checkForeignCallbacks(revealedTy, param.Name.Span); err != nil {
+			return err
+		}
 		if revealedTy.Kind == ast.EXPR_TYPE_VA_LIST_OWNER {
 			return rejectVaListEscape(revealedTy, param.Name.Span)
 		}
@@ -540,6 +547,9 @@ func (sema *sema) checkExternPrototype(extern *ast.ExternDecl, proto *ast.Proto)
 		return err
 	}
 	proto.RetType = revealedTy
+	if err := checkForeignCallbacks(revealedTy, proto.Name.Span); err != nil {
+		return err
+	}
 	if err := checkForeignPointerDeclarator(revealedTy, proto.Name.Span); err != nil {
 		return err
 	}
@@ -850,7 +860,7 @@ func (sema *sema) checkVar(
 						Title:   "va_list owner type mismatch",
 						Message: "a va_list initializer requires local owning storage",
 						Span:    local.Name.Span,
-						Help:    "Use owner := va_copy(...) or annotate it with libc::VaList.",
+						Help:    "Use owner := c::va_copy(...) or annotate it with c::VaList from std::ffi::c.",
 					}
 				}
 			}
@@ -1210,7 +1220,7 @@ func (sema *sema) checkNormalVarExpr(
 				Title:   "Borrowed va_list copy",
 				Message: "a borrowed va_list cannot be copied with assignment",
 				Span:    expr.Span,
-				Help:    "Forward it directly during this call, or create independent owning storage with libc::va_copy.",
+				Help:    "Forward it directly during this call, or create independent owning storage with c::va_copy from std::ffi::c.",
 			}
 		}
 		if exprTy.Kind == ast.EXPR_TYPE_VA_LIST_OWNER &&
@@ -1227,7 +1237,7 @@ func (sema *sema) checkNormalVarExpr(
 
 		exprTy, err := sema.inferExprTypeWithContext(expr, variable.Type, referenceScope, declScope, fromImportPackage, false)
 		if err == nil && exprTy.Kind == ast.EXPR_TYPE_C_VA_LIST {
-			return nil, diagnostics.Diag{Title: "Borrowed va_list copy", Message: "a borrowed va_list cannot be copied or reassigned", Span: expr.Span, Help: "Forward it directly to a libc::c_va_list parameter during this call."}
+			return nil, diagnostics.Diag{Title: "Borrowed va_list copy", Message: "a borrowed va_list cannot be copied or reassigned", Span: expr.Span, Help: "Forward it directly to a c::c_va_list parameter during this call."}
 		}
 		return exprTy, err
 	}
@@ -2191,7 +2201,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 				Title:   "Callback signature mismatch",
 				Message: "function does not have the required callback signature",
 				Span:    id.Name.Span,
-				Help:    "Match the callback parameter and return types.",
+				Help:    "Match the parameter types, return type, and ABI; annotate C callback aliases and implementations with @[cc=\"c\"] or the matching cc_macro.",
 				Related: []diagnostics.Related{
 					{Span: symbol.DeclarationSpan(), Message: "function declared here"},
 				},
@@ -2222,7 +2232,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 				Title:   "va_list type mismatch",
 				Message: "a borrowed va_list is not a raw pointer or ordinary value",
 				Span:    id.Name.Span,
-				Help:    "Forward it to a libc::c_va_list parameter during the current call.",
+				Help:    "Forward it to a c::c_va_list parameter during the current call.",
 			}
 		}
 		return expectedType, nil
@@ -2232,7 +2242,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 				Title:   "Callback signature mismatch",
 				Message: "callback value has an incompatible signature",
 				Span:    id.Name.Span,
-				Help:    "Use a callback with matching parameter and return types.",
+				Help:    "Use a callback with matching parameter types, return type, and native or foreign ABI.",
 			}
 		}
 		return expectedType, nil
@@ -3023,7 +3033,7 @@ func (s *sema) inferBasicExprTypeWithContext(
 			return nil, diagnostics.Diag{
 				Title:   "Const qualifier removed",
 				Message: "cannot convert const C text to writable C text",
-				Help:    "Keep const cstring, or explicitly copy into owned writable storage.",
+				Help:    "Keep c::ConstCString from std::ffi::c, or explicitly copy into owned writable storage.",
 			}
 		}
 		return expected, nil

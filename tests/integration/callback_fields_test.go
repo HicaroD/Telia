@@ -4,6 +4,7 @@ import "testing"
 
 func TestForeignCallbackFieldsAndReturnedCallbacksAreCallable(t *testing.T) {
 	runRecordFixture(t, `package main
+@[cc="c"]
 type Compare = fn(left i32, right i32) i32
 @[header=%q, default_cc="c"]
 extern {

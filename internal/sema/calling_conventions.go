@@ -1,8 +1,38 @@
 package sema
 
 import (
+	"github.com/HicaroD/Telia/internal/ast"
 	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/source"
 )
+
+// Native function values are not foreign callbacks, even when the backend uses
+// the same machine calling convention for both.
+func checkForeignCallbacks(ty *ast.ExprType, span source.Span) error {
+	switch ty.Kind {
+	case ast.EXPR_TYPE_FUNCTION:
+		f := ty.T.(*ast.FunctionType)
+		if !f.HasForeignABI() {
+			return diagnostics.Diag{
+				Title:   "Foreign callback requires an ABI",
+				Message: "a native function type cannot be used as a foreign callback",
+				Span:    span,
+				Help:    "Annotate the callback alias and its implementation with @[cc=\"c\"] or the matching cc_macro.",
+			}
+		}
+		for _, param := range f.Params.Fields {
+			if err := checkForeignCallbacks(param.Type, span); err != nil {
+				return err
+			}
+		}
+		return checkForeignCallbacks(f.Result, span)
+	case ast.EXPR_TYPE_POINTER:
+		return checkForeignCallbacks(ty.T.(*ast.PointerType).Type, span)
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+		return checkForeignCallbacks(ty.T.(*ast.SequenceType).Element, span)
+	}
+	return nil
+}
 
 func validateCallingConvention(cc, macro string) error {
 	if cc != "" && macro != "" {

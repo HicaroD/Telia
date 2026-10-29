@@ -11,13 +11,14 @@ import (
 func TestCStringCanRepresentAndCheckNullPointers(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "main.t")
 	source := `package main
+use "std::ffi::c"
 fn main() i32 {
-  value cstring := nil
+  value c::CString := nil
   if value != nil {
     return 1
   }
   if value == nil {
-    empty cstring := ""
+    empty c::CString := ""
     if empty != nil {
       return 0
     }

@@ -71,7 +71,7 @@ const (
 	NUMERIC_TYPE_END // numeric type end delimiter
 
 	STRING_TYPE  // string
-	CSTRING_TYPE // cstring
+	CSTRING_TYPE // Internal foreign C-text kind; not a source keyword.
 	ERROR_TYPE   // error
 
 	UNTYPED_START // untyped start delimiter
@@ -182,9 +182,8 @@ var KEYWORDS map[string]Kind = map[string]Kind{
 	"f32":   F32_TYPE,
 	"f64":   F64_TYPE,
 
-	"string":  STRING_TYPE,
-	"cstring": CSTRING_TYPE,
-	"error":   ERROR_TYPE,
+	"string": STRING_TYPE,
+	"error":  ERROR_TYPE,
 }
 
 var BUILTIN_FN_NAMES []string = []string{

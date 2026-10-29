@@ -13,19 +13,19 @@ import subprocess
 ROOT = Path(__file__).resolve().parent.parent
 SCALARS = {
     "void": "", "bool": "bool", "_Bool": "bool",
-    "char": "libc::c_char", "signed char": "libc::c_schar", "unsigned char": "libc::c_uchar",
-    "short": "libc::c_short", "unsigned short": "libc::c_ushort",
-    "int": "libc::c_int", "unsigned int": "libc::c_uint",
-    "long": "libc::c_long", "unsigned long": "libc::c_ulong",
-    "long long": "libc::c_longlong", "unsigned long long": "libc::c_ulonglong",
-    "float": "libc::c_float", "double": "libc::c_double",
-    "size_t": "libc::c_size_t", "ptrdiff_t": "libc::c_ptrdiff_t",
+    "char": "c::c_char", "signed char": "c::c_schar", "unsigned char": "c::c_uchar",
+    "short": "c::c_short", "unsigned short": "c::c_ushort",
+    "int": "c::c_int", "unsigned int": "c::c_uint",
+    "long": "c::c_long", "unsigned long": "c::c_ulong",
+    "long long": "c::c_longlong", "unsigned long long": "c::c_ulonglong",
+    "float": "c::c_float", "double": "c::c_double",
+    "size_t": "c::c_size_t", "ptrdiff_t": "c::c_ptrdiff_t",
     "Sint8": "i8", "Uint8": "u8", "Sint16": "i16", "Uint16": "u16",
     "Sint32": "i32", "Uint32": "u32", "Sint64": "i64", "Uint64": "u64",
-    "va_list": "libc::c_va_list",
-    "wchar_t": "libc::c_wchar_t", "intptr_t": "libc::c_intptr_t", "uintptr_t": "libc::c_uintptr_t",
+    "va_list": "c::c_va_list",
+    "wchar_t": "c::c_wchar_t", "intptr_t": "c::c_intptr_t", "uintptr_t": "c::c_uintptr_t",
 }
-KEYWORDS = set("fn for while return extern package if elif else not and or type use defer struct union const enum match yield opaque true false nil rawptr bool int i8 i16 i32 i64 i128 uint u8 u16 u32 u64 u128 float f32 f64 string cstring error".split())
+KEYWORDS = set("fn for while return extern package if elif else not and or type use defer struct union const enum match yield opaque true false nil rawptr bool int i8 i16 i32 i64 i128 uint u8 u16 u32 u64 u128 float f32 f64 string error".split())
 CONSTANT_PREFIXES = tuple("SDL_" + prefix for prefix in (
     "INIT_", "WINDOW_", "WINDOWPOS_", "HINT_", "PROP_", "GPU_", "AUDIO_",
     "KMOD_", "HAPTIC_", "HAT_", "BUTTON_", "BLENDMODE_", "SURFACE_",
@@ -83,7 +83,7 @@ class Generator:
             if "*" not in pointee:
                 pointee = re.sub(r"\bconst\b", "", pointee).strip()
             if pointee == "char":
-                return ("const " if qualified else "") + "cstring"
+                return "c::ConstCString" if qualified else "c::CString"
             if pointee == "void":
                 if qualified:
                     self.declarations["void"] = '  @[link_name="void"]\n  opaque Void\n'
@@ -250,17 +250,17 @@ def main():
             texttype = "unsigned int"
         ty = generator.ctype(texttype)
         ty = {
-            "libc::c_int": "i32", "libc::c_uint": "u32",
-            "libc::c_short": "i16", "libc::c_ushort": "u16",
-            "libc::c_schar": "i8", "libc::c_uchar": "u8",
-            "libc::c_longlong": "i64", "libc::c_ulonglong": "u64",
-            "libc::c_float": "f32", "libc::c_double": "f64",
+            "c::c_int": "i32", "c::c_uint": "u32",
+            "c::c_short": "i16", "c::c_ushort": "u16",
+            "c::c_schar": "i8", "c::c_uchar": "u8",
+            "c::c_longlong": "i64", "c::c_ulonglong": "u64",
+            "c::c_float": "f32", "c::c_double": "f64",
         }.get(ty, ty)
-        if ty == "cstring":
-            ty = "const cstring"
+        if ty == "c::CString":
+            ty = "c::ConstCString"
         constants.append('  @[link_name="' + name + '"]\n  const ' + name.removeprefix("SDL_") + ' ' + ty + '\n')
     # SDL_main.h is intentionally included explicitly, with main handling disabled.
-    text = 'package sdl\n\nuse "std::libc"\n\n'
+    text = 'package sdl\n\nuse "std::ffi::c"\n\n'
     text += "\n".join(generator.callbacks.values())
     text += '\n@[header="SDL3/SDL.h"]\nextern {\n}\n\n@[header="SDL3/SDL_vulkan.h"]\nextern {\n}\n\n@[header="SDL3/SDL_main.h", default_cc_macro="SDLCALL"]\nextern {\n'
     text += "\n".join(generator.declarations.values()) + "\n" + "\n".join(constants) + "\n" + "\n".join(functions) + "}\n"

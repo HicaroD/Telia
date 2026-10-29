@@ -22,6 +22,11 @@ func (s *sema) functionValue(id *ast.IdExpr, symbol *ast.Node) (*ast.ExprType, e
 	case *ast.Proto:
 		params, result = d.Params, d.RetType
 		attrs = d.Attributes
+		// Prototypes without an explicit convention still belong to the foreign
+		// boundary, unlike ordinary Telia function declarations.
+		if attrs.CallingConvention == "" && attrs.CallingConventionMacro == "" {
+			attrs.CallingConvention = "c"
+		}
 	}
 	ty := &ast.ExprType{
 		Kind:     ast.EXPR_TYPE_FUNCTION,

@@ -19,18 +19,18 @@ static inline double fixture_half_double(double value) { return value / 2.0; }
 		t.Fatal(err)
 	}
 	source := fmt.Sprintf(`package main
-use "std::libc"
+use "std::ffi::c"
 @[header=%q, default_cc="c"]
 extern {
-  fn fixture_half(value libc::c_float) libc::c_float
-  fn fixture_half_double(value libc::c_double) libc::c_double
+  fn fixture_half(value c::c_float) c::c_float
+  fn fixture_half_double(value c::c_double) c::c_double
   @[link_name="FIXTURE_HALF"]
-  const Half libc::c_float
+  const Half c::c_float
 }
-fn to_c(value f32) libc::c_float {
+fn to_c(value f32) c::c_float {
   return value / 2.0
 }
-fn to_telia(value libc::c_float) f32 {
+fn to_telia(value c::c_float) f32 {
   return value / 2.0
 }
 fn main() i32 {
@@ -44,7 +44,7 @@ fn main() i32 {
     return 2
   }
   native f32[1] := .{8.0}
-  foreign libc::c_float[1] := .{8.0}
+  foreign c::c_float[1] := .{8.0}
   copied f32 := foreign[0]
   if fixture_half(native[0]) != 4.0 or copied != 8.0 {
     return 3
@@ -53,7 +53,7 @@ fn main() i32 {
   if half != 0.5 {
     return 4
   }
-  storage libc::c_float := 0.0
+  storage c::c_float := 0.0
   pointer := &storage
   *pointer = x / scale
   if storage != 8.0 {

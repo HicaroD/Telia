@@ -1,10 +1,13 @@
 package libc
 
+use "std::ffi::c"
+
 @[default_cc="c"]
 extern {
-  fn printf(format const cstring, args @c ...) c_int
-  fn vprintf(format const cstring, args c_va_list) c_int
+  fn printf(format c::ConstCString, args @c ...) c::c_int
+  fn vprintf(format c::ConstCString, args c::c_va_list) c::c_int
+  fn puts(text c::ConstCString) c::c_int
 
   @[link_name="puts"]
-  fn println(format const cstring) c_int
+  fn println(format c::ConstCString) c::c_int
 }

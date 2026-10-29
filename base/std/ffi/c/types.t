@@ -1,4 +1,7 @@
-package libc
+package c
+
+type CString = __c_cstring
+type ConstCString = __c_const_cstring
 
 type c_char = __c_char
 type c_schar = __c_schar

@@ -1,6 +1,6 @@
 package main
 
-use "std::io"
+use "std::libc"
 
 fn get_ref(a **i32) {
   **a = 1000
@@ -12,6 +12,6 @@ fn main() i32 {
   b := &a
   c := &b
   get_ref(c)
-  io::printf("%d\n", **c)
+  libc::printf("%d\n", **c)
   return 0
 }

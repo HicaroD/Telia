@@ -106,7 +106,7 @@ creates no visible window. Rebuild the executable after changing the example.
   `create_renderer(window, name)` returns `*Renderer`; both are nullable. Destroy
   the renderer before its window, then call `quit`. Typed handles are not
   interchangeable, and use after destruction is invalid.
-- Pass a NUL-terminated `const cstring` title; literals work directly and
+- Pass a NUL-terminated `c::ConstCString` title (`std::ffi::c`); literals work directly and
   `std::strings::to_c` creates owned storage for dynamic Telia text.
   SDL copies the title. Free the conversion with `free_c`.
 - Drawing functions return `bool`; false indicates an SDL error. `get_error`

@@ -1,31 +1,31 @@
 package sdl
 
-use "std::libc"
+use "std::ffi::c"
 
 @[cc_macro="SDLCALL"]
-type malloc_func = fn(arg0 libc::c_size_t) rawptr
+type malloc_func = fn(arg0 c::c_size_t) rawptr
 
 @[cc_macro="SDLCALL"]
-type calloc_func = fn(arg0 libc::c_size_t, arg1 libc::c_size_t) rawptr
+type calloc_func = fn(arg0 c::c_size_t, arg1 c::c_size_t) rawptr
 
 @[cc_macro="SDLCALL"]
-type realloc_func = fn(arg0 rawptr, arg1 libc::c_size_t) rawptr
+type realloc_func = fn(arg0 rawptr, arg1 c::c_size_t) rawptr
 
 @[cc_macro="SDLCALL"]
 type free_func = fn(arg0 rawptr)
 
 @[cc_macro="SDLCALL"]
-type CompareCallback = fn(arg0 const *Void, arg1 const *Void) libc::c_int
+type CompareCallback = fn(arg0 const *Void, arg1 const *Void) c::c_int
 
 @[cc_macro="SDLCALL"]
-type CompareCallback_r = fn(arg0 rawptr, arg1 const *Void, arg2 const *Void) libc::c_int
+type CompareCallback_r = fn(arg0 rawptr, arg1 const *Void, arg2 const *Void) c::c_int
 
 type iconv_t = *iconv_data_t
 
 @[cc_macro="SDLCALL"]
 type AssertionHandler = fn(arg0 const *AssertData, arg1 rawptr) AssertState
 
-type SpinLock = libc::c_int
+type SpinLock = c::c_int
 
 type PropertiesID = u32
 
@@ -33,10 +33,10 @@ type PropertiesID = u32
 type CleanupPropertyCallback = fn(arg0 rawptr, arg1 rawptr)
 
 @[cc_macro="SDLCALL"]
-type EnumeratePropertiesCallback = fn(arg0 rawptr, arg1 PropertiesID, arg2 const cstring)
+type EnumeratePropertiesCallback = fn(arg0 rawptr, arg1 PropertiesID, arg2 c::ConstCString)
 
 @[cc_macro="SDLCALL"]
-type ThreadFunction = fn(arg0 rawptr) libc::c_int
+type ThreadFunction = fn(arg0 rawptr) c::c_int
 
 @[cc_macro="SDLCALL"]
 type FunctionPointer = fn()
@@ -55,10 +55,10 @@ type IOStreamInterface_sizeCallback = fn(arg0 rawptr) i64
 type IOStreamInterface_seekCallback = fn(arg0 rawptr, arg1 i64, arg2 IOWhence) i64
 
 @[cc_macro="SDLCALL"]
-type IOStreamInterface_readCallback = fn(arg0 rawptr, arg1 rawptr, arg2 libc::c_size_t, arg3 *IOStatus) libc::c_size_t
+type IOStreamInterface_readCallback = fn(arg0 rawptr, arg1 rawptr, arg2 c::c_size_t, arg3 *IOStatus) c::c_size_t
 
 @[cc_macro="SDLCALL"]
-type IOStreamInterface_writeCallback = fn(arg0 rawptr, arg1 const *Void, arg2 libc::c_size_t, arg3 *IOStatus) libc::c_size_t
+type IOStreamInterface_writeCallback = fn(arg0 rawptr, arg1 const *Void, arg2 c::c_size_t, arg3 *IOStatus) c::c_size_t
 
 @[cc_macro="SDLCALL"]
 type IOStreamInterface_flushCallback = fn(arg0 rawptr, arg1 *IOStatus) bool
@@ -69,10 +69,10 @@ type IOStreamInterface_closeCallback = fn(arg0 rawptr) bool
 type AudioDeviceID = u32
 
 @[cc_macro="SDLCALL"]
-type AudioStreamCallback = fn(arg0 rawptr, arg1 *AudioStream, arg2 libc::c_int, arg3 libc::c_int)
+type AudioStreamCallback = fn(arg0 rawptr, arg1 *AudioStream, arg2 c::c_int, arg3 c::c_int)
 
 @[cc_macro="SDLCALL"]
-type AudioPostmixCallback = fn(arg0 rawptr, arg1 const *AudioSpec, arg2 *libc::c_float, arg3 libc::c_int)
+type AudioPostmixCallback = fn(arg0 rawptr, arg1 const *AudioSpec, arg2 *c::c_float, arg3 c::c_int)
 
 type BlendMode = u32
 
@@ -81,7 +81,7 @@ type SurfaceFlags = u32
 type CameraID = u32
 
 @[cc_macro="SDLCALL"]
-type ClipboardDataCallback = fn(arg0 rawptr, arg1 const cstring, arg2 *libc::c_size_t) const *Void
+type ClipboardDataCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 *c::c_size_t) const *Void
 
 @[cc_macro="SDLCALL"]
 type ClipboardCleanupCallback = fn(arg0 rawptr)
@@ -103,18 +103,18 @@ type EGLConfig = rawptr
 
 type EGLSurface = rawptr
 
-type EGLAttrib = libc::c_intptr_t
+type EGLAttrib = c::c_intptr_t
 
 @[cc_macro="SDLCALL"]
 type EGLAttribArrayCallback = fn(arg0 rawptr) *EGLAttrib
 
-type EGLint = libc::c_int
+type EGLint = c::c_int
 
 @[cc_macro="SDLCALL"]
 type EGLIntArrayCallback = fn(arg0 rawptr, arg1 EGLDisplay, arg2 EGLConfig) *EGLint
 
 @[cc_macro="SDLCALL"]
-type DialogFileCallback = fn(arg0 rawptr, arg1 const *const cstring, arg2 libc::c_int)
+type DialogFileCallback = fn(arg0 rawptr, arg1 const *c::ConstCString, arg2 c::c_int)
 
 type SensorID = u32
 
@@ -124,7 +124,7 @@ type JoystickID = u32
 type VirtualJoystickDesc_UpdateCallback = fn(arg0 rawptr)
 
 @[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SetPlayerIndexCallback = fn(arg0 rawptr, arg1 libc::c_int)
+type VirtualJoystickDesc_SetPlayerIndexCallback = fn(arg0 rawptr, arg1 c::c_int)
 
 @[cc_macro="SDLCALL"]
 type VirtualJoystickDesc_RumbleCallback = fn(arg0 rawptr, arg1 u16, arg2 u16) bool
@@ -136,7 +136,7 @@ type VirtualJoystickDesc_RumbleTriggersCallback = fn(arg0 rawptr, arg1 u16, arg2
 type VirtualJoystickDesc_SetLEDCallback = fn(arg0 rawptr, arg1 u8, arg2 u8, arg3 u8) bool
 
 @[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SendEffectCallback = fn(arg0 rawptr, arg1 const *Void, arg2 libc::c_int) bool
+type VirtualJoystickDesc_SendEffectCallback = fn(arg0 rawptr, arg1 const *Void, arg2 c::c_int) bool
 
 @[cc_macro="SDLCALL"]
 type VirtualJoystickDesc_SetSensorsEnabledCallback = fn(arg0 rawptr, arg1 bool) bool
@@ -166,7 +166,7 @@ type PenInputFlags = u32
 type EventFilter = fn(arg0 rawptr, arg1 *Event) bool
 
 @[cc_macro="SDLCALL"]
-type EnumerateDirectoryCallback = fn(arg0 rawptr, arg1 const cstring, arg2 const cstring) EnumerationResult
+type EnumerateDirectoryCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) EnumerationResult
 
 type Time = i64
 
@@ -183,7 +183,7 @@ type GPUBufferUsageFlags = u32
 type HapticID = u32
 
 @[cc_macro="SDLCALL"]
-type HintCallback = fn(arg0 rawptr, arg1 const cstring, arg2 const cstring, arg3 const cstring)
+type HintCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString, arg3 c::ConstCString)
 
 type InitFlags = u32
 
@@ -191,7 +191,7 @@ type InitFlags = u32
 type MainThreadCallback = fn(arg0 rawptr)
 
 @[cc_macro="SDLCALL"]
-type LogOutputFunction = fn(arg0 rawptr, arg1 libc::c_int, arg2 LogPriority, arg3 const cstring)
+type LogOutputFunction = fn(arg0 rawptr, arg1 c::c_int, arg2 LogPriority, arg3 c::ConstCString)
 
 type MessageBoxFlags = u32
 
@@ -206,28 +206,28 @@ type StorageInterface_closeCallback = fn(arg0 rawptr) bool
 type StorageInterface_readyCallback = fn(arg0 rawptr) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_enumerateCallback = fn(arg0 rawptr, arg1 const cstring, arg2 EnumerateDirectoryCallback, arg3 rawptr) bool
+type StorageInterface_enumerateCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 EnumerateDirectoryCallback, arg3 rawptr) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_infoCallback = fn(arg0 rawptr, arg1 const cstring, arg2 *PathInfo) bool
+type StorageInterface_infoCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 *PathInfo) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_read_fileCallback = fn(arg0 rawptr, arg1 const cstring, arg2 rawptr, arg3 u64) bool
+type StorageInterface_read_fileCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 rawptr, arg3 u64) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_write_fileCallback = fn(arg0 rawptr, arg1 const cstring, arg2 const *Void, arg3 u64) bool
+type StorageInterface_write_fileCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 const *Void, arg3 u64) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_mkdirCallback = fn(arg0 rawptr, arg1 const cstring) bool
+type StorageInterface_mkdirCallback = fn(arg0 rawptr, arg1 c::ConstCString) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_removeCallback = fn(arg0 rawptr, arg1 const cstring) bool
+type StorageInterface_removeCallback = fn(arg0 rawptr, arg1 c::ConstCString) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_renameCallback = fn(arg0 rawptr, arg1 const cstring, arg2 const cstring) bool
+type StorageInterface_renameCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) bool
 
 @[cc_macro="SDLCALL"]
-type StorageInterface_copyCallback = fn(arg0 rawptr, arg1 const cstring, arg2 const cstring) bool
+type StorageInterface_copyCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) bool
 
 @[cc_macro="SDLCALL"]
 type StorageInterface_space_remainingCallback = fn(arg0 rawptr) u64
@@ -249,10 +249,10 @@ type TrayEntryFlags = u32
 type TrayCallback = fn(arg0 rawptr, arg1 *TrayEntry)
 
 @[cc_macro="SDLCALL"]
-type main_func = fn(arg0 libc::c_int, arg1 *cstring) libc::c_int
+type main_func = fn(arg0 c::c_int, arg1 *c::CString) c::c_int
 
 @[cc_macro="SDLCALL"]
-type AppInit_func = fn(arg0 *rawptr, arg1 libc::c_int, arg2 *cstring) AppResult
+type AppInit_func = fn(arg0 *rawptr, arg1 c::c_int, arg2 *c::CString) AppResult
 
 @[cc_macro="SDLCALL"]
 type AppIterate_func = fn(arg0 rawptr) AppResult
@@ -298,11 +298,11 @@ extern {
   @[link_name="SDL_AssertData"]
   struct AssertData {
     always_ignore bool
-    trigger_count libc::c_uint
-    condition const cstring
-    filename const cstring
-    linenum libc::c_int
-    function const cstring
+    trigger_count c::c_uint
+    condition c::ConstCString
+    filename c::ConstCString
+    linenum c::c_int
+    function c::ConstCString
     next const *AssertData
   }
 
@@ -362,7 +362,7 @@ extern {
 
   @[link_name="SDL_AtomicInt"]
   struct AtomicInt {
-    value libc::c_int
+    value c::c_int
   }
 
   @[link_name="SDL_AtomicU32"]
@@ -512,8 +512,8 @@ extern {
   @[link_name="SDL_AudioSpec"]
   struct AudioSpec {
     format AudioFormat
-    channels libc::c_int
-    freq libc::c_int
+    channels c::c_int
+    freq c::c_int
   }
 
   @[link_name="SDL_AudioStream"]
@@ -740,38 +740,38 @@ extern {
 
   @[link_name="SDL_Palette"]
   struct Palette {
-    ncolors libc::c_int
+    ncolors c::c_int
     colors *Color
     version u32
-    refcount libc::c_int
+    refcount c::c_int
   }
 
   @[link_name="SDL_Rect"]
   struct Rect {
-    x libc::c_int
-    y libc::c_int
-    w libc::c_int
-    h libc::c_int
+    x c::c_int
+    y c::c_int
+    w c::c_int
+    h c::c_int
   }
 
   @[link_name="SDL_FRect"]
   struct FRect {
-    x libc::c_float
-    y libc::c_float
-    w libc::c_float
-    h libc::c_float
+    x c::c_float
+    y c::c_float
+    w c::c_float
+    h c::c_float
   }
 
   @[link_name="SDL_Point"]
   struct Point {
-    x libc::c_int
-    y libc::c_int
+    x c::c_int
+    y c::c_int
   }
 
   @[link_name="SDL_FPoint"]
   struct FPoint {
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
   }
 
 
@@ -779,11 +779,11 @@ extern {
   struct Surface {
     flags SurfaceFlags
     format PixelFormat
-    w libc::c_int
-    h libc::c_int
-    pitch libc::c_int
+    w c::c_int
+    h c::c_int
+    pitch c::c_int
     pixels rawptr
-    refcount libc::c_int
+    refcount c::c_int
     reserved rawptr
   }
 
@@ -842,10 +842,10 @@ extern {
   struct CameraSpec {
     format PixelFormat
     colorspace Colorspace
-    width libc::c_int
-    height libc::c_int
-    framerate_numerator libc::c_int
-    framerate_denominator libc::c_int
+    width c::c_int
+    height c::c_int
+    framerate_numerator c::c_int
+    framerate_denominator c::c_int
   }
 
   @[link_name="SDL_CameraPosition"]
@@ -895,12 +895,12 @@ extern {
   struct DisplayMode {
     displayID DisplayID
     format PixelFormat
-    w libc::c_int
-    h libc::c_int
-    pixel_density libc::c_float
-    refresh_rate libc::c_float
-    refresh_rate_numerator libc::c_int
-    refresh_rate_denominator libc::c_int
+    w c::c_int
+    h c::c_int
+    pixel_density c::c_float
+    refresh_rate c::c_float
+    refresh_rate_numerator c::c_int
+    refresh_rate_denominator c::c_int
     internal *DisplayModeData
   }
 
@@ -1018,8 +1018,8 @@ extern {
 
   @[link_name="SDL_DialogFileFilter"]
   struct DialogFileFilter {
-    name const cstring
-    pattern const cstring
+    name c::ConstCString
+    pattern c::ConstCString
   }
 
   @[link_name="SDL_FileDialogType"]
@@ -1118,7 +1118,7 @@ extern {
   @[link_name="SDL_VirtualJoystickSensorDesc"]
   struct VirtualJoystickSensorDesc {
     type SensorType
-    rate libc::c_float
+    rate c::c_float
   }
 
   @[link_name="SDL_VirtualJoystickDesc"]
@@ -1137,7 +1137,7 @@ extern {
     padding2 u16[2]
     button_mask u32
     axis_mask u32
-    name const cstring
+    name c::ConstCString
     touchpads const *VirtualJoystickTouchpadDesc
     sensors const *VirtualJoystickSensorDesc
     userdata rawptr
@@ -1208,20 +1208,20 @@ extern {
 
   @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->input) *)0)->axis)"]
   struct GamepadBindingInputAxis {
-    axis libc::c_int
-    axis_min libc::c_int
-    axis_max libc::c_int
+    axis c::c_int
+    axis_min c::c_int
+    axis_max c::c_int
   }
 
   @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->input) *)0)->hat)"]
   struct GamepadBindingInputHat {
-    hat libc::c_int
-    hat_mask libc::c_int
+    hat c::c_int
+    hat_mask c::c_int
   }
 
   @[link_name="__typeof__(((SDL_GamepadBinding *)0)->input)"]
   union GamepadBindingInput {
-    button libc::c_int
+    button c::c_int
     axis GamepadBindingInputAxis
     hat GamepadBindingInputHat
   }
@@ -1309,8 +1309,8 @@ extern {
   @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->output) *)0)->axis)"]
   struct GamepadBindingOutputAxis {
     axis GamepadAxis
-    axis_min libc::c_int
-    axis_max libc::c_int
+    axis_min c::c_int
+    axis_max c::c_int
   }
 
   @[link_name="__typeof__(((SDL_GamepadBinding *)0)->output)"]
@@ -1922,9 +1922,9 @@ extern {
   @[link_name="SDL_Finger"]
   struct Finger {
     id FingerID
-    x libc::c_float
-    y libc::c_float
-    pressure libc::c_float
+    x c::c_float
+    y c::c_float
+    pressure c::c_float
   }
 
   @[link_name="SDL_CommonEvent"]
@@ -2223,7 +2223,7 @@ extern {
     reserved u32
     timestamp u64
     windowID WindowID
-    text const cstring
+    text c::ConstCString
     start i32
     length i32
   }
@@ -2234,7 +2234,7 @@ extern {
     reserved u32
     timestamp u64
     windowID WindowID
-    candidates const *const cstring
+    candidates const *c::ConstCString
     num_candidates i32
     selected_candidate i32
     horizontal bool
@@ -2249,7 +2249,7 @@ extern {
     reserved u32
     timestamp u64
     windowID WindowID
-    text const cstring
+    text c::ConstCString
   }
 
   @[link_name="SDL_MouseDeviceEvent"]
@@ -2268,10 +2268,10 @@ extern {
     windowID WindowID
     which MouseID
     state MouseButtonFlags
-    x libc::c_float
-    y libc::c_float
-    xrel libc::c_float
-    yrel libc::c_float
+    x c::c_float
+    y c::c_float
+    xrel c::c_float
+    yrel c::c_float
   }
 
   @[link_name="SDL_MouseButtonEvent"]
@@ -2285,8 +2285,8 @@ extern {
     down bool
     clicks u8
     padding u8
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
   }
 
   @[link_name="SDL_MouseWheelDirection"]
@@ -2304,11 +2304,11 @@ extern {
     timestamp u64
     windowID WindowID
     which MouseID
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
     direction MouseWheelDirection
-    mouse_x libc::c_float
-    mouse_y libc::c_float
+    mouse_x c::c_float
+    mouse_y c::c_float
     integer_x i32
     integer_y i32
   }
@@ -2380,7 +2380,7 @@ extern {
     timestamp u64
     which JoystickID
     state PowerState
-    percent libc::c_int
+    percent c::c_int
   }
 
   @[link_name="SDL_GamepadDeviceEvent"]
@@ -2425,9 +2425,9 @@ extern {
     which JoystickID
     touchpad i32
     finger i32
-    x libc::c_float
-    y libc::c_float
-    pressure libc::c_float
+    x c::c_float
+    y c::c_float
+    pressure c::c_float
   }
 
   @[link_name="SDL_GamepadSensorEvent"]
@@ -2437,7 +2437,7 @@ extern {
     timestamp u64
     which JoystickID
     sensor i32
-    data libc::c_float[3]
+    data c::c_float[3]
     sensor_timestamp u64
   }
 
@@ -2467,7 +2467,7 @@ extern {
     reserved u32
     timestamp u64
     which SensorID
-    data libc::c_float[6]
+    data c::c_float[6]
     sensor_timestamp u64
   }
 
@@ -2496,11 +2496,11 @@ extern {
     timestamp u64
     touchID TouchID
     fingerID FingerID
-    x libc::c_float
-    y libc::c_float
-    dx libc::c_float
-    dy libc::c_float
-    pressure libc::c_float
+    x c::c_float
+    y c::c_float
+    dx c::c_float
+    dy c::c_float
+    pressure c::c_float
     windowID WindowID
   }
 
@@ -2523,8 +2523,8 @@ extern {
     windowID WindowID
     which PenID
     pen_state PenInputFlags
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
     eraser bool
     down bool
   }
@@ -2537,8 +2537,8 @@ extern {
     windowID WindowID
     which PenID
     pen_state PenInputFlags
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
   }
 
   @[link_name="SDL_PenButtonEvent"]
@@ -2549,8 +2549,8 @@ extern {
     windowID WindowID
     which PenID
     pen_state PenInputFlags
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
     button u8
     down bool
   }
@@ -2583,10 +2583,10 @@ extern {
     windowID WindowID
     which PenID
     pen_state PenInputFlags
-    x libc::c_float
-    y libc::c_float
+    x c::c_float
+    y c::c_float
     axis PenAxis
-    value libc::c_float
+    value c::c_float
   }
 
   @[link_name="SDL_RenderEvent"]
@@ -2603,10 +2603,10 @@ extern {
     reserved u32
     timestamp u64
     windowID WindowID
-    x libc::c_float
-    y libc::c_float
-    source const cstring
-    data const cstring
+    x c::c_float
+    y c::c_float
+    source c::ConstCString
+    data c::ConstCString
   }
 
   @[link_name="SDL_ClipboardEvent"]
@@ -2616,7 +2616,7 @@ extern {
     timestamp u64
     owner bool
     num_mime_types i32
-    mime_types *const cstring
+    mime_types *c::ConstCString
   }
 
   @[link_name="SDL_Event"]
@@ -2741,9 +2741,9 @@ extern {
 
   @[link_name="SDL_GPUComputePipelineCreateInfo"]
   struct GPUComputePipelineCreateInfo {
-    code_size libc::c_size_t
+    code_size c::c_size_t
     code const *u8
-    entrypoint const cstring
+    entrypoint c::ConstCString
     format GPUShaderFormat
     num_samplers u32
     num_readonly_storage_textures u32
@@ -2906,9 +2906,9 @@ extern {
     fill_mode GPUFillMode
     cull_mode GPUCullMode
     front_face GPUFrontFace
-    depth_bias_constant_factor libc::c_float
-    depth_bias_clamp libc::c_float
-    depth_bias_slope_factor libc::c_float
+    depth_bias_constant_factor c::c_float
+    depth_bias_clamp c::c_float
+    depth_bias_slope_factor c::c_float
     enable_depth_bias bool
     enable_depth_clip bool
     padding1 u8
@@ -3349,11 +3349,11 @@ extern {
     address_mode_u GPUSamplerAddressMode
     address_mode_v GPUSamplerAddressMode
     address_mode_w GPUSamplerAddressMode
-    mip_lod_bias libc::c_float
-    max_anisotropy libc::c_float
+    mip_lod_bias c::c_float
+    max_anisotropy c::c_float
     compare_op GPUCompareOp
-    min_lod libc::c_float
-    max_lod libc::c_float
+    min_lod c::c_float
+    max_lod c::c_float
     enable_anisotropy bool
     enable_compare bool
     padding1 u8
@@ -3374,9 +3374,9 @@ extern {
 
   @[link_name="SDL_GPUShaderCreateInfo"]
   struct GPUShaderCreateInfo {
-    code_size libc::c_size_t
+    code_size c::c_size_t
     code const *u8
-    entrypoint const cstring
+    entrypoint c::ConstCString
     format GPUShaderFormat
     stage GPUShaderStage
     num_samplers u32
@@ -3451,10 +3451,10 @@ extern {
 
   @[link_name="SDL_FColor"]
   struct FColor {
-    r libc::c_float
-    g libc::c_float
-    b libc::c_float
-    a libc::c_float
+    r c::c_float
+    g c::c_float
+    b c::c_float
+    a c::c_float
   }
 
   @[link_name="SDL_GPULoadOp"]
@@ -3499,7 +3499,7 @@ extern {
   @[link_name="SDL_GPUDepthStencilTargetInfo"]
   struct GPUDepthStencilTargetInfo {
     texture *GPUTexture
-    clear_depth libc::c_float
+    clear_depth c::c_float
     load_op GPULoadOp
     store_op GPUStoreOp
     stencil_load_op GPULoadOp
@@ -3515,12 +3515,12 @@ extern {
 
   @[link_name="SDL_GPUViewport"]
   struct GPUViewport {
-    x libc::c_float
-    y libc::c_float
-    w libc::c_float
-    h libc::c_float
-    min_depth libc::c_float
-    max_depth libc::c_float
+    x c::c_float
+    y c::c_float
+    w c::c_float
+    h c::c_float
+    min_depth c::c_float
+    max_depth c::c_float
   }
 
   @[link_name="SDL_GPUBufferBinding"]
@@ -3797,19 +3797,19 @@ extern {
 
   @[link_name="SDL_hid_device_info"]
   struct hid_device_info {
-    path cstring
-    vendor_id libc::c_ushort
-    product_id libc::c_ushort
-    serial_number *libc::c_wchar_t
-    release_number libc::c_ushort
-    manufacturer_string *libc::c_wchar_t
-    product_string *libc::c_wchar_t
-    usage_page libc::c_ushort
-    usage libc::c_ushort
-    interface_number libc::c_int
-    interface_class libc::c_int
-    interface_subclass libc::c_int
-    interface_protocol libc::c_int
+    path c::CString
+    vendor_id c::c_ushort
+    product_id c::c_ushort
+    serial_number *c::c_wchar_t
+    release_number c::c_ushort
+    manufacturer_string *c::c_wchar_t
+    product_string *c::c_wchar_t
+    usage_page c::c_ushort
+    usage c::c_ushort
+    interface_number c::c_int
+    interface_class c::c_int
+    interface_subclass c::c_int
+    interface_protocol c::c_int
     bus_type hid_bus_type
     next *hid_device_info
   }
@@ -3835,8 +3835,8 @@ extern {
 
   @[link_name="SDL_Locale"]
   struct Locale {
-    language const cstring
-    country const cstring
+    language c::ConstCString
+    country c::ConstCString
   }
 
   @[link_name="SDL_LogPriority"]
@@ -3867,8 +3867,8 @@ extern {
   @[link_name="SDL_MessageBoxButtonData"]
   struct MessageBoxButtonData {
     flags MessageBoxButtonFlags
-    buttonID libc::c_int
-    text const cstring
+    buttonID c::c_int
+    text c::ConstCString
   }
 
   @[link_name="SDL_MessageBoxColor"]
@@ -3887,9 +3887,9 @@ extern {
   struct MessageBoxData {
     flags MessageBoxFlags
     window *Window
-    title const cstring
-    message const cstring
-    numbuttons libc::c_int
+    title c::ConstCString
+    message c::ConstCString
+    numbuttons c::c_int
     buttons const *MessageBoxButtonData
     colorScheme const *MessageBoxColorScheme
   }
@@ -3914,9 +3914,9 @@ extern {
   @[link_name="SDL_Texture"]
   struct Texture {
     format PixelFormat
-    w libc::c_int
-    h libc::c_int
-    refcount libc::c_int
+    w c::c_int
+    h c::c_int
+    refcount c::c_int
   }
 
   @[link_name="SDL_RendererLogicalPresentation"]
@@ -3997,15 +3997,15 @@ extern {
 
   @[link_name="SDL_DateTime"]
   struct DateTime {
-    year libc::c_int
-    month libc::c_int
-    day libc::c_int
-    hour libc::c_int
-    minute libc::c_int
-    second libc::c_int
-    nanosecond libc::c_int
-    day_of_week libc::c_int
-    utc_offset libc::c_int
+    year c::c_int
+    month c::c_int
+    day c::c_int
+    hour c::c_int
+    minute c::c_int
+    second c::c_int
+    nanosecond c::c_int
+    day_of_week c::c_int
+    utc_offset c::c_int
   }
 
 
@@ -8544,730 +8544,730 @@ extern {
   const HAT_UP u32
 
   @[link_name="SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED"]
-  const HINT_ALLOW_ALT_TAB_WHILE_GRABBED const cstring
+  const HINT_ALLOW_ALT_TAB_WHILE_GRABBED c::ConstCString
 
   @[link_name="SDL_HINT_ANDROID_ALLOW_RECREATE_ACTIVITY"]
-  const HINT_ANDROID_ALLOW_RECREATE_ACTIVITY const cstring
+  const HINT_ANDROID_ALLOW_RECREATE_ACTIVITY c::ConstCString
 
   @[link_name="SDL_HINT_ANDROID_BLOCK_ON_PAUSE"]
-  const HINT_ANDROID_BLOCK_ON_PAUSE const cstring
+  const HINT_ANDROID_BLOCK_ON_PAUSE c::ConstCString
 
   @[link_name="SDL_HINT_ANDROID_LOW_LATENCY_AUDIO"]
-  const HINT_ANDROID_LOW_LATENCY_AUDIO const cstring
+  const HINT_ANDROID_LOW_LATENCY_AUDIO c::ConstCString
 
   @[link_name="SDL_HINT_ANDROID_TRAP_BACK_BUTTON"]
-  const HINT_ANDROID_TRAP_BACK_BUTTON const cstring
+  const HINT_ANDROID_TRAP_BACK_BUTTON c::ConstCString
 
   @[link_name="SDL_HINT_APPLE_TV_CONTROLLER_UI_EVENTS"]
-  const HINT_APPLE_TV_CONTROLLER_UI_EVENTS const cstring
+  const HINT_APPLE_TV_CONTROLLER_UI_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_APPLE_TV_REMOTE_ALLOW_ROTATION"]
-  const HINT_APPLE_TV_REMOTE_ALLOW_ROTATION const cstring
+  const HINT_APPLE_TV_REMOTE_ALLOW_ROTATION c::ConstCString
 
   @[link_name="SDL_HINT_APP_ID"]
-  const HINT_APP_ID const cstring
+  const HINT_APP_ID c::ConstCString
 
   @[link_name="SDL_HINT_APP_NAME"]
-  const HINT_APP_NAME const cstring
+  const HINT_APP_NAME c::ConstCString
 
   @[link_name="SDL_HINT_ASSERT"]
-  const HINT_ASSERT const cstring
+  const HINT_ASSERT c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_DEVICE const cstring
+  const HINT_AUDIO_ALSA_DEFAULT_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE const cstring
+  const HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE const cstring
+  const HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_CATEGORY"]
-  const HINT_AUDIO_CATEGORY const cstring
+  const HINT_AUDIO_CATEGORY c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_CHANNELS"]
-  const HINT_AUDIO_CHANNELS const cstring
+  const HINT_AUDIO_CHANNELS c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DEVICE_APP_ICON_NAME"]
-  const HINT_AUDIO_DEVICE_APP_ICON_NAME const cstring
+  const HINT_AUDIO_DEVICE_APP_ICON_NAME c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES"]
-  const HINT_AUDIO_DEVICE_SAMPLE_FRAMES const cstring
+  const HINT_AUDIO_DEVICE_SAMPLE_FRAMES c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DEVICE_STREAM_NAME"]
-  const HINT_AUDIO_DEVICE_STREAM_NAME const cstring
+  const HINT_AUDIO_DEVICE_STREAM_NAME c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DEVICE_STREAM_ROLE"]
-  const HINT_AUDIO_DEVICE_STREAM_ROLE const cstring
+  const HINT_AUDIO_DEVICE_STREAM_ROLE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DISK_INPUT_FILE"]
-  const HINT_AUDIO_DISK_INPUT_FILE const cstring
+  const HINT_AUDIO_DISK_INPUT_FILE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DISK_OUTPUT_FILE"]
-  const HINT_AUDIO_DISK_OUTPUT_FILE const cstring
+  const HINT_AUDIO_DISK_OUTPUT_FILE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DISK_TIMESCALE"]
-  const HINT_AUDIO_DISK_TIMESCALE const cstring
+  const HINT_AUDIO_DISK_TIMESCALE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DRIVER"]
-  const HINT_AUDIO_DRIVER const cstring
+  const HINT_AUDIO_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_DUMMY_TIMESCALE"]
-  const HINT_AUDIO_DUMMY_TIMESCALE const cstring
+  const HINT_AUDIO_DUMMY_TIMESCALE c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_FORMAT"]
-  const HINT_AUDIO_FORMAT const cstring
+  const HINT_AUDIO_FORMAT c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_FREQUENCY"]
-  const HINT_AUDIO_FREQUENCY const cstring
+  const HINT_AUDIO_FREQUENCY c::ConstCString
 
   @[link_name="SDL_HINT_AUDIO_INCLUDE_MONITORS"]
-  const HINT_AUDIO_INCLUDE_MONITORS const cstring
+  const HINT_AUDIO_INCLUDE_MONITORS c::ConstCString
 
   @[link_name="SDL_HINT_AUTO_UPDATE_JOYSTICKS"]
-  const HINT_AUTO_UPDATE_JOYSTICKS const cstring
+  const HINT_AUTO_UPDATE_JOYSTICKS c::ConstCString
 
   @[link_name="SDL_HINT_AUTO_UPDATE_SENSORS"]
-  const HINT_AUTO_UPDATE_SENSORS const cstring
+  const HINT_AUTO_UPDATE_SENSORS c::ConstCString
 
   @[link_name="SDL_HINT_BMP_SAVE_LEGACY_FORMAT"]
-  const HINT_BMP_SAVE_LEGACY_FORMAT const cstring
+  const HINT_BMP_SAVE_LEGACY_FORMAT c::ConstCString
 
   @[link_name="SDL_HINT_CAMERA_DRIVER"]
-  const HINT_CAMERA_DRIVER const cstring
+  const HINT_CAMERA_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_CPU_FEATURE_MASK"]
-  const HINT_CPU_FEATURE_MASK const cstring
+  const HINT_CPU_FEATURE_MASK c::ConstCString
 
   @[link_name="SDL_HINT_DISPLAY_USABLE_BOUNDS"]
-  const HINT_DISPLAY_USABLE_BOUNDS const cstring
+  const HINT_DISPLAY_USABLE_BOUNDS c::ConstCString
 
   @[link_name="SDL_HINT_EGL_LIBRARY"]
-  const HINT_EGL_LIBRARY const cstring
+  const HINT_EGL_LIBRARY c::ConstCString
 
   @[link_name="SDL_HINT_EMSCRIPTEN_ASYNCIFY"]
-  const HINT_EMSCRIPTEN_ASYNCIFY const cstring
+  const HINT_EMSCRIPTEN_ASYNCIFY c::ConstCString
 
   @[link_name="SDL_HINT_EMSCRIPTEN_CANVAS_SELECTOR"]
-  const HINT_EMSCRIPTEN_CANVAS_SELECTOR const cstring
+  const HINT_EMSCRIPTEN_CANVAS_SELECTOR c::ConstCString
 
   @[link_name="SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT"]
-  const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT const cstring
+  const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT c::ConstCString
 
   @[link_name="SDL_HINT_ENABLE_SCREEN_KEYBOARD"]
-  const HINT_ENABLE_SCREEN_KEYBOARD const cstring
+  const HINT_ENABLE_SCREEN_KEYBOARD c::ConstCString
 
   @[link_name="SDL_HINT_EVDEV_DEVICES"]
-  const HINT_EVDEV_DEVICES const cstring
+  const HINT_EVDEV_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_EVENT_LOGGING"]
-  const HINT_EVENT_LOGGING const cstring
+  const HINT_EVENT_LOGGING c::ConstCString
 
   @[link_name="SDL_HINT_FILE_DIALOG_DRIVER"]
-  const HINT_FILE_DIALOG_DRIVER const cstring
+  const HINT_FILE_DIALOG_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_FORCE_RAISEWINDOW"]
-  const HINT_FORCE_RAISEWINDOW const cstring
+  const HINT_FORCE_RAISEWINDOW c::ConstCString
 
   @[link_name="SDL_HINT_FRAMEBUFFER_ACCELERATION"]
-  const HINT_FRAMEBUFFER_ACCELERATION const cstring
+  const HINT_FRAMEBUFFER_ACCELERATION c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLERCONFIG"]
-  const HINT_GAMECONTROLLERCONFIG const cstring
+  const HINT_GAMECONTROLLERCONFIG c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLERCONFIG_FILE"]
-  const HINT_GAMECONTROLLERCONFIG_FILE const cstring
+  const HINT_GAMECONTROLLERCONFIG_FILE c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLERTYPE"]
-  const HINT_GAMECONTROLLERTYPE const cstring
+  const HINT_GAMECONTROLLERTYPE c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES"]
-  const HINT_GAMECONTROLLER_IGNORE_DEVICES const cstring
+  const HINT_GAMECONTROLLER_IGNORE_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT"]
-  const HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT const cstring
+  const HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT c::ConstCString
 
   @[link_name="SDL_HINT_GAMECONTROLLER_SENSOR_FUSION"]
-  const HINT_GAMECONTROLLER_SENSOR_FUSION const cstring
+  const HINT_GAMECONTROLLER_SENSOR_FUSION c::ConstCString
 
   @[link_name="SDL_HINT_GDK_TEXTINPUT_DEFAULT_TEXT"]
-  const HINT_GDK_TEXTINPUT_DEFAULT_TEXT const cstring
+  const HINT_GDK_TEXTINPUT_DEFAULT_TEXT c::ConstCString
 
   @[link_name="SDL_HINT_GDK_TEXTINPUT_DESCRIPTION"]
-  const HINT_GDK_TEXTINPUT_DESCRIPTION const cstring
+  const HINT_GDK_TEXTINPUT_DESCRIPTION c::ConstCString
 
   @[link_name="SDL_HINT_GDK_TEXTINPUT_MAX_LENGTH"]
-  const HINT_GDK_TEXTINPUT_MAX_LENGTH const cstring
+  const HINT_GDK_TEXTINPUT_MAX_LENGTH c::ConstCString
 
   @[link_name="SDL_HINT_GDK_TEXTINPUT_SCOPE"]
-  const HINT_GDK_TEXTINPUT_SCOPE const cstring
+  const HINT_GDK_TEXTINPUT_SCOPE c::ConstCString
 
   @[link_name="SDL_HINT_GDK_TEXTINPUT_TITLE"]
-  const HINT_GDK_TEXTINPUT_TITLE const cstring
+  const HINT_GDK_TEXTINPUT_TITLE c::ConstCString
 
   @[link_name="SDL_HINT_GPU_DRIVER"]
-  const HINT_GPU_DRIVER const cstring
+  const HINT_GPU_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS"]
-  const HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS const cstring
+  const HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS c::ConstCString
 
   @[link_name="SDL_HINT_HIDAPI_IGNORE_DEVICES"]
-  const HINT_HIDAPI_IGNORE_DEVICES const cstring
+  const HINT_HIDAPI_IGNORE_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_HIDAPI_LIBUSB"]
-  const HINT_HIDAPI_LIBUSB const cstring
+  const HINT_HIDAPI_LIBUSB c::ConstCString
 
   @[link_name="SDL_HINT_HIDAPI_LIBUSB_WHITELIST"]
-  const HINT_HIDAPI_LIBUSB_WHITELIST const cstring
+  const HINT_HIDAPI_LIBUSB_WHITELIST c::ConstCString
 
   @[link_name="SDL_HINT_HIDAPI_UDEV"]
-  const HINT_HIDAPI_UDEV const cstring
+  const HINT_HIDAPI_UDEV c::ConstCString
 
   @[link_name="SDL_HINT_IME_IMPLEMENTED_UI"]
-  const HINT_IME_IMPLEMENTED_UI const cstring
+  const HINT_IME_IMPLEMENTED_UI c::ConstCString
 
   @[link_name="SDL_HINT_IOS_HIDE_HOME_INDICATOR"]
-  const HINT_IOS_HIDE_HOME_INDICATOR const cstring
+  const HINT_IOS_HIDE_HOME_INDICATOR c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS"]
-  const HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS const cstring
+  const HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES"]
-  const HINT_JOYSTICK_ARCADESTICK_DEVICES const cstring
+  const HINT_JOYSTICK_ARCADESTICK_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_BLACKLIST_DEVICES"]
-  const HINT_JOYSTICK_BLACKLIST_DEVICES const cstring
+  const HINT_JOYSTICK_BLACKLIST_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_DEVICE"]
-  const HINT_JOYSTICK_DEVICE const cstring
+  const HINT_JOYSTICK_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_DIRECTINPUT"]
-  const HINT_JOYSTICK_DIRECTINPUT const cstring
+  const HINT_JOYSTICK_DIRECTINPUT c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ENHANCED_REPORTS"]
-  const HINT_JOYSTICK_ENHANCED_REPORTS const cstring
+  const HINT_JOYSTICK_ENHANCED_REPORTS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES"]
-  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES const cstring
+  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_GAMECUBE_DEVICES"]
-  const HINT_JOYSTICK_GAMECUBE_DEVICES const cstring
+  const HINT_JOYSTICK_GAMECUBE_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_GAMEINPUT"]
-  const HINT_JOYSTICK_GAMEINPUT const cstring
+  const HINT_JOYSTICK_GAMEINPUT c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HAPTIC_AXES"]
-  const HINT_JOYSTICK_HAPTIC_AXES const cstring
+  const HINT_JOYSTICK_HAPTIC_AXES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI"]
-  const HINT_JOYSTICK_HIDAPI const cstring
+  const HINT_JOYSTICK_HIDAPI c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS const cstring
+  const HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE"]
-  const HINT_JOYSTICK_HIDAPI_GAMECUBE const cstring
+  const HINT_JOYSTICK_HIDAPI_GAMECUBE c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE"]
-  const HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE const cstring
+  const HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_JOY_CONS const cstring
+  const HINT_JOYSTICK_HIDAPI_JOY_CONS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_LUNA"]
-  const HINT_JOYSTICK_HIDAPI_LUNA const cstring
+  const HINT_JOYSTICK_HIDAPI_LUNA c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC"]
-  const HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC const cstring
+  const HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS3"]
-  const HINT_JOYSTICK_HIDAPI_PS3 const cstring
+  const HINT_JOYSTICK_HIDAPI_PS3 c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER"]
-  const HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER const cstring
+  const HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS4"]
-  const HINT_JOYSTICK_HIDAPI_PS4 const cstring
+  const HINT_JOYSTICK_HIDAPI_PS4 c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL"]
-  const HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL const cstring
+  const HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS5"]
-  const HINT_JOYSTICK_HIDAPI_PS5 const cstring
+  const HINT_JOYSTICK_HIDAPI_PS5 c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SHIELD"]
-  const HINT_JOYSTICK_HIDAPI_SHIELD const cstring
+  const HINT_JOYSTICK_HIDAPI_SHIELD c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STADIA"]
-  const HINT_JOYSTICK_HIDAPI_STADIA const cstring
+  const HINT_JOYSTICK_HIDAPI_STADIA c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM"]
-  const HINT_JOYSTICK_HIDAPI_STEAM const cstring
+  const HINT_JOYSTICK_HIDAPI_STEAM c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK"]
-  const HINT_JOYSTICK_HIDAPI_STEAMDECK const cstring
+  const HINT_JOYSTICK_HIDAPI_STEAMDECK c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM_HORI"]
-  const HINT_JOYSTICK_HIDAPI_STEAM_HORI const cstring
+  const HINT_JOYSTICK_HIDAPI_STEAM_HORI c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH const cstring
+  const HINT_JOYSTICK_HIDAPI_SWITCH c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS const cstring
+  const HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_WII"]
-  const HINT_JOYSTICK_HIDAPI_WII const cstring
+  const HINT_JOYSTICK_HIDAPI_WII c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX"]
-  const HINT_JOYSTICK_HIDAPI_XBOX const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360 const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX_360 c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_ONE const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX_ONE c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED const cstring
+  const HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_IOKIT"]
-  const HINT_JOYSTICK_IOKIT const cstring
+  const HINT_JOYSTICK_IOKIT c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_LINUX_CLASSIC"]
-  const HINT_JOYSTICK_LINUX_CLASSIC const cstring
+  const HINT_JOYSTICK_LINUX_CLASSIC c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_LINUX_DEADZONES"]
-  const HINT_JOYSTICK_LINUX_DEADZONES const cstring
+  const HINT_JOYSTICK_LINUX_DEADZONES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_LINUX_DIGITAL_HATS"]
-  const HINT_JOYSTICK_LINUX_DIGITAL_HATS const cstring
+  const HINT_JOYSTICK_LINUX_DIGITAL_HATS c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_LINUX_HAT_DEADZONES"]
-  const HINT_JOYSTICK_LINUX_HAT_DEADZONES const cstring
+  const HINT_JOYSTICK_LINUX_HAT_DEADZONES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_MFI"]
-  const HINT_JOYSTICK_MFI const cstring
+  const HINT_JOYSTICK_MFI c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_RAWINPUT"]
-  const HINT_JOYSTICK_RAWINPUT const cstring
+  const HINT_JOYSTICK_RAWINPUT c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT"]
-  const HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT const cstring
+  const HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ROG_CHAKRAM"]
-  const HINT_JOYSTICK_ROG_CHAKRAM const cstring
+  const HINT_JOYSTICK_ROG_CHAKRAM c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_THREAD"]
-  const HINT_JOYSTICK_THREAD const cstring
+  const HINT_JOYSTICK_THREAD c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_THROTTLE_DEVICES"]
-  const HINT_JOYSTICK_THROTTLE_DEVICES const cstring
+  const HINT_JOYSTICK_THROTTLE_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_WGI"]
-  const HINT_JOYSTICK_WGI const cstring
+  const HINT_JOYSTICK_WGI c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_WHEEL_DEVICES"]
-  const HINT_JOYSTICK_WHEEL_DEVICES const cstring
+  const HINT_JOYSTICK_WHEEL_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED const cstring
+  const HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_JOYSTICK_ZERO_CENTERED_DEVICES"]
-  const HINT_JOYSTICK_ZERO_CENTERED_DEVICES const cstring
+  const HINT_JOYSTICK_ZERO_CENTERED_DEVICES c::ConstCString
 
   @[link_name="SDL_HINT_KEYCODE_OPTIONS"]
-  const HINT_KEYCODE_OPTIONS const cstring
+  const HINT_KEYCODE_OPTIONS c::ConstCString
 
   @[link_name="SDL_HINT_KMSDRM_DEVICE_INDEX"]
-  const HINT_KMSDRM_DEVICE_INDEX const cstring
+  const HINT_KMSDRM_DEVICE_INDEX c::ConstCString
 
   @[link_name="SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER"]
-  const HINT_KMSDRM_REQUIRE_DRM_MASTER const cstring
+  const HINT_KMSDRM_REQUIRE_DRM_MASTER c::ConstCString
 
   @[link_name="SDL_HINT_LOGGING"]
-  const HINT_LOGGING const cstring
+  const HINT_LOGGING c::ConstCString
 
   @[link_name="SDL_HINT_MAC_BACKGROUND_APP"]
-  const HINT_MAC_BACKGROUND_APP const cstring
+  const HINT_MAC_BACKGROUND_APP c::ConstCString
 
   @[link_name="SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK"]
-  const HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK const cstring
+  const HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK c::ConstCString
 
   @[link_name="SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH"]
-  const HINT_MAC_OPENGL_ASYNC_DISPATCH const cstring
+  const HINT_MAC_OPENGL_ASYNC_DISPATCH c::ConstCString
 
   @[link_name="SDL_HINT_MAC_OPTION_AS_ALT"]
-  const HINT_MAC_OPTION_AS_ALT const cstring
+  const HINT_MAC_OPTION_AS_ALT c::ConstCString
 
   @[link_name="SDL_HINT_MAC_SCROLL_MOMENTUM"]
-  const HINT_MAC_SCROLL_MOMENTUM const cstring
+  const HINT_MAC_SCROLL_MOMENTUM c::ConstCString
 
   @[link_name="SDL_HINT_MAIN_CALLBACK_RATE"]
-  const HINT_MAIN_CALLBACK_RATE const cstring
+  const HINT_MAIN_CALLBACK_RATE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_AUTO_CAPTURE"]
-  const HINT_MOUSE_AUTO_CAPTURE const cstring
+  const HINT_MOUSE_AUTO_CAPTURE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_DEFAULT_SYSTEM_CURSOR"]
-  const HINT_MOUSE_DEFAULT_SYSTEM_CURSOR const cstring
+  const HINT_MOUSE_DEFAULT_SYSTEM_CURSOR c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS"]
-  const HINT_MOUSE_DOUBLE_CLICK_RADIUS const cstring
+  const HINT_MOUSE_DOUBLE_CLICK_RADIUS c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_DOUBLE_CLICK_TIME"]
-  const HINT_MOUSE_DOUBLE_CLICK_TIME const cstring
+  const HINT_MOUSE_DOUBLE_CLICK_TIME c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE"]
-  const HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE const cstring
+  const HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH"]
-  const HINT_MOUSE_FOCUS_CLICKTHROUGH const cstring
+  const HINT_MOUSE_FOCUS_CLICKTHROUGH c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_NORMAL_SPEED_SCALE"]
-  const HINT_MOUSE_NORMAL_SPEED_SCALE const cstring
+  const HINT_MOUSE_NORMAL_SPEED_SCALE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE"]
-  const HINT_MOUSE_RELATIVE_CURSOR_VISIBLE const cstring
+  const HINT_MOUSE_RELATIVE_CURSOR_VISIBLE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_RELATIVE_MODE_CENTER"]
-  const HINT_MOUSE_RELATIVE_MODE_CENTER const cstring
+  const HINT_MOUSE_RELATIVE_MODE_CENTER c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_RELATIVE_SPEED_SCALE"]
-  const HINT_MOUSE_RELATIVE_SPEED_SCALE const cstring
+  const HINT_MOUSE_RELATIVE_SPEED_SCALE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE"]
-  const HINT_MOUSE_RELATIVE_SYSTEM_SCALE const cstring
+  const HINT_MOUSE_RELATIVE_SYSTEM_SCALE c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_RELATIVE_WARP_MOTION"]
-  const HINT_MOUSE_RELATIVE_WARP_MOTION const cstring
+  const HINT_MOUSE_RELATIVE_WARP_MOTION c::ConstCString
 
   @[link_name="SDL_HINT_MOUSE_TOUCH_EVENTS"]
-  const HINT_MOUSE_TOUCH_EVENTS const cstring
+  const HINT_MOUSE_TOUCH_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_MUTE_CONSOLE_KEYBOARD"]
-  const HINT_MUTE_CONSOLE_KEYBOARD const cstring
+  const HINT_MUTE_CONSOLE_KEYBOARD c::ConstCString
 
   @[link_name="SDL_HINT_NO_SIGNAL_HANDLERS"]
-  const HINT_NO_SIGNAL_HANDLERS const cstring
+  const HINT_NO_SIGNAL_HANDLERS c::ConstCString
 
   @[link_name="SDL_HINT_OPENGL_ES_DRIVER"]
-  const HINT_OPENGL_ES_DRIVER const cstring
+  const HINT_OPENGL_ES_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_OPENGL_LIBRARY"]
-  const HINT_OPENGL_LIBRARY const cstring
+  const HINT_OPENGL_LIBRARY c::ConstCString
 
   @[link_name="SDL_HINT_OPENVR_LIBRARY"]
-  const HINT_OPENVR_LIBRARY const cstring
+  const HINT_OPENVR_LIBRARY c::ConstCString
 
   @[link_name="SDL_HINT_ORIENTATIONS"]
-  const HINT_ORIENTATIONS const cstring
+  const HINT_ORIENTATIONS c::ConstCString
 
   @[link_name="SDL_HINT_PEN_MOUSE_EVENTS"]
-  const HINT_PEN_MOUSE_EVENTS const cstring
+  const HINT_PEN_MOUSE_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_PEN_TOUCH_EVENTS"]
-  const HINT_PEN_TOUCH_EVENTS const cstring
+  const HINT_PEN_TOUCH_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_POLL_SENTINEL"]
-  const HINT_POLL_SENTINEL const cstring
+  const HINT_POLL_SENTINEL c::ConstCString
 
   @[link_name="SDL_HINT_PREFERRED_LOCALES"]
-  const HINT_PREFERRED_LOCALES const cstring
+  const HINT_PREFERRED_LOCALES c::ConstCString
 
   @[link_name="SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE"]
-  const HINT_QUIT_ON_LAST_WINDOW_CLOSE const cstring
+  const HINT_QUIT_ON_LAST_WINDOW_CLOSE c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_DIRECT3D11_DEBUG"]
-  const HINT_RENDER_DIRECT3D11_DEBUG const cstring
+  const HINT_RENDER_DIRECT3D11_DEBUG c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_DIRECT3D_THREADSAFE"]
-  const HINT_RENDER_DIRECT3D_THREADSAFE const cstring
+  const HINT_RENDER_DIRECT3D_THREADSAFE c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_DRIVER"]
-  const HINT_RENDER_DRIVER const cstring
+  const HINT_RENDER_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_GPU_DEBUG"]
-  const HINT_RENDER_GPU_DEBUG const cstring
+  const HINT_RENDER_GPU_DEBUG c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_GPU_LOW_POWER"]
-  const HINT_RENDER_GPU_LOW_POWER const cstring
+  const HINT_RENDER_GPU_LOW_POWER c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_LINE_METHOD"]
-  const HINT_RENDER_LINE_METHOD const cstring
+  const HINT_RENDER_LINE_METHOD c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE"]
-  const HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE const cstring
+  const HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_VSYNC"]
-  const HINT_RENDER_VSYNC const cstring
+  const HINT_RENDER_VSYNC c::ConstCString
 
   @[link_name="SDL_HINT_RENDER_VULKAN_DEBUG"]
-  const HINT_RENDER_VULKAN_DEBUG const cstring
+  const HINT_RENDER_VULKAN_DEBUG c::ConstCString
 
   @[link_name="SDL_HINT_RETURN_KEY_HIDES_IME"]
-  const HINT_RETURN_KEY_HIDES_IME const cstring
+  const HINT_RETURN_KEY_HIDES_IME c::ConstCString
 
   @[link_name="SDL_HINT_ROG_GAMEPAD_MICE"]
-  const HINT_ROG_GAMEPAD_MICE const cstring
+  const HINT_ROG_GAMEPAD_MICE c::ConstCString
 
   @[link_name="SDL_HINT_ROG_GAMEPAD_MICE_EXCLUDED"]
-  const HINT_ROG_GAMEPAD_MICE_EXCLUDED const cstring
+  const HINT_ROG_GAMEPAD_MICE_EXCLUDED c::ConstCString
 
   @[link_name="SDL_HINT_RPI_VIDEO_LAYER"]
-  const HINT_RPI_VIDEO_LAYER const cstring
+  const HINT_RPI_VIDEO_LAYER c::ConstCString
 
   @[link_name="SDL_HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME"]
-  const HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME const cstring
+  const HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME c::ConstCString
 
   @[link_name="SDL_HINT_SHUTDOWN_DBUS_ON_QUIT"]
-  const HINT_SHUTDOWN_DBUS_ON_QUIT const cstring
+  const HINT_SHUTDOWN_DBUS_ON_QUIT c::ConstCString
 
   @[link_name="SDL_HINT_STORAGE_TITLE_DRIVER"]
-  const HINT_STORAGE_TITLE_DRIVER const cstring
+  const HINT_STORAGE_TITLE_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_STORAGE_USER_DRIVER"]
-  const HINT_STORAGE_USER_DRIVER const cstring
+  const HINT_STORAGE_USER_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL"]
-  const HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL const cstring
+  const HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL c::ConstCString
 
   @[link_name="SDL_HINT_THREAD_PRIORITY_POLICY"]
-  const HINT_THREAD_PRIORITY_POLICY const cstring
+  const HINT_THREAD_PRIORITY_POLICY c::ConstCString
 
   @[link_name="SDL_HINT_TIMER_RESOLUTION"]
-  const HINT_TIMER_RESOLUTION const cstring
+  const HINT_TIMER_RESOLUTION c::ConstCString
 
   @[link_name="SDL_HINT_TOUCH_MOUSE_EVENTS"]
-  const HINT_TOUCH_MOUSE_EVENTS const cstring
+  const HINT_TOUCH_MOUSE_EVENTS c::ConstCString
 
   @[link_name="SDL_HINT_TRACKPAD_IS_TOUCH_ONLY"]
-  const HINT_TRACKPAD_IS_TOUCH_ONLY const cstring
+  const HINT_TRACKPAD_IS_TOUCH_ONLY c::ConstCString
 
   @[link_name="SDL_HINT_TV_REMOTE_AS_JOYSTICK"]
-  const HINT_TV_REMOTE_AS_JOYSTICK const cstring
+  const HINT_TV_REMOTE_AS_JOYSTICK c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_ALLOW_SCREENSAVER"]
-  const HINT_VIDEO_ALLOW_SCREENSAVER const cstring
+  const HINT_VIDEO_ALLOW_SCREENSAVER c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_DISPLAY_PRIORITY"]
-  const HINT_VIDEO_DISPLAY_PRIORITY const cstring
+  const HINT_VIDEO_DISPLAY_PRIORITY c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_DOUBLE_BUFFER"]
-  const HINT_VIDEO_DOUBLE_BUFFER const cstring
+  const HINT_VIDEO_DOUBLE_BUFFER c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_DRIVER"]
-  const HINT_VIDEO_DRIVER const cstring
+  const HINT_VIDEO_DRIVER c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_DUMMY_SAVE_FRAMES"]
-  const HINT_VIDEO_DUMMY_SAVE_FRAMES const cstring
+  const HINT_VIDEO_DUMMY_SAVE_FRAMES c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK"]
-  const HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK const cstring
+  const HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_FORCE_EGL"]
-  const HINT_VIDEO_FORCE_EGL const cstring
+  const HINT_VIDEO_FORCE_EGL c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY"]
-  const HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY const cstring
+  const HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES"]
-  const HINT_VIDEO_MAC_FULLSCREEN_SPACES const cstring
+  const HINT_VIDEO_MAC_FULLSCREEN_SPACES c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS"]
-  const HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS const cstring
+  const HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_OFFSCREEN_SAVE_FRAMES"]
-  const HINT_VIDEO_OFFSCREEN_SAVE_FRAMES const cstring
+  const HINT_VIDEO_OFFSCREEN_SAVE_FRAMES c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_SYNC_WINDOW_OPERATIONS"]
-  const HINT_VIDEO_SYNC_WINDOW_OPERATIONS const cstring
+  const HINT_VIDEO_SYNC_WINDOW_OPERATIONS c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR"]
-  const HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR const cstring
+  const HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WAYLAND_MODE_EMULATION"]
-  const HINT_VIDEO_WAYLAND_MODE_EMULATION const cstring
+  const HINT_VIDEO_WAYLAND_MODE_EMULATION c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WAYLAND_MODE_SCALING"]
-  const HINT_VIDEO_WAYLAND_MODE_SCALING const cstring
+  const HINT_VIDEO_WAYLAND_MODE_SCALING c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR"]
-  const HINT_VIDEO_WAYLAND_PREFER_LIBDECOR const cstring
+  const HINT_VIDEO_WAYLAND_PREFER_LIBDECOR c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY"]
-  const HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY const cstring
+  const HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_WIN_D3DCOMPILER"]
-  const HINT_VIDEO_WIN_D3DCOMPILER const cstring
+  const HINT_VIDEO_WIN_D3DCOMPILER c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT"]
-  const HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT const cstring
+  const HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR"]
-  const HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR const cstring
+  const HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_NET_WM_PING"]
-  const HINT_VIDEO_X11_NET_WM_PING const cstring
+  const HINT_VIDEO_X11_NET_WM_PING c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_NODIRECTCOLOR"]
-  const HINT_VIDEO_X11_NODIRECTCOLOR const cstring
+  const HINT_VIDEO_X11_NODIRECTCOLOR c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_SCALING_FACTOR"]
-  const HINT_VIDEO_X11_SCALING_FACTOR const cstring
+  const HINT_VIDEO_X11_SCALING_FACTOR c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_VISUALID"]
-  const HINT_VIDEO_X11_VISUALID const cstring
+  const HINT_VIDEO_X11_VISUALID c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_WINDOW_VISUALID"]
-  const HINT_VIDEO_X11_WINDOW_VISUALID const cstring
+  const HINT_VIDEO_X11_WINDOW_VISUALID c::ConstCString
 
   @[link_name="SDL_HINT_VIDEO_X11_XRANDR"]
-  const HINT_VIDEO_X11_XRANDR const cstring
+  const HINT_VIDEO_X11_XRANDR c::ConstCString
 
   @[link_name="SDL_HINT_VITA_ENABLE_BACK_TOUCH"]
-  const HINT_VITA_ENABLE_BACK_TOUCH const cstring
+  const HINT_VITA_ENABLE_BACK_TOUCH c::ConstCString
 
   @[link_name="SDL_HINT_VITA_ENABLE_FRONT_TOUCH"]
-  const HINT_VITA_ENABLE_FRONT_TOUCH const cstring
+  const HINT_VITA_ENABLE_FRONT_TOUCH c::ConstCString
 
   @[link_name="SDL_HINT_VITA_MODULE_PATH"]
-  const HINT_VITA_MODULE_PATH const cstring
+  const HINT_VITA_MODULE_PATH c::ConstCString
 
   @[link_name="SDL_HINT_VITA_PVR_INIT"]
-  const HINT_VITA_PVR_INIT const cstring
+  const HINT_VITA_PVR_INIT c::ConstCString
 
   @[link_name="SDL_HINT_VITA_PVR_OPENGL"]
-  const HINT_VITA_PVR_OPENGL const cstring
+  const HINT_VITA_PVR_OPENGL c::ConstCString
 
   @[link_name="SDL_HINT_VITA_RESOLUTION"]
-  const HINT_VITA_RESOLUTION const cstring
+  const HINT_VITA_RESOLUTION c::ConstCString
 
   @[link_name="SDL_HINT_VITA_TOUCH_MOUSE_DEVICE"]
-  const HINT_VITA_TOUCH_MOUSE_DEVICE const cstring
+  const HINT_VITA_TOUCH_MOUSE_DEVICE c::ConstCString
 
   @[link_name="SDL_HINT_VULKAN_DISPLAY"]
-  const HINT_VULKAN_DISPLAY const cstring
+  const HINT_VULKAN_DISPLAY c::ConstCString
 
   @[link_name="SDL_HINT_VULKAN_LIBRARY"]
-  const HINT_VULKAN_LIBRARY const cstring
+  const HINT_VULKAN_LIBRARY c::ConstCString
 
   @[link_name="SDL_HINT_WAVE_CHUNK_LIMIT"]
-  const HINT_WAVE_CHUNK_LIMIT const cstring
+  const HINT_WAVE_CHUNK_LIMIT c::ConstCString
 
   @[link_name="SDL_HINT_WAVE_FACT_CHUNK"]
-  const HINT_WAVE_FACT_CHUNK const cstring
+  const HINT_WAVE_FACT_CHUNK c::ConstCString
 
   @[link_name="SDL_HINT_WAVE_RIFF_CHUNK_SIZE"]
-  const HINT_WAVE_RIFF_CHUNK_SIZE const cstring
+  const HINT_WAVE_RIFF_CHUNK_SIZE c::ConstCString
 
   @[link_name="SDL_HINT_WAVE_TRUNCATION"]
-  const HINT_WAVE_TRUNCATION const cstring
+  const HINT_WAVE_TRUNCATION c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4"]
-  const HINT_WINDOWS_CLOSE_ON_ALT_F4 const cstring
+  const HINT_WINDOWS_CLOSE_ON_ALT_F4 c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS"]
-  const HINT_WINDOWS_ENABLE_MENU_MNEMONICS const cstring
+  const HINT_WINDOWS_ENABLE_MENU_MNEMONICS c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP"]
-  const HINT_WINDOWS_ENABLE_MESSAGELOOP const cstring
+  const HINT_WINDOWS_ENABLE_MESSAGELOOP c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_ERASE_BACKGROUND_MODE"]
-  const HINT_WINDOWS_ERASE_BACKGROUND_MODE const cstring
+  const HINT_WINDOWS_ERASE_BACKGROUND_MODE c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL"]
-  const HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL const cstring
+  const HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_GAMEINPUT"]
-  const HINT_WINDOWS_GAMEINPUT const cstring
+  const HINT_WINDOWS_GAMEINPUT c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_INTRESOURCE_ICON"]
-  const HINT_WINDOWS_INTRESOURCE_ICON const cstring
+  const HINT_WINDOWS_INTRESOURCE_ICON c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_INTRESOURCE_ICON_SMALL"]
-  const HINT_WINDOWS_INTRESOURCE_ICON_SMALL const cstring
+  const HINT_WINDOWS_INTRESOURCE_ICON_SMALL c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_RAW_KEYBOARD"]
-  const HINT_WINDOWS_RAW_KEYBOARD const cstring
+  const HINT_WINDOWS_RAW_KEYBOARD c::ConstCString
 
   @[link_name="SDL_HINT_WINDOWS_USE_D3D9EX"]
-  const HINT_WINDOWS_USE_D3D9EX const cstring
+  const HINT_WINDOWS_USE_D3D9EX c::ConstCString
 
   @[link_name="SDL_HINT_WINDOW_ACTIVATE_WHEN_RAISED"]
-  const HINT_WINDOW_ACTIVATE_WHEN_RAISED const cstring
+  const HINT_WINDOW_ACTIVATE_WHEN_RAISED c::ConstCString
 
   @[link_name="SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN"]
-  const HINT_WINDOW_ACTIVATE_WHEN_SHOWN const cstring
+  const HINT_WINDOW_ACTIVATE_WHEN_SHOWN c::ConstCString
 
   @[link_name="SDL_HINT_WINDOW_ALLOW_TOPMOST"]
-  const HINT_WINDOW_ALLOW_TOPMOST const cstring
+  const HINT_WINDOW_ALLOW_TOPMOST c::ConstCString
 
   @[link_name="SDL_HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN"]
-  const HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN const cstring
+  const HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN c::ConstCString
 
   @[link_name="SDL_HINT_X11_FORCE_OVERRIDE_REDIRECT"]
-  const HINT_X11_FORCE_OVERRIDE_REDIRECT const cstring
+  const HINT_X11_FORCE_OVERRIDE_REDIRECT c::ConstCString
 
   @[link_name="SDL_HINT_X11_WINDOW_TYPE"]
-  const HINT_X11_WINDOW_TYPE const cstring
+  const HINT_X11_WINDOW_TYPE c::ConstCString
 
   @[link_name="SDL_HINT_X11_XCB_LIBRARY"]
-  const HINT_X11_XCB_LIBRARY const cstring
+  const HINT_X11_XCB_LIBRARY c::ConstCString
 
   @[link_name="SDL_HINT_XINPUT_ENABLED"]
-  const HINT_XINPUT_ENABLED const cstring
+  const HINT_XINPUT_ENABLED c::ConstCString
 
   @[link_name="SDL_ICONV_E2BIG"]
-  const ICONV_E2BIG libc::c_ulong
+  const ICONV_E2BIG c::c_ulong
 
   @[link_name="SDL_ICONV_EILSEQ"]
-  const ICONV_EILSEQ libc::c_ulong
+  const ICONV_EILSEQ c::c_ulong
 
   @[link_name="SDL_ICONV_EINVAL"]
-  const ICONV_EINVAL libc::c_ulong
+  const ICONV_EINVAL c::c_ulong
 
   @[link_name="SDL_ICONV_ERROR"]
-  const ICONV_ERROR libc::c_ulong
+  const ICONV_ERROR c::c_ulong
 
   @[link_name="SDL_INIT_AUDIO"]
   const INIT_AUDIO u32
@@ -9489,730 +9489,730 @@ extern {
   const PI_F f32
 
   @[link_name="SDL_PROP_APP_METADATA_COPYRIGHT_STRING"]
-  const PROP_APP_METADATA_COPYRIGHT_STRING const cstring
+  const PROP_APP_METADATA_COPYRIGHT_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_CREATOR_STRING"]
-  const PROP_APP_METADATA_CREATOR_STRING const cstring
+  const PROP_APP_METADATA_CREATOR_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_IDENTIFIER_STRING"]
-  const PROP_APP_METADATA_IDENTIFIER_STRING const cstring
+  const PROP_APP_METADATA_IDENTIFIER_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_NAME_STRING"]
-  const PROP_APP_METADATA_NAME_STRING const cstring
+  const PROP_APP_METADATA_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_TYPE_STRING"]
-  const PROP_APP_METADATA_TYPE_STRING const cstring
+  const PROP_APP_METADATA_TYPE_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_URL_STRING"]
-  const PROP_APP_METADATA_URL_STRING const cstring
+  const PROP_APP_METADATA_URL_STRING c::ConstCString
 
   @[link_name="SDL_PROP_APP_METADATA_VERSION_STRING"]
-  const PROP_APP_METADATA_VERSION_STRING const cstring
+  const PROP_APP_METADATA_VERSION_STRING c::ConstCString
 
   @[link_name="SDL_PROP_DISPLAY_HDR_ENABLED_BOOLEAN"]
-  const PROP_DISPLAY_HDR_ENABLED_BOOLEAN const cstring
+  const PROP_DISPLAY_HDR_ENABLED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER"]
-  const PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER const cstring
+  const PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_ACCEPT_STRING"]
-  const PROP_FILE_DIALOG_ACCEPT_STRING const cstring
+  const PROP_FILE_DIALOG_ACCEPT_STRING c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_CANCEL_STRING"]
-  const PROP_FILE_DIALOG_CANCEL_STRING const cstring
+  const PROP_FILE_DIALOG_CANCEL_STRING c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_FILTERS_POINTER"]
-  const PROP_FILE_DIALOG_FILTERS_POINTER const cstring
+  const PROP_FILE_DIALOG_FILTERS_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_LOCATION_STRING"]
-  const PROP_FILE_DIALOG_LOCATION_STRING const cstring
+  const PROP_FILE_DIALOG_LOCATION_STRING c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_MANY_BOOLEAN"]
-  const PROP_FILE_DIALOG_MANY_BOOLEAN const cstring
+  const PROP_FILE_DIALOG_MANY_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER"]
-  const PROP_FILE_DIALOG_NFILTERS_NUMBER const cstring
+  const PROP_FILE_DIALOG_NFILTERS_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_TITLE_STRING"]
-  const PROP_FILE_DIALOG_TITLE_STRING const cstring
+  const PROP_FILE_DIALOG_TITLE_STRING c::ConstCString
 
   @[link_name="SDL_PROP_FILE_DIALOG_WINDOW_POINTER"]
-  const PROP_FILE_DIALOG_WINDOW_POINTER const cstring
+  const PROP_FILE_DIALOG_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN const cstring
+  const PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN const cstring
+  const PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN const cstring
+  const PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN const cstring
+  const PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN const cstring
+  const PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER"]
-  const PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER const cstring
+  const PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_GPU_BUFFER_CREATE_NAME_STRING"]
-  const PROP_GPU_BUFFER_CREATE_NAME_STRING const cstring
+  const PROP_GPU_BUFFER_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING"]
-  const PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING const cstring
+  const PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING"]
-  const PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING const cstring
+  const PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING"]
-  const PROP_GPU_DEVICE_CREATE_NAME_STRING const cstring
+  const PROP_GPU_DEVICE_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN const cstring
+  const PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING"]
-  const PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING const cstring
+  const PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_SAMPLER_CREATE_NAME_STRING"]
-  const PROP_GPU_SAMPLER_CREATE_NAME_STRING const cstring
+  const PROP_GPU_SAMPLER_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_SHADER_CREATE_NAME_STRING"]
-  const PROP_GPU_SHADER_CREATE_NAME_STRING const cstring
+  const PROP_GPU_SHADER_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER const cstring
+  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING"]
-  const PROP_GPU_TEXTURE_CREATE_NAME_STRING const cstring
+  const PROP_GPU_TEXTURE_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING"]
-  const PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING const cstring
+  const PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_ANDROID_AASSET_POINTER"]
-  const PROP_IOSTREAM_ANDROID_AASSET_POINTER const cstring
+  const PROP_IOSTREAM_ANDROID_AASSET_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER"]
-  const PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER const cstring
+  const PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER"]
-  const PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER const cstring
+  const PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER"]
-  const PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER const cstring
+  const PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_MEMORY_POINTER"]
-  const PROP_IOSTREAM_MEMORY_POINTER const cstring
+  const PROP_IOSTREAM_MEMORY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER"]
-  const PROP_IOSTREAM_MEMORY_SIZE_NUMBER const cstring
+  const PROP_IOSTREAM_MEMORY_SIZE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_STDIO_FILE_POINTER"]
-  const PROP_IOSTREAM_STDIO_FILE_POINTER const cstring
+  const PROP_IOSTREAM_STDIO_FILE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_IOSTREAM_WINDOWS_HANDLE_POINTER"]
-  const PROP_IOSTREAM_WINDOWS_HANDLE_POINTER const cstring
+  const PROP_IOSTREAM_WINDOWS_HANDLE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN const cstring
+  const PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN const cstring
+  const PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN const cstring
+  const PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN const cstring
+  const PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN const cstring
+  const PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_BACKGROUND_BOOLEAN"]
-  const PROP_PROCESS_BACKGROUND_BOOLEAN const cstring
+  const PROP_PROCESS_BACKGROUND_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_ARGS_POINTER"]
-  const PROP_PROCESS_CREATE_ARGS_POINTER const cstring
+  const PROP_PROCESS_CREATE_ARGS_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN"]
-  const PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN const cstring
+  const PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER"]
-  const PROP_PROCESS_CREATE_ENVIRONMENT_POINTER const cstring
+  const PROP_PROCESS_CREATE_ENVIRONMENT_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_NUMBER"]
-  const PROP_PROCESS_CREATE_STDERR_NUMBER const cstring
+  const PROP_PROCESS_CREATE_STDERR_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_POINTER"]
-  const PROP_PROCESS_CREATE_STDERR_POINTER const cstring
+  const PROP_PROCESS_CREATE_STDERR_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN"]
-  const PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN const cstring
+  const PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDIN_NUMBER"]
-  const PROP_PROCESS_CREATE_STDIN_NUMBER const cstring
+  const PROP_PROCESS_CREATE_STDIN_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDIN_POINTER"]
-  const PROP_PROCESS_CREATE_STDIN_POINTER const cstring
+  const PROP_PROCESS_CREATE_STDIN_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER"]
-  const PROP_PROCESS_CREATE_STDOUT_NUMBER const cstring
+  const PROP_PROCESS_CREATE_STDOUT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_CREATE_STDOUT_POINTER"]
-  const PROP_PROCESS_CREATE_STDOUT_POINTER const cstring
+  const PROP_PROCESS_CREATE_STDOUT_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_PID_NUMBER"]
-  const PROP_PROCESS_PID_NUMBER const cstring
+  const PROP_PROCESS_PID_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_STDERR_POINTER"]
-  const PROP_PROCESS_STDERR_POINTER const cstring
+  const PROP_PROCESS_STDERR_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_STDIN_POINTER"]
-  const PROP_PROCESS_STDIN_POINTER const cstring
+  const PROP_PROCESS_STDIN_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_PROCESS_STDOUT_POINTER"]
-  const PROP_PROCESS_STDOUT_POINTER const cstring
+  const PROP_PROCESS_STDOUT_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_NAME_STRING"]
-  const PROP_RENDERER_CREATE_NAME_STRING const cstring
+  const PROP_RENDERER_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER"]
-  const PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER const cstring
+  const PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER"]
-  const PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER const cstring
+  const PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_SURFACE_POINTER"]
-  const PROP_RENDERER_CREATE_SURFACE_POINTER const cstring
+  const PROP_RENDERER_CREATE_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER const cstring
+  const PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_CREATE_WINDOW_POINTER"]
-  const PROP_RENDERER_CREATE_WINDOW_POINTER const cstring
+  const PROP_RENDERER_CREATE_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D11_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D11_DEVICE_POINTER const cstring
+  const PROP_RENDERER_D3D11_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D11_SWAPCHAIN_POINTER"]
-  const PROP_RENDERER_D3D11_SWAPCHAIN_POINTER const cstring
+  const PROP_RENDERER_D3D11_SWAPCHAIN_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER"]
-  const PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER const cstring
+  const PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D12_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D12_DEVICE_POINTER const cstring
+  const PROP_RENDERER_D3D12_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D12_SWAPCHAIN_POINTER"]
-  const PROP_RENDERER_D3D12_SWAPCHAIN_POINTER const cstring
+  const PROP_RENDERER_D3D12_SWAPCHAIN_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_D3D9_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D9_DEVICE_POINTER const cstring
+  const PROP_RENDERER_D3D9_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_GPU_DEVICE_POINTER"]
-  const PROP_RENDERER_GPU_DEVICE_POINTER const cstring
+  const PROP_RENDERER_GPU_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_HDR_ENABLED_BOOLEAN"]
-  const PROP_RENDERER_HDR_ENABLED_BOOLEAN const cstring
+  const PROP_RENDERER_HDR_ENABLED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_HDR_HEADROOM_FLOAT"]
-  const PROP_RENDERER_HDR_HEADROOM_FLOAT const cstring
+  const PROP_RENDERER_HDR_HEADROOM_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER"]
-  const PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER const cstring
+  const PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_NAME_STRING"]
-  const PROP_RENDERER_NAME_STRING const cstring
+  const PROP_RENDERER_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER"]
-  const PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER const cstring
+  const PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_SDR_WHITE_POINT_FLOAT"]
-  const PROP_RENDERER_SDR_WHITE_POINT_FLOAT const cstring
+  const PROP_RENDERER_SDR_WHITE_POINT_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_SURFACE_POINTER"]
-  const PROP_RENDERER_SURFACE_POINTER const cstring
+  const PROP_RENDERER_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_TEXTURE_FORMATS_POINTER"]
-  const PROP_RENDERER_TEXTURE_FORMATS_POINTER const cstring
+  const PROP_RENDERER_TEXTURE_FORMATS_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VSYNC_NUMBER"]
-  const PROP_RENDERER_VSYNC_NUMBER const cstring
+  const PROP_RENDERER_VSYNC_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_DEVICE_POINTER"]
-  const PROP_RENDERER_VULKAN_DEVICE_POINTER const cstring
+  const PROP_RENDERER_VULKAN_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER const cstring
+  const PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_INSTANCE_POINTER"]
-  const PROP_RENDERER_VULKAN_INSTANCE_POINTER const cstring
+  const PROP_RENDERER_VULKAN_INSTANCE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER"]
-  const PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER const cstring
+  const PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER const cstring
+  const PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_SURFACE_NUMBER"]
-  const PROP_RENDERER_VULKAN_SURFACE_NUMBER const cstring
+  const PROP_RENDERER_VULKAN_SURFACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER"]
-  const PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER const cstring
+  const PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_RENDERER_WINDOW_POINTER"]
-  const PROP_RENDERER_WINDOW_POINTER const cstring
+  const PROP_RENDERER_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_SURFACE_HDR_HEADROOM_FLOAT"]
-  const PROP_SURFACE_HDR_HEADROOM_FLOAT const cstring
+  const PROP_SURFACE_HDR_HEADROOM_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_SURFACE_HOTSPOT_X_NUMBER"]
-  const PROP_SURFACE_HOTSPOT_X_NUMBER const cstring
+  const PROP_SURFACE_HOTSPOT_X_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_SURFACE_HOTSPOT_Y_NUMBER"]
-  const PROP_SURFACE_HOTSPOT_Y_NUMBER const cstring
+  const PROP_SURFACE_HOTSPOT_Y_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_SURFACE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_SURFACE_SDR_WHITE_POINT_FLOAT const cstring
+  const PROP_SURFACE_SDR_WHITE_POINT_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_SURFACE_TONEMAP_OPERATOR_STRING"]
-  const PROP_SURFACE_TONEMAP_OPERATOR_STRING const cstring
+  const PROP_SURFACE_TONEMAP_OPERATOR_STRING c::ConstCString
 
   @[link_name="SDL_PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER"]
-  const PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER const cstring
+  const PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN"]
-  const PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN const cstring
+  const PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER"]
-  const PROP_TEXTINPUT_CAPITALIZATION_NUMBER const cstring
+  const PROP_TEXTINPUT_CAPITALIZATION_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN"]
-  const PROP_TEXTINPUT_MULTILINE_BOOLEAN const cstring
+  const PROP_TEXTINPUT_MULTILINE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_TEXTINPUT_TYPE_NUMBER"]
-  const PROP_TEXTINPUT_TYPE_NUMBER const cstring
+  const PROP_TEXTINPUT_TYPE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_ACCESS_NUMBER"]
-  const PROP_TEXTURE_ACCESS_NUMBER const cstring
+  const PROP_TEXTURE_ACCESS_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_COLORSPACE_NUMBER"]
-  const PROP_TEXTURE_COLORSPACE_NUMBER const cstring
+  const PROP_TEXTURE_COLORSPACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_ACCESS_NUMBER"]
-  const PROP_TEXTURE_CREATE_ACCESS_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_ACCESS_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_COLORSPACE_NUMBER"]
-  const PROP_TEXTURE_CREATE_COLORSPACE_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_COLORSPACE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER const cstring
+  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_FORMAT_NUMBER"]
-  const PROP_TEXTURE_CREATE_FORMAT_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_FORMAT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT"]
-  const PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT const cstring
+  const PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER"]
-  const PROP_TEXTURE_CREATE_HEIGHT_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_HEIGHT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER"]
-  const PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER const cstring
+  const PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT const cstring
+  const PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_CREATE_WIDTH_NUMBER"]
-  const PROP_TEXTURE_CREATE_WIDTH_NUMBER const cstring
+  const PROP_TEXTURE_CREATE_WIDTH_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_POINTER const cstring
+  const PROP_TEXTURE_D3D11_TEXTURE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_U_POINTER const cstring
+  const PROP_TEXTURE_D3D11_TEXTURE_U_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_V_POINTER const cstring
+  const PROP_TEXTURE_D3D11_TEXTURE_V_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_POINTER const cstring
+  const PROP_TEXTURE_D3D12_TEXTURE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_U_POINTER const cstring
+  const PROP_TEXTURE_D3D12_TEXTURE_U_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_V_POINTER const cstring
+  const PROP_TEXTURE_D3D12_TEXTURE_V_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_FORMAT_NUMBER"]
-  const PROP_TEXTURE_FORMAT_NUMBER const cstring
+  const PROP_TEXTURE_FORMAT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_HDR_HEADROOM_FLOAT"]
-  const PROP_TEXTURE_HDR_HEADROOM_FLOAT const cstring
+  const PROP_TEXTURE_HDR_HEADROOM_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_HEIGHT_NUMBER"]
-  const PROP_TEXTURE_HEIGHT_NUMBER const cstring
+  const PROP_TEXTURE_HEIGHT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER const cstring
+  const PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER const cstring
+  const PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER const cstring
+  const PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER const cstring
+  const PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_OPENGL_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER const cstring
+  const PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER const cstring
+  const PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER const cstring
+  const PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER const cstring
+  const PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEX_H_FLOAT"]
-  const PROP_TEXTURE_OPENGL_TEX_H_FLOAT const cstring
+  const PROP_TEXTURE_OPENGL_TEX_H_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_OPENGL_TEX_W_FLOAT"]
-  const PROP_TEXTURE_OPENGL_TEX_W_FLOAT const cstring
+  const PROP_TEXTURE_OPENGL_TEX_W_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_TEXTURE_SDR_WHITE_POINT_FLOAT const cstring
+  const PROP_TEXTURE_SDR_WHITE_POINT_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_VULKAN_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_VULKAN_TEXTURE_NUMBER const cstring
+  const PROP_TEXTURE_VULKAN_TEXTURE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_TEXTURE_WIDTH_NUMBER"]
-  const PROP_TEXTURE_WIDTH_NUMBER const cstring
+  const PROP_TEXTURE_WIDTH_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER"]
-  const PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER const cstring
+  const PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_THREAD_CREATE_NAME_STRING"]
-  const PROP_THREAD_CREATE_NAME_STRING const cstring
+  const PROP_THREAD_CREATE_NAME_STRING c::ConstCString
 
   @[link_name="SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER"]
-  const PROP_THREAD_CREATE_STACKSIZE_NUMBER const cstring
+  const PROP_THREAD_CREATE_STACKSIZE_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_THREAD_CREATE_USERDATA_POINTER"]
-  const PROP_THREAD_CREATE_USERDATA_POINTER const cstring
+  const PROP_THREAD_CREATE_USERDATA_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_ANDROID_SURFACE_POINTER"]
-  const PROP_WINDOW_ANDROID_SURFACE_POINTER const cstring
+  const PROP_WINDOW_ANDROID_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER"]
-  const PROP_WINDOW_ANDROID_WINDOW_POINTER const cstring
+  const PROP_WINDOW_ANDROID_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER"]
-  const PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER const cstring
+  const PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_COCOA_WINDOW_POINTER"]
-  const PROP_WINDOW_COCOA_WINDOW_POINTER const cstring
+  const PROP_WINDOW_COCOA_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN"]
-  const PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER"]
-  const PROP_WINDOW_CREATE_COCOA_VIEW_POINTER const cstring
+  const PROP_WINDOW_CREATE_COCOA_VIEW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER"]
-  const PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER const cstring
+  const PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN"]
-  const PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER"]
-  const PROP_WINDOW_CREATE_FLAGS_NUMBER const cstring
+  const PROP_WINDOW_CREATE_FLAGS_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN"]
-  const PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER"]
-  const PROP_WINDOW_CREATE_HEIGHT_NUMBER const cstring
+  const PROP_WINDOW_CREATE_HEIGHT_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_HIDDEN_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_HIDDEN_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN"]
-  const PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_MENU_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MENU_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_MENU_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_METAL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_METAL_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_METAL_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_MODAL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MODAL_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_MODAL_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_OPENGL_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_OPENGL_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_PARENT_POINTER"]
-  const PROP_WINDOW_CREATE_PARENT_POINTER const cstring
+  const PROP_WINDOW_CREATE_PARENT_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN"]
-  const PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_TITLE_STRING"]
-  const PROP_WINDOW_CREATE_TITLE_STRING const cstring
+  const PROP_WINDOW_CREATE_TITLE_STRING c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN"]
-  const PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_UTILITY_BOOLEAN"]
-  const PROP_WINDOW_CREATE_UTILITY_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_UTILITY_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_VULKAN_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_VULKAN_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN"]
-  const PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN"]
-  const PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN const cstring
+  const PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER"]
-  const PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER const cstring
+  const PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER"]
-  const PROP_WINDOW_CREATE_WIDTH_NUMBER const cstring
+  const PROP_WINDOW_CREATE_WIDTH_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER"]
-  const PROP_WINDOW_CREATE_WIN32_HWND_POINTER const cstring
+  const PROP_WINDOW_CREATE_WIN32_HWND_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER"]
-  const PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER const cstring
+  const PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_X11_WINDOW_NUMBER"]
-  const PROP_WINDOW_CREATE_X11_WINDOW_NUMBER const cstring
+  const PROP_WINDOW_CREATE_X11_WINDOW_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_X_NUMBER"]
-  const PROP_WINDOW_CREATE_X_NUMBER const cstring
+  const PROP_WINDOW_CREATE_X_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_CREATE_Y_NUMBER"]
-  const PROP_WINDOW_CREATE_Y_NUMBER const cstring
+  const PROP_WINDOW_CREATE_Y_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_HDR_ENABLED_BOOLEAN"]
-  const PROP_WINDOW_HDR_ENABLED_BOOLEAN const cstring
+  const PROP_WINDOW_HDR_ENABLED_BOOLEAN c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT"]
-  const PROP_WINDOW_HDR_HEADROOM_FLOAT const cstring
+  const PROP_WINDOW_HDR_HEADROOM_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER"]
-  const PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER const cstring
+  const PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_KMSDRM_DRM_FD_NUMBER"]
-  const PROP_WINDOW_KMSDRM_DRM_FD_NUMBER const cstring
+  const PROP_WINDOW_KMSDRM_DRM_FD_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER"]
-  const PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER const cstring
+  const PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_OPENVR_OVERLAY_ID"]
-  const PROP_WINDOW_OPENVR_OVERLAY_ID const cstring
+  const PROP_WINDOW_OPENVR_OVERLAY_ID c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT"]
-  const PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT const cstring
+  const PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_SHAPE_POINTER"]
-  const PROP_WINDOW_SHAPE_POINTER const cstring
+  const PROP_WINDOW_SHAPE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER"]
-  const PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER const cstring
+  const PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER const cstring
+  const PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER const cstring
+  const PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER const cstring
+  const PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER"]
-  const PROP_WINDOW_UIKIT_WINDOW_POINTER const cstring
+  const PROP_WINDOW_UIKIT_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_VIVANTE_DISPLAY_POINTER"]
-  const PROP_WINDOW_VIVANTE_DISPLAY_POINTER const cstring
+  const PROP_WINDOW_VIVANTE_DISPLAY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_VIVANTE_SURFACE_POINTER"]
-  const PROP_WINDOW_VIVANTE_SURFACE_POINTER const cstring
+  const PROP_WINDOW_VIVANTE_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_VIVANTE_WINDOW_POINTER"]
-  const PROP_WINDOW_VIVANTE_WINDOW_POINTER const cstring
+  const PROP_WINDOW_VIVANTE_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER"]
-  const PROP_WINDOW_WAYLAND_DISPLAY_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_DISPLAY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER"]
-  const PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER"]
-  const PROP_WINDOW_WAYLAND_SURFACE_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_VIEWPORT_POINTER"]
-  const PROP_WINDOW_WAYLAND_VIEWPORT_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_VIEWPORT_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING"]
-  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING const cstring
+  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER const cstring
+  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WIN32_HDC_POINTER"]
-  const PROP_WINDOW_WIN32_HDC_POINTER const cstring
+  const PROP_WINDOW_WIN32_HDC_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WIN32_HWND_POINTER"]
-  const PROP_WINDOW_WIN32_HWND_POINTER const cstring
+  const PROP_WINDOW_WIN32_HWND_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER"]
-  const PROP_WINDOW_WIN32_INSTANCE_POINTER const cstring
+  const PROP_WINDOW_WIN32_INSTANCE_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_X11_DISPLAY_POINTER"]
-  const PROP_WINDOW_X11_DISPLAY_POINTER const cstring
+  const PROP_WINDOW_X11_DISPLAY_POINTER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_X11_SCREEN_NUMBER"]
-  const PROP_WINDOW_X11_SCREEN_NUMBER const cstring
+  const PROP_WINDOW_X11_SCREEN_NUMBER c::ConstCString
 
   @[link_name="SDL_PROP_WINDOW_X11_WINDOW_NUMBER"]
-  const PROP_WINDOW_X11_WINDOW_NUMBER const cstring
+  const PROP_WINDOW_X11_WINDOW_NUMBER c::ConstCString
 
   @[link_name="SDL_RENDERER_VSYNC_ADAPTIVE"]
   const RENDERER_VSYNC_ADAPTIVE i32
@@ -10353,13 +10353,13 @@ extern {
   const WINDOW_VULKAN u64
 
   @[link_name="SDL_malloc"]
-  fn malloc(size libc::c_size_t) rawptr
+  fn malloc(size c::c_size_t) rawptr
 
   @[link_name="SDL_calloc"]
-  fn calloc(nmemb libc::c_size_t, size libc::c_size_t) rawptr
+  fn calloc(nmemb c::c_size_t, size c::c_size_t) rawptr
 
   @[link_name="SDL_realloc"]
-  fn realloc(mem rawptr, size libc::c_size_t) rawptr
+  fn realloc(mem rawptr, size c::c_size_t) rawptr
 
   @[link_name="SDL_free"]
   fn free(mem rawptr)
@@ -10374,13 +10374,13 @@ extern {
   fn set_memory_functions(malloc_func malloc_func, calloc_func calloc_func, realloc_func realloc_func, free_func free_func) bool
 
   @[link_name="SDL_aligned_alloc"]
-  fn aligned_alloc(alignment libc::c_size_t, size libc::c_size_t) rawptr
+  fn aligned_alloc(alignment c::c_size_t, size c::c_size_t) rawptr
 
   @[link_name="SDL_aligned_free"]
   fn aligned_free(mem rawptr)
 
   @[link_name="SDL_GetNumAllocations"]
-  fn get_num_allocations() libc::c_int
+  fn get_num_allocations() c::c_int
 
   @[link_name="SDL_GetEnvironment"]
   fn get_environment() *Environment
@@ -10389,289 +10389,289 @@ extern {
   fn create_environment(populated bool) *Environment
 
   @[link_name="SDL_GetEnvironmentVariable"]
-  fn get_environment_variable(env *Environment, name const cstring) const cstring
+  fn get_environment_variable(env *Environment, name c::ConstCString) c::ConstCString
 
   @[link_name="SDL_GetEnvironmentVariables"]
-  fn get_environment_variables(env *Environment) *cstring
+  fn get_environment_variables(env *Environment) *c::CString
 
   @[link_name="SDL_SetEnvironmentVariable"]
-  fn set_environment_variable(env *Environment, name const cstring, value const cstring, overwrite bool) bool
+  fn set_environment_variable(env *Environment, name c::ConstCString, value c::ConstCString, overwrite bool) bool
 
   @[link_name="SDL_UnsetEnvironmentVariable"]
-  fn unset_environment_variable(env *Environment, name const cstring) bool
+  fn unset_environment_variable(env *Environment, name c::ConstCString) bool
 
   @[link_name="SDL_DestroyEnvironment"]
   fn destroy_environment(env *Environment)
 
   @[link_name="SDL_getenv"]
-  fn getenv(name const cstring) const cstring
+  fn getenv(name c::ConstCString) c::ConstCString
 
   @[link_name="SDL_getenv_unsafe"]
-  fn getenv_unsafe(name const cstring) const cstring
+  fn getenv_unsafe(name c::ConstCString) c::ConstCString
 
   @[link_name="SDL_setenv_unsafe"]
-  fn setenv_unsafe(name const cstring, value const cstring, overwrite libc::c_int) libc::c_int
+  fn setenv_unsafe(name c::ConstCString, value c::ConstCString, overwrite c::c_int) c::c_int
 
   @[link_name="SDL_unsetenv_unsafe"]
-  fn unsetenv_unsafe(name const cstring) libc::c_int
+  fn unsetenv_unsafe(name c::ConstCString) c::c_int
 
   @[link_name="SDL_qsort"]
-  fn qsort(base rawptr, nmemb libc::c_size_t, size libc::c_size_t, compare CompareCallback)
+  fn qsort(base rawptr, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback)
 
   @[link_name="SDL_bsearch"]
-  fn bsearch(key const *Void, base const *Void, nmemb libc::c_size_t, size libc::c_size_t, compare CompareCallback) rawptr
+  fn bsearch(key const *Void, base const *Void, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback) rawptr
 
   @[link_name="SDL_qsort_r"]
-  fn qsort_r(base rawptr, nmemb libc::c_size_t, size libc::c_size_t, compare CompareCallback_r, userdata rawptr)
+  fn qsort_r(base rawptr, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback_r, userdata rawptr)
 
   @[link_name="SDL_bsearch_r"]
-  fn bsearch_r(key const *Void, base const *Void, nmemb libc::c_size_t, size libc::c_size_t, compare CompareCallback_r, userdata rawptr) rawptr
+  fn bsearch_r(key const *Void, base const *Void, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback_r, userdata rawptr) rawptr
 
   @[link_name="SDL_abs"]
-  fn abs(x libc::c_int) libc::c_int
+  fn abs(x c::c_int) c::c_int
 
   @[link_name="SDL_isalpha"]
-  fn isalpha(x libc::c_int) libc::c_int
+  fn isalpha(x c::c_int) c::c_int
 
   @[link_name="SDL_isalnum"]
-  fn isalnum(x libc::c_int) libc::c_int
+  fn isalnum(x c::c_int) c::c_int
 
   @[link_name="SDL_isblank"]
-  fn isblank(x libc::c_int) libc::c_int
+  fn isblank(x c::c_int) c::c_int
 
   @[link_name="SDL_iscntrl"]
-  fn iscntrl(x libc::c_int) libc::c_int
+  fn iscntrl(x c::c_int) c::c_int
 
   @[link_name="SDL_isdigit"]
-  fn isdigit(x libc::c_int) libc::c_int
+  fn isdigit(x c::c_int) c::c_int
 
   @[link_name="SDL_isxdigit"]
-  fn isxdigit(x libc::c_int) libc::c_int
+  fn isxdigit(x c::c_int) c::c_int
 
   @[link_name="SDL_ispunct"]
-  fn ispunct(x libc::c_int) libc::c_int
+  fn ispunct(x c::c_int) c::c_int
 
   @[link_name="SDL_isspace"]
-  fn isspace(x libc::c_int) libc::c_int
+  fn isspace(x c::c_int) c::c_int
 
   @[link_name="SDL_isupper"]
-  fn isupper(x libc::c_int) libc::c_int
+  fn isupper(x c::c_int) c::c_int
 
   @[link_name="SDL_islower"]
-  fn islower(x libc::c_int) libc::c_int
+  fn islower(x c::c_int) c::c_int
 
   @[link_name="SDL_isprint"]
-  fn isprint(x libc::c_int) libc::c_int
+  fn isprint(x c::c_int) c::c_int
 
   @[link_name="SDL_isgraph"]
-  fn isgraph(x libc::c_int) libc::c_int
+  fn isgraph(x c::c_int) c::c_int
 
   @[link_name="SDL_toupper"]
-  fn toupper(x libc::c_int) libc::c_int
+  fn toupper(x c::c_int) c::c_int
 
   @[link_name="SDL_tolower"]
-  fn tolower(x libc::c_int) libc::c_int
+  fn tolower(x c::c_int) c::c_int
 
   @[link_name="SDL_crc16"]
-  fn crc16(crc u16, data const *Void, len libc::c_size_t) u16
+  fn crc16(crc u16, data const *Void, len c::c_size_t) u16
 
   @[link_name="SDL_crc32"]
-  fn crc32(crc u32, data const *Void, len libc::c_size_t) u32
+  fn crc32(crc u32, data const *Void, len c::c_size_t) u32
 
   @[link_name="SDL_murmur3_32"]
-  fn murmur3_32(data const *Void, len libc::c_size_t, seed u32) u32
+  fn murmur3_32(data const *Void, len c::c_size_t, seed u32) u32
 
   @[link_name="SDL_memcpy"]
-  fn memcpy(dst rawptr, src const *Void, len libc::c_size_t) rawptr
+  fn memcpy(dst rawptr, src const *Void, len c::c_size_t) rawptr
 
   @[link_name="SDL_memmove"]
-  fn memmove(dst rawptr, src const *Void, len libc::c_size_t) rawptr
+  fn memmove(dst rawptr, src const *Void, len c::c_size_t) rawptr
 
   @[link_name="SDL_memset"]
-  fn memset(dst rawptr, c libc::c_int, len libc::c_size_t) rawptr
+  fn memset(dst rawptr, c c::c_int, len c::c_size_t) rawptr
 
   @[link_name="SDL_memset4"]
-  fn memset4(dst rawptr, val u32, dwords libc::c_size_t) rawptr
+  fn memset4(dst rawptr, val u32, dwords c::c_size_t) rawptr
 
   @[link_name="SDL_memcmp"]
-  fn memcmp(s1 const *Void, s2 const *Void, len libc::c_size_t) libc::c_int
+  fn memcmp(s1 const *Void, s2 const *Void, len c::c_size_t) c::c_int
 
   @[link_name="SDL_wcslen"]
-  fn wcslen(wstr const *libc::c_wchar_t) libc::c_size_t
+  fn wcslen(wstr const *c::c_wchar_t) c::c_size_t
 
   @[link_name="SDL_wcsnlen"]
-  fn wcsnlen(wstr const *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_size_t
+  fn wcsnlen(wstr const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_wcslcpy"]
-  fn wcslcpy(dst *libc::c_wchar_t, src const *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_size_t
+  fn wcslcpy(dst *c::c_wchar_t, src const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_wcslcat"]
-  fn wcslcat(dst *libc::c_wchar_t, src const *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_size_t
+  fn wcslcat(dst *c::c_wchar_t, src const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_wcsdup"]
-  fn wcsdup(wstr const *libc::c_wchar_t) *libc::c_wchar_t
+  fn wcsdup(wstr const *c::c_wchar_t) *c::c_wchar_t
 
   @[link_name="SDL_wcsstr"]
-  fn wcsstr(haystack const *libc::c_wchar_t, needle const *libc::c_wchar_t) *libc::c_wchar_t
+  fn wcsstr(haystack const *c::c_wchar_t, needle const *c::c_wchar_t) *c::c_wchar_t
 
   @[link_name="SDL_wcsnstr"]
-  fn wcsnstr(haystack const *libc::c_wchar_t, needle const *libc::c_wchar_t, maxlen libc::c_size_t) *libc::c_wchar_t
+  fn wcsnstr(haystack const *c::c_wchar_t, needle const *c::c_wchar_t, maxlen c::c_size_t) *c::c_wchar_t
 
   @[link_name="SDL_wcscmp"]
-  fn wcscmp(str1 const *libc::c_wchar_t, str2 const *libc::c_wchar_t) libc::c_int
+  fn wcscmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t) c::c_int
 
   @[link_name="SDL_wcsncmp"]
-  fn wcsncmp(str1 const *libc::c_wchar_t, str2 const *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn wcsncmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_wcscasecmp"]
-  fn wcscasecmp(str1 const *libc::c_wchar_t, str2 const *libc::c_wchar_t) libc::c_int
+  fn wcscasecmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t) c::c_int
 
   @[link_name="SDL_wcsncasecmp"]
-  fn wcsncasecmp(str1 const *libc::c_wchar_t, str2 const *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn wcsncasecmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_wcstol"]
-  fn wcstol(str const *libc::c_wchar_t, endp **libc::c_wchar_t, base libc::c_int) libc::c_long
+  fn wcstol(str const *c::c_wchar_t, endp **c::c_wchar_t, base c::c_int) c::c_long
 
   @[link_name="SDL_strlen"]
-  fn strlen(str const cstring) libc::c_size_t
+  fn strlen(str c::ConstCString) c::c_size_t
 
   @[link_name="SDL_strnlen"]
-  fn strnlen(str const cstring, maxlen libc::c_size_t) libc::c_size_t
+  fn strnlen(str c::ConstCString, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_strlcpy"]
-  fn strlcpy(dst cstring, src const cstring, maxlen libc::c_size_t) libc::c_size_t
+  fn strlcpy(dst c::CString, src c::ConstCString, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_utf8strlcpy"]
-  fn utf8strlcpy(dst cstring, src const cstring, dst_bytes libc::c_size_t) libc::c_size_t
+  fn utf8strlcpy(dst c::CString, src c::ConstCString, dst_bytes c::c_size_t) c::c_size_t
 
   @[link_name="SDL_strlcat"]
-  fn strlcat(dst cstring, src const cstring, maxlen libc::c_size_t) libc::c_size_t
+  fn strlcat(dst c::CString, src c::ConstCString, maxlen c::c_size_t) c::c_size_t
 
   @[link_name="SDL_strdup"]
-  fn strdup(str const cstring) cstring
+  fn strdup(str c::ConstCString) c::CString
 
   @[link_name="SDL_strndup"]
-  fn strndup(str const cstring, maxlen libc::c_size_t) cstring
+  fn strndup(str c::ConstCString, maxlen c::c_size_t) c::CString
 
   @[link_name="SDL_strrev"]
-  fn strrev(str cstring) cstring
+  fn strrev(str c::CString) c::CString
 
   @[link_name="SDL_strupr"]
-  fn strupr(str cstring) cstring
+  fn strupr(str c::CString) c::CString
 
   @[link_name="SDL_strlwr"]
-  fn strlwr(str cstring) cstring
+  fn strlwr(str c::CString) c::CString
 
   @[link_name="SDL_strchr"]
-  fn strchr(str const cstring, c libc::c_int) cstring
+  fn strchr(str c::ConstCString, c c::c_int) c::CString
 
   @[link_name="SDL_strrchr"]
-  fn strrchr(str const cstring, c libc::c_int) cstring
+  fn strrchr(str c::ConstCString, c c::c_int) c::CString
 
   @[link_name="SDL_strstr"]
-  fn strstr(haystack const cstring, needle const cstring) cstring
+  fn strstr(haystack c::ConstCString, needle c::ConstCString) c::CString
 
   @[link_name="SDL_strnstr"]
-  fn strnstr(haystack const cstring, needle const cstring, maxlen libc::c_size_t) cstring
+  fn strnstr(haystack c::ConstCString, needle c::ConstCString, maxlen c::c_size_t) c::CString
 
   @[link_name="SDL_strcasestr"]
-  fn strcasestr(haystack const cstring, needle const cstring) cstring
+  fn strcasestr(haystack c::ConstCString, needle c::ConstCString) c::CString
 
   @[link_name="SDL_strtok_r"]
-  fn strtok_r(str cstring, delim const cstring, saveptr *cstring) cstring
+  fn strtok_r(str c::CString, delim c::ConstCString, saveptr *c::CString) c::CString
 
   @[link_name="SDL_utf8strlen"]
-  fn utf8strlen(str const cstring) libc::c_size_t
+  fn utf8strlen(str c::ConstCString) c::c_size_t
 
   @[link_name="SDL_utf8strnlen"]
-  fn utf8strnlen(str const cstring, bytes libc::c_size_t) libc::c_size_t
+  fn utf8strnlen(str c::ConstCString, bytes c::c_size_t) c::c_size_t
 
   @[link_name="SDL_itoa"]
-  fn itoa(value libc::c_int, str cstring, radix libc::c_int) cstring
+  fn itoa(value c::c_int, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_uitoa"]
-  fn uitoa(value libc::c_uint, str cstring, radix libc::c_int) cstring
+  fn uitoa(value c::c_uint, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_ltoa"]
-  fn ltoa(value libc::c_long, str cstring, radix libc::c_int) cstring
+  fn ltoa(value c::c_long, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_ultoa"]
-  fn ultoa(value libc::c_ulong, str cstring, radix libc::c_int) cstring
+  fn ultoa(value c::c_ulong, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_lltoa"]
-  fn lltoa(value libc::c_longlong, str cstring, radix libc::c_int) cstring
+  fn lltoa(value c::c_longlong, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_ulltoa"]
-  fn ulltoa(value libc::c_ulonglong, str cstring, radix libc::c_int) cstring
+  fn ulltoa(value c::c_ulonglong, str c::CString, radix c::c_int) c::CString
 
   @[link_name="SDL_atoi"]
-  fn atoi(str const cstring) libc::c_int
+  fn atoi(str c::ConstCString) c::c_int
 
   @[link_name="SDL_atof"]
-  fn atof(str const cstring) libc::c_double
+  fn atof(str c::ConstCString) c::c_double
 
   @[link_name="SDL_strtol"]
-  fn strtol(str const cstring, endp *cstring, base libc::c_int) libc::c_long
+  fn strtol(str c::ConstCString, endp *c::CString, base c::c_int) c::c_long
 
   @[link_name="SDL_strtoul"]
-  fn strtoul(str const cstring, endp *cstring, base libc::c_int) libc::c_ulong
+  fn strtoul(str c::ConstCString, endp *c::CString, base c::c_int) c::c_ulong
 
   @[link_name="SDL_strtoll"]
-  fn strtoll(str const cstring, endp *cstring, base libc::c_int) libc::c_longlong
+  fn strtoll(str c::ConstCString, endp *c::CString, base c::c_int) c::c_longlong
 
   @[link_name="SDL_strtoull"]
-  fn strtoull(str const cstring, endp *cstring, base libc::c_int) libc::c_ulonglong
+  fn strtoull(str c::ConstCString, endp *c::CString, base c::c_int) c::c_ulonglong
 
   @[link_name="SDL_strtod"]
-  fn strtod(str const cstring, endp *cstring) libc::c_double
+  fn strtod(str c::ConstCString, endp *c::CString) c::c_double
 
   @[link_name="SDL_strcmp"]
-  fn strcmp(str1 const cstring, str2 const cstring) libc::c_int
+  fn strcmp(str1 c::ConstCString, str2 c::ConstCString) c::c_int
 
   @[link_name="SDL_strncmp"]
-  fn strncmp(str1 const cstring, str2 const cstring, maxlen libc::c_size_t) libc::c_int
+  fn strncmp(str1 c::ConstCString, str2 c::ConstCString, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_strcasecmp"]
-  fn strcasecmp(str1 const cstring, str2 const cstring) libc::c_int
+  fn strcasecmp(str1 c::ConstCString, str2 c::ConstCString) c::c_int
 
   @[link_name="SDL_strncasecmp"]
-  fn strncasecmp(str1 const cstring, str2 const cstring, maxlen libc::c_size_t) libc::c_int
+  fn strncasecmp(str1 c::ConstCString, str2 c::ConstCString, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_strpbrk"]
-  fn strpbrk(str const cstring, breakset const cstring) cstring
+  fn strpbrk(str c::ConstCString, breakset c::ConstCString) c::CString
 
   @[link_name="SDL_StepUTF8"]
-  fn step_utf8(pstr *const cstring, pslen *libc::c_size_t) u32
+  fn step_utf8(pstr *c::ConstCString, pslen *c::c_size_t) u32
 
   @[link_name="SDL_StepBackUTF8"]
-  fn step_back_utf8(start const cstring, pstr *const cstring) u32
+  fn step_back_utf8(start c::ConstCString, pstr *c::ConstCString) u32
 
   @[link_name="SDL_UCS4ToUTF8"]
-  fn ucs4_to_utf8(codepoint u32, dst cstring) cstring
+  fn ucs4_to_utf8(codepoint u32, dst c::CString) c::CString
 
   @[link_name="SDL_sscanf"]
-  fn sscanf(text const cstring, fmt const cstring, args @c ...) libc::c_int
+  fn sscanf(text c::ConstCString, fmt c::ConstCString, args @c ...) c::c_int
 
   @[link_name="SDL_vsscanf"]
-  fn vsscanf(text const cstring, fmt const cstring, ap libc::c_va_list) libc::c_int
+  fn vsscanf(text c::ConstCString, fmt c::ConstCString, ap c::c_va_list) c::c_int
 
   @[link_name="SDL_snprintf"]
-  fn snprintf(text cstring, maxlen libc::c_size_t, fmt const cstring, args @c ...) libc::c_int
+  fn snprintf(text c::CString, maxlen c::c_size_t, fmt c::ConstCString, args @c ...) c::c_int
 
   @[link_name="SDL_swprintf"]
-  fn swprintf(text *libc::c_wchar_t, maxlen libc::c_size_t, fmt const *libc::c_wchar_t, args @c ...) libc::c_int
+  fn swprintf(text *c::c_wchar_t, maxlen c::c_size_t, fmt const *c::c_wchar_t, args @c ...) c::c_int
 
   @[link_name="SDL_vsnprintf"]
-  fn vsnprintf(text cstring, maxlen libc::c_size_t, fmt const cstring, ap libc::c_va_list) libc::c_int
+  fn vsnprintf(text c::CString, maxlen c::c_size_t, fmt c::ConstCString, ap c::c_va_list) c::c_int
 
   @[link_name="SDL_vswprintf"]
-  fn vswprintf(text *libc::c_wchar_t, maxlen libc::c_size_t, fmt const *libc::c_wchar_t, ap libc::c_va_list) libc::c_int
+  fn vswprintf(text *c::c_wchar_t, maxlen c::c_size_t, fmt const *c::c_wchar_t, ap c::c_va_list) c::c_int
 
   @[link_name="SDL_asprintf"]
-  fn asprintf(strp *cstring, fmt const cstring, args @c ...) libc::c_int
+  fn asprintf(strp *c::CString, fmt c::ConstCString, args @c ...) c::c_int
 
   @[link_name="SDL_vasprintf"]
-  fn vasprintf(strp *cstring, fmt const cstring, ap libc::c_va_list) libc::c_int
+  fn vasprintf(strp *c::CString, fmt c::ConstCString, ap c::c_va_list) c::c_int
 
   @[link_name="SDL_srand"]
   fn srand(seed u64)
@@ -10680,7 +10680,7 @@ extern {
   fn rand(n i32) i32
 
   @[link_name="SDL_randf"]
-  fn randf() libc::c_float
+  fn randf() c::c_float
 
   @[link_name="SDL_rand_bits"]
   fn rand_bits() u32
@@ -10689,181 +10689,181 @@ extern {
   fn rand_r(state *u64, n i32) i32
 
   @[link_name="SDL_randf_r"]
-  fn randf_r(state *u64) libc::c_float
+  fn randf_r(state *u64) c::c_float
 
   @[link_name="SDL_rand_bits_r"]
   fn rand_bits_r(state *u64) u32
 
   @[link_name="SDL_acos"]
-  fn acos(x libc::c_double) libc::c_double
+  fn acos(x c::c_double) c::c_double
 
   @[link_name="SDL_acosf"]
-  fn acosf(x libc::c_float) libc::c_float
+  fn acosf(x c::c_float) c::c_float
 
   @[link_name="SDL_asin"]
-  fn asin(x libc::c_double) libc::c_double
+  fn asin(x c::c_double) c::c_double
 
   @[link_name="SDL_asinf"]
-  fn asinf(x libc::c_float) libc::c_float
+  fn asinf(x c::c_float) c::c_float
 
   @[link_name="SDL_atan"]
-  fn atan(x libc::c_double) libc::c_double
+  fn atan(x c::c_double) c::c_double
 
   @[link_name="SDL_atanf"]
-  fn atanf(x libc::c_float) libc::c_float
+  fn atanf(x c::c_float) c::c_float
 
   @[link_name="SDL_atan2"]
-  fn atan2(y libc::c_double, x libc::c_double) libc::c_double
+  fn atan2(y c::c_double, x c::c_double) c::c_double
 
   @[link_name="SDL_atan2f"]
-  fn atan2f(y libc::c_float, x libc::c_float) libc::c_float
+  fn atan2f(y c::c_float, x c::c_float) c::c_float
 
   @[link_name="SDL_ceil"]
-  fn ceil(x libc::c_double) libc::c_double
+  fn ceil(x c::c_double) c::c_double
 
   @[link_name="SDL_ceilf"]
-  fn ceilf(x libc::c_float) libc::c_float
+  fn ceilf(x c::c_float) c::c_float
 
   @[link_name="SDL_copysign"]
-  fn copysign(x libc::c_double, y libc::c_double) libc::c_double
+  fn copysign(x c::c_double, y c::c_double) c::c_double
 
   @[link_name="SDL_copysignf"]
-  fn copysignf(x libc::c_float, y libc::c_float) libc::c_float
+  fn copysignf(x c::c_float, y c::c_float) c::c_float
 
   @[link_name="SDL_cos"]
-  fn cos(x libc::c_double) libc::c_double
+  fn cos(x c::c_double) c::c_double
 
   @[link_name="SDL_cosf"]
-  fn cosf(x libc::c_float) libc::c_float
+  fn cosf(x c::c_float) c::c_float
 
   @[link_name="SDL_exp"]
-  fn exp(x libc::c_double) libc::c_double
+  fn exp(x c::c_double) c::c_double
 
   @[link_name="SDL_expf"]
-  fn expf(x libc::c_float) libc::c_float
+  fn expf(x c::c_float) c::c_float
 
   @[link_name="SDL_fabs"]
-  fn fabs(x libc::c_double) libc::c_double
+  fn fabs(x c::c_double) c::c_double
 
   @[link_name="SDL_fabsf"]
-  fn fabsf(x libc::c_float) libc::c_float
+  fn fabsf(x c::c_float) c::c_float
 
   @[link_name="SDL_floor"]
-  fn floor(x libc::c_double) libc::c_double
+  fn floor(x c::c_double) c::c_double
 
   @[link_name="SDL_floorf"]
-  fn floorf(x libc::c_float) libc::c_float
+  fn floorf(x c::c_float) c::c_float
 
   @[link_name="SDL_trunc"]
-  fn trunc(x libc::c_double) libc::c_double
+  fn trunc(x c::c_double) c::c_double
 
   @[link_name="SDL_truncf"]
-  fn truncf(x libc::c_float) libc::c_float
+  fn truncf(x c::c_float) c::c_float
 
   @[link_name="SDL_fmod"]
-  fn fmod(x libc::c_double, y libc::c_double) libc::c_double
+  fn fmod(x c::c_double, y c::c_double) c::c_double
 
   @[link_name="SDL_fmodf"]
-  fn fmodf(x libc::c_float, y libc::c_float) libc::c_float
+  fn fmodf(x c::c_float, y c::c_float) c::c_float
 
   @[link_name="SDL_isinf"]
-  fn isinf(x libc::c_double) libc::c_int
+  fn isinf(x c::c_double) c::c_int
 
   @[link_name="SDL_isinff"]
-  fn isinff(x libc::c_float) libc::c_int
+  fn isinff(x c::c_float) c::c_int
 
   @[link_name="SDL_isnan"]
-  fn isnan(x libc::c_double) libc::c_int
+  fn isnan(x c::c_double) c::c_int
 
   @[link_name="SDL_isnanf"]
-  fn isnanf(x libc::c_float) libc::c_int
+  fn isnanf(x c::c_float) c::c_int
 
   @[link_name="SDL_log"]
-  fn log_f64(x libc::c_double) libc::c_double
+  fn log_f64(x c::c_double) c::c_double
 
   @[link_name="SDL_logf"]
-  fn logf(x libc::c_float) libc::c_float
+  fn logf(x c::c_float) c::c_float
 
   @[link_name="SDL_log10"]
-  fn log10(x libc::c_double) libc::c_double
+  fn log10(x c::c_double) c::c_double
 
   @[link_name="SDL_log10f"]
-  fn log10f(x libc::c_float) libc::c_float
+  fn log10f(x c::c_float) c::c_float
 
   @[link_name="SDL_modf"]
-  fn modf(x libc::c_double, y *libc::c_double) libc::c_double
+  fn modf(x c::c_double, y *c::c_double) c::c_double
 
   @[link_name="SDL_modff"]
-  fn modff(x libc::c_float, y *libc::c_float) libc::c_float
+  fn modff(x c::c_float, y *c::c_float) c::c_float
 
   @[link_name="SDL_pow"]
-  fn pow(x libc::c_double, y libc::c_double) libc::c_double
+  fn pow(x c::c_double, y c::c_double) c::c_double
 
   @[link_name="SDL_powf"]
-  fn powf(x libc::c_float, y libc::c_float) libc::c_float
+  fn powf(x c::c_float, y c::c_float) c::c_float
 
   @[link_name="SDL_round"]
-  fn round(x libc::c_double) libc::c_double
+  fn round(x c::c_double) c::c_double
 
   @[link_name="SDL_roundf"]
-  fn roundf(x libc::c_float) libc::c_float
+  fn roundf(x c::c_float) c::c_float
 
   @[link_name="SDL_lround"]
-  fn lround(x libc::c_double) libc::c_long
+  fn lround(x c::c_double) c::c_long
 
   @[link_name="SDL_lroundf"]
-  fn lroundf(x libc::c_float) libc::c_long
+  fn lroundf(x c::c_float) c::c_long
 
   @[link_name="SDL_scalbn"]
-  fn scalbn(x libc::c_double, n libc::c_int) libc::c_double
+  fn scalbn(x c::c_double, n c::c_int) c::c_double
 
   @[link_name="SDL_scalbnf"]
-  fn scalbnf(x libc::c_float, n libc::c_int) libc::c_float
+  fn scalbnf(x c::c_float, n c::c_int) c::c_float
 
   @[link_name="SDL_sin"]
-  fn sin(x libc::c_double) libc::c_double
+  fn sin(x c::c_double) c::c_double
 
   @[link_name="SDL_sinf"]
-  fn sinf(x libc::c_float) libc::c_float
+  fn sinf(x c::c_float) c::c_float
 
   @[link_name="SDL_sqrt"]
-  fn sqrt(x libc::c_double) libc::c_double
+  fn sqrt(x c::c_double) c::c_double
 
   @[link_name="SDL_sqrtf"]
-  fn sqrtf(x libc::c_float) libc::c_float
+  fn sqrtf(x c::c_float) c::c_float
 
   @[link_name="SDL_tan"]
-  fn tan(x libc::c_double) libc::c_double
+  fn tan(x c::c_double) c::c_double
 
   @[link_name="SDL_tanf"]
-  fn tanf(x libc::c_float) libc::c_float
+  fn tanf(x c::c_float) c::c_float
 
   @[link_name="SDL_iconv_open"]
-  fn iconv_open(tocode const cstring, fromcode const cstring) iconv_t
+  fn iconv_open(tocode c::ConstCString, fromcode c::ConstCString) iconv_t
 
   @[link_name="SDL_iconv_close"]
-  fn iconv_close(cd iconv_t) libc::c_int
+  fn iconv_close(cd iconv_t) c::c_int
 
   @[link_name="SDL_iconv"]
-  fn iconv(cd iconv_t, inbuf *const cstring, inbytesleft *libc::c_size_t, outbuf *cstring, outbytesleft *libc::c_size_t) libc::c_size_t
+  fn iconv(cd iconv_t, inbuf *c::ConstCString, inbytesleft *c::c_size_t, outbuf *c::CString, outbytesleft *c::c_size_t) c::c_size_t
 
   @[link_name="SDL_iconv_string"]
-  fn iconv_string(tocode const cstring, fromcode const cstring, inbuf const cstring, inbytesleft libc::c_size_t) cstring
+  fn iconv_string(tocode c::ConstCString, fromcode c::ConstCString, inbuf c::ConstCString, inbytesleft c::c_size_t) c::CString
 
   @[link_name="SDL_size_mul_check_overflow"]
-  fn size_mul_check_overflow(a libc::c_size_t, b libc::c_size_t, ret *libc::c_size_t) bool
+  fn size_mul_check_overflow(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
 
   @[link_name="SDL_size_mul_check_overflow_builtin"]
-  fn size_mul_check_overflow_builtin(a libc::c_size_t, b libc::c_size_t, ret *libc::c_size_t) bool
+  fn size_mul_check_overflow_builtin(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
 
   @[link_name="SDL_size_add_check_overflow"]
-  fn size_add_check_overflow(a libc::c_size_t, b libc::c_size_t, ret *libc::c_size_t) bool
+  fn size_add_check_overflow(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
 
   @[link_name="SDL_size_add_check_overflow_builtin"]
-  fn size_add_check_overflow_builtin(a libc::c_size_t, b libc::c_size_t, ret *libc::c_size_t) bool
+  fn size_add_check_overflow_builtin(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
 
   @[link_name="SDL_ReportAssertion"]
-  fn report_assertion(data *AssertData, func const cstring, file const cstring, line libc::c_int) AssertState
+  fn report_assertion(data *AssertData, func c::ConstCString, file c::ConstCString, line c::c_int) AssertState
 
   @[link_name="SDL_SetAssertionHandler"]
   fn set_assertion_handler(handler AssertionHandler, userdata rawptr)
@@ -10881,7 +10881,7 @@ extern {
   fn reset_assertion_report()
 
   @[link_name="SDL_AsyncIOFromFile"]
-  fn async_io_from_file(file const cstring, mode const cstring) *AsyncIO
+  fn async_io_from_file(file c::ConstCString, mode c::ConstCString) *AsyncIO
 
   @[link_name="SDL_GetAsyncIOSize"]
   fn get_async_io_size(asyncio *AsyncIO) i64
@@ -10911,7 +10911,7 @@ extern {
   fn signal_async_io_queue(queue *AsyncIOQueue)
 
   @[link_name="SDL_LoadFileAsync"]
-  fn load_file_async(file const cstring, queue *AsyncIOQueue, userdata rawptr) bool
+  fn load_file_async(file c::ConstCString, queue *AsyncIOQueue, userdata rawptr) bool
 
   @[link_name="SDL_TryLockSpinlock"]
   fn try_lock_spinlock(lock *SpinLock) bool
@@ -10929,16 +10929,16 @@ extern {
   fn memory_barrier_acquire_function()
 
   @[link_name="SDL_CompareAndSwapAtomicInt"]
-  fn compare_and_swap_atomic_int(a *AtomicInt, oldval libc::c_int, newval libc::c_int) bool
+  fn compare_and_swap_atomic_int(a *AtomicInt, oldval c::c_int, newval c::c_int) bool
 
   @[link_name="SDL_SetAtomicInt"]
-  fn set_atomic_int(a *AtomicInt, v libc::c_int) libc::c_int
+  fn set_atomic_int(a *AtomicInt, v c::c_int) c::c_int
 
   @[link_name="SDL_GetAtomicInt"]
-  fn get_atomic_int(a *AtomicInt) libc::c_int
+  fn get_atomic_int(a *AtomicInt) c::c_int
 
   @[link_name="SDL_AddAtomicInt"]
-  fn add_atomic_int(a *AtomicInt, v libc::c_int) libc::c_int
+  fn add_atomic_int(a *AtomicInt, v c::c_int) c::c_int
 
   @[link_name="SDL_CompareAndSwapAtomicU32"]
   fn compare_and_swap_atomic_u32(a *AtomicU32, oldval u32, newval u32) bool
@@ -10959,19 +10959,19 @@ extern {
   fn get_atomic_pointer(a *rawptr) rawptr
 
   @[link_name="SDL_SwapFloat"]
-  fn swap_float(x libc::c_float) libc::c_float
+  fn swap_float(x c::c_float) c::c_float
 
   @[link_name="SDL_SetError"]
-  fn set_error(fmt const cstring, args @c ...) bool
+  fn set_error(fmt c::ConstCString, args @c ...) bool
 
   @[link_name="SDL_SetErrorV"]
-  fn set_error_v(fmt const cstring, ap libc::c_va_list) bool
+  fn set_error_v(fmt c::ConstCString, ap c::c_va_list) bool
 
   @[link_name="SDL_OutOfMemory"]
   fn out_of_memory() bool
 
   @[link_name="SDL_GetError"]
-  fn get_error() const cstring
+  fn get_error() c::ConstCString
 
   @[link_name="SDL_ClearError"]
   fn clear_error() bool
@@ -10992,46 +10992,46 @@ extern {
   fn unlock_properties(props PropertiesID)
 
   @[link_name="SDL_SetPointerPropertyWithCleanup"]
-  fn set_pointer_property_with_cleanup(props PropertiesID, name const cstring, value rawptr, cleanup CleanupPropertyCallback, userdata rawptr) bool
+  fn set_pointer_property_with_cleanup(props PropertiesID, name c::ConstCString, value rawptr, cleanup CleanupPropertyCallback, userdata rawptr) bool
 
   @[link_name="SDL_SetPointerProperty"]
-  fn set_pointer_property(props PropertiesID, name const cstring, value rawptr) bool
+  fn set_pointer_property(props PropertiesID, name c::ConstCString, value rawptr) bool
 
   @[link_name="SDL_SetStringProperty"]
-  fn set_string_property(props PropertiesID, name const cstring, value const cstring) bool
+  fn set_string_property(props PropertiesID, name c::ConstCString, value c::ConstCString) bool
 
   @[link_name="SDL_SetNumberProperty"]
-  fn set_number_property(props PropertiesID, name const cstring, value i64) bool
+  fn set_number_property(props PropertiesID, name c::ConstCString, value i64) bool
 
   @[link_name="SDL_SetFloatProperty"]
-  fn set_float_property(props PropertiesID, name const cstring, value libc::c_float) bool
+  fn set_float_property(props PropertiesID, name c::ConstCString, value c::c_float) bool
 
   @[link_name="SDL_SetBooleanProperty"]
-  fn set_boolean_property(props PropertiesID, name const cstring, value bool) bool
+  fn set_boolean_property(props PropertiesID, name c::ConstCString, value bool) bool
 
   @[link_name="SDL_HasProperty"]
-  fn has_property(props PropertiesID, name const cstring) bool
+  fn has_property(props PropertiesID, name c::ConstCString) bool
 
   @[link_name="SDL_GetPropertyType"]
-  fn get_property_type(props PropertiesID, name const cstring) PropertyType
+  fn get_property_type(props PropertiesID, name c::ConstCString) PropertyType
 
   @[link_name="SDL_GetPointerProperty"]
-  fn get_pointer_property(props PropertiesID, name const cstring, default_value rawptr) rawptr
+  fn get_pointer_property(props PropertiesID, name c::ConstCString, default_value rawptr) rawptr
 
   @[link_name="SDL_GetStringProperty"]
-  fn get_string_property(props PropertiesID, name const cstring, default_value const cstring) const cstring
+  fn get_string_property(props PropertiesID, name c::ConstCString, default_value c::ConstCString) c::ConstCString
 
   @[link_name="SDL_GetNumberProperty"]
-  fn get_number_property(props PropertiesID, name const cstring, default_value i64) i64
+  fn get_number_property(props PropertiesID, name c::ConstCString, default_value i64) i64
 
   @[link_name="SDL_GetFloatProperty"]
-  fn get_float_property(props PropertiesID, name const cstring, default_value libc::c_float) libc::c_float
+  fn get_float_property(props PropertiesID, name c::ConstCString, default_value c::c_float) c::c_float
 
   @[link_name="SDL_GetBooleanProperty"]
-  fn get_boolean_property(props PropertiesID, name const cstring, default_value bool) bool
+  fn get_boolean_property(props PropertiesID, name c::ConstCString, default_value bool) bool
 
   @[link_name="SDL_ClearProperty"]
-  fn clear_property(props PropertiesID, name const cstring) bool
+  fn clear_property(props PropertiesID, name c::ConstCString) bool
 
   @[link_name="SDL_EnumerateProperties"]
   fn enumerate_properties(props PropertiesID, callback EnumeratePropertiesCallback, userdata rawptr) bool
@@ -11040,13 +11040,13 @@ extern {
   fn destroy_properties(props PropertiesID)
 
   @[link_name="SDL_CreateThreadRuntime"]
-  fn create_thread_runtime(fn_ ThreadFunction, name const cstring, data rawptr, pfnBeginThread FunctionPointer, pfnEndThread FunctionPointer) *Thread
+  fn create_thread_runtime(fn_ ThreadFunction, name c::ConstCString, data rawptr, pfnBeginThread FunctionPointer, pfnEndThread FunctionPointer) *Thread
 
   @[link_name="SDL_CreateThreadWithPropertiesRuntime"]
   fn create_thread_with_properties_runtime(props PropertiesID, pfnBeginThread FunctionPointer, pfnEndThread FunctionPointer) *Thread
 
   @[link_name="SDL_GetThreadName"]
-  fn get_thread_name(thread *Thread) const cstring
+  fn get_thread_name(thread *Thread) c::ConstCString
 
   @[link_name="SDL_GetCurrentThreadID"]
   fn get_current_thread_id() ThreadID
@@ -11058,7 +11058,7 @@ extern {
   fn set_current_thread_priority(priority ThreadPriority) bool
 
   @[link_name="SDL_WaitThread"]
-  fn wait_thread(thread *Thread, status *libc::c_int)
+  fn wait_thread(thread *Thread, status *c::c_int)
 
   @[link_name="SDL_GetThreadState"]
   fn get_thread_state(thread *Thread) ThreadState
@@ -11160,13 +11160,13 @@ extern {
   fn set_initialized(state *InitState, initialized bool)
 
   @[link_name="SDL_IOFromFile"]
-  fn io_from_file(file const cstring, mode const cstring) *IOStream
+  fn io_from_file(file c::ConstCString, mode c::ConstCString) *IOStream
 
   @[link_name="SDL_IOFromMem"]
-  fn io_from_mem(mem rawptr, size libc::c_size_t) *IOStream
+  fn io_from_mem(mem rawptr, size c::c_size_t) *IOStream
 
   @[link_name="SDL_IOFromConstMem"]
-  fn io_from_const_mem(mem const *Void, size libc::c_size_t) *IOStream
+  fn io_from_const_mem(mem const *Void, size c::c_size_t) *IOStream
 
   @[link_name="SDL_IOFromDynamicMem"]
   fn io_from_dynamic_mem() *IOStream
@@ -11193,31 +11193,31 @@ extern {
   fn tell_io(context *IOStream) i64
 
   @[link_name="SDL_ReadIO"]
-  fn read_io(context *IOStream, ptr rawptr, size libc::c_size_t) libc::c_size_t
+  fn read_io(context *IOStream, ptr rawptr, size c::c_size_t) c::c_size_t
 
   @[link_name="SDL_WriteIO"]
-  fn write_io(context *IOStream, ptr const *Void, size libc::c_size_t) libc::c_size_t
+  fn write_io(context *IOStream, ptr const *Void, size c::c_size_t) c::c_size_t
 
   @[link_name="SDL_IOprintf"]
-  fn i_oprintf(context *IOStream, fmt const cstring, args @c ...) libc::c_size_t
+  fn i_oprintf(context *IOStream, fmt c::ConstCString, args @c ...) c::c_size_t
 
   @[link_name="SDL_IOvprintf"]
-  fn i_ovprintf(context *IOStream, fmt const cstring, ap libc::c_va_list) libc::c_size_t
+  fn i_ovprintf(context *IOStream, fmt c::ConstCString, ap c::c_va_list) c::c_size_t
 
   @[link_name="SDL_FlushIO"]
   fn flush_io(context *IOStream) bool
 
   @[link_name="SDL_LoadFile_IO"]
-  fn load_file_io(src *IOStream, datasize *libc::c_size_t, closeio bool) rawptr
+  fn load_file_io(src *IOStream, datasize *c::c_size_t, closeio bool) rawptr
 
   @[link_name="SDL_LoadFile"]
-  fn load_file(file const cstring, datasize *libc::c_size_t) rawptr
+  fn load_file(file c::ConstCString, datasize *c::c_size_t) rawptr
 
   @[link_name="SDL_SaveFile_IO"]
-  fn save_file_io(src *IOStream, data const *Void, datasize libc::c_size_t, closeio bool) bool
+  fn save_file_io(src *IOStream, data const *Void, datasize c::c_size_t, closeio bool) bool
 
   @[link_name="SDL_SaveFile"]
-  fn save_file(file const cstring, data const *Void, datasize libc::c_size_t) bool
+  fn save_file(file c::ConstCString, data const *Void, datasize c::c_size_t) bool
 
   @[link_name="SDL_ReadU8"]
   fn read_u8(src *IOStream, value *u8) bool
@@ -11304,28 +11304,28 @@ extern {
   fn write_s64_be(dst *IOStream, value i64) bool
 
   @[link_name="SDL_GetNumAudioDrivers"]
-  fn get_num_audio_drivers() libc::c_int
+  fn get_num_audio_drivers() c::c_int
 
   @[link_name="SDL_GetAudioDriver"]
-  fn get_audio_driver(index libc::c_int) const cstring
+  fn get_audio_driver(index c::c_int) c::ConstCString
 
   @[link_name="SDL_GetCurrentAudioDriver"]
-  fn get_current_audio_driver() const cstring
+  fn get_current_audio_driver() c::ConstCString
 
   @[link_name="SDL_GetAudioPlaybackDevices"]
-  fn get_audio_playback_devices(count *libc::c_int) *AudioDeviceID
+  fn get_audio_playback_devices(count *c::c_int) *AudioDeviceID
 
   @[link_name="SDL_GetAudioRecordingDevices"]
-  fn get_audio_recording_devices(count *libc::c_int) *AudioDeviceID
+  fn get_audio_recording_devices(count *c::c_int) *AudioDeviceID
 
   @[link_name="SDL_GetAudioDeviceName"]
-  fn get_audio_device_name(devid AudioDeviceID) const cstring
+  fn get_audio_device_name(devid AudioDeviceID) c::ConstCString
 
   @[link_name="SDL_GetAudioDeviceFormat"]
-  fn get_audio_device_format(devid AudioDeviceID, spec *AudioSpec, sample_frames *libc::c_int) bool
+  fn get_audio_device_format(devid AudioDeviceID, spec *AudioSpec, sample_frames *c::c_int) bool
 
   @[link_name="SDL_GetAudioDeviceChannelMap"]
-  fn get_audio_device_channel_map(devid AudioDeviceID, count *libc::c_int) *libc::c_int
+  fn get_audio_device_channel_map(devid AudioDeviceID, count *c::c_int) *c::c_int
 
   @[link_name="SDL_OpenAudioDevice"]
   fn open_audio_device(devid AudioDeviceID, spec const *AudioSpec) AudioDeviceID
@@ -11346,22 +11346,22 @@ extern {
   fn audio_device_paused(devid AudioDeviceID) bool
 
   @[link_name="SDL_GetAudioDeviceGain"]
-  fn get_audio_device_gain(devid AudioDeviceID) libc::c_float
+  fn get_audio_device_gain(devid AudioDeviceID) c::c_float
 
   @[link_name="SDL_SetAudioDeviceGain"]
-  fn set_audio_device_gain(devid AudioDeviceID, gain libc::c_float) bool
+  fn set_audio_device_gain(devid AudioDeviceID, gain c::c_float) bool
 
   @[link_name="SDL_CloseAudioDevice"]
   fn close_audio_device(devid AudioDeviceID)
 
   @[link_name="SDL_BindAudioStreams"]
-  fn bind_audio_streams(devid AudioDeviceID, streams const **AudioStream, num_streams libc::c_int) bool
+  fn bind_audio_streams(devid AudioDeviceID, streams const **AudioStream, num_streams c::c_int) bool
 
   @[link_name="SDL_BindAudioStream"]
   fn bind_audio_stream(devid AudioDeviceID, stream *AudioStream) bool
 
   @[link_name="SDL_UnbindAudioStreams"]
-  fn unbind_audio_streams(streams const **AudioStream, num_streams libc::c_int)
+  fn unbind_audio_streams(streams const **AudioStream, num_streams c::c_int)
 
   @[link_name="SDL_UnbindAudioStream"]
   fn unbind_audio_stream(stream *AudioStream)
@@ -11382,40 +11382,40 @@ extern {
   fn set_audio_stream_format(stream *AudioStream, src_spec const *AudioSpec, dst_spec const *AudioSpec) bool
 
   @[link_name="SDL_GetAudioStreamFrequencyRatio"]
-  fn get_audio_stream_frequency_ratio(stream *AudioStream) libc::c_float
+  fn get_audio_stream_frequency_ratio(stream *AudioStream) c::c_float
 
   @[link_name="SDL_SetAudioStreamFrequencyRatio"]
-  fn set_audio_stream_frequency_ratio(stream *AudioStream, ratio libc::c_float) bool
+  fn set_audio_stream_frequency_ratio(stream *AudioStream, ratio c::c_float) bool
 
   @[link_name="SDL_GetAudioStreamGain"]
-  fn get_audio_stream_gain(stream *AudioStream) libc::c_float
+  fn get_audio_stream_gain(stream *AudioStream) c::c_float
 
   @[link_name="SDL_SetAudioStreamGain"]
-  fn set_audio_stream_gain(stream *AudioStream, gain libc::c_float) bool
+  fn set_audio_stream_gain(stream *AudioStream, gain c::c_float) bool
 
   @[link_name="SDL_GetAudioStreamInputChannelMap"]
-  fn get_audio_stream_input_channel_map(stream *AudioStream, count *libc::c_int) *libc::c_int
+  fn get_audio_stream_input_channel_map(stream *AudioStream, count *c::c_int) *c::c_int
 
   @[link_name="SDL_GetAudioStreamOutputChannelMap"]
-  fn get_audio_stream_output_channel_map(stream *AudioStream, count *libc::c_int) *libc::c_int
+  fn get_audio_stream_output_channel_map(stream *AudioStream, count *c::c_int) *c::c_int
 
   @[link_name="SDL_SetAudioStreamInputChannelMap"]
-  fn set_audio_stream_input_channel_map(stream *AudioStream, chmap const *libc::c_int, count libc::c_int) bool
+  fn set_audio_stream_input_channel_map(stream *AudioStream, chmap const *c::c_int, count c::c_int) bool
 
   @[link_name="SDL_SetAudioStreamOutputChannelMap"]
-  fn set_audio_stream_output_channel_map(stream *AudioStream, chmap const *libc::c_int, count libc::c_int) bool
+  fn set_audio_stream_output_channel_map(stream *AudioStream, chmap const *c::c_int, count c::c_int) bool
 
   @[link_name="SDL_PutAudioStreamData"]
-  fn put_audio_stream_data(stream *AudioStream, buf const *Void, len libc::c_int) bool
+  fn put_audio_stream_data(stream *AudioStream, buf const *Void, len c::c_int) bool
 
   @[link_name="SDL_GetAudioStreamData"]
-  fn get_audio_stream_data(stream *AudioStream, buf rawptr, len libc::c_int) libc::c_int
+  fn get_audio_stream_data(stream *AudioStream, buf rawptr, len c::c_int) c::c_int
 
   @[link_name="SDL_GetAudioStreamAvailable"]
-  fn get_audio_stream_available(stream *AudioStream) libc::c_int
+  fn get_audio_stream_available(stream *AudioStream) c::c_int
 
   @[link_name="SDL_GetAudioStreamQueued"]
-  fn get_audio_stream_queued(stream *AudioStream) libc::c_int
+  fn get_audio_stream_queued(stream *AudioStream) c::c_int
 
   @[link_name="SDL_FlushAudioStream"]
   fn flush_audio_stream(stream *AudioStream) bool
@@ -11457,22 +11457,22 @@ extern {
   fn load_wav_io(src *IOStream, closeio bool, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool
 
   @[link_name="SDL_LoadWAV"]
-  fn load_wav(path const cstring, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool
+  fn load_wav(path c::ConstCString, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool
 
   @[link_name="SDL_MixAudio"]
-  fn mix_audio(dst *u8, src const *u8, format AudioFormat, len u32, volume libc::c_float) bool
+  fn mix_audio(dst *u8, src const *u8, format AudioFormat, len u32, volume c::c_float) bool
 
   @[link_name="SDL_ConvertAudioSamples"]
-  fn convert_audio_samples(src_spec const *AudioSpec, src_data const *u8, src_len libc::c_int, dst_spec const *AudioSpec, dst_data **u8, dst_len *libc::c_int) bool
+  fn convert_audio_samples(src_spec const *AudioSpec, src_data const *u8, src_len c::c_int, dst_spec const *AudioSpec, dst_data **u8, dst_len *c::c_int) bool
 
   @[link_name="SDL_GetAudioFormatName"]
-  fn get_audio_format_name(format AudioFormat) const cstring
+  fn get_audio_format_name(format AudioFormat) c::ConstCString
 
   @[link_name="SDL_GetSilenceValueForFormat"]
-  fn get_silence_value_for_format(format AudioFormat) libc::c_int
+  fn get_silence_value_for_format(format AudioFormat) c::c_int
 
   @[link_name="SDL_MostSignificantBitIndex32"]
-  fn most_significant_bit_index32(x u32) libc::c_int
+  fn most_significant_bit_index32(x u32) c::c_int
 
   @[link_name="SDL_HasExactlyOneBitSet32"]
   fn has_exactly_one_bit_set32(x u32) bool
@@ -11481,22 +11481,22 @@ extern {
   fn compose_custom_blend_mode(srcColorFactor BlendFactor, dstColorFactor BlendFactor, colorOperation BlendOperation, srcAlphaFactor BlendFactor, dstAlphaFactor BlendFactor, alphaOperation BlendOperation) BlendMode
 
   @[link_name="SDL_GetPixelFormatName"]
-  fn get_pixel_format_name(format PixelFormat) const cstring
+  fn get_pixel_format_name(format PixelFormat) c::ConstCString
 
   @[link_name="SDL_GetMasksForPixelFormat"]
-  fn get_masks_for_pixel_format(format PixelFormat, bpp *libc::c_int, Rmask *u32, Gmask *u32, Bmask *u32, Amask *u32) bool
+  fn get_masks_for_pixel_format(format PixelFormat, bpp *c::c_int, Rmask *u32, Gmask *u32, Bmask *u32, Amask *u32) bool
 
   @[link_name="SDL_GetPixelFormatForMasks"]
-  fn get_pixel_format_for_masks(bpp libc::c_int, Rmask u32, Gmask u32, Bmask u32, Amask u32) PixelFormat
+  fn get_pixel_format_for_masks(bpp c::c_int, Rmask u32, Gmask u32, Bmask u32, Amask u32) PixelFormat
 
   @[link_name="SDL_GetPixelFormatDetails"]
   fn get_pixel_format_details(format PixelFormat) const *PixelFormatDetails
 
   @[link_name="SDL_CreatePalette"]
-  fn create_palette(ncolors libc::c_int) *Palette
+  fn create_palette(ncolors c::c_int) *Palette
 
   @[link_name="SDL_SetPaletteColors"]
-  fn set_palette_colors(palette *Palette, colors const *Color, firstcolor libc::c_int, ncolors libc::c_int) bool
+  fn set_palette_colors(palette *Palette, colors const *Color, firstcolor c::c_int, ncolors c::c_int) bool
 
   @[link_name="SDL_DestroyPalette"]
   fn destroy_palette(palette *Palette)
@@ -11535,10 +11535,10 @@ extern {
   fn get_rect_union(A const *Rect, B const *Rect, result *Rect) bool
 
   @[link_name="SDL_GetRectEnclosingPoints"]
-  fn get_rect_enclosing_points(points const *Point, count libc::c_int, clip const *Rect, result *Rect) bool
+  fn get_rect_enclosing_points(points const *Point, count c::c_int, clip const *Rect, result *Rect) bool
 
   @[link_name="SDL_GetRectAndLineIntersection"]
-  fn get_rect_and_line_intersection(rect const *Rect, X1 *libc::c_int, Y1 *libc::c_int, X2 *libc::c_int, Y2 *libc::c_int) bool
+  fn get_rect_and_line_intersection(rect const *Rect, X1 *c::c_int, Y1 *c::c_int, X2 *c::c_int, Y2 *c::c_int) bool
 
   @[link_name="SDL_PointInRectFloat"]
   fn point_in_rect_float(p const *FPoint, r const *FRect) bool
@@ -11547,7 +11547,7 @@ extern {
   fn rect_empty_float(r const *FRect) bool
 
   @[link_name="SDL_RectsEqualEpsilon"]
-  fn rects_equal_epsilon(a const *FRect, b const *FRect, epsilon libc::c_float) bool
+  fn rects_equal_epsilon(a const *FRect, b const *FRect, epsilon c::c_float) bool
 
   @[link_name="SDL_RectsEqualFloat"]
   fn rects_equal_float(a const *FRect, b const *FRect) bool
@@ -11562,16 +11562,16 @@ extern {
   fn get_rect_union_float(A const *FRect, B const *FRect, result *FRect) bool
 
   @[link_name="SDL_GetRectEnclosingPointsFloat"]
-  fn get_rect_enclosing_points_float(points const *FPoint, count libc::c_int, clip const *FRect, result *FRect) bool
+  fn get_rect_enclosing_points_float(points const *FPoint, count c::c_int, clip const *FRect, result *FRect) bool
 
   @[link_name="SDL_GetRectAndLineIntersectionFloat"]
-  fn get_rect_and_line_intersection_float(rect const *FRect, X1 *libc::c_float, Y1 *libc::c_float, X2 *libc::c_float, Y2 *libc::c_float) bool
+  fn get_rect_and_line_intersection_float(rect const *FRect, X1 *c::c_float, Y1 *c::c_float, X2 *c::c_float, Y2 *c::c_float) bool
 
   @[link_name="SDL_CreateSurface"]
-  fn create_surface(width libc::c_int, height libc::c_int, format PixelFormat) *Surface
+  fn create_surface(width c::c_int, height c::c_int, format PixelFormat) *Surface
 
   @[link_name="SDL_CreateSurfaceFrom"]
-  fn create_surface_from(width libc::c_int, height libc::c_int, format PixelFormat, pixels rawptr, pitch libc::c_int) *Surface
+  fn create_surface_from(width c::c_int, height c::c_int, format PixelFormat, pixels rawptr, pitch c::c_int) *Surface
 
   @[link_name="SDL_DestroySurface"]
   fn destroy_surface(surface *Surface)
@@ -11601,7 +11601,7 @@ extern {
   fn surface_has_alternate_images(surface *Surface) bool
 
   @[link_name="SDL_GetSurfaceImages"]
-  fn get_surface_images(surface *Surface, count *libc::c_int) **Surface
+  fn get_surface_images(surface *Surface, count *c::c_int) **Surface
 
   @[link_name="SDL_RemoveSurfaceAlternateImages"]
   fn remove_surface_alternate_images(surface *Surface)
@@ -11616,13 +11616,13 @@ extern {
   fn load_bmp_io(src *IOStream, closeio bool) *Surface
 
   @[link_name="SDL_LoadBMP"]
-  fn load_bmp(file const cstring) *Surface
+  fn load_bmp(file c::ConstCString) *Surface
 
   @[link_name="SDL_SaveBMP_IO"]
   fn save_bmp_io(surface *Surface, dst *IOStream, closeio bool) bool
 
   @[link_name="SDL_SaveBMP"]
-  fn save_bmp(surface *Surface, file const cstring) bool
+  fn save_bmp(surface *Surface, file c::ConstCString) bool
 
   @[link_name="SDL_SetSurfaceRLE"]
   fn set_surface_rle(surface *Surface, enabled bool) bool
@@ -11670,7 +11670,7 @@ extern {
   fn duplicate_surface(surface *Surface) *Surface
 
   @[link_name="SDL_ScaleSurface"]
-  fn scale_surface(surface *Surface, width libc::c_int, height libc::c_int, scaleMode ScaleMode) *Surface
+  fn scale_surface(surface *Surface, width c::c_int, height c::c_int, scaleMode ScaleMode) *Surface
 
   @[link_name="SDL_ConvertSurface"]
   fn convert_surface(surface *Surface, format PixelFormat) *Surface
@@ -11679,25 +11679,25 @@ extern {
   fn convert_surface_and_colorspace(surface *Surface, format PixelFormat, palette *Palette, colorspace Colorspace, props PropertiesID) *Surface
 
   @[link_name="SDL_ConvertPixels"]
-  fn convert_pixels(width libc::c_int, height libc::c_int, src_format PixelFormat, src const *Void, src_pitch libc::c_int, dst_format PixelFormat, dst rawptr, dst_pitch libc::c_int) bool
+  fn convert_pixels(width c::c_int, height c::c_int, src_format PixelFormat, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst rawptr, dst_pitch c::c_int) bool
 
   @[link_name="SDL_ConvertPixelsAndColorspace"]
-  fn convert_pixels_and_colorspace(width libc::c_int, height libc::c_int, src_format PixelFormat, src_colorspace Colorspace, src_properties PropertiesID, src const *Void, src_pitch libc::c_int, dst_format PixelFormat, dst_colorspace Colorspace, dst_properties PropertiesID, dst rawptr, dst_pitch libc::c_int) bool
+  fn convert_pixels_and_colorspace(width c::c_int, height c::c_int, src_format PixelFormat, src_colorspace Colorspace, src_properties PropertiesID, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst_colorspace Colorspace, dst_properties PropertiesID, dst rawptr, dst_pitch c::c_int) bool
 
   @[link_name="SDL_PremultiplyAlpha"]
-  fn premultiply_alpha(width libc::c_int, height libc::c_int, src_format PixelFormat, src const *Void, src_pitch libc::c_int, dst_format PixelFormat, dst rawptr, dst_pitch libc::c_int, linear bool) bool
+  fn premultiply_alpha(width c::c_int, height c::c_int, src_format PixelFormat, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst rawptr, dst_pitch c::c_int, linear bool) bool
 
   @[link_name="SDL_PremultiplySurfaceAlpha"]
   fn premultiply_surface_alpha(surface *Surface, linear bool) bool
 
   @[link_name="SDL_ClearSurface"]
-  fn clear_surface(surface *Surface, r libc::c_float, g libc::c_float, b libc::c_float, a libc::c_float) bool
+  fn clear_surface(surface *Surface, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
 
   @[link_name="SDL_FillSurfaceRect"]
   fn fill_surface_rect(dst *Surface, rect const *Rect, color u32) bool
 
   @[link_name="SDL_FillSurfaceRects"]
-  fn fill_surface_rects(dst *Surface, rects const *Rect, count libc::c_int, color u32) bool
+  fn fill_surface_rects(dst *Surface, rects const *Rect, count c::c_int, color u32) bool
 
   @[link_name="SDL_BlitSurface"]
   fn blit_surface(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool
@@ -11718,10 +11718,10 @@ extern {
   fn blit_surface_tiled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool
 
   @[link_name="SDL_BlitSurfaceTiledWithScale"]
-  fn blit_surface_tiled_with_scale(src *Surface, srcrect const *Rect, scale libc::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
+  fn blit_surface_tiled_with_scale(src *Surface, srcrect const *Rect, scale c::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
 
   @[link_name="SDL_BlitSurface9Grid"]
-  fn blit_surface9_grid(src *Surface, srcrect const *Rect, left_width libc::c_int, right_width libc::c_int, top_height libc::c_int, bottom_height libc::c_int, scale libc::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
+  fn blit_surface9_grid(src *Surface, srcrect const *Rect, left_width c::c_int, right_width c::c_int, top_height c::c_int, bottom_height c::c_int, scale c::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
 
   @[link_name="SDL_MapSurfaceRGB"]
   fn map_surface_rgb(surface *Surface, r u8, g u8, b u8) u32
@@ -11730,34 +11730,34 @@ extern {
   fn map_surface_rgba(surface *Surface, r u8, g u8, b u8, a u8) u32
 
   @[link_name="SDL_ReadSurfacePixel"]
-  fn read_surface_pixel(surface *Surface, x libc::c_int, y libc::c_int, r *u8, g *u8, b *u8, a *u8) bool
+  fn read_surface_pixel(surface *Surface, x c::c_int, y c::c_int, r *u8, g *u8, b *u8, a *u8) bool
 
   @[link_name="SDL_ReadSurfacePixelFloat"]
-  fn read_surface_pixel_float(surface *Surface, x libc::c_int, y libc::c_int, r *libc::c_float, g *libc::c_float, b *libc::c_float, a *libc::c_float) bool
+  fn read_surface_pixel_float(surface *Surface, x c::c_int, y c::c_int, r *c::c_float, g *c::c_float, b *c::c_float, a *c::c_float) bool
 
   @[link_name="SDL_WriteSurfacePixel"]
-  fn write_surface_pixel(surface *Surface, x libc::c_int, y libc::c_int, r u8, g u8, b u8, a u8) bool
+  fn write_surface_pixel(surface *Surface, x c::c_int, y c::c_int, r u8, g u8, b u8, a u8) bool
 
   @[link_name="SDL_WriteSurfacePixelFloat"]
-  fn write_surface_pixel_float(surface *Surface, x libc::c_int, y libc::c_int, r libc::c_float, g libc::c_float, b libc::c_float, a libc::c_float) bool
+  fn write_surface_pixel_float(surface *Surface, x c::c_int, y c::c_int, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
 
   @[link_name="SDL_GetNumCameraDrivers"]
-  fn get_num_camera_drivers() libc::c_int
+  fn get_num_camera_drivers() c::c_int
 
   @[link_name="SDL_GetCameraDriver"]
-  fn get_camera_driver(index libc::c_int) const cstring
+  fn get_camera_driver(index c::c_int) c::ConstCString
 
   @[link_name="SDL_GetCurrentCameraDriver"]
-  fn get_current_camera_driver() const cstring
+  fn get_current_camera_driver() c::ConstCString
 
   @[link_name="SDL_GetCameras"]
-  fn get_cameras(count *libc::c_int) *CameraID
+  fn get_cameras(count *c::c_int) *CameraID
 
   @[link_name="SDL_GetCameraSupportedFormats"]
-  fn get_camera_supported_formats(instance_id CameraID, count *libc::c_int) **CameraSpec
+  fn get_camera_supported_formats(instance_id CameraID, count *c::c_int) **CameraSpec
 
   @[link_name="SDL_GetCameraName"]
-  fn get_camera_name(instance_id CameraID) const cstring
+  fn get_camera_name(instance_id CameraID) c::ConstCString
 
   @[link_name="SDL_GetCameraPosition"]
   fn get_camera_position(instance_id CameraID) CameraPosition
@@ -11766,7 +11766,7 @@ extern {
   fn open_camera(instance_id CameraID, spec const *CameraSpec) *Camera
 
   @[link_name="SDL_GetCameraPermissionState"]
-  fn get_camera_permission_state(camera *Camera) libc::c_int
+  fn get_camera_permission_state(camera *Camera) c::c_int
 
   @[link_name="SDL_GetCameraID"]
   fn get_camera_id(camera *Camera) CameraID
@@ -11787,43 +11787,43 @@ extern {
   fn close_camera(camera *Camera)
 
   @[link_name="SDL_SetClipboardText"]
-  fn set_clipboard_text(text const cstring) bool
+  fn set_clipboard_text(text c::ConstCString) bool
 
   @[link_name="SDL_GetClipboardText"]
-  fn get_clipboard_text() cstring
+  fn get_clipboard_text() c::CString
 
   @[link_name="SDL_HasClipboardText"]
   fn has_clipboard_text() bool
 
   @[link_name="SDL_SetPrimarySelectionText"]
-  fn set_primary_selection_text(text const cstring) bool
+  fn set_primary_selection_text(text c::ConstCString) bool
 
   @[link_name="SDL_GetPrimarySelectionText"]
-  fn get_primary_selection_text() cstring
+  fn get_primary_selection_text() c::CString
 
   @[link_name="SDL_HasPrimarySelectionText"]
   fn has_primary_selection_text() bool
 
   @[link_name="SDL_SetClipboardData"]
-  fn set_clipboard_data(callback ClipboardDataCallback, cleanup ClipboardCleanupCallback, userdata rawptr, mime_types *const cstring, num_mime_types libc::c_size_t) bool
+  fn set_clipboard_data(callback ClipboardDataCallback, cleanup ClipboardCleanupCallback, userdata rawptr, mime_types *c::ConstCString, num_mime_types c::c_size_t) bool
 
   @[link_name="SDL_ClearClipboardData"]
   fn clear_clipboard_data() bool
 
   @[link_name="SDL_GetClipboardData"]
-  fn get_clipboard_data(mime_type const cstring, size *libc::c_size_t) rawptr
+  fn get_clipboard_data(mime_type c::ConstCString, size *c::c_size_t) rawptr
 
   @[link_name="SDL_HasClipboardData"]
-  fn has_clipboard_data(mime_type const cstring) bool
+  fn has_clipboard_data(mime_type c::ConstCString) bool
 
   @[link_name="SDL_GetClipboardMimeTypes"]
-  fn get_clipboard_mime_types(num_mime_types *libc::c_size_t) *cstring
+  fn get_clipboard_mime_types(num_mime_types *c::c_size_t) *c::CString
 
   @[link_name="SDL_GetNumLogicalCPUCores"]
-  fn get_num_logical_cpu_cores() libc::c_int
+  fn get_num_logical_cpu_cores() c::c_int
 
   @[link_name="SDL_GetCPUCacheLineSize"]
-  fn get_cpu_cache_line_size() libc::c_int
+  fn get_cpu_cache_line_size() c::c_int
 
   @[link_name="SDL_HasAltiVec"]
   fn has_alti_vec() bool
@@ -11868,25 +11868,25 @@ extern {
   fn has_lasx() bool
 
   @[link_name="SDL_GetSystemRAM"]
-  fn get_system_ram() libc::c_int
+  fn get_system_ram() c::c_int
 
   @[link_name="SDL_GetSIMDAlignment"]
-  fn get_simd_alignment() libc::c_size_t
+  fn get_simd_alignment() c::c_size_t
 
   @[link_name="SDL_GetNumVideoDrivers"]
-  fn get_num_video_drivers() libc::c_int
+  fn get_num_video_drivers() c::c_int
 
   @[link_name="SDL_GetVideoDriver"]
-  fn get_video_driver(index libc::c_int) const cstring
+  fn get_video_driver(index c::c_int) c::ConstCString
 
   @[link_name="SDL_GetCurrentVideoDriver"]
-  fn get_current_video_driver() const cstring
+  fn get_current_video_driver() c::ConstCString
 
   @[link_name="SDL_GetSystemTheme"]
   fn get_system_theme() SystemTheme
 
   @[link_name="SDL_GetDisplays"]
-  fn get_displays(count *libc::c_int) *DisplayID
+  fn get_displays(count *c::c_int) *DisplayID
 
   @[link_name="SDL_GetPrimaryDisplay"]
   fn get_primary_display() DisplayID
@@ -11895,7 +11895,7 @@ extern {
   fn get_display_properties(displayID DisplayID) PropertiesID
 
   @[link_name="SDL_GetDisplayName"]
-  fn get_display_name(displayID DisplayID) const cstring
+  fn get_display_name(displayID DisplayID) c::ConstCString
 
   @[link_name="SDL_GetDisplayBounds"]
   fn get_display_bounds(displayID DisplayID, rect *Rect) bool
@@ -11910,13 +11910,13 @@ extern {
   fn get_current_display_orientation(displayID DisplayID) DisplayOrientation
 
   @[link_name="SDL_GetDisplayContentScale"]
-  fn get_display_content_scale(displayID DisplayID) libc::c_float
+  fn get_display_content_scale(displayID DisplayID) c::c_float
 
   @[link_name="SDL_GetFullscreenDisplayModes"]
-  fn get_fullscreen_display_modes(displayID DisplayID, count *libc::c_int) **DisplayMode
+  fn get_fullscreen_display_modes(displayID DisplayID, count *c::c_int) **DisplayMode
 
   @[link_name="SDL_GetClosestFullscreenDisplayMode"]
-  fn get_closest_fullscreen_display_mode(displayID DisplayID, w libc::c_int, h libc::c_int, refresh_rate libc::c_float, include_high_density_modes bool, closest *DisplayMode) bool
+  fn get_closest_fullscreen_display_mode(displayID DisplayID, w c::c_int, h c::c_int, refresh_rate c::c_float, include_high_density_modes bool, closest *DisplayMode) bool
 
   @[link_name="SDL_GetDesktopDisplayMode"]
   fn get_desktop_display_mode(displayID DisplayID) const *DisplayMode
@@ -11934,10 +11934,10 @@ extern {
   fn get_display_for_window(window *Window) DisplayID
 
   @[link_name="SDL_GetWindowPixelDensity"]
-  fn get_window_pixel_density(window *Window) libc::c_float
+  fn get_window_pixel_density(window *Window) c::c_float
 
   @[link_name="SDL_GetWindowDisplayScale"]
-  fn get_window_display_scale(window *Window) libc::c_float
+  fn get_window_display_scale(window *Window) c::c_float
 
   @[link_name="SDL_SetWindowFullscreenMode"]
   fn set_window_fullscreen_mode(window *Window, mode const *DisplayMode) bool
@@ -11946,19 +11946,19 @@ extern {
   fn get_window_fullscreen_mode(window *Window) const *DisplayMode
 
   @[link_name="SDL_GetWindowICCProfile"]
-  fn get_window_icc_profile(window *Window, size *libc::c_size_t) rawptr
+  fn get_window_icc_profile(window *Window, size *c::c_size_t) rawptr
 
   @[link_name="SDL_GetWindowPixelFormat"]
   fn get_window_pixel_format(window *Window) PixelFormat
 
   @[link_name="SDL_GetWindows"]
-  fn get_windows(count *libc::c_int) **Window
+  fn get_windows(count *c::c_int) **Window
 
   @[link_name="SDL_CreateWindow"]
-  fn create_window(title const cstring, w libc::c_int, h libc::c_int, flags WindowFlags) *Window
+  fn create_window(title c::ConstCString, w c::c_int, h c::c_int, flags WindowFlags) *Window
 
   @[link_name="SDL_CreatePopupWindow"]
-  fn create_popup_window(parent *Window, offset_x libc::c_int, offset_y libc::c_int, w libc::c_int, h libc::c_int, flags WindowFlags) *Window
+  fn create_popup_window(parent *Window, offset_x c::c_int, offset_y c::c_int, w c::c_int, h c::c_int, flags WindowFlags) *Window
 
   @[link_name="SDL_CreateWindowWithProperties"]
   fn create_window_with_properties(props PropertiesID) *Window
@@ -11979,52 +11979,52 @@ extern {
   fn get_window_flags(window *Window) WindowFlags
 
   @[link_name="SDL_SetWindowTitle"]
-  fn set_window_title(window *Window, title const cstring) bool
+  fn set_window_title(window *Window, title c::ConstCString) bool
 
   @[link_name="SDL_GetWindowTitle"]
-  fn get_window_title(window *Window) const cstring
+  fn get_window_title(window *Window) c::ConstCString
 
   @[link_name="SDL_SetWindowIcon"]
   fn set_window_icon(window *Window, icon *Surface) bool
 
   @[link_name="SDL_SetWindowPosition"]
-  fn set_window_position(window *Window, x libc::c_int, y libc::c_int) bool
+  fn set_window_position(window *Window, x c::c_int, y c::c_int) bool
 
   @[link_name="SDL_GetWindowPosition"]
-  fn get_window_position(window *Window, x *libc::c_int, y *libc::c_int) bool
+  fn get_window_position(window *Window, x *c::c_int, y *c::c_int) bool
 
   @[link_name="SDL_SetWindowSize"]
-  fn set_window_size(window *Window, w libc::c_int, h libc::c_int) bool
+  fn set_window_size(window *Window, w c::c_int, h c::c_int) bool
 
   @[link_name="SDL_GetWindowSize"]
-  fn get_window_size(window *Window, w *libc::c_int, h *libc::c_int) bool
+  fn get_window_size(window *Window, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_GetWindowSafeArea"]
   fn get_window_safe_area(window *Window, rect *Rect) bool
 
   @[link_name="SDL_SetWindowAspectRatio"]
-  fn set_window_aspect_ratio(window *Window, min_aspect libc::c_float, max_aspect libc::c_float) bool
+  fn set_window_aspect_ratio(window *Window, min_aspect c::c_float, max_aspect c::c_float) bool
 
   @[link_name="SDL_GetWindowAspectRatio"]
-  fn get_window_aspect_ratio(window *Window, min_aspect *libc::c_float, max_aspect *libc::c_float) bool
+  fn get_window_aspect_ratio(window *Window, min_aspect *c::c_float, max_aspect *c::c_float) bool
 
   @[link_name="SDL_GetWindowBordersSize"]
-  fn get_window_borders_size(window *Window, top *libc::c_int, left *libc::c_int, bottom *libc::c_int, right *libc::c_int) bool
+  fn get_window_borders_size(window *Window, top *c::c_int, left *c::c_int, bottom *c::c_int, right *c::c_int) bool
 
   @[link_name="SDL_GetWindowSizeInPixels"]
-  fn get_window_size_in_pixels(window *Window, w *libc::c_int, h *libc::c_int) bool
+  fn get_window_size_in_pixels(window *Window, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_SetWindowMinimumSize"]
-  fn set_window_minimum_size(window *Window, min_w libc::c_int, min_h libc::c_int) bool
+  fn set_window_minimum_size(window *Window, min_w c::c_int, min_h c::c_int) bool
 
   @[link_name="SDL_GetWindowMinimumSize"]
-  fn get_window_minimum_size(window *Window, w *libc::c_int, h *libc::c_int) bool
+  fn get_window_minimum_size(window *Window, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_SetWindowMaximumSize"]
-  fn set_window_maximum_size(window *Window, max_w libc::c_int, max_h libc::c_int) bool
+  fn set_window_maximum_size(window *Window, max_w c::c_int, max_h c::c_int) bool
 
   @[link_name="SDL_GetWindowMaximumSize"]
-  fn get_window_maximum_size(window *Window, w *libc::c_int, h *libc::c_int) bool
+  fn get_window_maximum_size(window *Window, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_SetWindowBordered"]
   fn set_window_bordered(window *Window, bordered bool) bool
@@ -12066,16 +12066,16 @@ extern {
   fn get_window_surface(window *Window) *Surface
 
   @[link_name="SDL_SetWindowSurfaceVSync"]
-  fn set_window_surface_v_sync(window *Window, vsync libc::c_int) bool
+  fn set_window_surface_v_sync(window *Window, vsync c::c_int) bool
 
   @[link_name="SDL_GetWindowSurfaceVSync"]
-  fn get_window_surface_v_sync(window *Window, vsync *libc::c_int) bool
+  fn get_window_surface_v_sync(window *Window, vsync *c::c_int) bool
 
   @[link_name="SDL_UpdateWindowSurface"]
   fn update_window_surface(window *Window) bool
 
   @[link_name="SDL_UpdateWindowSurfaceRects"]
-  fn update_window_surface_rects(window *Window, rects const *Rect, numrects libc::c_int) bool
+  fn update_window_surface_rects(window *Window, rects const *Rect, numrects c::c_int) bool
 
   @[link_name="SDL_DestroyWindowSurface"]
   fn destroy_window_surface(window *Window) bool
@@ -12102,10 +12102,10 @@ extern {
   fn get_window_mouse_rect(window *Window) const *Rect
 
   @[link_name="SDL_SetWindowOpacity"]
-  fn set_window_opacity(window *Window, opacity libc::c_float) bool
+  fn set_window_opacity(window *Window, opacity c::c_float) bool
 
   @[link_name="SDL_GetWindowOpacity"]
-  fn get_window_opacity(window *Window) libc::c_float
+  fn get_window_opacity(window *Window) c::c_float
 
   @[link_name="SDL_SetWindowParent"]
   fn set_window_parent(window *Window, parent *Window) bool
@@ -12117,7 +12117,7 @@ extern {
   fn set_window_focusable(window *Window, focusable bool) bool
 
   @[link_name="SDL_ShowWindowSystemMenu"]
-  fn show_window_system_menu(window *Window, x libc::c_int, y libc::c_int) bool
+  fn show_window_system_menu(window *Window, x c::c_int, y c::c_int) bool
 
   @[link_name="SDL_SetWindowHitTest"]
   fn set_window_hit_test(window *Window, callback HitTest, callback_data rawptr) bool
@@ -12141,28 +12141,28 @@ extern {
   fn disable_screen_saver() bool
 
   @[link_name="SDL_GL_LoadLibrary"]
-  fn gl_load_library(path const cstring) bool
+  fn gl_load_library(path c::ConstCString) bool
 
   @[link_name="SDL_GL_GetProcAddress"]
-  fn gl_get_proc_address(proc const cstring) FunctionPointer
+  fn gl_get_proc_address(proc c::ConstCString) FunctionPointer
 
   @[link_name="SDL_EGL_GetProcAddress"]
-  fn egl_get_proc_address(proc const cstring) FunctionPointer
+  fn egl_get_proc_address(proc c::ConstCString) FunctionPointer
 
   @[link_name="SDL_GL_UnloadLibrary"]
   fn gl_unload_library()
 
   @[link_name="SDL_GL_ExtensionSupported"]
-  fn gl_extension_supported(extension const cstring) bool
+  fn gl_extension_supported(extension c::ConstCString) bool
 
   @[link_name="SDL_GL_ResetAttributes"]
   fn gl_reset_attributes()
 
   @[link_name="SDL_GL_SetAttribute"]
-  fn gl_set_attribute(attr GLAttr, value libc::c_int) bool
+  fn gl_set_attribute(attr GLAttr, value c::c_int) bool
 
   @[link_name="SDL_GL_GetAttribute"]
-  fn gl_get_attribute(attr GLAttr, value *libc::c_int) bool
+  fn gl_get_attribute(attr GLAttr, value *c::c_int) bool
 
   @[link_name="SDL_GL_CreateContext"]
   fn gl_create_context(window *Window) GLContext
@@ -12189,10 +12189,10 @@ extern {
   fn egl_set_attribute_callbacks(platformAttribCallback EGLAttribArrayCallback, surfaceAttribCallback EGLIntArrayCallback, contextAttribCallback EGLIntArrayCallback, userdata rawptr)
 
   @[link_name="SDL_GL_SetSwapInterval"]
-  fn gl_set_swap_interval(interval libc::c_int) bool
+  fn gl_set_swap_interval(interval c::c_int) bool
 
   @[link_name="SDL_GL_GetSwapInterval"]
-  fn gl_get_swap_interval(interval *libc::c_int) bool
+  fn gl_get_swap_interval(interval *c::c_int) bool
 
   @[link_name="SDL_GL_SwapWindow"]
   fn gl_swap_window(window *Window) bool
@@ -12201,37 +12201,37 @@ extern {
   fn gl_destroy_context(context GLContext) bool
 
   @[link_name="SDL_ShowOpenFileDialog"]
-  fn show_open_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters libc::c_int, default_location const cstring, allow_many bool)
+  fn show_open_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters c::c_int, default_location c::ConstCString, allow_many bool)
 
   @[link_name="SDL_ShowSaveFileDialog"]
-  fn show_save_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters libc::c_int, default_location const cstring)
+  fn show_save_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters c::c_int, default_location c::ConstCString)
 
   @[link_name="SDL_ShowOpenFolderDialog"]
-  fn show_open_folder_dialog(callback DialogFileCallback, userdata rawptr, window *Window, default_location const cstring, allow_many bool)
+  fn show_open_folder_dialog(callback DialogFileCallback, userdata rawptr, window *Window, default_location c::ConstCString, allow_many bool)
 
   @[link_name="SDL_ShowFileDialogWithProperties"]
   fn show_file_dialog_with_properties(type_ FileDialogType, callback DialogFileCallback, userdata rawptr, props PropertiesID)
 
   @[link_name="SDL_GUIDToString"]
-  fn guid_to_string(guid GUID, pszGUID cstring, cbGUID libc::c_int)
+  fn guid_to_string(guid GUID, pszGUID c::CString, cbGUID c::c_int)
 
   @[link_name="SDL_StringToGUID"]
-  fn string_to_guid(pchGUID const cstring) GUID
+  fn string_to_guid(pchGUID c::ConstCString) GUID
 
   @[link_name="SDL_GetPowerInfo"]
-  fn get_power_info(seconds *libc::c_int, percent *libc::c_int) PowerState
+  fn get_power_info(seconds *c::c_int, percent *c::c_int) PowerState
 
   @[link_name="SDL_GetSensors"]
-  fn get_sensors(count *libc::c_int) *SensorID
+  fn get_sensors(count *c::c_int) *SensorID
 
   @[link_name="SDL_GetSensorNameForID"]
-  fn get_sensor_name_for_id(instance_id SensorID) const cstring
+  fn get_sensor_name_for_id(instance_id SensorID) c::ConstCString
 
   @[link_name="SDL_GetSensorTypeForID"]
   fn get_sensor_type_for_id(instance_id SensorID) SensorType
 
   @[link_name="SDL_GetSensorNonPortableTypeForID"]
-  fn get_sensor_non_portable_type_for_id(instance_id SensorID) libc::c_int
+  fn get_sensor_non_portable_type_for_id(instance_id SensorID) c::c_int
 
   @[link_name="SDL_OpenSensor"]
   fn open_sensor(instance_id SensorID) *Sensor
@@ -12243,19 +12243,19 @@ extern {
   fn get_sensor_properties(sensor *Sensor) PropertiesID
 
   @[link_name="SDL_GetSensorName"]
-  fn get_sensor_name(sensor *Sensor) const cstring
+  fn get_sensor_name(sensor *Sensor) c::ConstCString
 
   @[link_name="SDL_GetSensorType"]
   fn get_sensor_type(sensor *Sensor) SensorType
 
   @[link_name="SDL_GetSensorNonPortableType"]
-  fn get_sensor_non_portable_type(sensor *Sensor) libc::c_int
+  fn get_sensor_non_portable_type(sensor *Sensor) c::c_int
 
   @[link_name="SDL_GetSensorID"]
   fn get_sensor_id(sensor *Sensor) SensorID
 
   @[link_name="SDL_GetSensorData"]
-  fn get_sensor_data(sensor *Sensor, data *libc::c_float, num_values libc::c_int) bool
+  fn get_sensor_data(sensor *Sensor, data *c::c_float, num_values c::c_int) bool
 
   @[link_name="SDL_CloseSensor"]
   fn close_sensor(sensor *Sensor)
@@ -12273,16 +12273,16 @@ extern {
   fn has_joystick() bool
 
   @[link_name="SDL_GetJoysticks"]
-  fn get_joysticks(count *libc::c_int) *JoystickID
+  fn get_joysticks(count *c::c_int) *JoystickID
 
   @[link_name="SDL_GetJoystickNameForID"]
-  fn get_joystick_name_for_id(instance_id JoystickID) const cstring
+  fn get_joystick_name_for_id(instance_id JoystickID) c::ConstCString
 
   @[link_name="SDL_GetJoystickPathForID"]
-  fn get_joystick_path_for_id(instance_id JoystickID) const cstring
+  fn get_joystick_path_for_id(instance_id JoystickID) c::ConstCString
 
   @[link_name="SDL_GetJoystickPlayerIndexForID"]
-  fn get_joystick_player_index_for_id(instance_id JoystickID) libc::c_int
+  fn get_joystick_player_index_for_id(instance_id JoystickID) c::c_int
 
   @[link_name="SDL_GetJoystickGUIDForID"]
   fn get_joystick_guid_for_id(instance_id JoystickID) GUID
@@ -12306,7 +12306,7 @@ extern {
   fn get_joystick_from_id(instance_id JoystickID) *Joystick
 
   @[link_name="SDL_GetJoystickFromPlayerIndex"]
-  fn get_joystick_from_player_index(player_index libc::c_int) *Joystick
+  fn get_joystick_from_player_index(player_index c::c_int) *Joystick
 
   @[link_name="SDL_AttachVirtualJoystick"]
   fn attach_virtual_joystick(desc const *VirtualJoystickDesc) JoystickID
@@ -12318,37 +12318,37 @@ extern {
   fn is_joystick_virtual(instance_id JoystickID) bool
 
   @[link_name="SDL_SetJoystickVirtualAxis"]
-  fn set_joystick_virtual_axis(joystick *Joystick, axis libc::c_int, value i16) bool
+  fn set_joystick_virtual_axis(joystick *Joystick, axis c::c_int, value i16) bool
 
   @[link_name="SDL_SetJoystickVirtualBall"]
-  fn set_joystick_virtual_ball(joystick *Joystick, ball libc::c_int, xrel i16, yrel i16) bool
+  fn set_joystick_virtual_ball(joystick *Joystick, ball c::c_int, xrel i16, yrel i16) bool
 
   @[link_name="SDL_SetJoystickVirtualButton"]
-  fn set_joystick_virtual_button(joystick *Joystick, button libc::c_int, down bool) bool
+  fn set_joystick_virtual_button(joystick *Joystick, button c::c_int, down bool) bool
 
   @[link_name="SDL_SetJoystickVirtualHat"]
-  fn set_joystick_virtual_hat(joystick *Joystick, hat libc::c_int, value u8) bool
+  fn set_joystick_virtual_hat(joystick *Joystick, hat c::c_int, value u8) bool
 
   @[link_name="SDL_SetJoystickVirtualTouchpad"]
-  fn set_joystick_virtual_touchpad(joystick *Joystick, touchpad libc::c_int, finger libc::c_int, down bool, x libc::c_float, y libc::c_float, pressure libc::c_float) bool
+  fn set_joystick_virtual_touchpad(joystick *Joystick, touchpad c::c_int, finger c::c_int, down bool, x c::c_float, y c::c_float, pressure c::c_float) bool
 
   @[link_name="SDL_SendJoystickVirtualSensorData"]
-  fn send_joystick_virtual_sensor_data(joystick *Joystick, type_ SensorType, sensor_timestamp u64, data const *libc::c_float, num_values libc::c_int) bool
+  fn send_joystick_virtual_sensor_data(joystick *Joystick, type_ SensorType, sensor_timestamp u64, data const *c::c_float, num_values c::c_int) bool
 
   @[link_name="SDL_GetJoystickProperties"]
   fn get_joystick_properties(joystick *Joystick) PropertiesID
 
   @[link_name="SDL_GetJoystickName"]
-  fn get_joystick_name(joystick *Joystick) const cstring
+  fn get_joystick_name(joystick *Joystick) c::ConstCString
 
   @[link_name="SDL_GetJoystickPath"]
-  fn get_joystick_path(joystick *Joystick) const cstring
+  fn get_joystick_path(joystick *Joystick) c::ConstCString
 
   @[link_name="SDL_GetJoystickPlayerIndex"]
-  fn get_joystick_player_index(joystick *Joystick) libc::c_int
+  fn get_joystick_player_index(joystick *Joystick) c::c_int
 
   @[link_name="SDL_SetJoystickPlayerIndex"]
-  fn set_joystick_player_index(joystick *Joystick, player_index libc::c_int) bool
+  fn set_joystick_player_index(joystick *Joystick, player_index c::c_int) bool
 
   @[link_name="SDL_GetJoystickGUID"]
   fn get_joystick_guid(joystick *Joystick) GUID
@@ -12366,7 +12366,7 @@ extern {
   fn get_joystick_firmware_version(joystick *Joystick) u16
 
   @[link_name="SDL_GetJoystickSerial"]
-  fn get_joystick_serial(joystick *Joystick) const cstring
+  fn get_joystick_serial(joystick *Joystick) c::ConstCString
 
   @[link_name="SDL_GetJoystickType"]
   fn get_joystick_type(joystick *Joystick) JoystickType
@@ -12381,16 +12381,16 @@ extern {
   fn get_joystick_id(joystick *Joystick) JoystickID
 
   @[link_name="SDL_GetNumJoystickAxes"]
-  fn get_num_joystick_axes(joystick *Joystick) libc::c_int
+  fn get_num_joystick_axes(joystick *Joystick) c::c_int
 
   @[link_name="SDL_GetNumJoystickBalls"]
-  fn get_num_joystick_balls(joystick *Joystick) libc::c_int
+  fn get_num_joystick_balls(joystick *Joystick) c::c_int
 
   @[link_name="SDL_GetNumJoystickHats"]
-  fn get_num_joystick_hats(joystick *Joystick) libc::c_int
+  fn get_num_joystick_hats(joystick *Joystick) c::c_int
 
   @[link_name="SDL_GetNumJoystickButtons"]
-  fn get_num_joystick_buttons(joystick *Joystick) libc::c_int
+  fn get_num_joystick_buttons(joystick *Joystick) c::c_int
 
   @[link_name="SDL_SetJoystickEventsEnabled"]
   fn set_joystick_events_enabled(enabled bool)
@@ -12402,19 +12402,19 @@ extern {
   fn update_joysticks()
 
   @[link_name="SDL_GetJoystickAxis"]
-  fn get_joystick_axis(joystick *Joystick, axis libc::c_int) i16
+  fn get_joystick_axis(joystick *Joystick, axis c::c_int) i16
 
   @[link_name="SDL_GetJoystickAxisInitialState"]
-  fn get_joystick_axis_initial_state(joystick *Joystick, axis libc::c_int, state *i16) bool
+  fn get_joystick_axis_initial_state(joystick *Joystick, axis c::c_int, state *i16) bool
 
   @[link_name="SDL_GetJoystickBall"]
-  fn get_joystick_ball(joystick *Joystick, ball libc::c_int, dx *libc::c_int, dy *libc::c_int) bool
+  fn get_joystick_ball(joystick *Joystick, ball c::c_int, dx *c::c_int, dy *c::c_int) bool
 
   @[link_name="SDL_GetJoystickHat"]
-  fn get_joystick_hat(joystick *Joystick, hat libc::c_int) u8
+  fn get_joystick_hat(joystick *Joystick, hat c::c_int) u8
 
   @[link_name="SDL_GetJoystickButton"]
-  fn get_joystick_button(joystick *Joystick, button libc::c_int) bool
+  fn get_joystick_button(joystick *Joystick, button c::c_int) bool
 
   @[link_name="SDL_RumbleJoystick"]
   fn rumble_joystick(joystick *Joystick, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool
@@ -12426,7 +12426,7 @@ extern {
   fn set_joystick_led(joystick *Joystick, red u8, green u8, blue u8) bool
 
   @[link_name="SDL_SendJoystickEffect"]
-  fn send_joystick_effect(joystick *Joystick, data const *Void, size libc::c_int) bool
+  fn send_joystick_effect(joystick *Joystick, data const *Void, size c::c_int) bool
 
   @[link_name="SDL_CloseJoystick"]
   fn close_joystick(joystick *Joystick)
@@ -12435,49 +12435,49 @@ extern {
   fn get_joystick_connection_state(joystick *Joystick) JoystickConnectionState
 
   @[link_name="SDL_GetJoystickPowerInfo"]
-  fn get_joystick_power_info(joystick *Joystick, percent *libc::c_int) PowerState
+  fn get_joystick_power_info(joystick *Joystick, percent *c::c_int) PowerState
 
   @[link_name="SDL_AddGamepadMapping"]
-  fn add_gamepad_mapping(mapping const cstring) libc::c_int
+  fn add_gamepad_mapping(mapping c::ConstCString) c::c_int
 
   @[link_name="SDL_AddGamepadMappingsFromIO"]
-  fn add_gamepad_mappings_from_io(src *IOStream, closeio bool) libc::c_int
+  fn add_gamepad_mappings_from_io(src *IOStream, closeio bool) c::c_int
 
   @[link_name="SDL_AddGamepadMappingsFromFile"]
-  fn add_gamepad_mappings_from_file(file const cstring) libc::c_int
+  fn add_gamepad_mappings_from_file(file c::ConstCString) c::c_int
 
   @[link_name="SDL_ReloadGamepadMappings"]
   fn reload_gamepad_mappings() bool
 
   @[link_name="SDL_GetGamepadMappings"]
-  fn get_gamepad_mappings(count *libc::c_int) *cstring
+  fn get_gamepad_mappings(count *c::c_int) *c::CString
 
   @[link_name="SDL_GetGamepadMappingForGUID"]
-  fn get_gamepad_mapping_for_guid(guid GUID) cstring
+  fn get_gamepad_mapping_for_guid(guid GUID) c::CString
 
   @[link_name="SDL_GetGamepadMapping"]
-  fn get_gamepad_mapping(gamepad *Gamepad) cstring
+  fn get_gamepad_mapping(gamepad *Gamepad) c::CString
 
   @[link_name="SDL_SetGamepadMapping"]
-  fn set_gamepad_mapping(instance_id JoystickID, mapping const cstring) bool
+  fn set_gamepad_mapping(instance_id JoystickID, mapping c::ConstCString) bool
 
   @[link_name="SDL_HasGamepad"]
   fn has_gamepad() bool
 
   @[link_name="SDL_GetGamepads"]
-  fn get_gamepads(count *libc::c_int) *JoystickID
+  fn get_gamepads(count *c::c_int) *JoystickID
 
   @[link_name="SDL_IsGamepad"]
   fn is_gamepad(instance_id JoystickID) bool
 
   @[link_name="SDL_GetGamepadNameForID"]
-  fn get_gamepad_name_for_id(instance_id JoystickID) const cstring
+  fn get_gamepad_name_for_id(instance_id JoystickID) c::ConstCString
 
   @[link_name="SDL_GetGamepadPathForID"]
-  fn get_gamepad_path_for_id(instance_id JoystickID) const cstring
+  fn get_gamepad_path_for_id(instance_id JoystickID) c::ConstCString
 
   @[link_name="SDL_GetGamepadPlayerIndexForID"]
-  fn get_gamepad_player_index_for_id(instance_id JoystickID) libc::c_int
+  fn get_gamepad_player_index_for_id(instance_id JoystickID) c::c_int
 
   @[link_name="SDL_GetGamepadGUIDForID"]
   fn get_gamepad_guid_for_id(instance_id JoystickID) GUID
@@ -12498,7 +12498,7 @@ extern {
   fn get_real_gamepad_type_for_id(instance_id JoystickID) GamepadType
 
   @[link_name="SDL_GetGamepadMappingForID"]
-  fn get_gamepad_mapping_for_id(instance_id JoystickID) cstring
+  fn get_gamepad_mapping_for_id(instance_id JoystickID) c::CString
 
   @[link_name="SDL_OpenGamepad"]
   fn open_gamepad(instance_id JoystickID) *Gamepad
@@ -12507,7 +12507,7 @@ extern {
   fn get_gamepad_from_id(instance_id JoystickID) *Gamepad
 
   @[link_name="SDL_GetGamepadFromPlayerIndex"]
-  fn get_gamepad_from_player_index(player_index libc::c_int) *Gamepad
+  fn get_gamepad_from_player_index(player_index c::c_int) *Gamepad
 
   @[link_name="SDL_GetGamepadProperties"]
   fn get_gamepad_properties(gamepad *Gamepad) PropertiesID
@@ -12516,10 +12516,10 @@ extern {
   fn get_gamepad_id(gamepad *Gamepad) JoystickID
 
   @[link_name="SDL_GetGamepadName"]
-  fn get_gamepad_name(gamepad *Gamepad) const cstring
+  fn get_gamepad_name(gamepad *Gamepad) c::ConstCString
 
   @[link_name="SDL_GetGamepadPath"]
-  fn get_gamepad_path(gamepad *Gamepad) const cstring
+  fn get_gamepad_path(gamepad *Gamepad) c::ConstCString
 
   @[link_name="SDL_GetGamepadType"]
   fn get_gamepad_type(gamepad *Gamepad) GamepadType
@@ -12528,10 +12528,10 @@ extern {
   fn get_real_gamepad_type(gamepad *Gamepad) GamepadType
 
   @[link_name="SDL_GetGamepadPlayerIndex"]
-  fn get_gamepad_player_index(gamepad *Gamepad) libc::c_int
+  fn get_gamepad_player_index(gamepad *Gamepad) c::c_int
 
   @[link_name="SDL_SetGamepadPlayerIndex"]
-  fn set_gamepad_player_index(gamepad *Gamepad, player_index libc::c_int) bool
+  fn set_gamepad_player_index(gamepad *Gamepad, player_index c::c_int) bool
 
   @[link_name="SDL_GetGamepadVendor"]
   fn get_gamepad_vendor(gamepad *Gamepad) u16
@@ -12546,7 +12546,7 @@ extern {
   fn get_gamepad_firmware_version(gamepad *Gamepad) u16
 
   @[link_name="SDL_GetGamepadSerial"]
-  fn get_gamepad_serial(gamepad *Gamepad) const cstring
+  fn get_gamepad_serial(gamepad *Gamepad) c::ConstCString
 
   @[link_name="SDL_GetGamepadSteamHandle"]
   fn get_gamepad_steam_handle(gamepad *Gamepad) u64
@@ -12555,7 +12555,7 @@ extern {
   fn get_gamepad_connection_state(gamepad *Gamepad) JoystickConnectionState
 
   @[link_name="SDL_GetGamepadPowerInfo"]
-  fn get_gamepad_power_info(gamepad *Gamepad, percent *libc::c_int) PowerState
+  fn get_gamepad_power_info(gamepad *Gamepad, percent *c::c_int) PowerState
 
   @[link_name="SDL_GamepadConnected"]
   fn gamepad_connected(gamepad *Gamepad) bool
@@ -12570,22 +12570,22 @@ extern {
   fn gamepad_events_enabled() bool
 
   @[link_name="SDL_GetGamepadBindings"]
-  fn get_gamepad_bindings(gamepad *Gamepad, count *libc::c_int) **GamepadBinding
+  fn get_gamepad_bindings(gamepad *Gamepad, count *c::c_int) **GamepadBinding
 
   @[link_name="SDL_UpdateGamepads"]
   fn update_gamepads()
 
   @[link_name="SDL_GetGamepadTypeFromString"]
-  fn get_gamepad_type_from_string(str const cstring) GamepadType
+  fn get_gamepad_type_from_string(str c::ConstCString) GamepadType
 
   @[link_name="SDL_GetGamepadStringForType"]
-  fn get_gamepad_string_for_type(type_ GamepadType) const cstring
+  fn get_gamepad_string_for_type(type_ GamepadType) c::ConstCString
 
   @[link_name="SDL_GetGamepadAxisFromString"]
-  fn get_gamepad_axis_from_string(str const cstring) GamepadAxis
+  fn get_gamepad_axis_from_string(str c::ConstCString) GamepadAxis
 
   @[link_name="SDL_GetGamepadStringForAxis"]
-  fn get_gamepad_string_for_axis(axis GamepadAxis) const cstring
+  fn get_gamepad_string_for_axis(axis GamepadAxis) c::ConstCString
 
   @[link_name="SDL_GamepadHasAxis"]
   fn gamepad_has_axis(gamepad *Gamepad, axis GamepadAxis) bool
@@ -12594,10 +12594,10 @@ extern {
   fn get_gamepad_axis(gamepad *Gamepad, axis GamepadAxis) i16
 
   @[link_name="SDL_GetGamepadButtonFromString"]
-  fn get_gamepad_button_from_string(str const cstring) GamepadButton
+  fn get_gamepad_button_from_string(str c::ConstCString) GamepadButton
 
   @[link_name="SDL_GetGamepadStringForButton"]
-  fn get_gamepad_string_for_button(button GamepadButton) const cstring
+  fn get_gamepad_string_for_button(button GamepadButton) c::ConstCString
 
   @[link_name="SDL_GamepadHasButton"]
   fn gamepad_has_button(gamepad *Gamepad, button GamepadButton) bool
@@ -12612,13 +12612,13 @@ extern {
   fn get_gamepad_button_label(gamepad *Gamepad, button GamepadButton) GamepadButtonLabel
 
   @[link_name="SDL_GetNumGamepadTouchpads"]
-  fn get_num_gamepad_touchpads(gamepad *Gamepad) libc::c_int
+  fn get_num_gamepad_touchpads(gamepad *Gamepad) c::c_int
 
   @[link_name="SDL_GetNumGamepadTouchpadFingers"]
-  fn get_num_gamepad_touchpad_fingers(gamepad *Gamepad, touchpad libc::c_int) libc::c_int
+  fn get_num_gamepad_touchpad_fingers(gamepad *Gamepad, touchpad c::c_int) c::c_int
 
   @[link_name="SDL_GetGamepadTouchpadFinger"]
-  fn get_gamepad_touchpad_finger(gamepad *Gamepad, touchpad libc::c_int, finger libc::c_int, down *bool, x *libc::c_float, y *libc::c_float, pressure *libc::c_float) bool
+  fn get_gamepad_touchpad_finger(gamepad *Gamepad, touchpad c::c_int, finger c::c_int, down *bool, x *c::c_float, y *c::c_float, pressure *c::c_float) bool
 
   @[link_name="SDL_GamepadHasSensor"]
   fn gamepad_has_sensor(gamepad *Gamepad, type_ SensorType) bool
@@ -12630,10 +12630,10 @@ extern {
   fn gamepad_sensor_enabled(gamepad *Gamepad, type_ SensorType) bool
 
   @[link_name="SDL_GetGamepadSensorDataRate"]
-  fn get_gamepad_sensor_data_rate(gamepad *Gamepad, type_ SensorType) libc::c_float
+  fn get_gamepad_sensor_data_rate(gamepad *Gamepad, type_ SensorType) c::c_float
 
   @[link_name="SDL_GetGamepadSensorData"]
-  fn get_gamepad_sensor_data(gamepad *Gamepad, type_ SensorType, data *libc::c_float, num_values libc::c_int) bool
+  fn get_gamepad_sensor_data(gamepad *Gamepad, type_ SensorType, data *c::c_float, num_values c::c_int) bool
 
   @[link_name="SDL_RumbleGamepad"]
   fn rumble_gamepad(gamepad *Gamepad, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool
@@ -12645,31 +12645,31 @@ extern {
   fn set_gamepad_led(gamepad *Gamepad, red u8, green u8, blue u8) bool
 
   @[link_name="SDL_SendGamepadEffect"]
-  fn send_gamepad_effect(gamepad *Gamepad, data const *Void, size libc::c_int) bool
+  fn send_gamepad_effect(gamepad *Gamepad, data const *Void, size c::c_int) bool
 
   @[link_name="SDL_CloseGamepad"]
   fn close_gamepad(gamepad *Gamepad)
 
   @[link_name="SDL_GetGamepadAppleSFSymbolsNameForButton"]
-  fn get_gamepad_apple_sf_symbols_name_for_button(gamepad *Gamepad, button GamepadButton) const cstring
+  fn get_gamepad_apple_sf_symbols_name_for_button(gamepad *Gamepad, button GamepadButton) c::ConstCString
 
   @[link_name="SDL_GetGamepadAppleSFSymbolsNameForAxis"]
-  fn get_gamepad_apple_sf_symbols_name_for_axis(gamepad *Gamepad, axis GamepadAxis) const cstring
+  fn get_gamepad_apple_sf_symbols_name_for_axis(gamepad *Gamepad, axis GamepadAxis) c::ConstCString
 
   @[link_name="SDL_HasKeyboard"]
   fn has_keyboard() bool
 
   @[link_name="SDL_GetKeyboards"]
-  fn get_keyboards(count *libc::c_int) *KeyboardID
+  fn get_keyboards(count *c::c_int) *KeyboardID
 
   @[link_name="SDL_GetKeyboardNameForID"]
-  fn get_keyboard_name_for_id(instance_id KeyboardID) const cstring
+  fn get_keyboard_name_for_id(instance_id KeyboardID) c::ConstCString
 
   @[link_name="SDL_GetKeyboardFocus"]
   fn get_keyboard_focus() *Window
 
   @[link_name="SDL_GetKeyboardState"]
-  fn get_keyboard_state(numkeys *libc::c_int) const *bool
+  fn get_keyboard_state(numkeys *c::c_int) const *bool
 
   @[link_name="SDL_ResetKeyboard"]
   fn reset_keyboard()
@@ -12687,19 +12687,19 @@ extern {
   fn get_scancode_from_key(key Keycode, modstate *Keymod) Scancode
 
   @[link_name="SDL_SetScancodeName"]
-  fn set_scancode_name(scancode Scancode, name const cstring) bool
+  fn set_scancode_name(scancode Scancode, name c::ConstCString) bool
 
   @[link_name="SDL_GetScancodeName"]
-  fn get_scancode_name(scancode Scancode) const cstring
+  fn get_scancode_name(scancode Scancode) c::ConstCString
 
   @[link_name="SDL_GetScancodeFromName"]
-  fn get_scancode_from_name(name const cstring) Scancode
+  fn get_scancode_from_name(name c::ConstCString) Scancode
 
   @[link_name="SDL_GetKeyName"]
-  fn get_key_name(key Keycode) const cstring
+  fn get_key_name(key Keycode) c::ConstCString
 
   @[link_name="SDL_GetKeyFromName"]
-  fn get_key_from_name(name const cstring) Keycode
+  fn get_key_from_name(name c::ConstCString) Keycode
 
   @[link_name="SDL_StartTextInput"]
   fn start_text_input(window *Window) bool
@@ -12717,10 +12717,10 @@ extern {
   fn clear_composition(window *Window) bool
 
   @[link_name="SDL_SetTextInputArea"]
-  fn set_text_input_area(window *Window, rect const *Rect, cursor libc::c_int) bool
+  fn set_text_input_area(window *Window, rect const *Rect, cursor c::c_int) bool
 
   @[link_name="SDL_GetTextInputArea"]
-  fn get_text_input_area(window *Window, rect *Rect, cursor *libc::c_int) bool
+  fn get_text_input_area(window *Window, rect *Rect, cursor *c::c_int) bool
 
   @[link_name="SDL_HasScreenKeyboardSupport"]
   fn has_screen_keyboard_support() bool
@@ -12732,28 +12732,28 @@ extern {
   fn has_mouse() bool
 
   @[link_name="SDL_GetMice"]
-  fn get_mice(count *libc::c_int) *MouseID
+  fn get_mice(count *c::c_int) *MouseID
 
   @[link_name="SDL_GetMouseNameForID"]
-  fn get_mouse_name_for_id(instance_id MouseID) const cstring
+  fn get_mouse_name_for_id(instance_id MouseID) c::ConstCString
 
   @[link_name="SDL_GetMouseFocus"]
   fn get_mouse_focus() *Window
 
   @[link_name="SDL_GetMouseState"]
-  fn get_mouse_state(x *libc::c_float, y *libc::c_float) MouseButtonFlags
+  fn get_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
 
   @[link_name="SDL_GetGlobalMouseState"]
-  fn get_global_mouse_state(x *libc::c_float, y *libc::c_float) MouseButtonFlags
+  fn get_global_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
 
   @[link_name="SDL_GetRelativeMouseState"]
-  fn get_relative_mouse_state(x *libc::c_float, y *libc::c_float) MouseButtonFlags
+  fn get_relative_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
 
   @[link_name="SDL_WarpMouseInWindow"]
-  fn warp_mouse_in_window(window *Window, x libc::c_float, y libc::c_float)
+  fn warp_mouse_in_window(window *Window, x c::c_float, y c::c_float)
 
   @[link_name="SDL_WarpMouseGlobal"]
-  fn warp_mouse_global(x libc::c_float, y libc::c_float) bool
+  fn warp_mouse_global(x c::c_float, y c::c_float) bool
 
   @[link_name="SDL_SetWindowRelativeMouseMode"]
   fn set_window_relative_mouse_mode(window *Window, enabled bool) bool
@@ -12765,10 +12765,10 @@ extern {
   fn capture_mouse(enabled bool) bool
 
   @[link_name="SDL_CreateCursor"]
-  fn create_cursor(data const *u8, mask const *u8, w libc::c_int, h libc::c_int, hot_x libc::c_int, hot_y libc::c_int) *Cursor
+  fn create_cursor(data const *u8, mask const *u8, w c::c_int, h c::c_int, hot_x c::c_int, hot_y c::c_int) *Cursor
 
   @[link_name="SDL_CreateColorCursor"]
-  fn create_color_cursor(surface *Surface, hot_x libc::c_int, hot_y libc::c_int) *Cursor
+  fn create_color_cursor(surface *Surface, hot_x c::c_int, hot_y c::c_int) *Cursor
 
   @[link_name="SDL_CreateSystemCursor"]
   fn create_system_cursor(id SystemCursor) *Cursor
@@ -12795,22 +12795,22 @@ extern {
   fn cursor_visible() bool
 
   @[link_name="SDL_GetTouchDevices"]
-  fn get_touch_devices(count *libc::c_int) *TouchID
+  fn get_touch_devices(count *c::c_int) *TouchID
 
   @[link_name="SDL_GetTouchDeviceName"]
-  fn get_touch_device_name(touchID TouchID) const cstring
+  fn get_touch_device_name(touchID TouchID) c::ConstCString
 
   @[link_name="SDL_GetTouchDeviceType"]
   fn get_touch_device_type(touchID TouchID) TouchDeviceType
 
   @[link_name="SDL_GetTouchFingers"]
-  fn get_touch_fingers(touchID TouchID, count *libc::c_int) **Finger
+  fn get_touch_fingers(touchID TouchID, count *c::c_int) **Finger
 
   @[link_name="SDL_PumpEvents"]
   fn pump_events()
 
   @[link_name="SDL_PeepEvents"]
-  fn peep_events(events *Event, numevents libc::c_int, action EventAction, minType u32, maxType u32) libc::c_int
+  fn peep_events(events *Event, numevents c::c_int, action EventAction, minType u32, maxType u32) c::c_int
 
   @[link_name="SDL_HasEvent"]
   fn has_event(type_ u32) bool
@@ -12858,52 +12858,52 @@ extern {
   fn event_enabled(type_ u32) bool
 
   @[link_name="SDL_RegisterEvents"]
-  fn register_events(numevents libc::c_int) u32
+  fn register_events(numevents c::c_int) u32
 
   @[link_name="SDL_GetWindowFromEvent"]
   fn get_window_from_event(event const *Event) *Window
 
   @[link_name="SDL_GetBasePath"]
-  fn get_base_path() const cstring
+  fn get_base_path() c::ConstCString
 
   @[link_name="SDL_GetPrefPath"]
-  fn get_pref_path(org const cstring, app const cstring) cstring
+  fn get_pref_path(org c::ConstCString, app c::ConstCString) c::CString
 
   @[link_name="SDL_GetUserFolder"]
-  fn get_user_folder(folder Folder) const cstring
+  fn get_user_folder(folder Folder) c::ConstCString
 
   @[link_name="SDL_CreateDirectory"]
-  fn create_directory(path const cstring) bool
+  fn create_directory(path c::ConstCString) bool
 
   @[link_name="SDL_EnumerateDirectory"]
-  fn enumerate_directory(path const cstring, callback EnumerateDirectoryCallback, userdata rawptr) bool
+  fn enumerate_directory(path c::ConstCString, callback EnumerateDirectoryCallback, userdata rawptr) bool
 
   @[link_name="SDL_RemovePath"]
-  fn remove_path(path const cstring) bool
+  fn remove_path(path c::ConstCString) bool
 
   @[link_name="SDL_RenamePath"]
-  fn rename_path(oldpath const cstring, newpath const cstring) bool
+  fn rename_path(oldpath c::ConstCString, newpath c::ConstCString) bool
 
   @[link_name="SDL_CopyFile"]
-  fn copy_file(oldpath const cstring, newpath const cstring) bool
+  fn copy_file(oldpath c::ConstCString, newpath c::ConstCString) bool
 
   @[link_name="SDL_GetPathInfo"]
-  fn get_path_info(path const cstring, info *PathInfo) bool
+  fn get_path_info(path c::ConstCString, info *PathInfo) bool
 
   @[link_name="SDL_GlobDirectory"]
-  fn glob_directory(path const cstring, pattern const cstring, flags GlobFlags, count *libc::c_int) *cstring
+  fn glob_directory(path c::ConstCString, pattern c::ConstCString, flags GlobFlags, count *c::c_int) *c::CString
 
   @[link_name="SDL_GetCurrentDirectory"]
-  fn get_current_directory() cstring
+  fn get_current_directory() c::CString
 
   @[link_name="SDL_GPUSupportsShaderFormats"]
-  fn gpu_supports_shader_formats(format_flags GPUShaderFormat, name const cstring) bool
+  fn gpu_supports_shader_formats(format_flags GPUShaderFormat, name c::ConstCString) bool
 
   @[link_name="SDL_GPUSupportsProperties"]
   fn gpu_supports_properties(props PropertiesID) bool
 
   @[link_name="SDL_CreateGPUDevice"]
-  fn create_gpu_device(format_flags GPUShaderFormat, debug_mode bool, name const cstring) *GPUDevice
+  fn create_gpu_device(format_flags GPUShaderFormat, debug_mode bool, name c::ConstCString) *GPUDevice
 
   @[link_name="SDL_CreateGPUDeviceWithProperties"]
   fn create_gpu_device_with_properties(props PropertiesID) *GPUDevice
@@ -12912,13 +12912,13 @@ extern {
   fn destroy_gpu_device(device *GPUDevice)
 
   @[link_name="SDL_GetNumGPUDrivers"]
-  fn get_num_gpu_drivers() libc::c_int
+  fn get_num_gpu_drivers() c::c_int
 
   @[link_name="SDL_GetGPUDriver"]
-  fn get_gpu_driver(index libc::c_int) const cstring
+  fn get_gpu_driver(index c::c_int) c::ConstCString
 
   @[link_name="SDL_GetGPUDeviceDriver"]
-  fn get_gpu_device_driver(device *GPUDevice) const cstring
+  fn get_gpu_device_driver(device *GPUDevice) c::ConstCString
 
   @[link_name="SDL_GetGPUShaderFormats"]
   fn get_gpu_shader_formats(device *GPUDevice) GPUShaderFormat
@@ -12945,16 +12945,16 @@ extern {
   fn create_gpu_transfer_buffer(device *GPUDevice, createinfo const *GPUTransferBufferCreateInfo) *GPUTransferBuffer
 
   @[link_name="SDL_SetGPUBufferName"]
-  fn set_gpu_buffer_name(device *GPUDevice, buffer *GPUBuffer, text const cstring)
+  fn set_gpu_buffer_name(device *GPUDevice, buffer *GPUBuffer, text c::ConstCString)
 
   @[link_name="SDL_SetGPUTextureName"]
-  fn set_gpu_texture_name(device *GPUDevice, texture *GPUTexture, text const cstring)
+  fn set_gpu_texture_name(device *GPUDevice, texture *GPUTexture, text c::ConstCString)
 
   @[link_name="SDL_InsertGPUDebugLabel"]
-  fn insert_gpu_debug_label(command_buffer *GPUCommandBuffer, text const cstring)
+  fn insert_gpu_debug_label(command_buffer *GPUCommandBuffer, text c::ConstCString)
 
   @[link_name="SDL_PushGPUDebugGroup"]
-  fn push_gpu_debug_group(command_buffer *GPUCommandBuffer, name const cstring)
+  fn push_gpu_debug_group(command_buffer *GPUCommandBuffer, name c::ConstCString)
 
   @[link_name="SDL_PopGPUDebugGroup"]
   fn pop_gpu_debug_group(command_buffer *GPUCommandBuffer)
@@ -13173,10 +13173,10 @@ extern {
   fn calculate_gpu_texture_format_size(format GPUTextureFormat, width u32, height u32, depth_or_layer_count u32) u32
 
   @[link_name="SDL_GetHaptics"]
-  fn get_haptics(count *libc::c_int) *HapticID
+  fn get_haptics(count *c::c_int) *HapticID
 
   @[link_name="SDL_GetHapticNameForID"]
-  fn get_haptic_name_for_id(instance_id HapticID) const cstring
+  fn get_haptic_name_for_id(instance_id HapticID) c::ConstCString
 
   @[link_name="SDL_OpenHaptic"]
   fn open_haptic(instance_id HapticID) *Haptic
@@ -13188,7 +13188,7 @@ extern {
   fn get_haptic_id(haptic *Haptic) HapticID
 
   @[link_name="SDL_GetHapticName"]
-  fn get_haptic_name(haptic *Haptic) const cstring
+  fn get_haptic_name(haptic *Haptic) c::ConstCString
 
   @[link_name="SDL_IsMouseHaptic"]
   fn is_mouse_haptic() bool
@@ -13206,43 +13206,43 @@ extern {
   fn close_haptic(haptic *Haptic)
 
   @[link_name="SDL_GetMaxHapticEffects"]
-  fn get_max_haptic_effects(haptic *Haptic) libc::c_int
+  fn get_max_haptic_effects(haptic *Haptic) c::c_int
 
   @[link_name="SDL_GetMaxHapticEffectsPlaying"]
-  fn get_max_haptic_effects_playing(haptic *Haptic) libc::c_int
+  fn get_max_haptic_effects_playing(haptic *Haptic) c::c_int
 
   @[link_name="SDL_GetHapticFeatures"]
   fn get_haptic_features(haptic *Haptic) u32
 
   @[link_name="SDL_GetNumHapticAxes"]
-  fn get_num_haptic_axes(haptic *Haptic) libc::c_int
+  fn get_num_haptic_axes(haptic *Haptic) c::c_int
 
   @[link_name="SDL_HapticEffectSupported"]
   fn haptic_effect_supported(haptic *Haptic, effect const *HapticEffect) bool
 
   @[link_name="SDL_CreateHapticEffect"]
-  fn create_haptic_effect(haptic *Haptic, effect const *HapticEffect) libc::c_int
+  fn create_haptic_effect(haptic *Haptic, effect const *HapticEffect) c::c_int
 
   @[link_name="SDL_UpdateHapticEffect"]
-  fn update_haptic_effect(haptic *Haptic, effect libc::c_int, data const *HapticEffect) bool
+  fn update_haptic_effect(haptic *Haptic, effect c::c_int, data const *HapticEffect) bool
 
   @[link_name="SDL_RunHapticEffect"]
-  fn run_haptic_effect(haptic *Haptic, effect libc::c_int, iterations u32) bool
+  fn run_haptic_effect(haptic *Haptic, effect c::c_int, iterations u32) bool
 
   @[link_name="SDL_StopHapticEffect"]
-  fn stop_haptic_effect(haptic *Haptic, effect libc::c_int) bool
+  fn stop_haptic_effect(haptic *Haptic, effect c::c_int) bool
 
   @[link_name="SDL_DestroyHapticEffect"]
-  fn destroy_haptic_effect(haptic *Haptic, effect libc::c_int)
+  fn destroy_haptic_effect(haptic *Haptic, effect c::c_int)
 
   @[link_name="SDL_GetHapticEffectStatus"]
-  fn get_haptic_effect_status(haptic *Haptic, effect libc::c_int) bool
+  fn get_haptic_effect_status(haptic *Haptic, effect c::c_int) bool
 
   @[link_name="SDL_SetHapticGain"]
-  fn set_haptic_gain(haptic *Haptic, gain libc::c_int) bool
+  fn set_haptic_gain(haptic *Haptic, gain c::c_int) bool
 
   @[link_name="SDL_SetHapticAutocenter"]
-  fn set_haptic_autocenter(haptic *Haptic, autocenter libc::c_int) bool
+  fn set_haptic_autocenter(haptic *Haptic, autocenter c::c_int) bool
 
   @[link_name="SDL_PauseHaptic"]
   fn pause_haptic(haptic *Haptic) bool
@@ -13260,100 +13260,100 @@ extern {
   fn init_haptic_rumble(haptic *Haptic) bool
 
   @[link_name="SDL_PlayHapticRumble"]
-  fn play_haptic_rumble(haptic *Haptic, strength libc::c_float, length u32) bool
+  fn play_haptic_rumble(haptic *Haptic, strength c::c_float, length u32) bool
 
   @[link_name="SDL_StopHapticRumble"]
   fn stop_haptic_rumble(haptic *Haptic) bool
 
   @[link_name="SDL_hid_init"]
-  fn hid_init() libc::c_int
+  fn hid_init() c::c_int
 
   @[link_name="SDL_hid_exit"]
-  fn hid_exit() libc::c_int
+  fn hid_exit() c::c_int
 
   @[link_name="SDL_hid_device_change_count"]
   fn hid_device_change_count() u32
 
   @[link_name="SDL_hid_enumerate"]
-  fn hid_enumerate(vendor_id libc::c_ushort, product_id libc::c_ushort) *hid_device_info
+  fn hid_enumerate(vendor_id c::c_ushort, product_id c::c_ushort) *hid_device_info
 
   @[link_name="SDL_hid_free_enumeration"]
   fn hid_free_enumeration(devs *hid_device_info)
 
   @[link_name="SDL_hid_open"]
-  fn hid_open(vendor_id libc::c_ushort, product_id libc::c_ushort, serial_number const *libc::c_wchar_t) *hid_device
+  fn hid_open(vendor_id c::c_ushort, product_id c::c_ushort, serial_number const *c::c_wchar_t) *hid_device
 
   @[link_name="SDL_hid_open_path"]
-  fn hid_open_path(path const cstring) *hid_device
+  fn hid_open_path(path c::ConstCString) *hid_device
 
   @[link_name="SDL_hid_write"]
-  fn hid_write(dev *hid_device, data const *libc::c_uchar, length libc::c_size_t) libc::c_int
+  fn hid_write(dev *hid_device, data const *c::c_uchar, length c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_read_timeout"]
-  fn hid_read_timeout(dev *hid_device, data *libc::c_uchar, length libc::c_size_t, milliseconds libc::c_int) libc::c_int
+  fn hid_read_timeout(dev *hid_device, data *c::c_uchar, length c::c_size_t, milliseconds c::c_int) c::c_int
 
   @[link_name="SDL_hid_read"]
-  fn hid_read(dev *hid_device, data *libc::c_uchar, length libc::c_size_t) libc::c_int
+  fn hid_read(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_set_nonblocking"]
-  fn hid_set_nonblocking(dev *hid_device, nonblock libc::c_int) libc::c_int
+  fn hid_set_nonblocking(dev *hid_device, nonblock c::c_int) c::c_int
 
   @[link_name="SDL_hid_send_feature_report"]
-  fn hid_send_feature_report(dev *hid_device, data const *libc::c_uchar, length libc::c_size_t) libc::c_int
+  fn hid_send_feature_report(dev *hid_device, data const *c::c_uchar, length c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_feature_report"]
-  fn hid_get_feature_report(dev *hid_device, data *libc::c_uchar, length libc::c_size_t) libc::c_int
+  fn hid_get_feature_report(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_input_report"]
-  fn hid_get_input_report(dev *hid_device, data *libc::c_uchar, length libc::c_size_t) libc::c_int
+  fn hid_get_input_report(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_close"]
-  fn hid_close(dev *hid_device) libc::c_int
+  fn hid_close(dev *hid_device) c::c_int
 
   @[link_name="SDL_hid_get_manufacturer_string"]
-  fn hid_get_manufacturer_string(dev *hid_device, string_ *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn hid_get_manufacturer_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_product_string"]
-  fn hid_get_product_string(dev *hid_device, string_ *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn hid_get_product_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_serial_number_string"]
-  fn hid_get_serial_number_string(dev *hid_device, string_ *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn hid_get_serial_number_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_indexed_string"]
-  fn hid_get_indexed_string(dev *hid_device, string_index libc::c_int, string_ *libc::c_wchar_t, maxlen libc::c_size_t) libc::c_int
+  fn hid_get_indexed_string(dev *hid_device, string_index c::c_int, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_get_device_info"]
   fn hid_get_device_info(dev *hid_device) *hid_device_info
 
   @[link_name="SDL_hid_get_report_descriptor"]
-  fn hid_get_report_descriptor(dev *hid_device, buf *libc::c_uchar, buf_size libc::c_size_t) libc::c_int
+  fn hid_get_report_descriptor(dev *hid_device, buf *c::c_uchar, buf_size c::c_size_t) c::c_int
 
   @[link_name="SDL_hid_ble_scan"]
   fn hid_ble_scan(active bool)
 
   @[link_name="SDL_SetHintWithPriority"]
-  fn set_hint_with_priority(name const cstring, value const cstring, priority HintPriority) bool
+  fn set_hint_with_priority(name c::ConstCString, value c::ConstCString, priority HintPriority) bool
 
   @[link_name="SDL_SetHint"]
-  fn set_hint(name const cstring, value const cstring) bool
+  fn set_hint(name c::ConstCString, value c::ConstCString) bool
 
   @[link_name="SDL_ResetHint"]
-  fn reset_hint(name const cstring) bool
+  fn reset_hint(name c::ConstCString) bool
 
   @[link_name="SDL_ResetHints"]
   fn reset_hints()
 
   @[link_name="SDL_GetHint"]
-  fn get_hint(name const cstring) const cstring
+  fn get_hint(name c::ConstCString) c::ConstCString
 
   @[link_name="SDL_GetHintBoolean"]
-  fn get_hint_boolean(name const cstring, default_value bool) bool
+  fn get_hint_boolean(name c::ConstCString, default_value bool) bool
 
   @[link_name="SDL_AddHintCallback"]
-  fn add_hint_callback(name const cstring, callback HintCallback, userdata rawptr) bool
+  fn add_hint_callback(name c::ConstCString, callback HintCallback, userdata rawptr) bool
 
   @[link_name="SDL_RemoveHintCallback"]
-  fn remove_hint_callback(name const cstring, callback HintCallback, userdata rawptr)
+  fn remove_hint_callback(name c::ConstCString, callback HintCallback, userdata rawptr)
 
   @[link_name="SDL_Init"]
   fn init(flags InitFlags) bool
@@ -13377,70 +13377,70 @@ extern {
   fn run_on_main_thread(callback MainThreadCallback, userdata rawptr, wait_complete bool) bool
 
   @[link_name="SDL_SetAppMetadata"]
-  fn set_app_metadata(appname const cstring, appversion const cstring, appidentifier const cstring) bool
+  fn set_app_metadata(appname c::ConstCString, appversion c::ConstCString, appidentifier c::ConstCString) bool
 
   @[link_name="SDL_SetAppMetadataProperty"]
-  fn set_app_metadata_property(name const cstring, value const cstring) bool
+  fn set_app_metadata_property(name c::ConstCString, value c::ConstCString) bool
 
   @[link_name="SDL_GetAppMetadataProperty"]
-  fn get_app_metadata_property(name const cstring) const cstring
+  fn get_app_metadata_property(name c::ConstCString) c::ConstCString
 
   @[link_name="SDL_LoadObject"]
-  fn load_object(sofile const cstring) *SharedObject
+  fn load_object(sofile c::ConstCString) *SharedObject
 
   @[link_name="SDL_LoadFunction"]
-  fn load_function(handle *SharedObject, name const cstring) FunctionPointer
+  fn load_function(handle *SharedObject, name c::ConstCString) FunctionPointer
 
   @[link_name="SDL_UnloadObject"]
   fn unload_object(handle *SharedObject)
 
   @[link_name="SDL_GetPreferredLocales"]
-  fn get_preferred_locales(count *libc::c_int) **Locale
+  fn get_preferred_locales(count *c::c_int) **Locale
 
   @[link_name="SDL_SetLogPriorities"]
   fn set_log_priorities(priority LogPriority)
 
   @[link_name="SDL_SetLogPriority"]
-  fn set_log_priority(category libc::c_int, priority LogPriority)
+  fn set_log_priority(category c::c_int, priority LogPriority)
 
   @[link_name="SDL_GetLogPriority"]
-  fn get_log_priority(category libc::c_int) LogPriority
+  fn get_log_priority(category c::c_int) LogPriority
 
   @[link_name="SDL_ResetLogPriorities"]
   fn reset_log_priorities()
 
   @[link_name="SDL_SetLogPriorityPrefix"]
-  fn set_log_priority_prefix(priority LogPriority, prefix const cstring) bool
+  fn set_log_priority_prefix(priority LogPriority, prefix c::ConstCString) bool
 
   @[link_name="SDL_Log"]
-  fn log(fmt const cstring, args @c ...)
+  fn log(fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogTrace"]
-  fn log_trace(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_trace(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogVerbose"]
-  fn log_verbose(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_verbose(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogDebug"]
-  fn log_debug(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_debug(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogInfo"]
-  fn log_info(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_info(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogWarn"]
-  fn log_warn(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_warn(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogError"]
-  fn log_error(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_error(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogCritical"]
-  fn log_critical(category libc::c_int, fmt const cstring, args @c ...)
+  fn log_critical(category c::c_int, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogMessage"]
-  fn log_message(category libc::c_int, priority LogPriority, fmt const cstring, args @c ...)
+  fn log_message(category c::c_int, priority LogPriority, fmt c::ConstCString, args @c ...)
 
   @[link_name="SDL_LogMessageV"]
-  fn log_message_v(category libc::c_int, priority LogPriority, fmt const cstring, ap libc::c_va_list)
+  fn log_message_v(category c::c_int, priority LogPriority, fmt c::ConstCString, ap c::c_va_list)
 
   @[link_name="SDL_GetDefaultLogOutputFunction"]
   fn get_default_log_output_function() LogOutputFunction
@@ -13452,10 +13452,10 @@ extern {
   fn set_log_output_function(callback LogOutputFunction, userdata rawptr)
 
   @[link_name="SDL_ShowMessageBox"]
-  fn show_message_box(messageboxdata const *MessageBoxData, buttonid *libc::c_int) bool
+  fn show_message_box(messageboxdata const *MessageBoxData, buttonid *c::c_int) bool
 
   @[link_name="SDL_ShowSimpleMessageBox"]
-  fn show_simple_message_box(flags MessageBoxFlags, title const cstring, message const cstring, window *Window) bool
+  fn show_simple_message_box(flags MessageBoxFlags, title c::ConstCString, message c::ConstCString, window *Window) bool
 
   @[link_name="SDL_Metal_CreateView"]
   fn metal_create_view(window *Window) MetalView
@@ -13467,13 +13467,13 @@ extern {
   fn metal_get_layer(view MetalView) rawptr
 
   @[link_name="SDL_OpenURL"]
-  fn open_url(url const cstring) bool
+  fn open_url(url c::ConstCString) bool
 
   @[link_name="SDL_GetPlatform"]
-  fn get_platform() const cstring
+  fn get_platform() c::ConstCString
 
   @[link_name="SDL_CreateProcess"]
-  fn create_process(args const *const cstring, pipe_stdio bool) *Process
+  fn create_process(args const *c::ConstCString, pipe_stdio bool) *Process
 
   @[link_name="SDL_CreateProcessWithProperties"]
   fn create_process_with_properties(props PropertiesID) *Process
@@ -13482,7 +13482,7 @@ extern {
   fn get_process_properties(process *Process) PropertiesID
 
   @[link_name="SDL_ReadProcess"]
-  fn read_process(process *Process, datasize *libc::c_size_t, exitcode *libc::c_int) rawptr
+  fn read_process(process *Process, datasize *c::c_size_t, exitcode *c::c_int) rawptr
 
   @[link_name="SDL_GetProcessInput"]
   fn get_process_input(process *Process) *IOStream
@@ -13494,22 +13494,22 @@ extern {
   fn kill_process(process *Process, force bool) bool
 
   @[link_name="SDL_WaitProcess"]
-  fn wait_process(process *Process, block bool, exitcode *libc::c_int) bool
+  fn wait_process(process *Process, block bool, exitcode *c::c_int) bool
 
   @[link_name="SDL_DestroyProcess"]
   fn destroy_process(process *Process)
 
   @[link_name="SDL_GetNumRenderDrivers"]
-  fn get_num_render_drivers() libc::c_int
+  fn get_num_render_drivers() c::c_int
 
   @[link_name="SDL_GetRenderDriver"]
-  fn get_render_driver(index libc::c_int) const cstring
+  fn get_render_driver(index c::c_int) c::ConstCString
 
   @[link_name="SDL_CreateWindowAndRenderer"]
-  fn create_window_and_renderer(title const cstring, width libc::c_int, height libc::c_int, window_flags WindowFlags, window **Window, renderer **Renderer) bool
+  fn create_window_and_renderer(title c::ConstCString, width c::c_int, height c::c_int, window_flags WindowFlags, window **Window, renderer **Renderer) bool
 
   @[link_name="SDL_CreateRenderer"]
-  fn create_renderer(window *Window, name const cstring) *Renderer
+  fn create_renderer(window *Window, name c::ConstCString) *Renderer
 
   @[link_name="SDL_CreateRendererWithProperties"]
   fn create_renderer_with_properties(props PropertiesID) *Renderer
@@ -13524,19 +13524,19 @@ extern {
   fn get_render_window(renderer *Renderer) *Window
 
   @[link_name="SDL_GetRendererName"]
-  fn get_renderer_name(renderer *Renderer) const cstring
+  fn get_renderer_name(renderer *Renderer) c::ConstCString
 
   @[link_name="SDL_GetRendererProperties"]
   fn get_renderer_properties(renderer *Renderer) PropertiesID
 
   @[link_name="SDL_GetRenderOutputSize"]
-  fn get_render_output_size(renderer *Renderer, w *libc::c_int, h *libc::c_int) bool
+  fn get_render_output_size(renderer *Renderer, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_GetCurrentRenderOutputSize"]
-  fn get_current_render_output_size(renderer *Renderer, w *libc::c_int, h *libc::c_int) bool
+  fn get_current_render_output_size(renderer *Renderer, w *c::c_int, h *c::c_int) bool
 
   @[link_name="SDL_CreateTexture"]
-  fn create_texture(renderer *Renderer, format PixelFormat, access TextureAccess, w libc::c_int, h libc::c_int) *Texture
+  fn create_texture(renderer *Renderer, format PixelFormat, access TextureAccess, w c::c_int, h c::c_int) *Texture
 
   @[link_name="SDL_CreateTextureFromSurface"]
   fn create_texture_from_surface(renderer *Renderer, surface *Surface) *Texture
@@ -13551,31 +13551,31 @@ extern {
   fn get_renderer_from_texture(texture *Texture) *Renderer
 
   @[link_name="SDL_GetTextureSize"]
-  fn get_texture_size(texture *Texture, w *libc::c_float, h *libc::c_float) bool
+  fn get_texture_size(texture *Texture, w *c::c_float, h *c::c_float) bool
 
   @[link_name="SDL_SetTextureColorMod"]
   fn set_texture_color_mod(texture *Texture, r u8, g u8, b u8) bool
 
   @[link_name="SDL_SetTextureColorModFloat"]
-  fn set_texture_color_mod_float(texture *Texture, r libc::c_float, g libc::c_float, b libc::c_float) bool
+  fn set_texture_color_mod_float(texture *Texture, r c::c_float, g c::c_float, b c::c_float) bool
 
   @[link_name="SDL_GetTextureColorMod"]
   fn get_texture_color_mod(texture *Texture, r *u8, g *u8, b *u8) bool
 
   @[link_name="SDL_GetTextureColorModFloat"]
-  fn get_texture_color_mod_float(texture *Texture, r *libc::c_float, g *libc::c_float, b *libc::c_float) bool
+  fn get_texture_color_mod_float(texture *Texture, r *c::c_float, g *c::c_float, b *c::c_float) bool
 
   @[link_name="SDL_SetTextureAlphaMod"]
   fn set_texture_alpha_mod(texture *Texture, alpha u8) bool
 
   @[link_name="SDL_SetTextureAlphaModFloat"]
-  fn set_texture_alpha_mod_float(texture *Texture, alpha libc::c_float) bool
+  fn set_texture_alpha_mod_float(texture *Texture, alpha c::c_float) bool
 
   @[link_name="SDL_GetTextureAlphaMod"]
   fn get_texture_alpha_mod(texture *Texture, alpha *u8) bool
 
   @[link_name="SDL_GetTextureAlphaModFloat"]
-  fn get_texture_alpha_mod_float(texture *Texture, alpha *libc::c_float) bool
+  fn get_texture_alpha_mod_float(texture *Texture, alpha *c::c_float) bool
 
   @[link_name="SDL_SetTextureBlendMode"]
   fn set_texture_blend_mode(texture *Texture, blendMode BlendMode) bool
@@ -13590,16 +13590,16 @@ extern {
   fn get_texture_scale_mode(texture *Texture, scaleMode *ScaleMode) bool
 
   @[link_name="SDL_UpdateTexture"]
-  fn update_texture(texture *Texture, rect const *Rect, pixels const *Void, pitch libc::c_int) bool
+  fn update_texture(texture *Texture, rect const *Rect, pixels const *Void, pitch c::c_int) bool
 
   @[link_name="SDL_UpdateYUVTexture"]
-  fn update_yuv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch libc::c_int, Uplane const *u8, Upitch libc::c_int, Vplane const *u8, Vpitch libc::c_int) bool
+  fn update_yuv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch c::c_int, Uplane const *u8, Upitch c::c_int, Vplane const *u8, Vpitch c::c_int) bool
 
   @[link_name="SDL_UpdateNVTexture"]
-  fn update_nv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch libc::c_int, UVplane const *u8, UVpitch libc::c_int) bool
+  fn update_nv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch c::c_int, UVplane const *u8, UVpitch c::c_int) bool
 
   @[link_name="SDL_LockTexture"]
-  fn lock_texture(texture *Texture, rect const *Rect, pixels *rawptr, pitch *libc::c_int) bool
+  fn lock_texture(texture *Texture, rect const *Rect, pixels *rawptr, pitch *c::c_int) bool
 
   @[link_name="SDL_LockTextureToSurface"]
   fn lock_texture_to_surface(texture *Texture, rect const *Rect, surface **Surface) bool
@@ -13614,19 +13614,19 @@ extern {
   fn get_render_target(renderer *Renderer) *Texture
 
   @[link_name="SDL_SetRenderLogicalPresentation"]
-  fn set_render_logical_presentation(renderer *Renderer, w libc::c_int, h libc::c_int, mode RendererLogicalPresentation) bool
+  fn set_render_logical_presentation(renderer *Renderer, w c::c_int, h c::c_int, mode RendererLogicalPresentation) bool
 
   @[link_name="SDL_GetRenderLogicalPresentation"]
-  fn get_render_logical_presentation(renderer *Renderer, w *libc::c_int, h *libc::c_int, mode *RendererLogicalPresentation) bool
+  fn get_render_logical_presentation(renderer *Renderer, w *c::c_int, h *c::c_int, mode *RendererLogicalPresentation) bool
 
   @[link_name="SDL_GetRenderLogicalPresentationRect"]
   fn get_render_logical_presentation_rect(renderer *Renderer, rect *FRect) bool
 
   @[link_name="SDL_RenderCoordinatesFromWindow"]
-  fn render_coordinates_from_window(renderer *Renderer, window_x libc::c_float, window_y libc::c_float, x *libc::c_float, y *libc::c_float) bool
+  fn render_coordinates_from_window(renderer *Renderer, window_x c::c_float, window_y c::c_float, x *c::c_float, y *c::c_float) bool
 
   @[link_name="SDL_RenderCoordinatesToWindow"]
-  fn render_coordinates_to_window(renderer *Renderer, x libc::c_float, y libc::c_float, window_x *libc::c_float, window_y *libc::c_float) bool
+  fn render_coordinates_to_window(renderer *Renderer, x c::c_float, y c::c_float, window_x *c::c_float, window_y *c::c_float) bool
 
   @[link_name="SDL_ConvertEventToRenderCoordinates"]
   fn convert_event_to_render_coordinates(renderer *Renderer, event *Event) bool
@@ -13653,28 +13653,28 @@ extern {
   fn render_clip_enabled(renderer *Renderer) bool
 
   @[link_name="SDL_SetRenderScale"]
-  fn set_render_scale(renderer *Renderer, scaleX libc::c_float, scaleY libc::c_float) bool
+  fn set_render_scale(renderer *Renderer, scaleX c::c_float, scaleY c::c_float) bool
 
   @[link_name="SDL_GetRenderScale"]
-  fn get_render_scale(renderer *Renderer, scaleX *libc::c_float, scaleY *libc::c_float) bool
+  fn get_render_scale(renderer *Renderer, scaleX *c::c_float, scaleY *c::c_float) bool
 
   @[link_name="SDL_SetRenderDrawColor"]
   fn set_render_draw_color(renderer *Renderer, r u8, g u8, b u8, a u8) bool
 
   @[link_name="SDL_SetRenderDrawColorFloat"]
-  fn set_render_draw_color_float(renderer *Renderer, r libc::c_float, g libc::c_float, b libc::c_float, a libc::c_float) bool
+  fn set_render_draw_color_float(renderer *Renderer, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
 
   @[link_name="SDL_GetRenderDrawColor"]
   fn get_render_draw_color(renderer *Renderer, r *u8, g *u8, b *u8, a *u8) bool
 
   @[link_name="SDL_GetRenderDrawColorFloat"]
-  fn get_render_draw_color_float(renderer *Renderer, r *libc::c_float, g *libc::c_float, b *libc::c_float, a *libc::c_float) bool
+  fn get_render_draw_color_float(renderer *Renderer, r *c::c_float, g *c::c_float, b *c::c_float, a *c::c_float) bool
 
   @[link_name="SDL_SetRenderColorScale"]
-  fn set_render_color_scale(renderer *Renderer, scale libc::c_float) bool
+  fn set_render_color_scale(renderer *Renderer, scale c::c_float) bool
 
   @[link_name="SDL_GetRenderColorScale"]
-  fn get_render_color_scale(renderer *Renderer, scale *libc::c_float) bool
+  fn get_render_color_scale(renderer *Renderer, scale *c::c_float) bool
 
   @[link_name="SDL_SetRenderDrawBlendMode"]
   fn set_render_draw_blend_mode(renderer *Renderer, blendMode BlendMode) bool
@@ -13686,49 +13686,49 @@ extern {
   fn render_clear(renderer *Renderer) bool
 
   @[link_name="SDL_RenderPoint"]
-  fn render_point(renderer *Renderer, x libc::c_float, y libc::c_float) bool
+  fn render_point(renderer *Renderer, x c::c_float, y c::c_float) bool
 
   @[link_name="SDL_RenderPoints"]
-  fn render_points(renderer *Renderer, points const *FPoint, count libc::c_int) bool
+  fn render_points(renderer *Renderer, points const *FPoint, count c::c_int) bool
 
   @[link_name="SDL_RenderLine"]
-  fn render_line(renderer *Renderer, x1 libc::c_float, y1 libc::c_float, x2 libc::c_float, y2 libc::c_float) bool
+  fn render_line(renderer *Renderer, x1 c::c_float, y1 c::c_float, x2 c::c_float, y2 c::c_float) bool
 
   @[link_name="SDL_RenderLines"]
-  fn render_lines(renderer *Renderer, points const *FPoint, count libc::c_int) bool
+  fn render_lines(renderer *Renderer, points const *FPoint, count c::c_int) bool
 
   @[link_name="SDL_RenderRect"]
   fn render_rect(renderer *Renderer, rect const *FRect) bool
 
   @[link_name="SDL_RenderRects"]
-  fn render_rects(renderer *Renderer, rects const *FRect, count libc::c_int) bool
+  fn render_rects(renderer *Renderer, rects const *FRect, count c::c_int) bool
 
   @[link_name="SDL_RenderFillRect"]
   fn render_fill_rect(renderer *Renderer, rect const *FRect) bool
 
   @[link_name="SDL_RenderFillRects"]
-  fn render_fill_rects(renderer *Renderer, rects const *FRect, count libc::c_int) bool
+  fn render_fill_rects(renderer *Renderer, rects const *FRect, count c::c_int) bool
 
   @[link_name="SDL_RenderTexture"]
   fn render_texture(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect) bool
 
   @[link_name="SDL_RenderTextureRotated"]
-  fn render_texture_rotated(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect, angle libc::c_double, center const *FPoint, flip FlipMode) bool
+  fn render_texture_rotated(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect, angle c::c_double, center const *FPoint, flip FlipMode) bool
 
   @[link_name="SDL_RenderTextureAffine"]
   fn render_texture_affine(renderer *Renderer, texture *Texture, srcrect const *FRect, origin const *FPoint, right const *FPoint, down const *FPoint) bool
 
   @[link_name="SDL_RenderTextureTiled"]
-  fn render_texture_tiled(renderer *Renderer, texture *Texture, srcrect const *FRect, scale libc::c_float, dstrect const *FRect) bool
+  fn render_texture_tiled(renderer *Renderer, texture *Texture, srcrect const *FRect, scale c::c_float, dstrect const *FRect) bool
 
   @[link_name="SDL_RenderTexture9Grid"]
-  fn render_texture9_grid(renderer *Renderer, texture *Texture, srcrect const *FRect, left_width libc::c_float, right_width libc::c_float, top_height libc::c_float, bottom_height libc::c_float, scale libc::c_float, dstrect const *FRect) bool
+  fn render_texture9_grid(renderer *Renderer, texture *Texture, srcrect const *FRect, left_width c::c_float, right_width c::c_float, top_height c::c_float, bottom_height c::c_float, scale c::c_float, dstrect const *FRect) bool
 
   @[link_name="SDL_RenderGeometry"]
-  fn render_geometry(renderer *Renderer, texture *Texture, vertices const *Vertex, num_vertices libc::c_int, indices const *libc::c_int, num_indices libc::c_int) bool
+  fn render_geometry(renderer *Renderer, texture *Texture, vertices const *Vertex, num_vertices c::c_int, indices const *c::c_int, num_indices c::c_int) bool
 
   @[link_name="SDL_RenderGeometryRaw"]
-  fn render_geometry_raw(renderer *Renderer, texture *Texture, xy const *libc::c_float, xy_stride libc::c_int, color const *FColor, color_stride libc::c_int, uv const *libc::c_float, uv_stride libc::c_int, num_vertices libc::c_int, indices const *Void, num_indices libc::c_int, size_indices libc::c_int) bool
+  fn render_geometry_raw(renderer *Renderer, texture *Texture, xy const *c::c_float, xy_stride c::c_int, color const *FColor, color_stride c::c_int, uv const *c::c_float, uv_stride c::c_int, num_vertices c::c_int, indices const *Void, num_indices c::c_int, size_indices c::c_int) bool
 
   @[link_name="SDL_RenderReadPixels"]
   fn render_read_pixels(renderer *Renderer, rect const *Rect) *Surface
@@ -13755,25 +13755,25 @@ extern {
   fn add_vulkan_render_semaphores(renderer *Renderer, wait_stage_mask u32, wait_semaphore i64, signal_semaphore i64) bool
 
   @[link_name="SDL_SetRenderVSync"]
-  fn set_render_v_sync(renderer *Renderer, vsync libc::c_int) bool
+  fn set_render_v_sync(renderer *Renderer, vsync c::c_int) bool
 
   @[link_name="SDL_GetRenderVSync"]
-  fn get_render_v_sync(renderer *Renderer, vsync *libc::c_int) bool
+  fn get_render_v_sync(renderer *Renderer, vsync *c::c_int) bool
 
   @[link_name="SDL_RenderDebugText"]
-  fn render_debug_text(renderer *Renderer, x libc::c_float, y libc::c_float, str const cstring) bool
+  fn render_debug_text(renderer *Renderer, x c::c_float, y c::c_float, str c::ConstCString) bool
 
   @[link_name="SDL_RenderDebugTextFormat"]
-  fn render_debug_text_format(renderer *Renderer, x libc::c_float, y libc::c_float, fmt const cstring, args @c ...) bool
+  fn render_debug_text_format(renderer *Renderer, x c::c_float, y c::c_float, fmt c::ConstCString, args @c ...) bool
 
   @[link_name="SDL_OpenTitleStorage"]
-  fn open_title_storage(override const cstring, props PropertiesID) *Storage
+  fn open_title_storage(override c::ConstCString, props PropertiesID) *Storage
 
   @[link_name="SDL_OpenUserStorage"]
-  fn open_user_storage(org const cstring, app const cstring, props PropertiesID) *Storage
+  fn open_user_storage(org c::ConstCString, app c::ConstCString, props PropertiesID) *Storage
 
   @[link_name="SDL_OpenFileStorage"]
-  fn open_file_storage(path const cstring) *Storage
+  fn open_file_storage(path c::ConstCString) *Storage
 
   @[link_name="SDL_OpenStorage"]
   fn open_storage(iface const *StorageInterface, userdata rawptr) *Storage
@@ -13785,37 +13785,37 @@ extern {
   fn storage_ready(storage *Storage) bool
 
   @[link_name="SDL_GetStorageFileSize"]
-  fn get_storage_file_size(storage *Storage, path const cstring, length *u64) bool
+  fn get_storage_file_size(storage *Storage, path c::ConstCString, length *u64) bool
 
   @[link_name="SDL_ReadStorageFile"]
-  fn read_storage_file(storage *Storage, path const cstring, destination rawptr, length u64) bool
+  fn read_storage_file(storage *Storage, path c::ConstCString, destination rawptr, length u64) bool
 
   @[link_name="SDL_WriteStorageFile"]
-  fn write_storage_file(storage *Storage, path const cstring, source const *Void, length u64) bool
+  fn write_storage_file(storage *Storage, path c::ConstCString, source const *Void, length u64) bool
 
   @[link_name="SDL_CreateStorageDirectory"]
-  fn create_storage_directory(storage *Storage, path const cstring) bool
+  fn create_storage_directory(storage *Storage, path c::ConstCString) bool
 
   @[link_name="SDL_EnumerateStorageDirectory"]
-  fn enumerate_storage_directory(storage *Storage, path const cstring, callback EnumerateDirectoryCallback, userdata rawptr) bool
+  fn enumerate_storage_directory(storage *Storage, path c::ConstCString, callback EnumerateDirectoryCallback, userdata rawptr) bool
 
   @[link_name="SDL_RemoveStoragePath"]
-  fn remove_storage_path(storage *Storage, path const cstring) bool
+  fn remove_storage_path(storage *Storage, path c::ConstCString) bool
 
   @[link_name="SDL_RenameStoragePath"]
-  fn rename_storage_path(storage *Storage, oldpath const cstring, newpath const cstring) bool
+  fn rename_storage_path(storage *Storage, oldpath c::ConstCString, newpath c::ConstCString) bool
 
   @[link_name="SDL_CopyStorageFile"]
-  fn copy_storage_file(storage *Storage, oldpath const cstring, newpath const cstring) bool
+  fn copy_storage_file(storage *Storage, oldpath c::ConstCString, newpath c::ConstCString) bool
 
   @[link_name="SDL_GetStoragePathInfo"]
-  fn get_storage_path_info(storage *Storage, path const cstring, info *PathInfo) bool
+  fn get_storage_path_info(storage *Storage, path c::ConstCString, info *PathInfo) bool
 
   @[link_name="SDL_GetStorageSpaceRemaining"]
   fn get_storage_space_remaining(storage *Storage) u64
 
   @[link_name="SDL_GlobStorageDirectory"]
-  fn glob_storage_directory(storage *Storage, path const cstring, pattern const cstring, flags GlobFlags, count *libc::c_int) *cstring
+  fn glob_storage_directory(storage *Storage, path c::ConstCString, pattern c::ConstCString, flags GlobFlags, count *c::c_int) *c::CString
 
   @[link_name="SDL_SetX11EventHook"]
   fn set_x11_event_hook(callback X11EventHook, userdata rawptr)
@@ -13866,13 +13866,13 @@ extern {
   fn time_from_windows(dwLowDateTime u32, dwHighDateTime u32) Time
 
   @[link_name="SDL_GetDaysInMonth"]
-  fn get_days_in_month(year libc::c_int, month libc::c_int) libc::c_int
+  fn get_days_in_month(year c::c_int, month c::c_int) c::c_int
 
   @[link_name="SDL_GetDayOfYear"]
-  fn get_day_of_year(year libc::c_int, month libc::c_int, day libc::c_int) libc::c_int
+  fn get_day_of_year(year c::c_int, month c::c_int, day c::c_int) c::c_int
 
   @[link_name="SDL_GetDayOfWeek"]
-  fn get_day_of_week(year libc::c_int, month libc::c_int, day libc::c_int) libc::c_int
+  fn get_day_of_week(year c::c_int, month c::c_int, day c::c_int) c::c_int
 
   @[link_name="SDL_GetTicks"]
   fn get_ticks() u64
@@ -13905,13 +13905,13 @@ extern {
   fn remove_timer(id TimerID) bool
 
   @[link_name="SDL_CreateTray"]
-  fn create_tray(icon *Surface, tooltip const cstring) *Tray
+  fn create_tray(icon *Surface, tooltip c::ConstCString) *Tray
 
   @[link_name="SDL_SetTrayIcon"]
   fn set_tray_icon(tray *Tray, icon *Surface)
 
   @[link_name="SDL_SetTrayTooltip"]
-  fn set_tray_tooltip(tray *Tray, tooltip const cstring)
+  fn set_tray_tooltip(tray *Tray, tooltip c::ConstCString)
 
   @[link_name="SDL_CreateTrayMenu"]
   fn create_tray_menu(tray *Tray) *TrayMenu
@@ -13926,19 +13926,19 @@ extern {
   fn get_tray_submenu(entry *TrayEntry) *TrayMenu
 
   @[link_name="SDL_GetTrayEntries"]
-  fn get_tray_entries(menu *TrayMenu, count *libc::c_int) *const *TrayEntry
+  fn get_tray_entries(menu *TrayMenu, count *c::c_int) *const *TrayEntry
 
   @[link_name="SDL_RemoveTrayEntry"]
   fn remove_tray_entry(entry *TrayEntry)
 
   @[link_name="SDL_InsertTrayEntryAt"]
-  fn insert_tray_entry_at(menu *TrayMenu, pos libc::c_int, label const cstring, flags TrayEntryFlags) *TrayEntry
+  fn insert_tray_entry_at(menu *TrayMenu, pos c::c_int, label c::ConstCString, flags TrayEntryFlags) *TrayEntry
 
   @[link_name="SDL_SetTrayEntryLabel"]
-  fn set_tray_entry_label(entry *TrayEntry, label const cstring)
+  fn set_tray_entry_label(entry *TrayEntry, label c::ConstCString)
 
   @[link_name="SDL_GetTrayEntryLabel"]
-  fn get_tray_entry_label(entry *TrayEntry) const cstring
+  fn get_tray_entry_label(entry *TrayEntry) c::ConstCString
 
   @[link_name="SDL_SetTrayEntryChecked"]
   fn set_tray_entry_checked(entry *TrayEntry, checked bool)
@@ -13974,28 +13974,28 @@ extern {
   fn update_trays()
 
   @[link_name="SDL_GetVersion"]
-  fn get_version() libc::c_int
+  fn get_version() c::c_int
 
   @[link_name="SDL_GetRevision"]
-  fn get_revision() const cstring
+  fn get_revision() c::ConstCString
 
   @[link_name="SDL_main"]
-  fn main(argc libc::c_int, argv *cstring) libc::c_int
+  fn main(argc c::c_int, argv *c::CString) c::c_int
 
   @[link_name="SDL_SetMainReady"]
   fn set_main_ready()
 
   @[link_name="SDL_RunApp"]
-  fn run_app(argc libc::c_int, argv *cstring, mainFunction main_func, reserved rawptr) libc::c_int
+  fn run_app(argc c::c_int, argv *c::CString, mainFunction main_func, reserved rawptr) c::c_int
 
   @[link_name="SDL_EnterAppMainCallbacks"]
-  fn enter_app_main_callbacks(argc libc::c_int, argv *cstring, appinit AppInit_func, appiter AppIterate_func, appevent AppEvent_func, appquit AppQuit_func) libc::c_int
+  fn enter_app_main_callbacks(argc c::c_int, argv *c::CString, appinit AppInit_func, appiter AppIterate_func, appevent AppEvent_func, appquit AppQuit_func) c::c_int
 
   @[link_name="SDL_GDKSuspendComplete"]
   fn gdk_suspend_complete()
 
   @[link_name="SDL_Vulkan_LoadLibrary"]
-  fn vulkan_load_library(path const cstring) bool
+  fn vulkan_load_library(path c::ConstCString) bool
 
   @[link_name="SDL_Vulkan_GetVkGetInstanceProcAddr"]
   fn vulkan_get_vk_get_instance_proc_addr() FunctionPointer
@@ -14004,7 +14004,7 @@ extern {
   fn vulkan_unload_library()
 
   @[link_name="SDL_Vulkan_GetInstanceExtensions"]
-  fn vulkan_get_instance_extensions(count *u32) const *const cstring
+  fn vulkan_get_instance_extensions(count *u32) const *c::ConstCString
 
   @[link_name="SDL_Vulkan_CreateSurface"]
   fn vulkan_create_surface(window *Window, instance VkInstance, allocator const *VkAllocationCallbacks, surface *VkSurfaceKHR) bool
@@ -14016,7 +14016,7 @@ extern {
   fn vulkan_get_presentation_support(instance VkInstance, physicalDevice VkPhysicalDevice, queueFamilyIndex u32) bool
 
   @[link_name="SDL_CreateThread"]
-  fn create_thread(entry ThreadFunction, name const cstring, data rawptr) *Thread
+  fn create_thread(entry ThreadFunction, name c::ConstCString, data rawptr) *Thread
 
   @[link_name="SDL_CreateThreadWithProperties"]
   fn create_thread_with_properties(props PropertiesID) *Thread

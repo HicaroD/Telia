@@ -11,8 +11,13 @@ type FunctionType struct {
 
 func (f *FunctionType) String() string { return fmt.Sprintf("fn(...) %s", f.Result.T) }
 
+func (f *FunctionType) HasForeignABI() bool {
+	return f.Attributes.CallingConvention != "" || f.Attributes.CallingConventionMacro != ""
+}
+
 func (f *FunctionType) Equals(g *FunctionType) bool {
-	if f.Attributes.CallingConventionMacro != g.Attributes.CallingConventionMacro {
+	if f.Attributes.CallingConvention != g.Attributes.CallingConvention ||
+		f.Attributes.CallingConventionMacro != g.Attributes.CallingConventionMacro {
 		return false
 	}
 	if f.Params.IsVariadic != g.Params.IsVariadic || len(f.Params.Fields) != len(g.Params.Fields) ||

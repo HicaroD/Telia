@@ -32,7 +32,7 @@ func (s *sema) cScalar(id *ast.IdType) (*ast.ExprType, error) {
 			Title:   "Unknown C scalar",
 			Message: "unknown compiler C scalar intrinsic",
 			Span:    id.Name.Span,
-			Help:    "Use the public C scalar aliases in std::libc.",
+			Help:    "Use the public C scalar aliases in std::ffi::c.",
 		}
 	}
 	kinds := map[int]token.Kind{

@@ -29,7 +29,7 @@ Import `std::strings`.
 | --- | --- | --- |
 | `len(text string)` | `u64` byte length | No allocation |
 | `slice(text string, start u64, end u64)` | `(string, error)` | No allocation; borrows the original storage |
-| `from_c(text cstring)` | `string` | Scans to the first zero; borrows the C storage |
+| `from_c(text c::ConstCString)` | `string` | Scans to the first zero; borrows the C storage |
 
 Slicing uses an inclusive start and exclusive end. `start > end` or
 `end > len(text)` returns an error and an empty result. Empty ranges, including
@@ -69,17 +69,25 @@ io::println(part)
 
 ## C strings
 
-`cstring` is a zero-terminated character pointer. It is separate from `string`
-and does not imply ownership. A literal in a `cstring` context denotes static
+Import `std::ffi::c` for `c::CString` (mutable C characters) and
+`c::ConstCString` (read-only C characters). These are zero-terminated character
+pointers, separate from `string`, and do not imply ownership. A literal in a C-string context denotes static
 zero-terminated storage; embedded zeros in such a literal are rejected. Existing
 `string` values require an explicit conversion.
+
+`cstring` is no longer a built-in type or reserved word. Replace `cstring` with
+`c::CString` and `const cstring` with `c::ConstCString`. Aliases preserve
+these types; `*c::ConstCString` is a writable pointer output slot, while
+`const *c::ConstCString` also protects that slot. No lifetime is extended.
+The C-text types are not exported from `std::libc`; that package contains actual
+C standard-library function bindings.
 
 | API | Result | Ownership and allocation |
 | --- | --- | --- |
 | `to_c(text string)` | `(COwned, error)` | Allocates a copy plus a trailing zero, even for empty text |
-| `c_view(owner *COwned)` | `cstring` | Borrows the conversion buffer; no allocation |
+| `c_view(owner *COwned)` | `c::CString` | Borrows the conversion buffer; no allocation |
 | `free_c(owner *COwned)` | Nothing | Releases the buffer and resets this owner; empty/repeated cleanup is a no-op |
-| `to_c_in(arena *memory::Arena, text string)` | `(cstring, error)` | Copies plus a trailing zero into arena-owned storage |
+| `to_c_in(arena *memory::Arena, text string)` | `(c::CString, error)` | Copies plus a trailing zero into arena-owned storage |
 
 Both conversions reject embedded zeros rather than truncating text. Their
 allocation and overflow failures return empty results. `COwned` has the same
@@ -93,7 +101,7 @@ libc::printf("%s\n", strings::c_view(&ctext))
 ```
 
 C bindings such as `printf`, `puts` (exposed as `libc::println`), `strlen`, and
-`strcmp` take `cstring`. Passing borrowed `string` data to a C variadic call is
+`strcmp` take `c::ConstCString`. Passing borrowed `string` data to a C variadic call is
 rejected; convert it first. Use `io::println` to print Telia strings directly.
 
 ## Heap allocation

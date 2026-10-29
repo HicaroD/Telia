@@ -1,6 +1,7 @@
 package strings
 
 use "std::memory"
+use "std::ffi::c"
 
 struct Owned {
   text string
@@ -31,10 +32,10 @@ extern {
   fn to_c_into(text string, result *string) error
 
   @[link_name="_telia_string_c_view"]
-  fn c_pointer(text string) cstring
+  fn c_pointer(text string) c::CString
 
   @[link_name="_telia_string_from_c"]
-  fn from_c(text const cstring) string
+  fn from_c(text c::ConstCString) string
 
   @[link_name="_telia_arena_string_concat"]
   fn concat_in_into(state *rawptr, left string, right string, result *string) error
@@ -70,7 +71,7 @@ fn to_c(text string) (COwned, error) {
   return result, err
 }
 
-fn c_view(owner *COwned) cstring {
+fn c_view(owner *COwned) c::CString {
   return c_pointer(owner.text)
 }
 
@@ -91,7 +92,7 @@ fn concat_in(arena *memory::Arena, left string, right string) (string, error) {
   return result, err
 }
 
-fn to_c_in(arena *memory::Arena, text string) (cstring, error) {
+fn to_c_in(arena *memory::Arena, text string) (c::CString, error) {
   result := ""
   err := to_c_in_into(&arena.state, text, &result)
   return c_pointer(result), err

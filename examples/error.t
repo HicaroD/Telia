@@ -1,10 +1,6 @@
 package main
 
-@[default_cc="c"]
-extern libc {
-  fn printf(format cstring, ...) i32
-  fn puts(format cstring) i32
-}
+use "std::libc"
 
 fn connect_to_db() (int, error) {
     return 1, error("db connection failed")

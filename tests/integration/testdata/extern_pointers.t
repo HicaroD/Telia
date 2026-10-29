@@ -1,8 +1,8 @@
 package main
 
-use "std::libc"
+use "std::ffi::c"
 
-type Number = libc::c_int
+type Number = c::c_int
 type NumberPointer = *Number
 
 @[default_cc="c"]

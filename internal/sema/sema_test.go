@@ -272,9 +272,10 @@ func TestScopeResolution(t *testing.T) {
 
 func TestCVariadicRejectsBorrowedString(t *testing.T) {
 	collector := parseAndCheck(`package main
+type Text = __c_const_cstring
 @[default_cc="c"]
 extern {
-  fn printf(format cstring, args @c ...) int
+  fn printf(format Text, args @c ...) int
 }
 fn main() {
   text := "hello"

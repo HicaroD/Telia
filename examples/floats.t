@@ -1,9 +1,9 @@
 package main
 
-use "std::io"
+use "std::libc"
 
-fn main() {
+fn main() i32 {
   a f64 := 2.0 + 1.0
-  io::printf("%lf\n", a)
-  return
+  libc::printf("%lf\n", a)
+  return 0
 }

@@ -75,7 +75,7 @@ func (s *sema) checkVaIntrinsic(
 			Title:   "va_list owner initialization",
 			Message: "a va_list owner must be initialized directly in a new local variable",
 			Span:    call.Name.Span,
-			Help:    "Write owner := libc::" + name + "(...), then arrange va_end(&owner) on every exit path.",
+			Help:    "Import std::ffi::c and write owner := c::" + name + "(...), then arrange c::va_end(&owner) on every exit path.",
 		}
 	}
 	typeCount := 0
@@ -137,7 +137,7 @@ func (s *sema) checkVaIntrinsic(
 				Title:   "Invalid va_start parameter",
 				Message: "the last fixed parameter must have a supported type unchanged by C default promotions",
 				Span:    call.Name.Span,
-				Help:    "Use a final libc::c_int, libc::c_double, or pointer parameter before args @c ....",
+				Help:    "Use a final c::c_int, c::c_double, or pointer parameter before args @c ....",
 				Related: []diagnostics.Related{
 					{Span: call.VaLast.Name.Span, Message: "last fixed parameter declared here"},
 				},
@@ -188,7 +188,7 @@ func (s *sema) checkVaIntrinsic(
 				return nil, err
 			}
 			if !valid {
-				return nil, diagnostics.Diag{Title: "Invalid va_arg type", Message: "va_arg must name a supported actual type after C default promotions", Span: call.Name.Span, Help: "Read narrow integers and bool as libc::c_int, and f32 as libc::c_double; otherwise use the actual promoted scalar or pointer type passed by the caller.", Related: []diagnostics.Related{{Span: owner.Name.Span, Message: "owning cursor declared here"}}}
+				return nil, diagnostics.Diag{Title: "Invalid va_arg type", Message: "va_arg must name a supported actual type after C default promotions", Span: call.Name.Span, Help: "Read narrow integers and bool as c::c_int, and f32 as c::c_double; otherwise use the actual promoted scalar or pointer type passed by the caller.", Related: []diagnostics.Related{{Span: owner.Name.Span, Message: "owning cursor declared here"}}}
 			}
 			call.BuiltinType, result = ty, ty
 		}
@@ -199,7 +199,7 @@ func (s *sema) checkVaIntrinsic(
 
 func vaPromotedType(ty *ast.ExprType, span source.Span) (bool, error) {
 	if ty.Kind == ast.EXPR_TYPE_POINTER || ty.Kind == ast.EXPR_TYPE_FUNCTION {
-		return true, nil
+		return checkForeignCallbacks(ty, span) == nil, nil
 	}
 	if ty.Kind != ast.EXPR_TYPE_BASIC {
 		return false, nil
@@ -242,7 +242,7 @@ func rejectVaListEscape(ty *ast.ExprType, span source.Span) error {
 			Title:   "Borrowed va_list escape",
 			Message: "a borrowed va_list may only be forwarded during the current call",
 			Span:    span,
-			Help:    "Create local owning storage with libc::va_copy if you need an independent cursor; do not return or retain the borrowed parameter.",
+			Help:    "Create local owning storage with c::va_copy from std::ffi::c if you need an independent cursor; do not return or retain the borrowed parameter.",
 		}
 	case ast.EXPR_TYPE_POINTER:
 		return rejectVaListEscape(ty.T.(*ast.PointerType).Type, span)

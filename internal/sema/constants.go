@@ -34,7 +34,7 @@ func (s *sema) checkConstDecl(d *ast.ConstDecl) error {
 					Title:   "Invalid foreign constant type",
 					Message: "foreign constants require a numeric, boolean, or C-text type",
 					Span:    d.Name.Span,
-					Help:    "Use the header's numeric or boolean type, or const cstring for borrowed NUL-terminated text.",
+					Help:    "Use the header's numeric or boolean type, or c::ConstCString from std::ffi::c for borrowed NUL-terminated text.",
 				}
 			}
 			d.Type = ty

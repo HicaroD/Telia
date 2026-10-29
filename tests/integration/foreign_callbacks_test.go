@@ -4,6 +4,7 @@ import "testing"
 
 func TestCallbacksCrossCBoundaryAndUseTypedOutputSlots(t *testing.T) {
 	runRecordFixture(t, `package main
+@[cc="c"]
 type Compare = fn(left i32, right i32) i32
 @[header=%q, default_cc="c"]
 extern {
@@ -12,6 +13,7 @@ fn invoke(callback Compare) i32
 @[link_name="fixture_callback_get"]
 fn get(output *Compare)
 }
+@[cc="c"]
 fn compare(left i32, right i32) i32 {
 return left - right
 }

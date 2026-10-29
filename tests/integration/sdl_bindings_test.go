@@ -83,10 +83,10 @@ fn main() i32 {
 
 func TestSDL3WideTextUsesNativeWcharStorage(t *testing.T) {
 	runSDLSource(t, `package main
-use "std::libc"
+use "std::ffi::c"
 use "vendor::sdl"
 fn main() i32 {
-  text libc::c_wchar_t[3] := .{65, 66, 0}
+  text c::c_wchar_t[3] := .{65, 66, 0}
   if sdl::wcslen(&text[0]) != 2 {
     return 1
   }
@@ -183,10 +183,10 @@ fn main() i32 {
 
 func TestSDL3ThreadMacroRunsCallbackAndReturnsItsStatus(t *testing.T) {
 	runSDLSource(t, `package main
-use "std::libc"
+use "std::ffi::c"
 use "vendor::sdl"
 @[cc_macro="SDLCALL"]
-fn worker(data rawptr) libc::c_int {
+fn worker(data rawptr) c::c_int {
   return 42
 }
 fn main() i32 {
@@ -194,7 +194,7 @@ fn main() i32 {
   if thread == nil {
     return 1
   }
-  status libc::c_int := 0
+  status c::c_int := 0
   sdl::wait_thread(thread, &status)
   if status != 42 {
     return 2

@@ -36,7 +36,7 @@ func TestTokenKinds(t *testing.T) {
 		{"bool", token.BOOL_TYPE},
 
 		{"string", token.STRING_TYPE},
-		{"cstring", token.CSTRING_TYPE},
+		{"cstring", token.ID},
 		{"error", token.ERROR_TYPE},
 		{"int", token.INT_TYPE},
 		{"int", token.INT_TYPE},

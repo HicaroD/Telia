@@ -14,22 +14,24 @@ func TestVaListOwnerNativeABIUnderUBSan(t *testing.T) {
 		)
 	}
 	exe, diags := compileRecordFixture(t, `package main
-use "std::libc"
+use "std::ffi::c"
+@[cc="c"]
 type Consume = fn(marker i32, args @c ...) i32
 @[header=%q, default_cc="c"]
 extern {
 @[link_name="fixture_va_owned_drive"]
 fn drive(callback Consume) i32
 }
+@[cc="c"]
 fn consume(marker i32, args @c ...) i32 {
-owner libc::VaList := libc::va_start(args)
-defer libc::va_end(&owner)
-copy := libc::va_copy(libc::va_borrow(&owner))
-defer libc::va_end(&copy)
-if libc::va_arg<libc::c_int>(&copy) != 42 or libc::va_arg<libc::c_double>(&copy) != 1.5 {
+owner c::VaList := c::va_start(args)
+defer c::va_end(&owner)
+copy := c::va_copy(c::va_borrow(&owner))
+defer c::va_end(&copy)
+if c::va_arg<c::c_int>(&copy) != 42 or c::va_arg<c::c_double>(&copy) != 1.5 {
 return 0
 }
-if libc::va_arg<libc::c_int>(&owner) != 42 or libc::va_arg<libc::c_double>(&owner) != 1.5 {
+if c::va_arg<c::c_int>(&owner) != 42 or c::va_arg<c::c_double>(&owner) != 1.5 {
 return 0
 }
 return 1

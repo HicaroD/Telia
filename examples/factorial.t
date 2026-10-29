@@ -1,6 +1,6 @@
 package main
 
-use "std::io"
+use "std::libc"
 
 fn factorial(n i32) i32 {
   if n == 1 {
@@ -11,6 +11,6 @@ fn factorial(n i32) i32 {
 
 fn main() i32 {
   result := factorial(6)
-  io::printf("%d\n", result)
+  libc::printf("%d\n", result)
   return 0
 }

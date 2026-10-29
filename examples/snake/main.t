@@ -1,14 +1,9 @@
 package main
 
 use "std::libc"
+use "std::ffi::c"
 use "vendor::sdl"
 use "pkg::game"
-
-@[default_cc="c"]
-extern {
-  fn getenv(name const cstring) cstring
-  fn atoi(text const cstring) i32
-}
 
 fn rectangle(renderer *sdl::Renderer, x f32, y f32, w f32, h f32, r u8, g u8, b u8) bool {
   if sdl::set_render_draw_color(renderer, r, g, b, 255) == false {
@@ -18,7 +13,7 @@ fn rectangle(renderer *sdl::Renderer, x f32, y f32, w f32, h f32, r u8, g u8, b 
   return sdl::render_fill_rect(renderer, &rect)
 }
 
-fn label(renderer *sdl::Renderer, x f32, y f32, text const cstring) bool {
+fn label(renderer *sdl::Renderer, x f32, y f32, text c::ConstCString) bool {
   if sdl::set_render_scale(renderer, 2.0, 2.0) == false {
     return false
   }
@@ -187,9 +182,9 @@ fn draw(renderer *sdl::Renderer, state *game::State, best i32) bool {
 
 fn main() i32 {
   frame_limit i32 := 0
-  configured := getenv("TELIA_SNAKE_FRAMES")
+  configured := libc::getenv("TELIA_SNAKE_FRAMES")
   if configured != nil {
-    frame_limit = atoi(configured)
+    frame_limit = libc::atoi(configured)
     if frame_limit <= 0 {
       libc::println("TELIA_SNAKE_FRAMES must be a positive integer")
       return 1

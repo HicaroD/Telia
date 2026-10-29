@@ -13,7 +13,7 @@ func rejectCVariadicValue(param *ast.Param, span source.Span) error {
 			Title:   "C variadic marker is not a value",
 			Message: "args @c ... names a native variadic argument pack, not ordinary storage",
 			Span:    span,
-			Help:    "Use libc::va_start(args) to initialize local owning cursor storage.",
+			Help:    "Use c::va_start(args) from std::ffi::c to initialize local owning cursor storage.",
 			Related: []diagnostics.Related{
 				{Span: param.Name.Span, Message: "C variadic marker declared here"},
 			},
@@ -38,8 +38,10 @@ func checkCVariadicParams(params *ast.Params) error {
 
 func cVariadicType(ty *ast.ExprType) bool {
 	switch ty.Kind {
-	case ast.EXPR_TYPE_POINTER, ast.EXPR_TYPE_FUNCTION:
-		return true
+	case ast.EXPR_TYPE_FUNCTION:
+		return ty.T.(*ast.FunctionType).HasForeignABI()
+	case ast.EXPR_TYPE_POINTER:
+		return checkForeignCallbacks(ty, source.Span{}) == nil
 	case ast.EXPR_TYPE_ENUM:
 		return !ty.T.(*ast.EnumType).Decl.HasPayload
 	case ast.EXPR_TYPE_BASIC:

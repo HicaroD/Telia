@@ -1297,7 +1297,7 @@ func (p *Parser) parseFnParams(
 						Title:   "Invalid parameter attribute",
 						Message: "const is a pointer qualifier, not a parameter attribute",
 						Span:    attributeName.Span,
-						Help:    "Write const *T or const cstring as the parameter type.",
+						Help:    "Write const *T or import std::ffi::c and use c::ConstCString as the parameter type.",
 					}
 				}
 			}
@@ -1514,12 +1514,6 @@ func (p *Parser) ParseExprType() (*ast.ExprType, error) {
 		t.T = &ast.FunctionType{Params: params, Result: result}
 	case token.CONST:
 		p.lex.Skip()
-		if p.lex.NextIs(token.CSTRING_TYPE) {
-			p.lex.Skip()
-			t.Kind = ast.EXPR_TYPE_BASIC
-			t.T = &ast.BasicType{Kind: token.CSTRING_TYPE, Explicit: true, Const: true}
-			return p.parseSequenceType(t)
-		}
 		if found, ok := p.expect(token.STAR); !ok {
 			return nil, diagnostics.Diag{
 				Title:   "Expected qualified pointer",

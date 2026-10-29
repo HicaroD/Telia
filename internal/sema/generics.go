@@ -51,6 +51,13 @@ func (s *sema) resolveSignature(fn *ast.FnDecl) error {
 		if err := rejectOpaqueValue(ty, fn.Name.Span); err != nil {
 			return err
 		}
+		callable := &ast.FunctionType{Params: fn.Params, Result: ty, Attributes: fn.Attributes}
+		if callable.HasForeignABI() {
+			return checkForeignCallbacks(
+				&ast.ExprType{Kind: ast.EXPR_TYPE_FUNCTION, T: callable},
+				fn.Name.Span,
+			)
+		}
 		return nil
 	})
 }
@@ -162,10 +169,11 @@ func typeKey(ty *ast.ExprType) string {
 			parts = append(parts, typeKey(p.Type))
 		}
 		return fmt.Sprintf(
-			"fn(%s)%s:%t:%s",
+			"fn(%s)%s:%t:%s:%s",
 			strings.Join(parts, ","),
 			typeKey(f.Result),
 			f.Params.IsVariadic,
+			f.Attributes.CallingConvention,
 			f.Attributes.CallingConventionMacro,
 		)
 	case ast.EXPR_TYPE_OPAQUE:
@@ -263,6 +271,11 @@ func (s *sema) resolveTypeAliases(
 		if err := rejectOpaqueValue(result, f.Params.Open.Span); err != nil {
 			return nil, err
 		}
+		if f.HasForeignABI() {
+			if err := checkForeignCallbacks(ty, f.Params.Open.Span); err != nil {
+				return nil, err
+			}
+		}
 		if f.CName == "" {
 			f.CName = concreteName("callback", typeKey(ty))
 			s.program.FunctionTypes = append(s.program.FunctionTypes, ty)
@@ -311,6 +324,12 @@ func (s *sema) resolveTypeAliases(
 		}
 		sym, err := scope.LookupAcrossScopes(id.Name.Name())
 		if err != nil {
+			if id.Namespace == nil &&
+				(id.Name.Name() == "__c_cstring" || id.Name.Name() == "__c_const_cstring") {
+				text := concreteBasicType(token.CSTRING_TYPE)
+				text.T.(*ast.BasicType).Const = id.Name.Name() == "__c_const_cstring"
+				return text, nil
+			}
 			if id.Namespace == nil && id.Name.Name() == "__c_va_list_owner" {
 				return &ast.ExprType{
 					Kind:     ast.EXPR_TYPE_VA_LIST_OWNER,
@@ -547,6 +566,11 @@ func (s *sema) resolveStruct(d *ast.StructDecl, bindings map[string]*ast.ExprTyp
 			ty, err := s.resolveType(field.Type, scope)
 			if err != nil {
 				return err
+			}
+			if d.Foreign != nil {
+				if err := checkForeignCallbacks(ty, field.Name.Span); err != nil {
+					return err
+				}
 			}
 			if d.Foreign != nil && ty.Kind == ast.EXPR_TYPE_ARRAY {
 				seq := ty.T.(*ast.SequenceType)

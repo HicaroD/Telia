@@ -188,7 +188,7 @@ func (ty *ExprType) PointerTo(pointeeTy ExprTypeKind) bool {
 
 type BasicType struct {
 	CName    string // Native C scalar spelling, with target-probed Kind.
-	Const    bool   // cstring shorthand: protects the pointed-to C characters.
+	Const    bool   // Foreign C text: protects the pointed-to C characters.
 	Kind     token.Kind
 	Explicit bool
 }
@@ -235,6 +235,12 @@ func (left *BasicType) IsCompatibleWith(right *BasicType) bool {
 }
 
 func (basicType BasicType) String() string {
+	if basicType.Kind == token.CSTRING_TYPE {
+		if basicType.Const {
+			return "c::ConstCString"
+		}
+		return "c::CString"
+	}
 	if basicType.CName != "" {
 		return basicType.CName
 	}
