@@ -42,8 +42,8 @@ func TestInvalidGenericDeclarations(t *testing.T) {
 }
 
 func TestNestedGenericLiteralsPreserveMultilineParsing(t *testing.T) {
-	_, err := ParseExprFrom(`Box<Box<i32>>.{
-    value: Box<i32>.{
+	_, err := ParseExprFrom(`Box<Box<i32>>{
+    value: Box<i32>{
         value: 42
     }
 }`, "nested.t")
@@ -55,7 +55,7 @@ func TestNestedGenericLiteralsPreserveMultilineParsing(t *testing.T) {
 func TestParseGenericComposition(t *testing.T) {
 	_, err := ParseDeclFrom(`fn wrap<T>(value T) pkg::Pair<T, *pkg::Box<(i32, string)>> {
     copy := pkg::identity<T>(value)
-    return pkg::Pair<T, *pkg::Box<(i32, string)>>.{ first: copy }
+    return pkg::Pair<T, *pkg::Box<(i32, string)>>{ first: copy }
 }
 `, "generic.t")
 	if err != nil {

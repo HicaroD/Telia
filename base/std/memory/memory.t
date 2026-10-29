@@ -29,7 +29,7 @@ fn alloc(size u64) (rawptr, error) {
 }
 
 fn arena_create() (Arena, error) {
-  result := Arena.{state: nil}
+  result := Arena{state: nil}
   return result, nil
 }
 

@@ -7,7 +7,7 @@ struct Box<T> {
 }
 
 fn zero<T>() T {
-    return T.{}
+    return T{}
 }
 
 fn main() i32 {

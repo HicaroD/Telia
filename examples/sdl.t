@@ -42,7 +42,7 @@ fn main() i32 {
   }
 
   frame i32 := 0
-  event := sdl::Event.{type: 0}
+  event := sdl::Event{type: 0}
   while frame_limit == 0 or frame < frame_limit {
     while sdl::poll_event(&event) {
       if event.type == sdl::EVENT_QUIT {
@@ -61,7 +61,7 @@ fn main() i32 {
       libc::println(sdl::get_error())
       return 6
     }
-    rect := sdl::FRect.{x: 220.0, y: 160.0, w: 200.0, h: 160.0}
+    rect := sdl::FRect{x: 220.0, y: 160.0, w: 200.0, h: 160.0}
     if sdl::render_fill_rect(renderer, &rect) == false {
       libc::println(sdl::get_error())
       return 7

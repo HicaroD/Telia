@@ -14,7 +14,7 @@ value f64
 }
 }
 fn main() {
-record := Record.{value: 42.0}
+record := Record{value: 42.0}
 }
 `)
 	if exe != "" {

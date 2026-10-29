@@ -17,7 +17,7 @@ fn get() Compare
 }
 fn main() i32 {
 callback := get()
-holder := Callbacks.{compare: callback}
+holder := Callbacks{compare: callback}
 if holder.compare(40, 2) != 42 {
 return 1
 }

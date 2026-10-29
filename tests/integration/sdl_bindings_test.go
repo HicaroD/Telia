@@ -53,11 +53,11 @@ fn main() i32 {
     return 1
   }
   defer sdl::quit()
-  event := sdl::Event.{type: 0}
+  event := sdl::Event{type: 0}
   while sdl::poll_event(&event) {
   }
-  key := sdl::KeyboardEvent.{type: sdl::EventType::KEY_DOWN, scancode: sdl::Scancode::RIGHT, down: true, repeat: false}
-  sent := sdl::Event.{key: key}
+  key := sdl::KeyboardEvent{type: sdl::EventType::KEY_DOWN, scancode: sdl::Scancode::RIGHT, down: true, repeat: false}
+  sent := sdl::Event{key: key}
   if sdl::push_event(&sent) == false {
     return 2
   }
@@ -142,7 +142,7 @@ func TestSDL3GamepadBindingNestedUnionsRetainTheirLayouts(t *testing.T) {
 	runSDLSource(t, `package main
 use "vendor::sdl"
 fn main() i32 {
-  binding := sdl::GamepadBinding.{input_type: sdl::GamepadBindingType::BUTTON, input: sdl::GamepadBindingInput.{button: 3}, output_type: sdl::GamepadBindingType::AXIS, output: sdl::GamepadBindingOutput.{axis: sdl::GamepadBindingOutputAxis.{axis: sdl::GamepadAxis::LEFTX, axis_min: -32768, axis_max: 32767}}}
+  binding := sdl::GamepadBinding{input_type: sdl::GamepadBindingType::BUTTON, input: sdl::GamepadBindingInput{button: 3}, output_type: sdl::GamepadBindingType::AXIS, output: sdl::GamepadBindingOutput{axis: sdl::GamepadBindingOutputAxis{axis: sdl::GamepadAxis::LEFTX, axis_min: -32768, axis_max: 32767}}}
   if binding.input.button != 3 {
     return 1
   }

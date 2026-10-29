@@ -16,7 +16,7 @@ fn scale_x(p *Point, factor int) int {
 }
 
 fn main() i32 {
-  pt := Point.{
+  pt := Point{
     x: 3,
     y: 7,
   }

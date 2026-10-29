@@ -379,12 +379,12 @@ func TestSemanticErrors(t *testing.T) {
 		},
 		{
 			name:      "struct field access",
-			src:       "package main\n\nstruct Point {\n  x i32\n  y i32\n}\nfn main() {\n  p := Point.{x: 1, y: 2}\n  q := p.x\n}\n",
+			src:       "package main\n\nstruct Point {\n  x i32\n  y i32\n}\nfn main() {\n  p := Point{x: 1, y: 2}\n  q := p.x\n}\n",
 			errSubstr: "",
 		},
 		{
 			name:      "struct field access undefined",
-			src:       "package main\n\nstruct Point {\n  x i32\n}\nfn main() {\n  p := Point.{x: 1}\n  q := p.z\n}\n",
+			src:       "package main\n\nstruct Point {\n  x i32\n}\nfn main() {\n  p := Point{x: 1}\n  q := p.z\n}\n",
 			errSubstr: "not found",
 		},
 		{
@@ -933,7 +933,7 @@ struct Result {
 }
 
 fn main() {
-  result := Result.{err: error("oops")}
+  result := Result{err: error("oops")}
   msg := result.err.msg
 }`,
 			hasError: false,

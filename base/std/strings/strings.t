@@ -45,13 +45,13 @@ extern {
 }
 
 fn clone(text string) (Owned, error) {
-  result := Owned.{text: ""}
+  result := Owned{text: ""}
   err := clone_into(text, &result.text)
   return result, err
 }
 
 fn concat(left string, right string) (Owned, error) {
-  result := Owned.{text: ""}
+  result := Owned{text: ""}
   err := concat_into(left, right, &result.text)
   return result, err
 }
@@ -66,7 +66,7 @@ fn free(owner *Owned) {
 }
 
 fn to_c(text string) (COwned, error) {
-  result := COwned.{text: ""}
+  result := COwned{text: ""}
   err := to_c_into(text, &result.text)
   return result, err
 }

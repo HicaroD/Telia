@@ -23,13 +23,16 @@ func (p *Parser) parseMatch(scope *ast.Scope) (*ast.Node, error) {
 	start := p.lex.Next()
 	m := &ast.MatchExpr{}
 	var err error
-	m.Value, err = p.ParseSingleExpr(scope)
+	m.Value, err = p.parseHeaderExpr(scope)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.matchExpect(token.OPEN_CURLY, "Write match value { Enum::Variant => expression }."); err != nil {
 		return nil, err
 	}
+	previous := p.noNamedLiteral
+	p.noNamedLiteral = false
+	defer func() { p.noNamedLiteral = previous }()
 	p.skipNewLines()
 	for !p.lex.NextIs(token.CLOSE_CURLY) {
 		arm := &ast.MatchArm{Scope: ast.NewScope(scope)}
@@ -69,9 +72,11 @@ func (p *Parser) parseMatch(scope *ast.Scope) (*ast.Node, error) {
 			}
 			arm.PatternType = &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: id}
 			arm.VariantName = next
-			if p.lex.NextIs(token.DOT) {
-				p.lex.Skip()
-				if _, err = p.matchExpect(token.OPEN_CURLY, "Write .{field}, .{field: binding}, or .{field, ..}."); err != nil {
+			if p.lex.NextIs(token.DOT) || p.lex.NextIs(token.OPEN_CURLY) {
+				if p.lex.NextIs(token.DOT) {
+					p.lex.Skip()
+				}
+				if _, err = p.matchExpect(token.OPEN_CURLY, "Write {field}, {field: binding}, or {field, ..}."); err != nil {
 					return nil, err
 				}
 				for !p.lex.NextIs(token.CLOSE_CURLY) {

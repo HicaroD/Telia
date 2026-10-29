@@ -8,7 +8,7 @@ struct User {
 }
 
 fn main() {
-  user := User.{
+  user := User{
     name: "Hicaro",
     age: 21,
   }

@@ -24,7 +24,7 @@ omitted i32
 fn check(record *Record) i32
 }
 fn main() i32 {
-record := Record.{value: 42}
+record := Record{value: 42}
 if check(&record) != 1 {
 return 1
 }
@@ -96,7 +96,7 @@ omitted i32
 fn roundtrip(record Record) Record
 }
 fn main() i32 {
-record := roundtrip(Record.{value: 40})
+record := roundtrip(Record{value: 40})
 if record.value != 42 or record.omitted != 7 {
 return 1
 }
@@ -118,7 +118,7 @@ real f64
 fn check(value Value) i32
 }
 fn main() i32 {
-value := Value.{integer: 42}
+value := Value{integer: 42}
 if check(value) != 1 or value.integer != 42 {
 return 1
 }

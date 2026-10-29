@@ -5,10 +5,10 @@ import "testing"
 func TestInvalidMatchesHaveActionableDiagnostics(t *testing.T) {
 	for _, tc := range []struct{ name, body, title string }{
 		{"missing variant", "value := match Event::Quit {\nEvent::Quit => 0\n}", "Non-exhaustive match"},
-		{"duplicate arm", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Quit => 1\nEvent::Resize.{..} => 2\n}", "Duplicate match arm"},
-		{"missing fields", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize.{width} => width\n}", "Incomplete payload pattern"},
-		{"unknown field", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize.{depth, ..} => depth\n}", "Unknown payload field"},
-		{"missing yield", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize.{..} => {\nlocal := 1\n}\n}", "Missing match yield"},
+		{"duplicate arm", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Quit => 1\nEvent::Resize{..} => 2\n}", "Duplicate match arm"},
+		{"missing fields", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize{width} => width\n}", "Incomplete payload pattern"},
+		{"unknown field", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize{depth, ..} => depth\n}", "Unknown payload field"},
+		{"missing yield", "value := match Event::Quit {\nEvent::Quit => 0\nEvent::Resize{..} => {\nlocal := 1\n}\n}", "Missing match yield"},
 		{"yield outside match", "yield 1", "Yield outside match"},
 		{"unreachable arm", "value := match Event::Quit {\n_ => 0\nEvent::Quit => 1\n}", "Unreachable match arm"},
 	} {

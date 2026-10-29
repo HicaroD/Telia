@@ -77,7 +77,7 @@ func TestEnumTagValidationRegressions(t *testing.T) {
 func TestPayloadEnumsRequireMatchingInsteadOfTagOnlyEquality(t *testing.T) {
 	c := checkDiagnostics(
 		t,
-		"package main\nenum Event {\nResize {\nwidth i32\n}\n}\nfn main() {\nsame := Event::Resize.{width: 1} == Event::Resize.{width: 2}\n}\n",
+		"package main\nenum Event {\nResize {\nwidth i32\n}\n}\nfn main() {\nsame := Event::Resize{width: 1} == Event::Resize{width: 2}\n}\n",
 	)
 	if len(c.Diags) != 1 || c.Diags[0].Title != "Payload enum comparison" ||
 		!c.Diags[0].Span.Valid() ||
@@ -90,9 +90,9 @@ func TestPayloadEnumsRequireMatchingInsteadOfTagOnlyEquality(t *testing.T) {
 func TestInvalidPayloadConstructionHasActionableDiagnostics(t *testing.T) {
 	for _, tc := range []struct{ expr, title string }{
 		{"Event::Resize", "Missing payload field"},
-		{"Event::Resize.{width: 1}", "Missing payload field"},
-		{"Event::Resize.{width: 1, height: 2, depth: 3}", "Unknown payload field"},
-		{"Event::Resize.{width: 1, width: 2, height: 3}", "Duplicate payload initializer"},
+		{"Event::Resize{width: 1}", "Missing payload field"},
+		{"Event::Resize{width: 1, height: 2, depth: 3}", "Unknown payload field"},
+		{"Event::Resize{width: 1, width: 2, height: 3}", "Duplicate payload initializer"},
 	} {
 		t.Run(tc.title+tc.expr, func(t *testing.T) {
 			c := checkDiagnostics(

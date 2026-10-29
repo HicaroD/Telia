@@ -24,7 +24,7 @@ extern {
   fn event_type(event *Event) u32
 }
 fn main() i32 {
-  event := Event.{type: 256}
+  event := Event{type: 256}
   event.type = event.type + 1
   if event_type(&event) != 257 {
     return 1

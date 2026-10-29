@@ -19,8 +19,8 @@ struct Node<T> {
 type Text = string
 
 fn main() i32 {
-    item := Envelope<Text>.{ payload: Box<string>.{ value: "nested" } }
-    node := Node<i32>.{ value: 9 }
+    item := Envelope<Text>{ payload: Box<string>{ value: "nested" } }
+    node := Node<i32>{ value: 9 }
     io::println(item.payload.value)
     libc::printf("%d\n", node.value)
     return 0

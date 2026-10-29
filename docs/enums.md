@@ -1,5 +1,8 @@
 # Enums and matching
 
+See [literal syntax](literals.md) for construction syntax and control-flow
+header rules.
+
 Enums have nominal identity and an optional integer tag representation:
 
 ```rust
@@ -38,11 +41,11 @@ enum Option<T> {
         value T
     }
 }
-item := Option<i32>::Some.{value: 42}
+item := Option<i32>::Some{value: 42}
 
 value := match item {
     Option<i32>::None => 0
-    Option<i32>::Some.{value} => {
+    Option<i32>::Some{value} => {
         value = value + 1
         yield value
     }
@@ -54,8 +57,8 @@ expressions are evaluated once in source order. Positional payloads are not
 supported. Generic specializations keep independent payload types and layouts;
 construction and matching also work inside generic functions.
 
-Match patterns use named fields (`.{value}`), optional renaming
-(`.{value: result}`), and explicit `..` for omitted fields. Arms use `=>`;
+Match patterns use named fields (`{value}`), optional renaming
+(`{value: result}`), and explicit `..` for omitted fields. Arms use `=>`;
 block results use `yield`. Every variant must be covered, or the final arm must
 be a `_` fallback. Duplicate variants, unreachable arms, and omitted fields
 without `..` are rejected. Every completing block path must yield a value.

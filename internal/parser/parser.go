@@ -24,6 +24,9 @@ type Parser struct {
 	processing map[string]bool
 	pkg        *ast.Package
 	file       *ast.File
+
+	// At header level, an opening brace starts the control-flow body.
+	noNamedLiteral bool
 }
 
 func New(collector *diagnostics.Collector) *Parser {
@@ -1797,6 +1800,9 @@ func (p *Parser) ParseStmt(
 }
 
 func (p *Parser) ParseBlock(parentScope *ast.Scope) (*ast.BlockStmt, error) {
+	previous := p.noNamedLiteral
+	p.noNamedLiteral = false
+	defer func() { p.noNamedLiteral = previous }()
 	block := new(ast.BlockStmt)
 	block.DeferStack = make([]*ast.DeferStmt, 0)
 
@@ -2211,7 +2217,7 @@ func (p *Parser) parseIfCond(parentScope *ast.Scope) (*ast.IfElifCond, error) {
 		return nil, fmt.Errorf("expected 'if'")
 	}
 
-	ifExpr, err := p.ParseSingleExpr(parentScope)
+	ifExpr, err := p.parseHeaderExpr(parentScope)
 	if err != nil {
 		return nil, err
 	}
@@ -2231,7 +2237,7 @@ func (p *Parser) parseElifConds(parentScope *ast.Scope) ([]*ast.IfElifCond, erro
 		if !ok {
 			break
 		}
-		elifExpr, err := p.ParseSingleExpr(parentScope)
+		elifExpr, err := p.parseHeaderExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -2535,7 +2541,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (result *ast.Node, resultE
 		p.lex.Skip()
 		var index *ast.Node
 		if !p.lex.NextIs(token.COLON) {
-			index, err = p.ParseSingleExpr(parentScope)
+			index, err = p.parseDelimitedExpr(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -2544,7 +2550,7 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (result *ast.Node, resultE
 			p.lex.Skip()
 			var end *ast.Node
 			if !p.lex.NextIs(token.CLOSE_BRACKET) {
-				end, err = p.ParseSingleExpr(parentScope)
+				end, err = p.parseDelimitedExpr(parentScope)
 				if err != nil {
 					return nil, err
 				}
@@ -2602,7 +2608,7 @@ func (p *Parser) parseAtom(parentScope *ast.Scope) (result *ast.Node, resultErr 
 		lit := &ast.ArrayLiteralExpr{}
 		for !p.lex.NextIs(token.CLOSE_CURLY) {
 			p.skipNewLines()
-			value, err := p.ParseSingleExpr(parentScope)
+			value, err := p.parseDelimitedExpr(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -2632,7 +2638,7 @@ func (p *Parser) parseAtom(parentScope *ast.Scope) (result *ast.Node, resultErr 
 		return p.parseIdExpr(parentScope)
 	case token.OPEN_PAREN:
 		p.lex.Skip() // (
-		expr, err := p.ParseSingleExpr(parentScope)
+		expr, err := p.parseDelimitedExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -2710,12 +2716,13 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 	peeked2 := p.lex.PeekN(2)
 	if suffix := p.genericSuffix(); suffix == token.OPEN_PAREN {
 		return p.parseFnCall(parentScope)
-	} else if suffix == token.DOT {
+	} else if suffix == token.DOT || suffix == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
 	} else if suffix == token.COLON_COLON {
 		return p.parseNamespaceAccess(parentScope)
 	}
-	if peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
+	if !p.noNamedLiteral && peeked1.Kind == token.OPEN_CURLY ||
+		peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {
 		return p.parseStructLiteralExpr(parentScope)
 	}
 
@@ -2800,7 +2807,10 @@ func (parser *Parser) parseCallTail(
 		return nil, fmt.Errorf("expected '('")
 	}
 
+	previous := parser.noNamedLiteral
+	parser.noNamedLiteral = false
 	args, err := parser.parseExprList([]token.Kind{token.CLOSE_PAREN}, parentScope)
+	parser.noNamedLiteral = previous
 	if err != nil {
 		return nil, err
 	}
@@ -2909,6 +2919,9 @@ func (p *Parser) parseFieldAccess() (*ast.Node, error) {
 }
 
 func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, error) {
+	previous := p.noNamedLiteral
+	p.noNamedLiteral = false
+	defer func() { p.noNamedLiteral = previous }()
 	expr := new(ast.StructLiteralExpr)
 	values := make([]*ast.StructFieldValue, 0)
 
@@ -2930,9 +2943,9 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 		return nil, err
 	}
 
-	dot, ok := p.expect(token.DOT)
-	if !ok {
-		return nil, fmt.Errorf("error: expected dot, got %s\n", dot.Kind.String())
+	// Keep the old dotted spelling valid for existing programs.
+	if p.lex.NextIs(token.DOT) {
+		p.lex.Skip()
 	}
 
 	openCurly, ok := p.expect(token.OPEN_CURLY)
@@ -3028,7 +3041,7 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		name := parser.lex.Peek()
 		parser.lex.Skip()
 		parser.lex.Skip()
-		source, err := parser.ParseSingleExpr(parentScope)
+		source, err := parser.parseHeaderExpr(parentScope)
 		if err != nil {
 			return nil, err
 		}
@@ -3069,7 +3082,10 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected ';'")
 	}
 
+	previous := parser.noNamedLiteral
+	parser.noNamedLiteral = true
 	update, err := parser.ParseVar(parentScope, true)
+	parser.noNamedLiteral = previous
 	if err != nil {
 		return nil, err
 	}
@@ -3092,7 +3108,7 @@ func (p *Parser) ParseWhileLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'while'")
 	}
 
-	expr, err := p.ParseSingleExpr(parentScope)
+	expr, err := p.parseHeaderExpr(parentScope)
 	if err != nil {
 		return nil, err
 	}

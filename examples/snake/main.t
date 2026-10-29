@@ -9,7 +9,7 @@ fn rectangle(renderer *sdl::Renderer, x f32, y f32, w f32, h f32, r u8, g u8, b 
   if sdl::set_render_draw_color(renderer, r, g, b, 255) == false {
     return false
   }
-  rect := sdl::FRect.{x: x, y: y, w: w, h: h}
+  rect := sdl::FRect{x: x, y: y, w: w, h: h}
   return sdl::render_fill_rect(renderer, &rect)
 }
 
@@ -218,7 +218,7 @@ fn main() i32 {
   }
   state := game::create(sdl::rand_bits())
   best i32 := 0
-  event := sdl::Event.{type: 0}
+  event := sdl::Event{type: 0}
   frame i32 := 0
   previous := sdl::get_ticks()
   accumulated u64 := 0

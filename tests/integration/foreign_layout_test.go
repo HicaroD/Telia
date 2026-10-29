@@ -17,7 +17,7 @@ fn check(record *Packed, field *u64, size u64, alignment u64) i32
 fn roundtrip(record Packed) Packed
 }
 fn main() i32 {
-record := Packed.{tag: 7, value: 40}
+record := Packed{tag: 7, value: 40}
 if check(&record, &record.value, sizeof<Packed>(), alignof<Packed>()) != 1 {
 return 1
 }

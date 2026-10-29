@@ -18,7 +18,7 @@ fn main() i32 {
 
     records := lists::create<Record>()
     defer lists::free<Record>(&records)
-    record := Record.{name: "samples", samples: samples}
+    record := Record{name: "samples", samples: samples}
     lists::append<Record>(&records, record) @fail
     view := lists::view<Record>(&records)
     for item in view {

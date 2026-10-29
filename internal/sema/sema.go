@@ -2884,7 +2884,7 @@ func (sema *sema) inferStructLiteralExprWithContext(
 			Title:   "Union member selection",
 			Message: "a union literal must initialize exactly one member",
 			Span:    stLit.Name.Span,
-			Help:    "Write Union.{member: value} with one member.",
+			Help:    "Write Union{member: value} with one member.",
 			Related: []diagnostics.Related{
 				{Span: st.Decl.Name.Span, Message: "union declared here"},
 			},

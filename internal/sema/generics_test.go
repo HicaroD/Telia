@@ -27,13 +27,13 @@ fn main() {
 value := identity(1)
 }
 `, "requires 1 explicit type arguments, got 0"},
-		{"wrong struct arity", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<i32, string>.{}\n}\n", "requires 1 type arguments, got 2"},
-		{"unapplied type", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<Box>.{}\n}\n", "requires 1 type arguments, got 0"},
-		{"literal argument", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<42>.{}\n}\n", "invalid generic type argument"},
-		{"nil argument", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<nil>.{}\n}\n", "invalid generic type argument"},
-		{"by value recursion", "struct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>.{}\n}\n", "infinitely sized by-value layout"},
+		{"wrong struct arity", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<i32, string>{}\n}\n", "requires 1 type arguments, got 2"},
+		{"unapplied type", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<Box>{}\n}\n", "requires 1 type arguments, got 0"},
+		{"literal argument", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<42>{}\n}\n", "invalid generic type argument"},
+		{"nil argument", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<nil>{}\n}\n", "invalid generic type argument"},
+		{"by value recursion", "struct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>{}\n}\n", "infinitely sized by-value layout"},
 		{"specialization growth", "fn grow<T>() {\ngrow<*T>()\n}\nfn main() {\ngrow<i32>()\n}\n", "instantiation depth limit (128)"},
-		{"recursive alias argument", "struct Box<T> {}\ntype Loop = Box<Loop>\nfn main() {\nx := Box<Loop>.{}\n}\n", "cyclic type alias 'Loop'"},
+		{"recursive alias argument", "struct Box<T> {}\ntype Loop = Box<Loop>\nfn main() {\nx := Box<Loop>{}\n}\n", "cyclic type alias 'Loop'"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			diags := parseAndCheck("package main\n" + tc.source)
@@ -106,7 +106,7 @@ value T
 }
 fn box<T>(value T) Box<T> {
 copy := value
-return Box<T>.{ value: copy }
+return Box<T>{ value: copy }
 }
 fn main() {
 a := box<i32>(1)
@@ -199,7 +199,7 @@ value := outer<string>("bad")
 
 func TestGenericLayoutFailureIncludesInstantiation(t *testing.T) {
 	diags := parseAndCheck(
-		"package main\nstruct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>.{}\n}\n",
+		"package main\nstruct Node<T> {\nnext Node<T>\n}\nfn main() {\nx := Node<i32>{}\n}\n",
 	)
 	if !containsDiag(diags.Diags, "instantiated Node<i32>") {
 		t.Fatalf("want layout instantiation context, got %v", diags.Diags)

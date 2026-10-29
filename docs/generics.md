@@ -1,5 +1,8 @@
 # Compile-time generics
 
+Named literals use `Type{field: value}`; see [literal syntax](literals.md) for
+control-flow header rules and compatibility with the old dotted spelling.
+
 Structs and functions can declare type parameters with angle brackets. Function
 calls require explicit type arguments; there is no type-argument inference.
 
@@ -14,7 +17,7 @@ fn identity<T>(value T) T {
 }
 
 fn make_pair<A, B>(first A, second B) Pair<A, B> {
-    return Pair<A, B>.{ first: first, second: second }
+    return Pair<A, B>{ first: first, second: second }
 }
 
 entry := make_pair<string, i32>("count", identity<i32>(42))
@@ -24,7 +27,7 @@ Use the same notation after a package qualifier:
 
 ```rust
 value := helpers::identity<i32>(42)
-entry helpers::Pair<string, i32> := helpers::Pair<string, i32>.{
+entry helpers::Pair<string, i32> := helpers::Pair<string, i32>{
     first: "count",
     second: value
 }
@@ -33,7 +36,7 @@ entry helpers::Pair<string, i32> := helpers::Pair<string, i32>.{
 Applications nest: `Box<Pair<string, i32>>`. Parameters can occur in fields,
 function parameters, return types, pointers, tuples, local declarations, and
 arguments to other generics. A parameter bound to a struct can also construct a
-struct literal, as in `return T.{}`. That operation is rejected if `T` is
+struct literal, as in `return T{}`. That operation is rejected if `T` is
 instantiated with a non-struct type.
 
 ## Type arguments and scope

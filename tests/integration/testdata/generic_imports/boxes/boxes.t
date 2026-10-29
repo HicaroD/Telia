@@ -21,5 +21,5 @@ fn label<T>(value T) string {
 }
 
 fn remote_box<T>(value Remote) Box<Remote> {
-    return Box<Remote>.{ value: value }
+    return Box<Remote>{ value: value }
 }

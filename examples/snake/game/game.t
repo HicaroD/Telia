@@ -64,7 +64,7 @@ fn place_food(state *State) {
   while y < Height {
     x i32 := 0
     while x < Width {
-      if occupied(state, Cell.{x: x, y: y}) == false {
+      if occupied(state, Cell{x: x, y: y}) == false {
         free_count = free_count + 1
       }
       x = x + 1
@@ -77,7 +77,7 @@ fn place_food(state *State) {
   while y < Height {
     food_x i32 := 0
     while food_x < Width {
-      cell := Cell.{x: food_x, y: y}
+      cell := Cell{x: food_x, y: y}
       if occupied(state, cell) == false {
         if target == 0 {
           state.food = cell
@@ -92,13 +92,13 @@ fn place_food(state *State) {
 }
 
 fn create(seed u32) State {
-  state := State.{length: 3, direction: Direction::Right, next_direction: Direction::Right, random: seed}
+  state := State{length: 3, direction: Direction::Right, next_direction: Direction::Right, random: seed}
   if state.random == 0 {
     state.random = 1
   }
-  state.body[0] = Cell.{x: 14, y: 12}
-  state.body[1] = Cell.{x: 13, y: 12}
-  state.body[2] = Cell.{x: 12, y: 12}
+  state.body[0] = Cell{x: 14, y: 12}
+  state.body[1] = Cell{x: 13, y: 12}
+  state.body[2] = Cell{x: 12, y: 12}
   place_food(&state)
   return state
 }

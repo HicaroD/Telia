@@ -33,7 +33,7 @@ struct Record {
 value i32
 }
 fn main() {
-send(0, Record.{value: 42})
+send(0, Record{value: 42})
 }
 `)
 	if len(c.Diags) != 1 || c.Diags[0].Title != "Unsupported C variadic argument" ||

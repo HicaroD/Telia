@@ -66,8 +66,8 @@ func (p *Parser) parseTypeArgs() ([]*ast.ExprType, error) {
 	}
 }
 
-// Only a balanced application followed by '(' or '.{' is an expression
-// application. A bare '<' remains an ordinary comparison operator.
+// A balanced type application needs a call, literal, or namespace suffix.
+// In control-flow headers, '{' belongs to the body, not a literal.
 func (p *Parser) genericSuffix() token.Kind {
 	if p.lex.Peek1().Kind != token.LESS {
 		return token.INVALID
@@ -83,6 +83,7 @@ func (p *Parser) genericSuffix() token.Kind {
 			if depth == 0 {
 				next := p.lex.PeekN(i + 1).Kind
 				if next == token.COLON_COLON || next == token.OPEN_PAREN ||
+					next == token.OPEN_CURLY && !p.noNamedLiteral ||
 					next == token.DOT && p.lex.PeekN(i+2).Kind == token.OPEN_CURLY {
 					return next
 				}

@@ -109,7 +109,7 @@ fn drive(callback Inspect) i32
 fn inspect(args c::c_va_list) i32 {
 owner := c::va_copy(args)
 defer c::va_end(&owner)
-pair := Pair.{second: c::va_arg<c::c_int>(&owner), first: c::va_arg<c::c_int>(&owner)}
+pair := Pair{second: c::va_arg<c::c_int>(&owner), first: c::va_arg<c::c_int>(&owner)}
 if pair.second != 42 or pair.first != 7 or c::va_arg<c::c_int>(&owner) != 99 {
 return 0
 }

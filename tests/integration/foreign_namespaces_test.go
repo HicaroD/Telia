@@ -15,7 +15,7 @@ omitted i32
 fn check(record *Record) i32
 }
 fn main() i32 {
-record := ffi::Record.{value: 42}
+record := ffi::Record{value: 42}
 if ffi::check(&record) != 1 {
 return 1
 }

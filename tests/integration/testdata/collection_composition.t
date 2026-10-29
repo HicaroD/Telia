@@ -10,7 +10,7 @@ struct Record {
 }
 
 fn main() i32 {
-    record := Record.{name: "record", values: .{1, 2}}
+    record := Record{name: "record", values: .{1, 2}}
     records := lists::create<Record>()
     defer lists::free<Record>(&records)
     lists::append<Record>(&records, record) @fail

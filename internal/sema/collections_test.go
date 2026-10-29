@@ -51,7 +51,7 @@ fn store<T>(values T[], value T) {
 }
 fn main() {
     values A[1] := .{}
-    wrong := B.{value: 42}
+    wrong := B{value: 42}
     store<A>(values[:], wrong)
 }
 `)

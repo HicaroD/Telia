@@ -71,9 +71,9 @@ ReturnStmt     = "return" [ Expr ] NEWLINE ;
 YieldStmt      = "yield" Expr NEWLINE ;
 VarStmt        = ( ID | ( "*" )+ ID ) ( "," ( ID | ( "*" )+ ID ) )* 
                  [ ":" Type ] ( ":=" | "=" ) Expr NEWLINE ;
-IfStmt         = "if" Expr Block ( "elif" Expr Block )* [ "else" Block ] ;
-ForStmt        = "for" ( VarStmt ";" Expr ";" VarStmt | ID "in" Expr ) Block ;
-WhileStmt      = "while" Expr Block ;
+IfStmt         = "if" HeaderExpr Block ( "elif" HeaderExpr Block )* [ "else" Block ] ;
+ForStmt        = "for" ( VarStmt ";" Expr ";" VarStmt | ID "in" HeaderExpr ) Block ;
+WhileStmt      = "while" HeaderExpr Block ;
 DeferStmt      = "defer" Statement ;
 ExprStmt       = Expr NEWLINE ;
 
@@ -108,9 +108,15 @@ Literal        = INT | FLOAT | STRING | "true" | "false" | "nil" ;
 FnCall         = ID "(" [ Expr ( "," Expr )* ] ")" [ "@" ID [ Block ] ] ;
 FieldAccess    = ID ( "." ID )+ ;
 NamespaceAccess= ID ( "::" ID )+ ;
-StructLiteral  = ID "." "{" [ FieldAssign ( "," FieldAssign )* ] "}" ;
+(* The optional dot in named literals/patterns is legacy compatibility only. *)
+LiteralName    = ID [ TypeArgs ] ( "::" ID [ TypeArgs ] )* ;
+StructLiteral  = LiteralName [ "." ] "{" [ FieldAssign ( "," FieldAssign )* [ "," ] ] "}" ;
 FieldAssign    = ID ":" Expr ;
-MatchExpr      = "match" Expr "{" NEWLINE ( MatchArm NEWLINE )* "}" ;
+(* HeaderExpr excludes undotted named literals outside parentheses, calls,
+   indexes, slices, array literals, and nested match bodies. The same
+   restriction applies to the update VarStmt in a three-clause for loop. *)
+HeaderExpr     = Expr ;
+MatchExpr      = "match" HeaderExpr "{" NEWLINE ( MatchArm NEWLINE )* "}" ;
 MatchArm       = ( "_" | IdType "::" ID [ PayloadPattern ] ) "=>" ( Expr | Block ) ;
-PayloadPattern = "." "{" [ PatternField ( "," PatternField )* [ "," ".." ] | ".." ] "}" ;
+PayloadPattern = [ "." ] "{" [ PatternField ( "," PatternField )* [ "," ".." ] | ".." ] "}" ;
 PatternField   = ID [ ":" ID ] ;

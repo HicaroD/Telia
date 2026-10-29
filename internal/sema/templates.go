@@ -420,7 +420,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 						}
 					}
 				default:
-					return nil, diagnostics.Diag{Title: "Invalid enum construction", Message: "expected a named enum variant", Span: t.Left.Name.Span, Help: "Use Enum::Variant or Enum::Variant.{field: value}."}
+					return nil, diagnostics.Diag{Title: "Invalid enum construction", Message: "expected a named enum variant", Span: t.Left.Name.Span, Help: "Use Enum::Variant or Enum::Variant{field: value}."}
 				}
 				for _, variant := range d.Variants {
 					if variant.Name.Name() == name.Name() {

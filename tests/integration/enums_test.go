@@ -122,7 +122,7 @@ return event
 }
 fn main() i32 {
 counter i32 := 0
-event := identity(Event::Resize.{width: next(&counter), height: next(&counter)})
+event := identity(Event::Resize{width: next(&counter), height: next(&counter)})
 if counter != 2 {
 return 1
 }
@@ -151,8 +151,8 @@ fn identity<T>(value T) T {
 return value
 }
 fn main() i32 {
-small := identity<Option<u8>>(Option<u8>::Some.{value: 42})
-large := identity<Option<u64>>(Option<u64>::Some.{value: 42})
+small := identity<Option<u8>>(Option<u8>::Some{value: 42})
+large := identity<Option<u64>>(Option<u64>::Some{value: 42})
 empty := Option<u8>::None
 if sizeof<Option<u8>>() >= sizeof<Option<u64>>() {
 return 1
@@ -182,11 +182,11 @@ height i32
 fn width(event Event) i32 {
 return match event {
 Event::Quit => 0
-Event::Resize.{width: w, ..} => w
+Event::Resize{width: w, ..} => w
 }
 }
 fn main() i32 {
-if width(Event::Resize.{width: 800, height: 600}) != 800 {
+if width(Event::Resize{width: 800, height: 600}) != 800 {
 return 1
 }
 if width(Event::Quit) != 0 {
@@ -217,11 +217,11 @@ fn increment(counter *i32) {
 *counter = *counter + 1
 }
 fn main() i32 {
-item := Option<i32>::Some.{value: 42}
+item := Option<i32>::Some{value: 42}
 counter i32 := 0
 result := match item {
 Option<i32>::None => 0
-Option<i32>::Some.{value} => {
+Option<i32>::Some{value} => {
 defer increment(&counter)
 value = value + 1
 if value == 43 {
@@ -233,7 +233,7 @@ yield 99
 }
 original := match item {
 Option<i32>::None => 0
-Option<i32>::Some.{value} => value
+Option<i32>::Some{value} => value
 }
 if result != 43 or original != 42 or counter != 1 {
 return 1
@@ -262,16 +262,16 @@ value T
 fn unwrap<T>(item Option<T>) T {
 return match item {
 Option<T>::None => zero<T>()
-Option<T>::Some.{value} => {
+Option<T>::Some{value} => {
 yield value
 }
 }
 }
 fn main() i32 {
-if unwrap<u8>(Option<u8>::Some.{value: 42}) != 42 {
+if unwrap<u8>(Option<u8>::Some{value: 42}) != 42 {
 return 1
 }
-if unwrap<u64>(Option<u64>::Some.{value: 9000000000}) != 9000000000 {
+if unwrap<u64>(Option<u64>::Some{value: 9000000000}) != 9000000000 {
 return 2
 }
 return 0
@@ -296,13 +296,13 @@ value T
 }
 }
 fn some<T>(value T) Option<T> {
-return Option<T>::Some.{value: value}
+return Option<T>::Some{value: value}
 }
 fn main() i32 {
 item := some<u64>(9000000000)
 value := match item {
 Option<u64>::None => 0
-Option<u64>::Some.{value} => value
+Option<u64>::Some{value} => value
 }
 if value != 9000000000 {
 return 1

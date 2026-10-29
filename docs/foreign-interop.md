@@ -102,9 +102,9 @@ select exactly one member. Reading an inactive union member is not made safe by
 Telia: follow the C library's active-member contract.
 
 ```rust
-record := Record.{value: 42, data: .{10, 20, 30, 40}}
+record := Record{value: 42, data: .{10, 20, 30, 40}}
 record.data[1] = 42
-value := Value.{integer: 42}
+value := Value{integer: 42}
 ```
 
 Fixed-array fields use inline C storage, not Telia wrapper arrays. Element

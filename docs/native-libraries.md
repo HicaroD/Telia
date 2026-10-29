@@ -112,7 +112,7 @@ creates no visible window. Rebuild the executable after changing the example.
 - Drawing functions return `bool`; false indicates an SDL error. `get_error`
   returns borrowed SDL text; do not free it or assume it survives another SDL call.
 - `poll_event(&event)` returns `bool` and writes a header-owned `Event` union.
-  Initialize storage with `Event.{type: 0}`. Check `event.type` before accessing
+  Initialize storage with `Event{type: 0}`. Check `event.type` before accessing
   its active member, such as `event.key`. Quit events have type `EVENT_QUIT`.
 - Rendering uses SDL-faithful names such as `set_render_draw_color`,
   `render_clear`, `render_fill_rect`, and `render_present`. Rectangles use

@@ -13,7 +13,7 @@ fn identity<T>(value T) T {
 }
 
 fn make_pair<A, B>(first A, second B) Pair<A, B> {
-    return Pair<A, B>.{ first: identity<A>(first), second: identity<B>(second) }
+    return Pair<A, B>{ first: identity<A>(first), second: identity<B>(second) }
 }
 
 fn countdown<T>(value T, remaining i32) T {

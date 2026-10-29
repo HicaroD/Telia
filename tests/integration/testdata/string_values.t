@@ -12,7 +12,7 @@ fn pair(text string) (string, string) {
 }
 
 fn main() i32 {
-  zero := Message.{}
+  zero := Message{}
   io::println(zero.text)
   if zero.text != "" {
     return 1
@@ -25,7 +25,7 @@ fn main() i32 {
     return 3
   }
   first, second := pair("A\0é")
-  message := Message.{text: first}
+  message := Message{text: first}
   copied := message
   io::println(copied.text)
   io::println(second)

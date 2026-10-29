@@ -15,7 +15,7 @@ data Data
 fn check(value Bytes, first *u8) i32
 }
 fn main() i32 {
-value := Bytes.{data: .{10, 42, 30, 40}}
+value := Bytes{data: .{10, 42, 30, 40}}
 if check(value, &value.data[0]) != 1 {
 return 1
 }

@@ -277,7 +277,7 @@ fn main() i32 {
     return 1
   }
   defer sdl::quit()
-  event := sdl::Event.{type: 0}
+  event := sdl::Event{type: 0}
   while sdl::poll_event(&event) {
   }
   if push_quit() == false {
