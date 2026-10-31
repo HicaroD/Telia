@@ -7,9 +7,13 @@ Programming Language, Telia is simple in its essence.
 package main
 
 use "std::io"
+use "std::strings"
 
 fn main() i32 {
-    io::println("Hello, world!")
+    greeting := strings::clone("Hello, Telia!") @fail
+    defer strings::free(&greeting)
+
+    io::println(strings::view(&greeting))
     return 0
 }
 ```
