@@ -62,3 +62,29 @@ func TestExamplesUsePublishedStandardLibraryAPIs(t *testing.T) {
 		})
 	}
 }
+
+func TestCollectionsExampleRunsWithDeferredCleanup(t *testing.T) {
+	header, err := filepath.Abs("testdata/allocation_control.h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, diags := compiler.CompileOnlyWithCFlags(
+		filepath.Join("..", "..", "examples", "collections.t"),
+		"-include", header,
+	)
+	if len(diags.Diags) != 0 {
+		t.Fatalf("compile example: %v", diags.Diags)
+	}
+	defer removeTestBinary(t, path)
+	output, err := compiler.RunBinary(path)
+	if err != nil {
+		t.Fatalf("example execution: %v: %s", err, output)
+	}
+	values := "10\n42\n30\n2\n"
+	if runtime.GOOS == "windows" {
+		values = strings.ReplaceAll(values, "\n", "\r\n")
+	}
+	if want := "samples\n" + values; output != want {
+		t.Fatalf("want %q, got %q", want, output)
+	}
+}

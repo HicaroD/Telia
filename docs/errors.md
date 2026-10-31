@@ -97,10 +97,50 @@ falling through would otherwise expose a zero-initialized success value. A
 handler cannot replace that value by merely assigning a local. Error-only and
 statement-only catches may complete normally because no success value is used.
 
-`@fail` prints the length-aware message and terminates without unwinding defers.
-Use a catch with a normal return when cleanup must run. As before, a call may
-silently discard its returned error; this change does not introduce a mandatory
-error-handling policy. Wrapping and cause chains are not provided.
+`@fail` is a fatal boundary, not error propagation. On error it prints the
+length-aware message and exits with status 1, without running pending defers in
+the current function or its callers. Completed scopes have already run their
+cleanup. On success, execution continues normally. If deferred cleanup itself
+uses `@fail` and fails, remaining cleanup does not run either.
+
+Use `@catch` with `return err` to propagate errors through ordinary returns when
+cleanup must run. Each function exited this way runs its registered defers,
+innermost scope first and in reverse registration order within each scope.
+Place `@fail` outside resource-owning functions so they can clean up before fatal
+reporting:
+
+```rust
+package main
+
+use "std::strings"
+use "std::io"
+
+fn run() error {
+    text := strings::clone("Hello") @catch err {
+        return err
+    }
+    defer strings::free(&text)
+
+    part := strings::slice(strings::view(&text), 0, 5) @catch err {
+        return err
+    }
+    io::println(part)
+    return nil
+}
+
+fn main() i32 {
+    run() @fail
+    return 0
+}
+```
+
+Here `run` has freed `text` before `main` reports any fatal error. Propagated
+error messages and borrowed payloads must still outlive cleanup;
+do not return an error whose message is backed by the allocation being freed.
+
+As before, a call may silently discard its returned error; this change does not
+introduce a mandatory error-handling policy. Wrapping and cause chains are not
+provided.
 
 ## Standard-library identities
 

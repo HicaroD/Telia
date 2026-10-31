@@ -227,8 +227,13 @@ values when registered.
 
 Do not return a view whose owner is freed by deferred cleanup. Copying the
 return value preserves only the view, not the allocation. `@fail` terminates
-the process on an error; it does not unwind deferred cleanup. Handle errors with
-`@catch` and return normally when scoped cleanup must run.
+the process on an error; it does not run pending defers in the current function
+or its callers. A fatal error during cleanup also skips remaining defers.
+Handle errors with `@catch` and ordinary returns when scoped cleanup must run.
+For cleanup-safe propagation, use `return err` in resource-owning functions and
+apply `@fail` only after they return. See the complete example in
+[error handling](errors.md#handling-and-discarding). `defer` guarantees cleanup
+on normal scope exits, not process termination.
 
 ## Verification
 

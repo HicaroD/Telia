@@ -98,21 +98,34 @@ including dynamically built text and slices. Applications do not need to import
 bindings are available separately:
 
 ```rust
-use "vendor::sdl"
-use "std::io"
+package main
 
-window := sdl::create_window(title, 640, 480, 0) @fail
-defer sdl::destroy_window(window)
-renderer := sdl::create_renderer(window) @fail
-defer sdl::destroy_renderer(renderer)
-sdl::render_debug_text(renderer, 10.0, 10.0, message) @fail
-sdl::render_debug_i32(renderer, 10.0, 30.0, score) @fail
-io::println(sdl::get_error())
+use "vendor::sdl"
+
+fn draw(title string, message string, score i32) error {
+    window := sdl::create_window(title, 640, 480, 0) @catch err {
+        return err
+    }
+    defer sdl::destroy_window(window)
+    renderer := sdl::create_renderer(window) @catch err {
+        return err
+    }
+    defer sdl::destroy_renderer(renderer)
+    sdl::render_debug_text(renderer, 10.0, 10.0, message) @catch err {
+        return err
+    }
+    sdl::render_debug_i32(renderer, 10.0, 30.0, score) @catch err {
+        return err
+    }
+    return nil
+}
 ```
 
 This snippet assumes SDL is already initialized. In resource-owning applications,
-prefer `@catch` and normal returns when failures must run deferred cleanup;
-`@fail` terminates without unwinding.
+use `@catch` and normal returns so failures run deferred cleanup. Propagate the
+error through the function owning SDL initialization too, allowing its deferred
+`sdl::quit()` to run before applying `@fail` at the application boundary.
+`@fail` terminates without running pending defers in any active function.
 
 ### Native adapter contracts
 
