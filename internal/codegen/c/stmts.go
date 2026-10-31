@@ -115,8 +115,7 @@ func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, indent string) {
 }
 
 // emitAtFailBareCall emits a bare @fail function call (statement position).
-// For error-only functions: _Error _t0 = fn(); if (_t0.msg != NULL) { _panic(_t0.msg); }
-// For tuple functions:      _Tuple... _t0 = fn(); if (_t0._N.msg != NULL) { _panic(...); }
+// Error-only and tuple calls inspect error presence before panicking.
 func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 	fullRetType := getFullFnRetType(call)
 	fnCallExpr := c.emitFnCall(call)
@@ -125,14 +124,14 @@ func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 	if fullRetType == nil {
 		// Error-only: Decl/Proto not available or not a tuple.
 		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
-		c.buf.WriteString(fmt.Sprintf("if (%s.msg.data != NULL) { _panic(%s.msg); }\n", tmp, tmp))
+		c.buf.WriteString(fmt.Sprintf("if (%s.present) { _panic(%s.msg); }\n", tmp, tmp))
 	} else {
 		// Tuple: store full result, check error field (last element).
 		tupleName := tupleTypedefName(fullRetType)
 		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
 		tt := fullRetType.T.(*ast.TupleType)
 		errIdx := len(tt.Types) - 1
-		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.present) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
 	}
 }
 
@@ -140,7 +139,7 @@ func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 // For error-only functions:
 //
 //	_Error _t0 = fn();
-//	if (_t0.msg != NULL) {
+//	if (_t0.present) {
 //	    _Error err = _t0;
 //	    <handler block>
 //	}
@@ -148,7 +147,7 @@ func (c *CCodegen) emitAtFailBareCall(call *ast.FnCall) {
 // For tuple functions:
 //
 //	_Tuple... _t0 = fn();
-//	if (_t0._N.msg != NULL) {
+//	if (_t0._N.present) {
 //	    _Error err = _t0._N;
 //	    <handler block>
 //	}
@@ -163,7 +162,7 @@ func (c *CCodegen) emitAtCatchBareCall(call *ast.FnCall, indent string) {
 	if fullRetType == nil {
 		// Error-only function
 		c.buf.WriteString(fmt.Sprintf("_Error %s = %s;\n", tmp, fnCallExpr))
-		c.buf.WriteString(fmt.Sprintf("if (%s.msg.data != NULL) {\n", tmp))
+		c.buf.WriteString(fmt.Sprintf("if (%s.present) {\n", tmp))
 		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s;\n", inner, errVarName, tmp))
 		c.emitBlock(catchOp.Block, inner)
 		c.buf.WriteString(indent + "}\n")
@@ -173,7 +172,7 @@ func (c *CCodegen) emitAtCatchBareCall(call *ast.FnCall, indent string) {
 		c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, fnCallExpr))
 		tt := fullRetType.T.(*ast.TupleType)
 		errIdx := len(tt.Types) - 1
-		c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) {\n", tmp, errIdx))
+		c.buf.WriteString(fmt.Sprintf("if (%s._%d.present) {\n", tmp, errIdx))
 		c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
 		c.emitBlock(catchOp.Block, inner)
 		c.buf.WriteString(indent + "}\n")
@@ -209,7 +208,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 				errIdx := len(tt.Types) - 1
 				c.buf.WriteString(
 					fmt.Sprintf(
-						"if (%s._%d.msg.data != NULL) { _panic(%s._%d.msg); }\n",
+						"if (%s._%d.present) { _panic(%s._%d.msg); }\n",
 						tmp,
 						errIdx,
 						tmp,
@@ -247,7 +246,7 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 
 				tt := fullRetType.T.(*ast.TupleType)
 				errIdx := len(tt.Types) - 1
-				c.buf.WriteString(fmt.Sprintf("if (%s._%d.msg.data != NULL) {\n", tmp, errIdx))
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.present) {\n", tmp, errIdx))
 				c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", inner, errVarName, tmp, errIdx))
 				c.emitBlock(catchOp.Block, inner)
 				c.buf.WriteString(indent + "} else {\n")

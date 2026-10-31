@@ -1,5 +1,7 @@
 package memory
 
+use "std::errors"
+
 struct Arena {
   state rawptr
 }

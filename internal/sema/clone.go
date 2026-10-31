@@ -81,6 +81,8 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	}
 	copy := &ast.Node{Kind: n.Kind, Span: n.Span}
 	switch v := n.Node.(type) {
+	case *ast.ErrorExpr:
+		copy.Node = &ast.ErrorExpr{Args: c.nodes(v.Args, scope)}
 	case *ast.MatchExpr:
 		m := &ast.MatchExpr{Value: c.node(v.Value, scope)}
 		for _, arm := range v.Arms {

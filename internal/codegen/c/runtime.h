@@ -1,6 +1,6 @@
 // Private implementation of the standard library's raw-memory operations.
 // Public contracts live in base/std; this file uses only the primitive ABI.
-#define _TELIA_ERROR(message) ((_Error){{(const unsigned char *)(message), sizeof(message) - 1}})
+#define _TELIA_ERROR(kind_name, message) ((_Error){.msg = {(const unsigned char *)(message), sizeof(message) - 1}, .present = true, .kind = &_telia_runtime_kind_##kind_name})
 
 // Override only at the native build boundary for deterministic failure tests.
 #ifndef _TELIA_MALLOC
@@ -16,7 +16,7 @@ static inline uint64_t _telia_string_len(_String text) {
 
 static inline _Error _telia_string_byte(_String text, uint64_t index, uint32_t *result) {
     *result = 0;
-    if (index >= text.len) return _TELIA_ERROR("string byte index out of bounds");
+    if (index >= text.len) return _TELIA_ERROR(OutOfBounds, "string byte index out of bounds");
     *result = text.data[(size_t)index];
     return (_Error){0};
 }
@@ -25,7 +25,7 @@ static inline _Error _telia_string_slice(_String text, uint64_t start,
                                         uint64_t end, _String *result) {
     *result = (_String){0};
     if (start > end || end > text.len) {
-        return _TELIA_ERROR("invalid string range");
+        return _TELIA_ERROR(InvalidRange, "invalid string range");
     }
     if (start != end) {
         *result = (_String){text.data + (size_t)start, (size_t)(end - start)};
@@ -35,11 +35,11 @@ static inline _Error _telia_string_slice(_String text, uint64_t start,
 
 static inline _Error _telia_string_concat(_String left, _String right, _String *result) {
     *result = (_String){0};
-    if (right.len > SIZE_MAX - left.len) return _TELIA_ERROR("allocation size overflow");
+    if (right.len > SIZE_MAX - left.len) return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
     size_t size = left.len + right.len;
     if (!size) return (_Error){0};
     unsigned char *data = _TELIA_MALLOC(size);
-    if (!data) return _TELIA_ERROR("allocation failed");
+    if (!data) return _TELIA_ERROR(AllocationFailed, "allocation failed");
     if (left.len) memcpy(data, left.data, left.len);
     if (right.len) memcpy(data + left.len, right.data, right.len);
     *result = (_String){data, size};
@@ -57,10 +57,10 @@ static inline void _telia_string_free(_String *text) {
 
 static inline _Error _telia_string_to_c(_String text, _String *result) {
     *result = (_String){0};
-    if (text.len == SIZE_MAX) return _TELIA_ERROR("allocation size overflow");
-    if (text.len && memchr(text.data, 0, text.len)) return _TELIA_ERROR("embedded zero byte");
+    if (text.len == SIZE_MAX) return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
+    if (text.len && memchr(text.data, 0, text.len)) return _TELIA_ERROR(EmbeddedZero, "embedded zero byte");
     unsigned char *data = _TELIA_MALLOC(text.len + 1);
-    if (!data) return _TELIA_ERROR("allocation failed");
+    if (!data) return _TELIA_ERROR(AllocationFailed, "allocation failed");
     if (text.len) memcpy(data, text.data, text.len);
     data[text.len] = 0;
     *result = (_String){data, text.len};
@@ -77,10 +77,10 @@ static inline _String _telia_string_from_c(const char *text) {
 
 static inline _Error _telia_memory_alloc(uint64_t size, void **result) {
     *result = NULL;
-    if (size > SIZE_MAX) return _TELIA_ERROR("allocation size overflow");
+    if (size > SIZE_MAX) return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
     if (!size) return (_Error){0};
     void *data = _TELIA_MALLOC((size_t)size);
-    if (!data) return _TELIA_ERROR("allocation failed");
+    if (!data) return _TELIA_ERROR(AllocationFailed, "allocation failed");
     *result = data;
     return (_Error){0};
 }
@@ -100,10 +100,10 @@ static inline _Error _telia_arena_alloc(void **state, uint64_t size,
                                        uint64_t alignment, void **result) {
     *result = NULL;
     if (!alignment || alignment > SIZE_MAX || (alignment & (alignment - 1))) {
-        return _TELIA_ERROR("invalid allocation alignment");
+        return _TELIA_ERROR(InvalidAlignment, "invalid allocation alignment");
     }
     if (size > SIZE_MAX || size > SIZE_MAX - (alignment - 1)) {
-        return _TELIA_ERROR("allocation size overflow");
+        return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
     }
     if (!size) return (_Error){0};
     _TeliaArenaBlock *last = NULL;
@@ -121,10 +121,10 @@ static inline _Error _telia_arena_alloc(void **state, uint64_t size,
     size_t capacity = (size_t)size + ((size_t)alignment - 1);
     if (capacity < 4096) capacity = 4096;
     if (capacity > SIZE_MAX - sizeof(_TeliaArenaBlock)) {
-        return _TELIA_ERROR("allocation size overflow");
+        return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
     }
     _TeliaArenaBlock *block = _TELIA_MALLOC(sizeof(*block) + capacity);
-    if (!block) return _TELIA_ERROR("allocation failed");
+    if (!block) return _TELIA_ERROR(AllocationFailed, "allocation failed");
     block->next = NULL;
     block->capacity = capacity;
     size_t padding = (-(uintptr_t)block->data) & (size_t)(alignment - 1);
@@ -153,11 +153,11 @@ static inline void _telia_arena_destroy(void **state) {
 static inline _Error _telia_arena_string_concat(void **state, _String left,
                                                _String right, _String *result) {
     *result = (_String){0};
-    if (right.len > SIZE_MAX - left.len) return _TELIA_ERROR("allocation size overflow");
+    if (right.len > SIZE_MAX - left.len) return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
     size_t size = left.len + right.len;
     void *storage;
     _Error err = _telia_arena_alloc(state, size, 1, &storage);
-    if (err.msg.data) return err;
+    if (err.present) return err;
     unsigned char *data = storage;
     if (left.len) memcpy(data, left.data, left.len);
     if (right.len) memcpy(data + left.len, right.data, right.len);
@@ -167,11 +167,11 @@ static inline _Error _telia_arena_string_concat(void **state, _String left,
 
 static inline _Error _telia_arena_string_to_c(void **state, _String text, _String *result) {
     *result = (_String){0};
-    if (text.len == SIZE_MAX) return _TELIA_ERROR("allocation size overflow");
-    if (text.len && memchr(text.data, 0, text.len)) return _TELIA_ERROR("embedded zero byte");
+    if (text.len == SIZE_MAX) return _TELIA_ERROR(SizeOverflow, "allocation size overflow");
+    if (text.len && memchr(text.data, 0, text.len)) return _TELIA_ERROR(EmbeddedZero, "embedded zero byte");
     void *storage;
     _Error err = _telia_arena_alloc(state, text.len + 1, 1, &storage);
-    if (err.msg.data) return err;
+    if (err.present) return err;
     unsigned char *data = storage;
     if (text.len) memcpy(data, text.data, text.len);
     data[text.len] = 0;

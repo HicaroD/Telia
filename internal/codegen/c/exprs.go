@@ -13,6 +13,8 @@ import (
 // it writes the declaration to c.buf and returns the temp name.
 func (c *CCodegen) emitExpr(node *ast.Node) string {
 	switch node.Kind {
+	case ast.KIND_ERROR_EXPR:
+		return c.emitError(node.Node.(*ast.ErrorExpr))
 	case ast.KIND_MATCH_EXPR:
 		return c.emitMatch(node.Node.(*ast.MatchExpr))
 	case ast.KIND_ARRAY_LITERAL_EXPR:
@@ -144,7 +146,7 @@ func (c *CCodegen) emitLiteral(lit *ast.LiteralExpr) string {
 		case token.CSTRING_TYPE:
 			return emitCBytes(lit.Value)
 		case token.ERROR_TYPE:
-			return fmt.Sprintf("(_Error){%s}", emitStringLiteral(lit.Value))
+			return fmt.Sprintf("(_Error){.msg = %s, .present = true}", emitStringLiteral(lit.Value))
 		case token.BOOL_TYPE:
 			if val == "true" {
 				return "1"
@@ -235,7 +237,7 @@ func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
 		return c.emitShift(bin)
 	}
 	// Special case: error != nil — C can't compare structs by value.
-	// Emit e.msg != NULL instead.
+	// Inspect presence instead of comparing C structs.
 	if isErrorNilComparison(bin) {
 		return c.emitErrorNilComparison(bin)
 	}
@@ -299,12 +301,14 @@ func isErrorExpr(node *ast.Node) bool {
 	case ast.KIND_LITERAL_EXPR:
 		lit := node.Node.(*ast.LiteralExpr)
 		return lit.Type != nil && lit.Type.IsError()
+	case ast.KIND_ERROR_EXPR:
+		return true
 	}
 	return false
 }
 
 // emitErrorNilComparison emits C code for error != nil / error == nil.
-// Since C can't compare structs by value, we compare the msg field with NULL.
+// Presence is independent of the borrowed message's storage.
 func (c *CCodegen) emitErrorNilComparison(bin *ast.BinExpr) string {
 	errorExpr := bin.Right
 	if bin.Left.Kind != ast.KIND_NULLPTR_EXPR {
@@ -312,7 +316,7 @@ func (c *CCodegen) emitErrorNilComparison(bin *ast.BinExpr) string {
 	}
 	val := c.emitExpr(errorExpr)
 	op := binOpToC(bin.Op)
-	return fmt.Sprintf("(%s.msg.data %s NULL)", val, op)
+	return fmt.Sprintf("((%s).present %s false)", val, op)
 }
 
 // binOpToC maps a Telia binary operator token to its C operator string.

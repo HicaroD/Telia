@@ -15,6 +15,7 @@ type EnumDecl struct {
 	Resolving  bool
 	CName      string
 	HasPayload bool
+	IsError    bool
 	TypeParams []*token.Token
 }
 
@@ -32,16 +33,18 @@ type EnumType struct{ Decl *EnumDecl }
 func (e *EnumType) String() string { return e.Decl.Name.Name() }
 
 type MatchExpr struct {
-	Value *Node
-	Arms  []*MatchArm
-	Type  *ExprType
-	Enum  *EnumDecl
+	Value   *Node
+	Arms    []*MatchArm
+	Type    *ExprType
+	Enum    *EnumDecl
+	IsError bool
 }
 
 type MatchArm struct {
 	PatternType *ExprType
 	VariantName *token.Token
 	Variant     *EnumVariant
+	Enum        *EnumDecl
 	Fallback    bool
 	OmitRest    bool
 	Fields      []*PatternField

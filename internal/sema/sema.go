@@ -334,6 +334,10 @@ func (sema *sema) checkNonVoidFunctionReturns(block *ast.BlockStmt) bool {
 	var hasReturn bool
 	for _, stmt := range block.Statements {
 		switch stmt.Kind {
+		case ast.KIND_BLOCK_STMT:
+			if sema.checkNonVoidFunctionReturns(stmt.Node.(*ast.BlockStmt)) {
+				hasReturn = true
+			}
 		case ast.KIND_COND_STMT:
 			cond := stmt.Node.(*ast.CondStmt)
 
@@ -628,6 +632,7 @@ func (sema *sema) checkStmt(
 		}
 		return nil
 	case ast.KIND_FN_CALL:
+		stmt.Node.(*ast.FnCall).ResultDiscarded = true
 		_, err := sema.checkFnCall(
 			stmt.Node.(*ast.FnCall),
 			referenceScope,
@@ -669,6 +674,9 @@ func (sema *sema) checkStmt(
 		)
 		return err
 	case ast.KIND_NAMESPACE_ACCESS:
+		if call := terminalVaCall(stmt); call != nil {
+			call.ResultDiscarded = true
+		}
 		_, err := sema.checkNamespaceAccess(
 			stmt.Node.(*ast.NamespaceAccess),
 			referenceScope,
@@ -1362,6 +1370,9 @@ func (sema *sema) resolveFieldAccess(
 
 	fieldAccess.Decl = structDecl
 	fieldAccess.AccessedField = field
+	if structDecl == ast.ErrorStructDecl && field.Type.Kind == ast.EXPR_TYPE_ERROR_KIND {
+		fieldAccess.ReadOnly = true
+	}
 
 	if nestedAccess != nil {
 		nestedAccess.ReadOnly = readOnly
@@ -1445,9 +1456,12 @@ func (sema *sema) resolveFieldOnType(
 	case ast.EXPR_TYPE_BASIC:
 		basic := ty.T.(*ast.BasicType)
 		if basic.Kind == token.ERROR_TYPE {
+			if fieldName == "kind" {
+				return ast.ErrorStructDecl, ast.ErrorStructDecl.Fields[1], nil
+			}
 			if fieldName != "msg" {
 				return nil, nil, fmt.Errorf(
-					"field '%s' not found on 'error' type, only 'msg' is available",
+					"field '%s' not found on 'error' type; use 'msg' or 'kind'",
 					fieldName,
 				)
 			}
@@ -1802,6 +1816,15 @@ func (sema *sema) checkCallAtOperator(
 		); err != nil {
 			return nil, err
 		}
+		if retType.Kind == ast.EXPR_TYPE_TUPLE && !fnCall.ResultDiscarded &&
+			!sema.checkNonVoidFunctionReturns(catchOp.Block) {
+			return nil, diagnostics.Diag{
+				Title:   "Catch handler can fall through",
+				Message: "value-producing @catch handler must return on every path",
+				Span:    fnCall.Name.Span,
+				Help:    "Return from the function instead of using an undefined success result.",
+			}
+		}
 	}
 
 	return retType, nil
@@ -1967,6 +1990,11 @@ func (s *sema) inferExprTypeWithContext(
 	}
 	*expectedType = *resolved
 	switch expr.Kind {
+	case ast.KIND_ERROR_EXPR:
+		if !expectedType.IsError() {
+			return nil, fmt.Errorf("error constructor requires error type")
+		}
+		return s.checkError(expr.Node.(*ast.ErrorExpr), referenceScope)
 	case ast.KIND_MATCH_EXPR:
 		return s.checkMatch(expr.Node.(*ast.MatchExpr), expectedType, referenceScope)
 	case ast.KIND_ARRAY_LITERAL_EXPR:
@@ -2392,6 +2420,7 @@ func (s *sema) inferBinaryExprType(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
+	s.markErrorIdentityComparison(binary, referenceScope)
 	if binary.Op == token.SHIFT_LEFT || binary.Op == token.SHIFT_RIGHT {
 		return s.inferShift(binary, expectedType, referenceScope, declScope, fromImportPackage)
 	}
@@ -2409,6 +2438,16 @@ func (s *sema) inferBinaryExprType(
 	if s.isErrorNilComparison(lhs, rhs) {
 		binary.OperandType = ast.NewBasicType(token.ERROR_TYPE)
 		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
+	}
+	if lhs.Kind == ast.EXPR_TYPE_ERROR_KIND && rhs.Kind == ast.EXPR_TYPE_ERROR_KIND {
+		if binary.Op != token.EQUAL_EQUAL && binary.Op != token.BANG_EQUAL {
+			return nil, false, fmt.Errorf("error kinds only support == and !=")
+		}
+		result := ast.NewBasicType(token.BOOL_TYPE)
+		if expectedType != nil && !result.Equals(expectedType) {
+			return nil, false, fmt.Errorf("error kind comparison produces bool")
+		}
+		return result, false, nil
 	}
 	if lhs.Kind == ast.EXPR_TYPE_POINTER &&
 		(binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
@@ -3015,6 +3054,7 @@ func (s *sema) inferNullptrExprTypeWithContext(
 	if !expectedType.IsPointer() && expectedType.Kind != ast.EXPR_TYPE_FUNCTION &&
 		!expectedType.Equals(ast.RAWPTR_TYPE) &&
 		!expectedType.IsError() &&
+		expectedType.Kind != ast.EXPR_TYPE_ERROR_KIND &&
 		!isCString {
 		return nil, fmt.Errorf("unable to assign nil to non-pointer type")
 	}
@@ -3063,6 +3103,9 @@ func (sema *sema) inferExprTypeWithoutContext(
 ) (result *ast.ExprType, isLiteral bool, resultErr error) {
 	defer func() { resultErr = diagnostics.WithSpan(resultErr, expr.Span) }()
 	switch expr.Kind {
+	case ast.KIND_ERROR_EXPR:
+		ty, err := sema.checkError(expr.Node.(*ast.ErrorExpr), referenceScope)
+		return ty, false, err
 	case ast.KIND_MATCH_EXPR:
 		ty, err := sema.checkMatch(expr.Node.(*ast.MatchExpr), nil, referenceScope)
 		return ty, true, err

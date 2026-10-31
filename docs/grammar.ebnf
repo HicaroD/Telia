@@ -20,7 +20,7 @@ OpaqueDecl     = [ Attributes ] "opaque" ID NEWLINE ;
 StructDecl     = "struct" ID "{" ( FieldDecl NEWLINE )* "}" NEWLINE ;
 TypeDecl       = [ Attributes ] "type" ID "=" Type NEWLINE ;
 ConstDecl      = "const" ID [ Type ] "=" Expr NEWLINE ;
-EnumDecl       = "enum" ID [ TypeParams ] [ Type ] "{" NEWLINE ( EnumVariant NEWLINE )* "}" ;
+EnumDecl       = "enum" ID [ TypeParams ] [ Type | ":" "error" ] "{" NEWLINE ( EnumVariant NEWLINE )* "}" ;
 EnumVariant    = [ Attributes ] ID [ "=" Expr ] [ "{" NEWLINE ( FieldDecl NEWLINE )* "}" ] ;
 TypeParams     = "<" ID ( "," ID )* ">" ;
 FnDecl         = [ Attributes ] "fn" ID Parameters [ Type ] Block ;
@@ -43,7 +43,7 @@ TypeAtom       = BasicType
                 ;
 SequenceSuffix = "[" [ INT ] "]" ;
 
-BasicType      = "bool" | "rawptr" | "string"
+BasicType      = "bool" | "rawptr" | "string" | "error"
                | ( "i" | "u" ) ( "8" | "16" | "32" | "64" | "128" )
                | "f" ( "32" | "64" )
                | "int" | "uint" | "float" | "void"
@@ -97,7 +97,8 @@ AtomExpr       = Literal
                | NamespaceAccess
                 | StructLiteral
                | ArrayLiteral
-               | MatchExpr
+                | MatchExpr
+                | ErrorConstructor
                 ;
 
 IndexSuffix    = "[" Expr "]" ;
@@ -105,6 +106,7 @@ SliceSuffix    = "[" [ Expr ] ":" [ Expr ] "]" [ "@" ID [ Block ] ] ;
 ArrayLiteral   = "." "{" [ Expr ( "," Expr )* [ "," ] ] "}" ;
 
 Literal        = INT | FLOAT | STRING | "true" | "false" | "nil" ;
+ErrorConstructor = "error" "(" Expr [ "," Expr ] [ "," ] ")" ;
 FnCall         = ID "(" [ Expr ( "," Expr )* ] ")" [ "@" ID [ Block ] ] ;
 FieldAccess    = ID ( "." ID )+ ;
 NamespaceAccess= ID ( "::" ID )+ ;

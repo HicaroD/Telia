@@ -41,7 +41,7 @@ func (c *CCodegen) emitSliceCall(call *ast.FnCall) string {
 	c.buf.WriteString(fmt.Sprintf("%s %s = {0};\n", emitCType(call.ResultType), result))
 	c.buf.WriteString(
 		fmt.Sprintf(
-			"if (%s > %s || %s > %s) { %s._1 = _TELIA_ERROR(\"slice range out of bounds\"); } else {\n",
+			"if (%s > %s || %s > %s) { %s._1 = _TELIA_ERROR(InvalidRange, \"slice range out of bounds\"); } else {\n",
 			lo,
 			hi,
 			hi,

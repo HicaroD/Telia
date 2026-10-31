@@ -72,6 +72,7 @@ func (s *sema) enumInstance(
 		Name:       template.Name,
 		Type:       cloneType(template.Type, bindings),
 		HasPayload: template.HasPayload,
+		IsError:    template.IsError,
 		CName:      concreteName("enum", key),
 	}
 	for _, v := range template.Variants {
@@ -99,6 +100,9 @@ func (s *sema) enumInstance(
 func (s *sema) resolveEnum(d *ast.EnumDecl) error {
 	if d.Resolved {
 		return nil
+	}
+	if d.IsError && d.Foreign != nil {
+		return diagnostics.Diag{Message: "foreign enums cannot be error enums", Span: d.Name.Span}
 	}
 	if d.Foreign != nil {
 		if d.Type != nil {
@@ -301,6 +305,15 @@ func (s *sema) checkEnumAccess(
 	}
 	for _, v := range d.Variants {
 		if v.Name.Name() == name.Name() {
+			if access.ErrorIdentity {
+				if !d.IsError || access.Right.Kind != ast.KIND_ID_EXPR {
+					return nil, fmt.Errorf(
+						"error kind comparison requires a bare variant of an error enum",
+					)
+				}
+				access.EnumDecl, access.EnumVariant = d, v
+				return ast.ErrorKind(), nil
+			}
 			seen := map[string]*token.Token{}
 			for _, value := range values {
 				if previous := seen[value.Name.Name()]; previous != nil {

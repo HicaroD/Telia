@@ -27,6 +27,12 @@ func hasVaEffects(node *ast.Node) bool {
 		return false
 	}
 	switch n := node.Node.(type) {
+	case *ast.ErrorExpr:
+		for _, arg := range n.Args {
+			if hasVaEffects(arg) {
+				return true
+			}
+		}
 	case *ast.FnCall:
 		if n.Builtin == "va_arg" || n.Builtin == "va_end" || n.Builtin == "va_borrow" {
 			return true

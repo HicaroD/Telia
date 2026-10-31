@@ -41,6 +41,12 @@ type LiteralExpr struct {
 	Value []byte
 }
 
+// ErrorExpr retains constructor arguments for semantic validation and evaluation.
+type ErrorExpr struct {
+	Args []*Node
+	Enum *EnumDecl
+}
+
 func (literal *LiteralExpr) String() string {
 	return fmt.Sprintf("%v %v\n", literal.Type, literal.Value)
 }
@@ -59,12 +65,13 @@ func (idExpr IdExpr) String() string {
 }
 
 type NamespaceAccess struct {
-	EnumVariant *EnumVariant
-	EnumDecl    *EnumDecl
-	TypeArgs    []*ExprType
-	IsImport    bool
-	Left        *IdExpr
-	Right       *Node
+	ErrorIdentity bool
+	EnumVariant   *EnumVariant
+	EnumDecl      *EnumDecl
+	TypeArgs      []*ExprType
+	IsImport      bool
+	Left          *IdExpr
+	Right         *Node
 }
 
 func (n *NamespaceAccess) String() string {

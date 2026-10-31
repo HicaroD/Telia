@@ -40,7 +40,13 @@ func (p *Parser) parseEnumDeclaration(
 	if err != nil {
 		return nil, err
 	}
-	if !p.lex.NextIs(token.OPEN_CURLY) {
+	if p.lex.NextIs(token.COLON) {
+		p.lex.Skip()
+		if found, ok := p.expect(token.ERROR_TYPE); !ok {
+			return nil, diagnostics.Diag{Message: "enum marker must be : error", Span: found.Span}
+		}
+		d.IsError = true
+	} else if !p.lex.NextIs(token.OPEN_CURLY) {
 		var err error
 		d.Type, err = p.ParseExprType()
 		if err != nil {

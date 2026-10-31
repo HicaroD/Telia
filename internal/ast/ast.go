@@ -59,6 +59,7 @@ const (
 	KIND_ARRAY_LITERAL_EXPR
 	KIND_INDEX_EXPR
 	KIND_MATCH_EXPR
+	KIND_ERROR_EXPR
 
 	EXPR_END // expression node start delimiter
 

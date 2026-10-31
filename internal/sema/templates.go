@@ -222,6 +222,16 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		return nil, nil
 	}
 	switch t := n.Node.(type) {
+	case *ast.ErrorExpr:
+		if len(t.Args) != 1 && len(t.Args) != 2 {
+			return nil, fmt.Errorf("error constructor requires a message or an error-enum value and a message")
+		}
+		for _, arg := range t.Args {
+			if _, err := v.node(arg); err != nil {
+				return nil, err
+			}
+		}
+		return ast.NewBasicType(token.ERROR_TYPE), nil
 	case *ast.MatchExpr:
 		v.matchDepth++
 		defer func() { v.matchDepth-- }()
@@ -408,32 +418,26 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
 					return nil, err
 				}
-				var name *token.Token
-				switch right := t.Right.Node.(type) {
-				case *ast.IdExpr:
-					name = right.Name
-				case *ast.StructLiteralExpr:
-					name = right.Name
-					for _, f := range right.Values {
-						if _, err := v.node(f.Value); err != nil {
-							return nil, err
-						}
-					}
-				default:
-					return nil, diagnostics.Diag{Title: "Invalid enum construction", Message: "expected a named enum variant", Span: t.Left.Name.Span, Help: "Use Enum::Variant or Enum::Variant{field: value}."}
-				}
-				for _, variant := range d.Variants {
-					if variant.Name.Name() == name.Name() {
-						return ty, nil
-					}
-				}
-				return nil, diagnostics.Diag{Title: "Unknown enum variant", Message: "enum does not declare this variant", Span: name.Span, Help: "Use a variant declared by this enum.", Related: []diagnostics.Related{{Span: d.Name.Span, Message: "enum declared here"}}}
+				return v.enumVariant(t, d, ty)
 			} else {
 				return nil, fmt.Errorf("%s: invalid namespace", t.Left.Name.Pos)
 			}
 		}
 		if call, ok := t.Right.Node.(*ast.FnCall); ok {
 			return v.call(call, scope)
+		}
+		if nested, ok := t.Right.Node.(*ast.NamespaceAccess); ok {
+			symbol, err := scope.LookupAcrossScopes(nested.Left.Name.Name())
+			if err != nil {
+				return nil, err
+			}
+			if d, ok := symbol.Node.(*ast.EnumDecl); ok {
+				ty := &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: nested.Left.Name, Namespace: t.Left.Name, Args: nested.TypeArgs}}
+				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+					return nil, err
+				}
+				return v.enumVariant(nested, d, ty)
+			}
 		}
 		return nil, fmt.Errorf("unsupported nested template namespace")
 	case *ast.TupleExpr:
@@ -539,6 +543,39 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 	}
 	return nil, nil
+}
+
+func (v *templateValidator) enumVariant(
+	access *ast.NamespaceAccess,
+	d *ast.EnumDecl,
+	ty *ast.ExprType,
+) (*ast.ExprType, error) {
+	var name *token.Token
+	switch right := access.Right.Node.(type) {
+	case *ast.IdExpr:
+		name = right.Name
+	case *ast.StructLiteralExpr:
+		name = right.Name
+		for _, field := range right.Values {
+			if _, err := v.node(field.Value); err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, diagnostics.Diag{Title: "Invalid enum construction", Message: "expected a named enum variant", Span: access.Left.Name.Span, Help: "Use Enum::Variant or Enum::Variant{field: value}."}
+	}
+	for _, variant := range d.Variants {
+		if variant.Name.Name() == name.Name() {
+			return ty, nil
+		}
+	}
+	return nil, diagnostics.Diag{
+		Title:   "Unknown enum variant",
+		Message: "enum does not declare this variant",
+		Span:    name.Span,
+		Help:    "Use a variant declared by this enum.",
+		Related: []diagnostics.Related{{Span: d.Name.Span, Message: "enum declared here"}},
+	}
 }
 
 func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprType, error) {

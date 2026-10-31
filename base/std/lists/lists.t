@@ -1,6 +1,7 @@
 package lists
 
 use "std::memory"
+use "std::errors"
 
 struct List<T> {
     buffer T[]
@@ -43,7 +44,7 @@ fn free<T>(list *List<T>) {
 
 fn allocate_buffer<T>(arena *memory::Arena, requested u64) (T[], error) {
     if requested > 18446744073709551615 / sizeof<T>() {
-        return zero<T[]>(), error("list capacity overflow")
+        return zero<T[]>(), error(errors::Error::SizeOverflow, "list capacity overflow")
     }
     storage rawptr := nil
     if arena == nil {
@@ -91,7 +92,7 @@ fn append<T>(list *List<T>, value T) error {
 
 fn append_slice<T>(list *List<T>, values T[]) error {
     if len(values) > 18446744073709551615 - list.count {
-        return error("list length overflow")
+        return error(errors::Error::SizeOverflow, "list length overflow")
     }
     needed := list.count + len(values)
     buffer := list.buffer
@@ -132,7 +133,7 @@ fn append_slice<T>(list *List<T>, values T[]) error {
 
 fn get<T>(list *List<T>, index u64) (T, error) {
     if index >= list.count {
-        return zero<T>(), error("list index out of bounds")
+        return zero<T>(), error(errors::Error::OutOfBounds, "list index out of bounds")
     }
     buffer := list.buffer
     return buffer[index], nil
@@ -140,7 +141,7 @@ fn get<T>(list *List<T>, index u64) (T, error) {
 
 fn set<T>(list *List<T>, index u64, value T) error {
     if index >= list.count {
-        return error("list index out of bounds")
+        return error(errors::Error::OutOfBounds, "list index out of bounds")
     }
     buffer := list.buffer
     buffer[index] = value
@@ -158,7 +159,7 @@ fn pop<T>(list *List<T>) (T, bool) {
 
 fn remove<T>(list *List<T>, index u64) (T, error) {
     if index >= list.count {
-        return zero<T>(), error("list index out of bounds")
+        return zero<T>(), error(errors::Error::OutOfBounds, "list index out of bounds")
     }
     buffer := list.buffer
     result := buffer[index]
@@ -173,7 +174,7 @@ fn remove<T>(list *List<T>, index u64) (T, error) {
 
 fn remove_unordered<T>(list *List<T>, index u64) (T, error) {
     if index >= list.count {
-        return zero<T>(), error("list index out of bounds")
+        return zero<T>(), error(errors::Error::OutOfBounds, "list index out of bounds")
     }
     buffer := list.buffer
     result := buffer[index]

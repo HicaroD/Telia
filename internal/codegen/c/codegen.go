@@ -81,7 +81,7 @@ static inline void _panic(_String msg) {
     exit(1);
 }
 
-typedef struct { _String msg; } _Error;
+typedef struct _Error _Error;
 typedef struct { va_list args; unsigned char state; _String origin; } _TeliaVaList;
 static inline void _telia_va_scope_end(_TeliaVaList *owner) {
     if (owner->state != 0) {
@@ -150,7 +150,6 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	c.buf.Reset()
 	c.buf.WriteString(preamble)
 	c.emitHeaderIncludes(c.program.Root, map[*ast.Package]bool{}, map[string]bool{})
-	c.buf.WriteString(runtimeSource)
 
 	seenScalars := map[string]bool{}
 	for _, ty := range c.program.CScalars {
@@ -220,7 +219,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 	sequences := map[string]bool{}
 	for _, ty := range c.program.ValueTypes {
-		if ty.Kind == ast.EXPR_TYPE_ENUM {
+		if ty.IsError() {
+			c.emitErrorType()
+		} else if ty.Kind == ast.EXPR_TYPE_ENUM {
 			c.emitEnumDecl(ty.T.(*ast.EnumType).Decl)
 		} else if ty.Kind == ast.EXPR_TYPE_STRUCT {
 			st := ty.T.(*ast.StructType).Decl
@@ -248,6 +249,7 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 		}
 	}
 
+	c.buf.WriteString(runtimeSource)
 	c.emitForeignFieldChecks()
 	// Two-pass emission: declarations then bodies, DFS over import graph
 	for _, fn := range c.program.Functions {

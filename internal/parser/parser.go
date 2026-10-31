@@ -1769,7 +1769,7 @@ func (p *Parser) ParseStmt(
 	case token.ERROR_TYPE:
 		endsWithNewLine = true
 		if p.lex.Peek1().Kind == token.OPEN_PAREN {
-			expr, err := p.parseErrorConstructorExpr()
+			expr, err := p.parseErrorConstructorExpr(parentScope)
 			if err != nil {
 				return nil, err
 			}
@@ -2669,7 +2669,7 @@ func (p *Parser) parseAtom(parentScope *ast.Scope) (result *ast.Node, resultErr 
 		return nullptr, nil
 	case token.ERROR_TYPE:
 		if p.lex.Peek1().Kind == token.OPEN_PAREN {
-			return p.parseErrorConstructorExpr()
+			return p.parseErrorConstructorExpr(parentScope)
 		}
 		return nil, fmt.Errorf(
 			"%s: 'error' can only be used as a type or with error() constructor",
@@ -3005,7 +3005,10 @@ func (p *Parser) parseStructLiteralExpr(parentScope *ast.Scope) (*ast.Node, erro
 	return n, nil
 }
 
-func (p *Parser) parseErrorConstructorExpr() (*ast.Node, error) {
+func (p *Parser) parseErrorConstructorExpr(scope *ast.Scope) (*ast.Node, error) {
+	previous := p.noNamedLiteral
+	p.noNamedLiteral = false
+	defer func() { p.noNamedLiteral = previous }()
 	_, ok := p.expect(token.ERROR_TYPE)
 	if !ok {
 		return nil, fmt.Errorf("expected 'error'")
@@ -3016,13 +3019,27 @@ func (p *Parser) parseErrorConstructorExpr() (*ast.Node, error) {
 		return nil, fmt.Errorf("expected '(' after 'error'")
 	}
 
-	args, err := p.parseExprList([]token.Kind{token.CLOSE_PAREN}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(args) == 0 {
-		return nil, fmt.Errorf("error() requires one argument")
+	var args []*ast.Node
+	for {
+		for p.lex.NextIs(token.NEWLINE) {
+			p.lex.Skip()
+		}
+		if p.lex.NextIs(token.CLOSE_PAREN) {
+			break
+		}
+		arg, err := p.ParseSingleExpr(scope)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+		for p.lex.NextIs(token.NEWLINE) {
+			p.lex.Skip()
+		}
+		if p.lex.NextIs(token.COMMA) {
+			p.lex.Skip()
+		} else if !p.lex.NextIs(token.CLOSE_PAREN) {
+			return nil, diagnostics.Diag{Message: "expected , or ) after error constructor argument", Span: p.lex.Peek().Span}
+		}
 	}
 
 	_, ok = p.expect(token.CLOSE_PAREN)
@@ -3031,11 +3048,8 @@ func (p *Parser) parseErrorConstructorExpr() (*ast.Node, error) {
 	}
 
 	n := new(ast.Node)
-	n.Kind = ast.KIND_LITERAL_EXPR
-	n.Node = &ast.LiteralExpr{
-		Type:  ast.NewBasicType(token.ERROR_TYPE),
-		Value: args[0].Node.(*ast.LiteralExpr).Value,
-	}
+	n.Kind = ast.KIND_ERROR_EXPR
+	n.Node = &ast.ErrorExpr{Args: args}
 	return n, nil
 }
 

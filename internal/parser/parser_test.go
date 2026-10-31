@@ -1311,17 +1311,11 @@ func TestErrorConstructor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if node.Kind != ast.KIND_LITERAL_EXPR {
-		t.Fatalf("expected KIND_LITERAL_EXPR, got %v", node.Kind)
+	if node.Kind != ast.KIND_ERROR_EXPR {
+		t.Fatalf("expected KIND_ERROR_EXPR, got %v", node.Kind)
 	}
 
-	lit := node.Node.(*ast.LiteralExpr)
-	if lit.Type.Kind != ast.EXPR_TYPE_BASIC {
-		t.Fatalf("expected EXPR_TYPE_BASIC, got %v", lit.Type.Kind)
-	}
-	if lit.Type.T.(*ast.BasicType).Kind != token.ERROR_TYPE {
-		t.Errorf("expected ERROR_TYPE, got %v", lit.Type.T.(*ast.BasicType).Kind)
-	}
+	lit := node.Node.(*ast.ErrorExpr).Args[0].Node.(*ast.LiteralExpr)
 	if string(lit.Value) != "oops" {
 		t.Errorf("expected value 'oops', got '%s'", string(lit.Value))
 	}

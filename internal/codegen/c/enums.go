@@ -33,6 +33,9 @@ func (c *CCodegen) emitEnumDecl(d *ast.EnumDecl) {
 
 func (c *CCodegen) emitEnumConstruction(ns *ast.NamespaceAccess) string {
 	d, v := ns.EnumDecl, ns.EnumVariant
+	if ns.ErrorIdentity {
+		return errorKind(d, v)
+	}
 	if d.Foreign != nil {
 		return foreignEnumTag(v)
 	}
@@ -72,17 +75,25 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 	value := c.emitExpr(m.Value)
 	scrutinee, result := c.nextTmp(), c.nextTmp()
 	label := c.nextTmp()
+	scrutineeType := "_Error"
+	if !m.IsError {
+		scrutineeType = emitCType(
+			&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: m.Enum}},
+		)
+	}
 	fmt.Fprintf(
 		c.buf,
 		"%s %s = %s;\n%s %s;\n",
-		emitCType(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: m.Enum}}),
+		scrutineeType,
 		scrutinee,
 		value,
 		emitCType(m.Type),
 		result,
 	)
 	tag := scrutinee
-	if m.Enum.HasPayload {
+	if m.IsError {
+		tag += ".kind"
+	} else if m.Enum.HasPayload {
 		tag += ".tag"
 	}
 	for i, arm := range m.Arms {
@@ -91,7 +102,9 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 		}
 		if !arm.Fallback {
 			value := ""
-			if m.Enum.Foreign != nil {
+			if m.IsError {
+				value = errorKind(arm.Enum, arm.Variant)
+			} else if m.Enum.Foreign != nil {
 				value = foreignEnumTag(arm.Variant)
 			} else {
 				value = c.emitConstant(arm.Variant.Value)
@@ -99,6 +112,10 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 			fmt.Fprintf(c.buf, "if (%s == %s) ", tag, value)
 		}
 		c.buf.WriteString("{\n")
+		payload := scrutinee
+		if m.IsError && !arm.Fallback {
+			payload += ".payload." + arm.Enum.CName
+		}
 		for _, field := range arm.Fields {
 			name := c.nextTmp()
 			field.Binding.BackendType = &CVariable{Name: name, CType: emitCType(field.Binding.Type)}
@@ -107,7 +124,7 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 				"%s %s = %s.payload.v%d.%s;\n",
 				emitCType(field.Binding.Type),
 				name,
-				scrutinee,
+				payload,
 				arm.Variant.Index,
 				field.Name.Name(),
 			)

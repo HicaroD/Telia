@@ -63,19 +63,20 @@ func (ret ReturnStmt) String() string {
 }
 
 type FnCall struct {
-	VaOwner     *VarIdStmt
-	VaLast      *Param
-	Callee      *IdExpr
-	CalleeExpr  *Node
-	Builtin     string
-	BuiltinType *ExprType
-	ResultType  *ExprType
-	TypeArgs    []*ExprType
-	Name        *token.Token
-	Args        []*Node
-	Variadic    bool
-	AtOp        *AtOperator
-	IsProto     bool
+	ResultDiscarded bool
+	VaOwner         *VarIdStmt
+	VaLast          *Param
+	Callee          *IdExpr
+	CalleeExpr      *Node
+	Builtin         string
+	BuiltinType     *ExprType
+	ResultType      *ExprType
+	TypeArgs        []*ExprType
+	Name            *token.Token
+	Args            []*Node
+	Variadic        bool
+	AtOp            *AtOperator
+	IsProto         bool
 
 	// Codegen
 	BackendType any

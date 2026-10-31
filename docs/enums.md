@@ -1,5 +1,9 @@
 # Enums and matching
 
+Enums marked `: error` can classify the common `error` type. See
+[errors](errors.md) for construction, kind comparisons, open-ended matching,
+and payload lifetime rules.
+
 See [literal syntax](literals.md) for construction syntax and control-flow
 header rules.
 

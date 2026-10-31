@@ -15,6 +15,8 @@ case. `==` and `!=` compare byte lengths and contents. Embedded zero
 bytes are ordinary string data. `io::println` writes every byte and then one
 newline, including for empty strings. Runtime panic and error messages are also
 length-aware. `error("")` is an error; it is distinct from `nil`.
+See [errors](errors.md) for classified identities, inline payload storage, and
+borrowed-message lifetime rules.
 
 Read-only APIs do not enforce memory safety. Low-level pointers, aliases, and C
 code can still modify storage. Keep every borrowed view within its storage's

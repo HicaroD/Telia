@@ -22,6 +22,8 @@ type CVariable struct {
 // emitCType converts a Telia ExprType into its C type string.
 func emitCType(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_ERROR_KIND:
+		return "const void *"
 	case ast.EXPR_TYPE_VA_LIST_OWNER:
 		return "_TeliaVaList"
 	case ast.EXPR_TYPE_C_VA_LIST:

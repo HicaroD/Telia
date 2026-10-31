@@ -158,6 +158,8 @@ func concreteName(kind, key string) string {
 
 func typeKey(ty *ast.ExprType) string {
 	switch ty.Kind {
+	case ast.EXPR_TYPE_ERROR_KIND:
+		return "error_kind"
 	case ast.EXPR_TYPE_C_VA_LIST:
 		return "c_va_list"
 	case ast.EXPR_TYPE_VA_LIST_OWNER:
@@ -624,7 +626,7 @@ func (s *sema) orderValueTypes() error {
 	state := map[string]int{}
 	var visit func(*ast.ExprType) error
 	visit = func(ty *ast.ExprType) error {
-		if ty.Kind != ast.EXPR_TYPE_ENUM && ty.Kind != ast.EXPR_TYPE_STRUCT &&
+		if !ty.IsError() && ty.Kind != ast.EXPR_TYPE_ENUM && ty.Kind != ast.EXPR_TYPE_STRUCT &&
 			ty.Kind != ast.EXPR_TYPE_TUPLE &&
 			ty.Kind != ast.EXPR_TYPE_ARRAY &&
 			ty.Kind != ast.EXPR_TYPE_SLICE {
@@ -638,7 +640,15 @@ func (s *sema) orderValueTypes() error {
 			return fmt.Errorf("infinitely sized by-value layout involving %s", ty.T)
 		}
 		state[key] = 1
-		if ty.Kind == ast.EXPR_TYPE_ENUM {
+		if ty.IsError() {
+			for _, d := range s.program.Enums {
+				if d.IsError {
+					if err := visit(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: d}}); err != nil {
+						return err
+					}
+				}
+			}
+		} else if ty.Kind == ast.EXPR_TYPE_ENUM {
 			for _, v := range ty.T.(*ast.EnumType).Decl.Variants {
 				for _, field := range v.Fields {
 					if err := visit(field.Type); err != nil {
@@ -668,6 +678,9 @@ func (s *sema) orderValueTypes() error {
 			s.program.ValueTypes = append(s.program.ValueTypes, ty)
 		}
 		return nil
+	}
+	if err := visit(ast.NewBasicType(token.ERROR_TYPE)); err != nil {
+		return err
 	}
 	for _, d := range s.program.Enums {
 		if err := visit(&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: d}}); err != nil {

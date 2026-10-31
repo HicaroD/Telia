@@ -35,7 +35,7 @@ func (s *sema) checkMatch(
 	if err != nil {
 		return nil, err
 	}
-	if ty.Kind != ast.EXPR_TYPE_ENUM {
+	if ty.Kind != ast.EXPR_TYPE_ENUM && !ty.IsError() {
 		return nil, diagnostics.Diag{
 			Title:   "Invalid match value",
 			Message: "match requires an enum value",
@@ -43,11 +43,17 @@ func (s *sema) checkMatch(
 			Help:    "Match an enum value using its named variants.",
 		}
 	}
-	d := ty.T.(*ast.EnumType).Decl
+	var d *ast.EnumDecl
+	m.IsError = ty.IsError()
+	if !m.IsError {
+		d = ty.T.(*ast.EnumType).Decl
+	}
 	m.Enum = d
 	seen := map[*ast.EnumVariant]*ast.MatchArm{}
 	var fallback *ast.MatchArm
 	for _, arm := range m.Arms {
+		// Semantic scopes may differ from the parser's scopes (notably @catch).
+		arm.Scope.Parent = scope
 		if fallback != nil {
 			return nil, diagnostics.Diag{
 				Title:   "Unreachable match arm",
@@ -67,7 +73,16 @@ func (s *sema) checkMatch(
 		if err != nil {
 			return nil, err
 		}
-		if !ty.Equals(patternType) {
+		if m.IsError {
+			if patternType.Kind != ast.EXPR_TYPE_ENUM ||
+				!patternType.T.(*ast.EnumType).Decl.IsError {
+				return nil, diagnostics.Diag{
+					Message: "error pattern requires an enum declared with : error",
+					Span:    arm.VariantName.Span,
+				}
+			}
+			d = patternType.T.(*ast.EnumType).Decl
+		} else if !ty.Equals(patternType) {
 			return nil, diagnostics.Diag{
 				Title:   "Wrong enum in pattern",
 				Message: "pattern belongs to a different enum",
@@ -78,6 +93,7 @@ func (s *sema) checkMatch(
 				},
 			}
 		}
+		arm.Enum = d
 		for _, v := range d.Variants {
 			if v.Name.Name() == arm.VariantName.Name() {
 				arm.Variant = v
@@ -166,6 +182,12 @@ func (s *sema) checkMatch(
 					{Span: arm.Variant.Name.Span, Message: "variant declared here"},
 				},
 			}
+		}
+	}
+	if fallback == nil && m.IsError {
+		return nil, diagnostics.Diag{
+			Message: "matching error requires a final fallback arm",
+			Span:    m.Value.Span,
 		}
 	}
 	if fallback == nil && d.Foreign != nil {

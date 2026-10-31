@@ -1,5 +1,7 @@
 package utf8
 
+use "std::errors"
+
 struct Iterator {
     text string
     offset u64
@@ -44,7 +46,7 @@ fn read_byte(text string, index u64) (u32, error) {
 fn decode(text string, offset u64) (u32, u64, error) {
     size := byte_len(text)
     if offset >= size {
-        return 0, 0, error("invalid UTF-8 decode offset")
+        return 0, 0, error(errors::Error::OutOfBounds, "invalid UTF-8 decode offset")
     }
     first, first_err := read_byte(text, offset)
     if first_err != nil {
@@ -69,10 +71,10 @@ fn decode(text string, offset u64) (u32, u64, error) {
         point = first & 7
         minimum = 65536
     } else {
-        return 0, 0, error("invalid UTF-8")
+        return 0, 0, error(errors::Error::InvalidUTF8, "invalid UTF-8")
     }
     if width > size - offset {
-        return 0, 0, error("truncated UTF-8")
+        return 0, 0, error(errors::Error::InvalidUTF8, "truncated UTF-8")
     }
     index u64 := 1
     while index < width {
@@ -81,13 +83,13 @@ fn decode(text string, offset u64) (u32, u64, error) {
             return 0, 0, next_err
         }
         if next < 128 or next > 191 {
-            return 0, 0, error("invalid UTF-8 continuation")
+            return 0, 0, error(errors::Error::InvalidUTF8, "invalid UTF-8 continuation")
         }
         point = (point << 6) | (next & 63)
         index = index + 1
     }
     if point < minimum or point > 1114111 or (point >= 55296 and point <= 57343) {
-        return 0, 0, error("invalid UTF-8 code point")
+        return 0, 0, error(errors::Error::InvalidUTF8, "invalid UTF-8 code point")
     }
     return point, width, nil
 }

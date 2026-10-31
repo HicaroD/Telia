@@ -14,6 +14,7 @@ var ErrorStructDecl = &StructDecl{
 			Name:  &token.Token{Lexeme: []byte("msg"), Kind: token.ID},
 			Type:  NewBasicType(token.STRING_TYPE),
 		},
+		{Index: 1, Name: &token.Token{Lexeme: []byte("kind"), Kind: token.ID}, Type: ErrorKind()},
 	},
 }
 
@@ -37,6 +38,7 @@ const (
 	EXPR_TYPE_FUNCTION
 	EXPR_TYPE_C_VA_LIST
 	EXPR_TYPE_VA_LIST_OWNER
+	EXPR_TYPE_ERROR_KIND
 )
 
 type ExprType struct {
@@ -51,7 +53,7 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	}
 
 	switch t.Kind {
-	case EXPR_TYPE_C_VA_LIST, EXPR_TYPE_VA_LIST_OWNER:
+	case EXPR_TYPE_C_VA_LIST, EXPR_TYPE_VA_LIST_OWNER, EXPR_TYPE_ERROR_KIND:
 		return true
 	case EXPR_TYPE_FUNCTION:
 		return t.T.(*FunctionType).Equals(other.T.(*FunctionType))
@@ -77,6 +79,14 @@ func (t *ExprType) Equals(other *ExprType) bool {
 	default:
 		return false
 	}
+}
+
+type ErrorKindType struct{}
+
+func (*ErrorKindType) String() string { return "error kind" }
+
+func ErrorKind() *ExprType {
+	return &ExprType{Kind: EXPR_TYPE_ERROR_KIND, T: &ErrorKindType{}, Explicit: true}
 }
 
 // SequenceType describes inline arrays and borrowed pointer-plus-length slices.

@@ -1,12 +1,14 @@
 package strings
 
+use "std::errors"
+
 use "std::lists"
 
 fn split(text string, separator string) (lists::List<string>, error) {
     result := lists::create<string>()
     width := len(separator)
     if width == 0 {
-        return result, error("empty split separator")
+        return result, error(errors::Error::EmptySeparator, "empty split separator")
     }
     start u64 := 0
     while true {
