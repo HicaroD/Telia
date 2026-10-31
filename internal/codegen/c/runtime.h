@@ -107,6 +107,98 @@ static inline void _telia_memory_free(void *ptr) {
 #include <wchar.h>
 #endif
 
+// Native startup storage is borrowed until process exit. Public snapshots copy it.
+static int _telia_argc;
+static char **_telia_argv;
+#ifdef _WIN32
+static wchar_t **_telia_wargv;
+#endif
+typedef struct { size_t count; _String values[]; } _TeliaArgs;
+
+#ifdef _WIN32
+// wmain receives the native-wide startup storage, owned by the MinGW CRT.
+// Narrow main argv would depend on the active ANSI code page.
+static inline void _telia_native_wide_args(int *argc, wchar_t ***argv) {
+    *argc = _telia_argc;
+    *argv = _telia_wargv;
+}
+#ifndef _TELIA_NATIVE_WIDE_ARGS
+#define _TELIA_NATIVE_WIDE_ARGS _telia_native_wide_args
+#endif
+#ifndef _TELIA_WIDE_TO_UTF8
+#define _TELIA_WIDE_TO_UTF8 WideCharToMultiByte
+#endif
+
+static inline _Error _telia_arg_from_wide(const wchar_t *text, _String *result) {
+    *result = (_String){0};
+    size_t len = wcslen(text);
+    if (!len) return (_Error){0};
+    if (len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "argument too large");
+    int count = _TELIA_WIDE_TO_UTF8(CP_UTF8, WC_ERR_INVALID_CHARS,
+        text, (int)len, NULL, 0, NULL, NULL);
+    if (!count) return _TELIA_ERROR(InvalidUTF8, "invalid native argument text");
+    unsigned char *data = _TELIA_MALLOC((size_t)count);
+    if (!data) return _TELIA_ERROR(AllocationFailed, "allocation failed");
+    if (_TELIA_WIDE_TO_UTF8(CP_UTF8, WC_ERR_INVALID_CHARS,
+            text, (int)len, (char *)data, count, NULL, NULL) != count) {
+        _TELIA_FREE(data);
+        return _TELIA_ERROR(InvalidUTF8, "invalid native argument text");
+    }
+    *result = (_String){data, (size_t)count};
+    return (_Error){0};
+}
+#endif
+
+static inline uint64_t _telia_args_count(void *state) {
+    return state ? ((_TeliaArgs *)state)->count : 0;
+}
+
+static inline _Error _telia_args_get(void *state, uint64_t index, _String *result) {
+    *result = (_String){0};
+    if (index >= _telia_args_count(state))
+        return _TELIA_ERROR(OutOfBounds, "argument index out of bounds");
+    *result = ((_TeliaArgs *)state)->values[index];
+    return (_Error){0};
+}
+
+static inline void _telia_args_free(void **state) {
+    _TeliaArgs *args = *state;
+    if (!args) return;
+    for (size_t i = 0; i < args->count; ++i) _telia_string_free(&args->values[i]);
+    _TELIA_FREE(args);
+    *state = NULL;
+}
+
+static inline _Error _telia_args_snapshot(void **result) {
+    *result = NULL;
+    int argc = _telia_argc;
+#ifdef _WIN32
+    wchar_t **argv = NULL;
+    _TELIA_NATIVE_WIDE_ARGS(&argc, &argv);
+#endif
+    size_t count = argc > 1 ? (size_t)argc - 1 : 0;
+    if (!count) return (_Error){0};
+    if (count > (SIZE_MAX - sizeof(_TeliaArgs)) / sizeof(_String))
+        return _TELIA_ERROR(SizeOverflow, "too many arguments");
+    _TeliaArgs *args = _TELIA_MALLOC(sizeof(_TeliaArgs) + count * sizeof(_String));
+    if (!args) return _TELIA_ERROR(AllocationFailed, "allocation failed");
+    args->count = 0;
+    *result = args;
+    for (size_t i = 0; i < count; ++i) {
+#ifdef _WIN32
+        _Error err = _telia_arg_from_wide(argv[i + 1], &args->values[i]);
+#else
+        _Error err = _telia_string_clone(_telia_string_from_c(_telia_argv[i + 1]), &args->values[i]);
+#endif
+        if (err.present) {
+            _telia_args_free(result);
+            return err;
+        }
+        ++args->count;
+    }
+    return (_Error){0};
+}
+
 // Private OS boundary overrides are used only by native failure fixtures.
 #ifndef _TELIA_FS_OPEN
 #ifdef _WIN32

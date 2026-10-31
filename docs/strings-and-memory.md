@@ -20,6 +20,8 @@ borrowed-message lifetime rules.
 
 [Whole-file reads](files.md) return the same `strings::Owned` ownership type;
 their contents are arbitrary bytes until explicitly validated as UTF-8.
+The [process argument API](process.md) returns validated UTF-8 views borrowed
+from an explicitly owned snapshot instead.
 
 Read-only APIs do not enforce memory safety. Low-level pointers, aliases, and C
 code can still modify storage. Keep every borrowed view within its storage's

@@ -131,15 +131,23 @@ func (c *CCodegen) SetCFlags(flags ...string) {
 	c.cFlags = append([]string(nil), flags...)
 }
 
+// Keep Telia main independent of the native startup signature. Both ordinary
+// programs and the test runner capture arguments without changing source APIs.
+func (c *CCodegen) emitNativeEntry() {
+	c.buf.WriteString(
+		"\n#ifdef _WIN32\nint wmain(int argc, wchar_t **argv) {\n_telia_wargv = argv;\n#else\nint main(int argc, char **argv) {\n_telia_argv = argv;\n#endif\n_telia_argc = argc;\n",
+	)
+}
+
 func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
-	if c.program.TestMode {
-		for _, file := range c.program.Root.Files {
-			for _, node := range file.Body {
-				if node.Kind == ast.KIND_FN_DECL {
-					fn := node.Node.(*ast.FnDecl)
-					if fn.Name.Name() == "main" {
-						fn.CName = "_telia_user_main"
-					}
+	var entry *ast.FnDecl
+	for _, file := range c.program.Root.Files {
+		for _, node := range file.Body {
+			if node.Kind == ast.KIND_FN_DECL {
+				fn := node.Node.(*ast.FnDecl)
+				if fn.Name.Name() == "main" {
+					fn.CName = "_telia_user_main"
+					entry = fn
 				}
 			}
 		}
@@ -281,6 +289,13 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	}
 	if c.program.TestMode {
 		c.emitTestRunner()
+	} else if entry != nil {
+		c.emitNativeEntry()
+		if entry.RetType == nil || entry.RetType.Equals(ast.NewBasicType(token.VOID_TYPE)) {
+			c.buf.WriteString("_telia_user_main();\nreturn 0;\n}\n")
+		} else {
+			c.buf.WriteString("return _telia_user_main();\n}\n")
+		}
 	}
 
 	// Write .c file
@@ -314,6 +329,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	args = append(args, "-o", exePath, cFilePath)
 	args = append(args, requirements.LinkArgs...)
 	args = append(args, "-lm")
+	if runtime.GOOS == "windows" {
+		args = append(args, "-municode")
+	}
 	if len(requirements.RuntimeFiles) > 0 {
 		switch runtime.GOOS {
 		case "darwin":

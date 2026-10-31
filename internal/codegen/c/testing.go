@@ -113,7 +113,8 @@ func (c *CCodegen) emitTestValue(value string, ty *ast.ExprType) {
 }
 
 func (c *CCodegen) emitTestRunner() {
-	c.buf.WriteString("\nint main(void) {\nint failed = 0;\nuint64_t before;\n")
+	c.emitNativeEntry()
+	c.buf.WriteString("int failed = 0;\nuint64_t before;\n")
 	pass, fail := "PASS", "FAIL"
 	if c.testColor {
 		pass, fail = "\033[32mPASS\033[0m", "\033[31mFAIL\033[0m"
