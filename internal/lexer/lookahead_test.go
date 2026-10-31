@@ -106,6 +106,8 @@ func TestLookaheadMatchesDirectTokenization(t *testing.T) {
 		"fn test[T](x T) T {\nreturn x\n}\n",
 		"a::b(12, 3.5, \"escaped\\ntext\")\n{}[] + - != ==",
 		"\"bad\\q\" ! 1.2.3\n",
+		"a/*\nx\ny\n*/b// line\nc / 2",
+		"a/*\nunterminated",
 	} {
 		direct, _ := lookaheadLexer(src)
 		buffered, _ := lookaheadLexer(src)

@@ -28,14 +28,18 @@ type Lexer struct {
 	lookHead    int
 	lookStrict  bool
 	pending     []diagnostics.Diag
+
+	// A block comment can span multiple significant newline tokens.
+	commentStart int
 }
 
 // Each entry owns its token; returned pointers remain valid after buffer reuse.
 type lookaheadToken struct {
-	token  *token.Token
-	pos    token.Pos
-	offset int
-	diags  []diagnostics.Diag
+	token        *token.Token
+	pos          token.Pos
+	offset       int
+	diags        []diagnostics.Diag
+	commentStart int
 }
 
 func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
@@ -52,6 +56,7 @@ func New(loc *ast.Loc, src []byte, collector *diagnostics.Collector) *Lexer {
 	}
 	lexer.file = source.New(path, src)
 	lexer.offset = 0
+	lexer.commentStart = -1
 
 	return lexer
 }
@@ -106,12 +111,14 @@ func (lex *Lexer) fillLookahead(n int) {
 		return
 	}
 	prevPos, prevOffset := lex.pos, lex.offset
+	prevCommentStart := lex.commentStart
 	if len(lex.lookahead) > lex.lookHead {
 		last := lex.lookahead[len(lex.lookahead)-1]
 		if last.token.Kind == token.EOF {
 			return
 		}
 		lex.pos, lex.offset = last.pos, last.offset
+		lex.commentStart = last.commentStart
 	}
 	lex.speculative++
 	for len(lex.lookahead)-lex.lookHead <= n {
@@ -124,7 +131,7 @@ func (lex *Lexer) fillLookahead(n int) {
 		}
 		lex.pending = nil
 		tok := lex.scanToken()
-		entry := lookaheadToken{tok, lex.pos, lex.offset, lex.pending}
+		entry := lookaheadToken{tok, lex.pos, lex.offset, lex.pending, lex.commentStart}
 		lex.pending = nil
 		lex.lookahead = append(lex.lookahead, entry)
 		if tok.Kind == token.EOF {
@@ -133,6 +140,7 @@ func (lex *Lexer) fillLookahead(n int) {
 	}
 	lex.speculative--
 	lex.pos, lex.offset = prevPos, prevOffset
+	lex.commentStart = prevCommentStart
 }
 
 func (lex *Lexer) Skip() {
@@ -150,6 +158,7 @@ func (lex *Lexer) Next() *token.Token {
 	lex.lookahead[lex.lookHead] = lookaheadToken{}
 	lex.lookHead++
 	lex.pos, lex.offset = entry.pos, entry.offset
+	lex.commentStart = entry.commentStart
 	for _, diag := range entry.diags {
 		lex.Collector.ReportAndSave(diag)
 	}
@@ -165,7 +174,7 @@ func (lex *Lexer) Next() *token.Token {
 // scanToken advances the scan cursor, not the parser's consumed cursor. Errors
 // are buffered during lookahead and published only when Next consumes the token.
 func (lex *Lexer) scanToken() *token.Token {
-	lex.skipWhitespace()
+	commentError := lex.skipTrivia()
 	start := lex.offset
 	character := lex.peekChar()
 
@@ -175,6 +184,12 @@ func (lex *Lexer) scanToken() *token.Token {
 		lex.Collector.RegisterSpan(tok.Span)
 	}()
 	tok.Kind = token.INVALID
+	if commentError >= 0 {
+		start = commentError
+		line, column := lex.file.Position(start)
+		tok.Pos = token.NewPosition(lex.pos.Filename, line, column)
+		return tok
+	}
 
 	if character == eof {
 		lex.consumeTokenNoLex(tok, token.EOF)
@@ -504,6 +519,49 @@ func (lex *Lexer) skipWhitespace() {
 	lex.readWhile(func(ch byte) bool {
 		return ch == ' ' || ch == '\t' || ch == '\r' || (ch == '\n' && !lex.StrictNewline)
 	})
+}
+
+// skipTrivia leaves significant newlines for scanToken, including those inside
+// block comments. It returns the opening offset of an unterminated comment.
+func (lex *Lexer) skipTrivia() int {
+	for {
+		if lex.commentStart >= 0 {
+			for {
+				ch := lex.peekChar()
+				if ch == eof {
+					start := lex.commentStart
+					lex.commentStart = -1
+					lex.report(start, "Unterminated block comment", "Expected a closing */.")
+					return start
+				}
+				if ch == '\n' && lex.StrictNewline {
+					return -1
+				}
+				if ch == '*' && lex.offset+1 < len(lex.src) && lex.src[lex.offset+1] == '/' {
+					lex.nextChar()
+					lex.nextChar()
+					lex.commentStart = -1
+					break
+				}
+				lex.nextChar()
+			}
+			continue
+		}
+		lex.skipWhitespace()
+		if lex.peekChar() != '/' || lex.offset+1 >= len(lex.src) {
+			return -1
+		}
+		switch lex.src[lex.offset+1] {
+		case '/':
+			lex.readWhile(func(ch byte) bool { return ch != '\n' })
+		case '*':
+			lex.commentStart = lex.offset
+			lex.nextChar()
+			lex.nextChar()
+		default:
+			return -1
+		}
+	}
 }
 
 func (lex *Lexer) readWhile(isValid func(byte) bool) []byte {
