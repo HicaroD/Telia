@@ -1,5 +1,7 @@
 # Strict UTF-8
 
+For code-point terminal cell widths, see [Unicode display-cell width](native-cli-apis.md#unicode-display-cell-width).
+
 Import `std::unicode::utf8`. These allocation-free operations implement Unicode
 scalar-value UTF-8 (RFC 3629). They reject malformed input rather than replacing
 it: invalid leading/continuation bytes, truncated sequences, overlong encodings,

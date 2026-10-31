@@ -36,6 +36,8 @@ Errors use `std::errors::Error` identities, available through `err.kind`:
 - `FileOpenFailed`, `FileReadFailed`, `FileWriteFailed`, `FileCloseFailed`:
   the corresponding native operation failed. A zero-progress operation that is
   not EOF also fails rather than looping forever.
+- `NotFound`, `PermissionDenied`: missing/non-directory path components and
+  access-denied open failures are distinct from other open failures.
 
 Writes borrow `data` only for the call. Short reads/writes are handled internally.
 If closing also fails after an earlier operation failed, the earlier error wins.
@@ -47,7 +49,9 @@ rollback, atomic replacement, or durable-storage synchronization is promised.
 Reads are not snapshots of concurrently modified files.
 
 Public handles, append, directory operations, and terminal streams are outside
-this API. Support targets are Linux amd64, macOS amd64/arm64, and Windows amd64
+this whole-file API. For public handles, metadata, bounded previews, paths, and
+atomic replacement, see [native CLI APIs](native-cli-apis.md).
+Support targets are Linux amd64, macOS amd64/arm64, and Windows amd64
 with MinGW-w64. Focused native CI covers these targets; local test success does
 not establish a passing run on other platforms.
 

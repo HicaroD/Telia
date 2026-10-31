@@ -52,6 +52,7 @@ customization, upgrades, and release publishing.
 
 - [Build a Unicode-aware command-line program](docs/command-line-programs.md)
 - [Binary-safe whole-file I/O](docs/files.md)
+- [Metadata, bounded reads, atomic saves, subprocesses, and terminal width](docs/native-cli-apis.md)
 - [Owned UTF-8 process arguments and environment lookup](docs/process.md)
 - [Checked standard-stream byte I/O](docs/standard-io.md)
 - [Unit testing](docs/testing.md)

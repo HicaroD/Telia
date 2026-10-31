@@ -1,5 +1,6 @@
 // Private implementation of the standard library's raw-memory operations.
 // Public contracts live in base/std; this file uses only the primitive ABI.
+#include <errno.h>
 #define _TELIA_ERROR(kind_name, message) ((_Error){.msg = {(const unsigned char *)(message), sizeof(message) - 1}, .present = true, .kind = &_telia_runtime_kind_##kind_name})
 
 // Override only at the native build boundary for deterministic failure tests.
@@ -48,6 +49,12 @@ static inline _Error _telia_string_concat(_String left, _String right, _String *
 
 static inline _Error _telia_string_clone(_String text, _String *result) {
     return _telia_string_concat(text, (_String){0}, result);
+}
+
+static inline _Error _telia_string_from_bytes(void *data, uint64_t size, _String *result) {
+    *result = (_String){0};
+    if (size > SIZE_MAX) return _TELIA_ERROR(SizeOverflow, "byte slice too large");
+    return _telia_string_clone((_String){data, (size_t)size}, result);
 }
 
 // Bounded output construction only; parsing and signed magnitude handling live
@@ -103,6 +110,9 @@ static inline void _telia_memory_free(void *ptr) {
 }
 
 #ifdef _WIN32
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include <windows.h>
 #include <wchar.h>
 #endif
@@ -293,6 +303,7 @@ static inline _Error _telia_lookup_env(_String name, _String *result, bool *foun
 
 static inline _Error _telia_fs_open(_String path, bool writing, FILE **result) {
     *result = NULL;
+    int open_errno = 0;
 #ifdef _WIN32
     if (path.len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "path too large");
     int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
@@ -308,16 +319,24 @@ static inline _Error _telia_fs_open(_String path, bool writing, FILE **result) {
         return _TELIA_ERROR(InvalidUTF8, "invalid UTF-8 path");
     }
     native[count] = 0;
+    errno = 0;
     *result = _TELIA_FS_OPEN(native, writing ? L"wb" : L"rb");
+    open_errno = errno;
     _TELIA_FREE(native);
 #else
     _String native = {0};
     _Error err = _telia_string_to_c(path, &native);
     if (err.present) return err;
+    errno = 0;
     *result = _TELIA_FS_OPEN((const char *)native.data, writing ? "wb" : "rb");
+    open_errno = errno;
     _telia_string_free(&native);
 #endif
-    if (!*result) return _TELIA_ERROR(FileOpenFailed, "file open failed");
+    if (!*result) {
+        if (open_errno == ENOENT || open_errno == ENOTDIR) return _TELIA_ERROR(NotFound, "path not found");
+        if (open_errno == EACCES || open_errno == EPERM) return _TELIA_ERROR(PermissionDenied, "permission denied");
+        return _TELIA_ERROR(FileOpenFailed, "file open failed");
+    }
     return (_Error){0};
 }
 

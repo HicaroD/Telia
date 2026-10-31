@@ -78,6 +78,10 @@ jobs:
         run: go test ./tests/integration -run '^TestTerminal' -count=1 -timeout=10m
       - name: Whole-file standard library checks
         run: go test ./tests/integration -run '^TestFS' -count=1 -timeout=10m
+      - name: Filesystem, subprocess, and display-width APIs
+        env:
+          TELIA_TEST_SANITIZERS: address,undefined
+        run: go test ./tests/integration -run '^TestEditor' -count=1 -timeout=10m
       - name: Checked standard-stream library checks
         env:
           TELIA_TEST_SANITIZERS: address,undefined

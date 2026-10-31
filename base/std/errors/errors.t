@@ -23,4 +23,17 @@ enum Error: error {
     InvalidBoolean
     InvalidEnvironmentName
     EnvironmentLookupFailed
+    NotFound
+    PermissionDenied
+    MetadataFailed
+    PathFailed
+    InvalidState
+    Unsupported
+    FileSyncFailed
+    FileRenameFailed
+    FileRemoveFailed
+    ProcessSpawnFailed
+    ProcessWaitFailed
+    ProcessTerminateFailed
+    InvalidCodePoint
 }

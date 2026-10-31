@@ -1,5 +1,8 @@
 # Process arguments and environment
 
+For child processes, binary pipes, exit status, termination/reaping, and changing
+the working directory, see [native CLI APIs](native-cli-apis.md#subprocesses).
+
 Import `std::process`. No change to a Telia program's `main` signature is needed.
 
 | API | Result | Contract |

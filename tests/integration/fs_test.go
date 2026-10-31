@@ -69,7 +69,7 @@ strings::free(&owner%d)
 func TestFSRejectsInvalidPathsAndReportsOpenFailures(t *testing.T) {
 	body := ""
 	for i, path := range []string{"", "bad\x00path", "\xff", filepath.Join(t.TempDir(), "missing", "file")} {
-		kind := []string{"InvalidPath", "EmbeddedZero", "InvalidUTF8", "FileOpenFailed"}[i]
+		kind := []string{"InvalidPath", "EmbeddedZero", "InvalidUTF8", "NotFound"}[i]
 		body += fmt.Sprintf(`
 owner%d, err%d := fs::read_file(%s)
 if err%d.kind != errors::Error::%s or strings::view(&owner%d) != "" {
