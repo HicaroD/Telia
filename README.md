@@ -50,6 +50,7 @@ customization, upgrades, and release publishing.
 
 ## Language guides
 
+- [Build a Unicode-aware command-line program](docs/command-line-programs.md)
 - [Binary-safe whole-file I/O](docs/files.md)
 - [Owned UTF-8 process arguments and environment lookup](docs/process.md)
 - [Checked standard-stream byte I/O](docs/standard-io.md)

@@ -86,6 +86,10 @@ jobs:
         env:
           TELIA_TEST_SANITIZERS: address,undefined
         run: go test ./tests/integration -run '^TestProcess' -count=1 -timeout=10m
+      - name: End-to-end Unicode CLI checks
+        env:
+          TELIA_TEST_SANITIZERS: address,undefined
+        run: go test ./tests/integration -run '^TestTextCLI' -count=1 -timeout=10m
       - name: Foreign ABI regression fixtures
         run: go test ./internal/sema ./tests/integration -run 'Test(HeaderOwned|Foreign|NamedExtern|Const|Callback|Callbacks|LibcScalar|CScalar|CVariadic|GenericCallback|BorrowedVaList|NativeCallback|LegacyRawPointerVa|ImportedBareFunction|Va|GenericVa|DereferencingVaArg)' -count=1
       - name: Archive native artifacts without losing symlinks
