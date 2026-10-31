@@ -17,6 +17,10 @@ import (
 // NOTE: this variable is set during build
 var DevMode string
 
+// Version and Commit are set by release builds.
+var Version = "dev"
+var Commit = "unknown"
+
 var HELP_COMMAND string = `Telia - A simple, powerful, and flexible programming language for modern applications.
 Telia offers robust features for building high-performance applications with simplicity and flexibility.
 
@@ -32,6 +36,8 @@ Available Commands:
       --color=auto|always|never  Diagnostic colors (default: auto; respects NO_COLOR)
 
   env                               Show environment information
+
+  version                           Show compiler version and commit
 
   help                              Show this help message
 
@@ -52,6 +58,12 @@ func main() {
 }
 
 func run() int {
+	// Version reporting should work without creating user configuration.
+	if len(os.Args) == 2 && (os.Args[1] == "version" || os.Args[1] == "--version") {
+		fmt.Printf("telia %s (%s)\n", Version, Commit)
+		return 0
+	}
+
 	err := SetupAll()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

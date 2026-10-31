@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
@@ -15,7 +16,12 @@ ROOT = Path(__file__).resolve().parent.parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="output .tar.gz archive")
+    parser.add_argument("--version", default="dev", help="release tag embedded in the compiler")
+    parser.add_argument("--commit", default="unknown", help="source commit embedded in the compiler")
     args = parser.parse_args()
+    for value in (args.version, args.commit):
+        if not re.fullmatch(r"[A-Za-z0-9.+-]+", value):
+            parser.error("version and commit must contain only letters, digits, dots, pluses, or hyphens")
     system = {"Darwin": "darwin", "Linux": "linux", "Windows": "windows"}.get(platform.system())
     arch = {"x86_64": "amd64", "AMD64": "amd64", "arm64": "arm64", "aarch64": "arm64"}.get(platform.machine())
     target = "{}-{}".format(system, arch)
@@ -30,7 +36,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="telia-release-") as temp:
         stage = Path(temp)
         name = "telia.exe" if system == "windows" else "telia"
-        subprocess.run(["go", "build", "-trimpath", "-o", str(stage / name), "./cmd/compiler"], cwd=ROOT, check=True)
+        flags = "-X main.Version={} -X main.Commit={}".format(args.version, args.commit)
+        subprocess.run(["go", "build", "-trimpath", "-ldflags", flags, "-o", str(stage / name), "./cmd/compiler"], cwd=ROOT, check=True)
         shutil.copytree(ROOT / "base" / "std", stage / "base" / "std")
         dest = stage / "base" / "vendor" / "sdl"
         dest.mkdir(parents=True)
@@ -45,6 +52,7 @@ def main():
         examples = stage / "examples"
         examples.mkdir()
         shutil.copy2(ROOT / "examples" / "sdl.t", examples / "sdl.t")
+        shutil.copy2(ROOT / "examples" / "hello.t", examples / "hello.t")
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with tarfile.open(args.output, "w:gz", dereference=True) as archive:
             for path in sorted(stage.iterdir()):
