@@ -1,7 +1,5 @@
 package utf8
 
-use "std::strings"
-
 struct Iterator {
     text string
     offset u64
@@ -16,7 +14,7 @@ fn iterator(text string) (Iterator, error) {
 }
 
 fn next(iter *Iterator) (u32, u64, bool, error) {
-    if iter.offset == strings::len(iter.text) {
+    if iter.offset == byte_len(iter.text) {
         return 0, 0, false, nil
     }
     point, width, err := decode(iter.text, iter.offset)
@@ -30,6 +28,9 @@ fn next(iter *Iterator) (u32, u64, bool, error) {
 
 @[default_cc="c"]
 extern {
+    @[link_name="_telia_string_len"]
+    fn byte_len(text string) u64
+
     @[link_name="_telia_string_byte"]
     fn byte_into(text string, index u64, result *u32) error
 }
@@ -41,7 +42,7 @@ fn read_byte(text string, index u64) (u32, error) {
 }
 
 fn decode(text string, offset u64) (u32, u64, error) {
-    size := strings::len(text)
+    size := byte_len(text)
     if offset >= size {
         return 0, 0, error("invalid UTF-8 decode offset")
     }
@@ -99,7 +100,7 @@ fn validate(text string) error {
 fn count(text string) (u64, error) {
     total u64 := 0
     offset u64 := 0
-    while offset < strings::len(text) {
+    while offset < byte_len(text) {
         point, width, err := decode(text, offset)
         if err != nil {
             return 0, err

@@ -37,7 +37,10 @@ Offsets and widths are bytes, compatible with `strings::slice`. Existing
 Code points are not grapheme clusters. Normalization, casing, grapheme operations,
 and Unicode whitespace classification are outside this API.
 
-The source-level `byte_into` and `read_byte` functions are implementation plumbing,
+For Unicode whitespace trimming use `strings::trim_space`; see
+[string utilities and ownership](strings-and-memory.md#exact-search-and-unicode-trimming).
+
+The source-level `byte_len`, `byte_into`, and `read_byte` functions are implementation plumbing,
 not application APIs. The private C `_telia_string_byte` helper bounds-checks the
 index, returns a byte widened to `u32` (zero on error), and never exposes storage
 or allocates. All UTF-8 decoding and iteration logic is ordinary Telia code.
@@ -58,3 +61,29 @@ hosts, malformed-byte tests and native sanitizer fixtures use UndefinedBehaviorS
 Set `TELIA_TEST_SANITIZERS=address,undefined` for the native sanitizer fixtures when
 the host provides a working AddressSanitizer runtime. MinGW-w64 sanitizer tests
 are skipped; ordinary debug/release behavior remains tested on Windows.
+
+## Whitespace data
+
+`strings::trim_space` uses the Unicode **17.0.0** `White_Space` property: 25 code
+points in 11 ranges/entries, independent of locale. The pinned excerpt is
+[`base/std/unicode/data/White_Space-17.0.0.txt`](../base/std/unicode/data/White_Space-17.0.0.txt),
+from Unicode's [PropList.txt](https://www.unicode.org/Public/17.0.0/ucd/PropList.txt)
+(dated 2025-06-30). Copyright belongs to Unicode, Inc.; the accompanying
+[`LICENSE-UNICODE.txt`](../base/std/unicode/data/LICENSE-UNICODE.txt) contains
+Unicode License V3. No network access or native Unicode dependency is needed at
+build/runtime. The classification in `base/std/strings/trim.t` is a compact
+translation of this excerpt; `is_white_space` is implementation plumbing, not
+a public character-classification API.
+
+To update:
+
+1. Select an explicit Unicode release and fetch that release's `ucd/PropList.txt`
+   from unicode.org. Review its license and retain the copyright/permission notice.
+2. Extract exactly the `White_Space` entries into a new versioned data file;
+   preserve upstream metadata, source URL, and code-point count. Review the diff
+   against the old release rather than substituting a platform whitespace function.
+3. Update `is_white_space` in `strings/trim.t` and the independent enumerated
+   expectations in `TestStringTrimUnicodeWhitespace`, including adjacent nonmembers.
+4. Update these version/provenance references and run `TestString`, `TestUTF8`, the
+   full Go suite, and supported native sanitizer/platform checks. Review any
+   changed trimming behavior as a public contract change.

@@ -9,8 +9,9 @@ An empty view may have a null pointer; it compares equal to every other empty
 view and can be printed or sliced without dereferencing that pointer.
 
 Text is UTF-8 by convention. Use [std::unicode::utf8](unicode.md) for strict validation,
-decoding, counting, and borrowed iteration. No operation here validates UTF-8, normalizes text,
-or folds case. `==` and `!=` compare byte lengths and contents. Embedded zero
+decoding, counting, and borrowed iteration. Only `trim_space` below validates UTF-8;
+other string operations are byte-oriented. No operation normalizes text or folds
+case. `==` and `!=` compare byte lengths and contents. Embedded zero
 bytes are ordinary string data. `io::println` writes every byte and then one
 newline, including for empty strings. Runtime panic and error messages are also
 length-aware. `error("")` is an error; it is distinct from `nil`.
@@ -38,6 +39,64 @@ Slicing uses an inclusive start and exclusive end. `start > end` or
 
 `from_c` requires a valid non-null, zero-terminated pointer. The caller is
 responsible for its validity and lifetime. It does not copy or free storage.
+
+### Exact search and Unicode trimming
+
+| API | Result | Contract |
+| --- | --- | --- |
+| `find(text string, needle string)` | `(u64, bool)` | First matching byte offset and found flag; absent is `(0, false)` |
+| `contains(text string, needle string)` | `bool` | Whether any exact byte match exists |
+| `starts_with(text string, prefix string)` | `bool` | Exact byte prefix |
+| `ends_with(text string, suffix string)` | `bool` | Exact byte suffix |
+| `trim_space(text string)` | `(string, error)` | Borrowed view without leading/trailing Unicode `White_Space` |
+
+Search and prefix/suffix checks accept arbitrary bytes, including malformed UTF-8
+and embedded zeros. An empty needle matches at byte zero, and empty prefixes and
+suffixes match even empty input. Matching does not normalize or fold case: `é`
+and `e` followed by `U+0301` are different. Offsets are bytes, not code points;
+matching can even start inside a UTF-8 sequence. These operations do not allocate.
+
+`trim_space` validates **all** input, including interior bytes that would remain
+untrimmed. Malformed UTF-8 returns an empty view and an error, never a partial
+result or replacement characters. Empty/all-whitespace input succeeds with an
+empty view. Interior whitespace and embedded zeros are preserved. Trimming is
+allocation-free and does not copy, modify, or free the source. Keep its source
+storage alive and unchanged until all borrowed views are no longer used.
+Classification uses bundled [Unicode 17.0.0 data](unicode.md#whitespace-data), not
+the current locale. Zero-width space, BOM, and `U+180E` are not whitespace.
+
+### Splitting and cleanup
+
+`split(text string, separator string)` returns `(lists::List<string>, error)`.
+Like search, it accepts arbitrary bytes without Unicode validation. Separators
+are consumed non-overlapping, left to right; leading, trailing, and repeated
+separators preserve empty fields. For example:
+
+- `split(",a,,", ",")` yields `["", "a", "", ""]`.
+- `split("aaaaa", "aa")` yields `["", "", "a"]`.
+- `split("", ",")` yields one empty field.
+- An empty separator is an error, including for empty input.
+
+The list owns only its backing storage. Its elements **borrow the original
+input**, not copies. Release the list with `lists::free<string>(&fields)`; never
+free the individual substrings. A saved element remains valid after freeing the
+list while the input storage is still alive. Freeing the input invalidates every
+element and trimmed view. List/owner copies remain shallow; choose one cleanup
+owner and do not free stale copies.
+
+Allocation/capacity-overflow errors release partial list storage and return an
+empty list (zero count and capacity). Inputs remain unchanged. Error messages
+need no cleanup and are not stable identifiers. Search/trim use no allocations;
+split allocates even for its single empty field and can therefore fail.
+
+See [examples/string_utilities.t](../examples/string_utilities.t), which keeps
+the input owner alive until after list cleanup. Run:
+
+```sh
+./telia build examples/string_utilities.t -o bin/string_utilities
+./bin/string_utilities
+go test ./tests/integration -run '^TestString|TestExamplesUsePublishedStandardLibraryAPIs' -count=1
+```
 
 ## Individually owned text
 

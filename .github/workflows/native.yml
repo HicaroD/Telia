@@ -60,8 +60,8 @@ jobs:
         run: go test ./internal/ctarget ./internal/native ./tests/integration -run 'TestWchar|TestScalars|TestInvalidNative|TestMissing|TestVendor|TestSDL3|TestBoolean|TestCString' -count=1 -timeout=30m
       - name: SDL facade generation policy checks
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
-      - name: UTF-8 standard library checks
-        run: go test ./tests/integration -run 'TestUTF8' -count=1 -timeout=10m
+      - name: Unicode and string standard library checks
+        run: go test ./tests/integration -run 'TestUTF8|TestString|TestExamplesUsePublishedStandardLibraryAPIs' -count=1 -timeout=10m
       - name: Foreign ABI regression fixtures
         run: go test ./internal/sema ./tests/integration -run 'Test(HeaderOwned|Foreign|NamedExtern|Const|Callback|Callbacks|LibcScalar|CScalar|CVariadic|GenericCallback|BorrowedVaList|NativeCallback|LegacyRawPointerVa|ImportedBareFunction|Va|GenericVa|DereferencingVaArg)' -count=1
       - name: Full suite on Linux

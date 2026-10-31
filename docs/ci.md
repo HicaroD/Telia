@@ -40,3 +40,12 @@ its default 100-column target with `gofmt` as its base formatter.
 resulting binaries. SDL-specific tests require separately prepared native
 dependencies and `TELIA_TEST_SDL=1`; those remain covered by the existing
 `Native vendor packages` workflow. General CI adds no release or publishing steps.
+
+The native matrix also runs `TestUTF8`, `TestString`, and published standard-library
+examples on Linux amd64, macOS amd64/arm64, and Windows amd64 (MinGW-w64).
+String utility fixtures run at `-O0`/`-O3`, with deterministic allocation failures
+and borrowed-storage cleanup checks. Non-Windows hosts additionally run native
+sanitizers (UndefinedBehaviorSanitizer by default; use
+`TELIA_TEST_SANITIZERS=address,undefined` when AddressSanitizer is available).
+Windows skips sanitizer-only tests but runs ordinary behavior/failure checks.
+Matrix configuration alone is not evidence of a successful platform run.

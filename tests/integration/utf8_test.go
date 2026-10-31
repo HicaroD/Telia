@@ -1,29 +1,24 @@
 package integration
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/HicaroD/Telia/tests/compiler"
 )
 
 func TestUTF8Validation(t *testing.T) {
-	runUTF8Fixture(t, "utf8_validation.t")
+	runStandardLibraryFixture(t, "utf8_validation.t")
 }
 
 func TestUTF8DecodingAndCounting(t *testing.T) {
-	runUTF8Fixture(t, "utf8_decode.t")
+	runStandardLibraryFixture(t, "utf8_decode.t")
 }
 
 func TestUTF8BorrowedIteration(t *testing.T) {
-	runUTF8Fixture(t, "utf8_iteration.t")
+	runStandardLibraryFixture(t, "utf8_iteration.t")
 }
 
 func TestUTF8WithNativeSanitizers(t *testing.T) {
@@ -36,7 +31,7 @@ func TestUTF8WithNativeSanitizers(t *testing.T) {
 	}
 	for _, fixture := range []string{"utf8_validation.t", "utf8_decode.t", "utf8_iteration.t"} {
 		t.Run(fixture, func(t *testing.T) {
-			runUTF8Fixture(
+			runStandardLibraryFixture(
 				t,
 				fixture,
 				"-fsanitize="+sanitizers,
@@ -126,10 +121,10 @@ func TestUTF8StrictValidation(t *testing.T) {
 	if err := os.WriteFile(file, []byte(source.String()), 0600); err != nil {
 		t.Fatal(err)
 	}
-	runUTF8Fixture(t, file)
+	runStandardLibraryFixture(t, file)
 	if runtime.GOOS != "windows" {
 		t.Run("undefined", func(t *testing.T) {
-			runUTF8Fixture(t, file, "-fsanitize=undefined", "-fno-sanitize-recover=all")
+			runStandardLibraryFixture(t, file, "-fsanitize=undefined", "-fno-sanitize-recover=all")
 		})
 	}
 }
@@ -166,28 +161,5 @@ func TestUTF8ScalarBoundaries(t *testing.T) {
 	if err := os.WriteFile(file, []byte(source.String()), 0600); err != nil {
 		t.Fatal(err)
 	}
-	runUTF8Fixture(t, file)
-}
-
-func runUTF8Fixture(t *testing.T, fixture string, flags ...string) {
-	t.Helper()
-	if !filepath.IsAbs(fixture) {
-		fixture = filepath.Join("testdata", fixture)
-	}
-	for _, opt := range []string{"-O0", "-O3"} {
-		t.Run(opt, func(t *testing.T) {
-			cflags := append([]string{opt}, flags...)
-			path, diags := compiler.CompileOnlyWithCFlags(fixture, cflags...)
-			if len(diags.Diags) != 0 {
-				t.Fatalf("compile: %v", diags.Diags)
-			}
-			defer removeTestBinary(t, path)
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			output, err := exec.CommandContext(ctx, path).CombinedOutput()
-			if err != nil {
-				t.Fatalf("execution: %v: %s", err, output)
-			}
-		})
-	}
+	runStandardLibraryFixture(t, file)
 }
