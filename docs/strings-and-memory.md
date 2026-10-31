@@ -8,7 +8,8 @@ storage. A zero-initialized string, including an omitted struct field, is empty.
 An empty view may have a null pointer; it compares equal to every other empty
 view and can be printed or sliced without dereferencing that pointer.
 
-Text is UTF-8 by convention. No operation here validates UTF-8, normalizes text,
+Text is UTF-8 by convention. Use [std::unicode::utf8](unicode.md) for strict validation,
+decoding, counting, and borrowed iteration. No operation here validates UTF-8, normalizes text,
 or folds case. `==` and `!=` compare byte lengths and contents. Embedded zero
 bytes are ordinary string data. `io::println` writes every byte and then one
 newline, including for empty strings. Runtime panic and error messages are also

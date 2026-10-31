@@ -14,6 +14,13 @@ static inline uint64_t _telia_string_len(_String text) {
     return text.len;
 }
 
+static inline _Error _telia_string_byte(_String text, uint64_t index, uint32_t *result) {
+    *result = 0;
+    if (index >= text.len) return _TELIA_ERROR("string byte index out of bounds");
+    *result = text.data[(size_t)index];
+    return (_Error){0};
+}
+
 static inline _Error _telia_string_slice(_String text, uint64_t start,
                                         uint64_t end, _String *result) {
     *result = (_String){0};
