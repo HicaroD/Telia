@@ -282,12 +282,94 @@ int32_t telia_terminal_write(intptr_t handle, void *bytes, uint64_t length, uint
     return 0;
 }
 
-int32_t telia_terminal_read(intptr_t handle, void *bytes, uint64_t length, uint64_t *count, bool *eof) {
+#ifdef _WIN32
+// ReadFile/ReadConsoleA can replace non-ASCII input with NUL even with CP_UTF8
+// on older console hosts. Read UTF-16 directly and retain any UTF-8 bytes that
+// did not fit in the caller's buffer. State belongs to the Handle, not a global
+// table keyed by OS handles, which can be closed and reused.
+static int32_t terminal_read_console(HANDLE handle, void *bytes, uint64_t length,
+                                     uint8_t *pending_utf8, uint64_t *pending_count,
+                                     uint32_t *pending_utf16, uint64_t *count, bool *eof) {
+    if (*pending_count > 4 || *pending_utf16 > 0x10000) return 6;
+    if (*pending_count == 0) {
+        WCHAR first;
+        DWORD received;
+        if (*pending_utf16 != 0) {
+            first = (WCHAR)(*pending_utf16 - 1);
+            *pending_utf16 = 0;
+        } else {
+            WCHAR units[2];
+            if (!ReadConsoleW(handle, units, 2, &received, NULL)) return 6;
+            if (received == 0) { *eof = true; return 0; }
+            first = units[0];
+            if (received == 2) *pending_utf16 = (uint32_t)units[1] + 1;
+        }
+        uint32_t scalar = first;
+        if (first >= 0xd800 && first <= 0xdbff) {
+            WCHAR second;
+            if (*pending_utf16 != 0) {
+                second = (WCHAR)(*pending_utf16 - 1);
+                *pending_utf16 = 0;
+                received = 1;
+            } else {
+                if (!ReadConsoleW(handle, &second, 1, &received, NULL)) {
+                    *pending_utf16 = (uint32_t)first + 1;
+                    return 6;
+                }
+            }
+            if (received != 0 && second >= 0xdc00 && second <= 0xdfff) {
+                scalar = 0x10000 + (((uint32_t)first - 0xd800) << 10) + second - 0xdc00;
+            } else {
+                scalar = 0xfffd;
+                // Preserve the next code unit when replacing an unpaired high
+                // surrogate, including a NUL (zero means no buffered unit).
+                if (received != 0) *pending_utf16 = (uint32_t)second + 1;
+            }
+        } else if (first >= 0xdc00 && first <= 0xdfff) {
+            scalar = 0xfffd;
+        }
+        if (scalar <= 0x7f) {
+            pending_utf8[0] = (uint8_t)scalar;
+            *pending_count = 1;
+        } else if (scalar <= 0x7ff) {
+            pending_utf8[0] = (uint8_t)(0xc0 | (scalar >> 6));
+            pending_utf8[1] = (uint8_t)(0x80 | (scalar & 0x3f));
+            *pending_count = 2;
+        } else if (scalar <= 0xffff) {
+            pending_utf8[0] = (uint8_t)(0xe0 | (scalar >> 12));
+            pending_utf8[1] = (uint8_t)(0x80 | ((scalar >> 6) & 0x3f));
+            pending_utf8[2] = (uint8_t)(0x80 | (scalar & 0x3f));
+            *pending_count = 3;
+        } else {
+            pending_utf8[0] = (uint8_t)(0xf0 | (scalar >> 18));
+            pending_utf8[1] = (uint8_t)(0x80 | ((scalar >> 12) & 0x3f));
+            pending_utf8[2] = (uint8_t)(0x80 | ((scalar >> 6) & 0x3f));
+            pending_utf8[3] = (uint8_t)(0x80 | (scalar & 0x3f));
+            *pending_count = 4;
+        }
+    }
+    *count = length < *pending_count ? length : *pending_count;
+    memcpy(bytes, pending_utf8, (size_t)*count);
+    *pending_count -= *count;
+    memmove(pending_utf8, pending_utf8 + *count, (size_t)*pending_count);
+    return 0;
+}
+#endif
+
+int32_t telia_terminal_read(intptr_t handle, void *bytes, uint64_t length,
+                           void *pending_buffer, uint64_t *pending_count, uint32_t *pending_utf16,
+                           uint64_t *count, bool *eof) {
+    uint8_t *pending_utf8 = pending_buffer;
     *count = 0;
     *eof = false;
     if (!terminal_handle_in_range(handle)) return 6;
     if (length == 0) return 0;
 #ifdef _WIN32
+    DWORD mode;
+    if (GetConsoleMode((HANDLE)handle, &mode)) {
+        return terminal_read_console((HANDLE)handle, bytes, length, pending_utf8,
+                                      pending_count, pending_utf16, count, eof);
+    }
     DWORD received;
     DWORD chunk = length > MAXDWORD ? MAXDWORD : (DWORD)length;
     if (!ReadFile((HANDLE)handle, bytes, chunk, &received, NULL)) {
@@ -299,6 +381,9 @@ int32_t telia_terminal_read(intptr_t handle, void *bytes, uint64_t length, uint6
     }
     *count = received;
 #else
+    (void)pending_utf8;
+    (void)pending_count;
+    (void)pending_utf16;
     size_t chunk = length > (uint64_t)SSIZE_MAX ? (size_t)SSIZE_MAX : (size_t)length;
     ssize_t received;
     do { received = read((int)handle, bytes, chunk); } while (received < 0 && errno == EINTR);
@@ -323,10 +408,13 @@ static uint64_t terminal_milliseconds(void) {
 #endif
 }
 
-int32_t telia_terminal_wait(intptr_t handle, bool input, bool resize, int64_t timeout_ms,
+int32_t telia_terminal_wait(intptr_t handle, bool input, bool resize, int64_t timeout_ms, bool buffered_input,
                            bool *initialized, uint64_t *columns, uint64_t *rows,
                            bool *ready, bool *resized, bool *timed_out) {
     *ready = *resized = *timed_out = false;
+#ifndef _WIN32
+    (void)buffered_input;
+#endif
     if (!terminal_handle_in_range(handle)) return 6;
     if ((!input && !resize) || timeout_ms < -1) return 1;
     if (resize && !*initialized) {
@@ -350,9 +438,10 @@ int32_t telia_terminal_wait(intptr_t handle, bool input, bool resize, int64_t ti
             if (GetConsoleMode((HANDLE)handle, &mode)) {
                 // ReadFile in canonical mode can still block after a key event.
                 if (mode & ENABLE_LINE_INPUT) return 5;
+                if (buffered_input) *ready = true;
                 INPUT_RECORD event;
                 DWORD count;
-                while (true) {
+                while (!*ready) {
                     if (!PeekConsoleInputW((HANDLE)handle, &event, 1, &count)) return 6;
                     if (count == 0) break;
                     if (event.EventType == KEY_EVENT && event.Event.KeyEvent.bKeyDown) {

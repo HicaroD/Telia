@@ -11,6 +11,9 @@ struct Handle {
     resize_initialized bool
     last_columns u64
     last_rows u64
+    pending_utf8 u8[4]
+    pending_utf8_count u64
+    pending_utf16 u32
 }
 
 @[header="telia_terminal.h", default_cc="c"]
@@ -25,7 +28,7 @@ extern {
     fn native_write_text(handle c::c_intptr_t, bytes c::CString, length u64, count *u64) i32
 
     @[link_name="telia_terminal_read"]
-    fn native_read(handle c::c_intptr_t, bytes rawptr, length u64, count *u64, eof *bool) i32
+    fn native_read(handle c::c_intptr_t, bytes rawptr, length u64, pending_utf8 rawptr, pending_count *u64, pending_utf16 *u32, count *u64, eof *bool) i32
 
     @[link_name="telia_terminal_close"]
     fn native_close(handle c::c_intptr_t) i32
@@ -84,7 +87,7 @@ fn read(handle *Handle, bytes u8[]) (ReadResult, error) {
     if handle.closed or not handle.valid {
         return result, error(Error::Closed, "terminal handle is closed")
     }
-    status := native_read(handle.native, slice_data<u8>(bytes), len(bytes), &result.count, &result.eof)
+    status := native_read(handle.native, slice_data<u8>(bytes), len(bytes), slice_data<u8>(handle.pending_utf8[:]), &handle.pending_utf8_count, &handle.pending_utf16, &result.count, &result.eof)
     if status != 0 {
         return result, error(Error::SystemFailure, "terminal read failed")
     }

@@ -35,6 +35,25 @@ static inline int32_t terminal_test_key(intptr_t handle) {
     return WriteConsoleInputW((HANDLE)handle, &record, 1, &written) && written == 1 ? 0 : 1;
 }
 
+static inline int32_t terminal_test_scalar(intptr_t handle, uint32_t scalar) {
+    INPUT_RECORD records[2] = {0};
+    DWORD count = scalar > 0xffff ? 2 : 1;
+    for (DWORD i = 0; i < count; ++i) {
+        records[i].EventType = KEY_EVENT;
+        records[i].Event.KeyEvent.bKeyDown = TRUE;
+        records[i].Event.KeyEvent.wRepeatCount = 1;
+    }
+    if (count == 1) {
+        records[0].Event.KeyEvent.uChar.UnicodeChar = (WCHAR)scalar;
+    } else {
+        scalar -= 0x10000;
+        records[0].Event.KeyEvent.uChar.UnicodeChar = (WCHAR)(0xd800 + (scalar >> 10));
+        records[1].Event.KeyEvent.uChar.UnicodeChar = (WCHAR)(0xdc00 + (scalar & 0x3ff));
+    }
+    DWORD written;
+    return WriteConsoleInputW((HANDLE)handle, records, count, &written) && written == count ? 0 : 1;
+}
+
 static inline int32_t terminal_test_resize(intptr_t output) {
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (!GetConsoleScreenBufferInfo((HANDLE)output, &info)) return 1;

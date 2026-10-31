@@ -39,6 +39,12 @@ reader per input stream; serialize output when interleaving would corrupt it.
 Ordinary I/O works on files and pipes as well as terminals. Empty reads return
 zero bytes without EOF. Reads may split UTF-8 characters or escape sequences.
 Redirected bytes, including embedded zeros and invalid UTF-8, are preserved.
+Windows console input uses the Unicode console API and is encoded as UTF-8;
+unpaired UTF-16 surrogates become the replacement character U+FFFD. Bytes that
+do not fit in a read buffer remain on that `Handle` for the next read, and
+input waiting reports them as ready. Keep using the same wrapper while reading;
+independently borrowed wrappers do not share this buffered state. Files and pipes
+still use byte I/O without encoding conversion.
 Unix broken-pipe writes return an error rather than raising SIGPIPE from that
 write; existing signal handlers and previously pending signals are preserved.
 Native failures use `Error::SystemFailure`; OS-specific error details are not

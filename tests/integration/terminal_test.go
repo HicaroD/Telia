@@ -13,6 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/HicaroD/Telia/internal/ast"
+	"github.com/HicaroD/Telia/internal/diagnostics"
+	"github.com/HicaroD/Telia/internal/parser"
+	"github.com/HicaroD/Telia/internal/sema"
 	"github.com/HicaroD/Telia/tests/compiler"
 )
 
@@ -53,6 +57,27 @@ func TestTerminalWindowsConsoleModesInputAndResize(t *testing.T) {
 		t.Fatal(err)
 	}
 	runStandardLibraryFixture(t, "terminal_windows.t", "-I", include)
+}
+
+// Keep the Windows fixture's Telia API usage checked even when its native
+// console behavior cannot run on this host.
+func TestTerminalWindowsFixtureTypeChecks(t *testing.T) {
+	path, err := filepath.Abs(filepath.Join("testdata", "terminal_windows.t"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc, err := ast.LocFromPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := diagnostics.New()
+	program, err := parser.New(c).ParseFileAsProgram(path, loc, c)
+	if err != nil {
+		t.Fatalf("parse Windows fixture: %v: %v", err, c.Diags)
+	}
+	if err := sema.New(c).Check(program); err != nil {
+		t.Fatalf("check Windows fixture: %v: %v", err, c.Diags)
+	}
 }
 
 func TestTerminalWriteToClosedPipeReturnsAnError(t *testing.T) {
