@@ -87,7 +87,8 @@ func TestLookaheadDefersDiagnosticsExactlyOnce(t *testing.T) {
 			}
 			for i, diag := range got.Diags {
 				expected := want.Diags[i]
-				if diag.Message != expected.Message || diag.Span.Start != expected.Span.Start || diag.Span.End != expected.Span.End {
+				if diag.Message != expected.Message || diag.Span.Start != expected.Span.Start ||
+					diag.Span.End != expected.Span.End {
 					t.Fatalf("diagnostic changed: %+v", diag)
 				}
 			}
@@ -111,8 +112,12 @@ func TestLookaheadMatchesDirectTokenization(t *testing.T) {
 		for i := 0; ; i++ {
 			buffered.PeekN(i % 7)
 			want, got := direct.Next(), buffered.Next()
-			if want.Kind != got.Kind || want.Pos != got.Pos || !reflect.DeepEqual(want.Lexeme, got.Lexeme) ||
-				want.Literal != got.Literal || want.Span.Start != got.Span.Start || want.Span.End != got.Span.End {
+			if want.Kind != got.Kind ||
+				want.Pos != got.Pos ||
+				!reflect.DeepEqual(want.Lexeme, got.Lexeme) ||
+				want.Literal != got.Literal ||
+				want.Span.Start != got.Span.Start ||
+				want.Span.End != got.Span.End {
 				t.Fatalf("token %d differs: got %+v, want %+v", i, got, want)
 			}
 			if got.Kind == token.EOF {

@@ -97,7 +97,9 @@ func CompilePackageOnly(dirPath string) (string, *diagnostics.Collector) {
 	collector := diagnostics.New()
 	loc, err := ast.LocFromPath(dirPath)
 	if err != nil {
-		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
+		collector.ReportAndSave(
+			diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)},
+		)
 		return "", collector
 	}
 	exePath, err := compilePackagePipeline(dirPath, loc, config.BUILD_OPT_DEBUG, collector)

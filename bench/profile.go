@@ -54,11 +54,16 @@ func wrapCompiler() {
 	cmd := exec.Command(os.Getenv("TELIA_BENCH_CC"), os.Args[1:]...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	err := cmd.Run()
-	f, openErr := os.OpenFile(os.Getenv("TELIA_BENCH_CALLS"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, openErr := os.OpenFile(
+		os.Getenv("TELIA_BENCH_CALLS"),
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY,
+		0600,
+	)
 	if openErr != nil {
 		panic(openErr)
 	}
-	encodeErr := json.NewEncoder(f).Encode(toolCall{os.Args[1:], float64(time.Since(start).Nanoseconds()) / 1e6})
+	encodeErr := json.NewEncoder(f).
+		Encode(toolCall{os.Args[1:], float64(time.Since(start).Nanoseconds()) / 1e6})
 	closeErr := f.Close()
 	if encodeErr != nil {
 		panic(encodeErr)
@@ -79,7 +84,11 @@ func run() error {
 	out := flag.String("out", "", "unique results directory (normally set by bench.sh)")
 	runs := flag.Int("runs", 5, "measured builds per size, after one warmup")
 	sizes := flag.String("sizes", "100,500,1000", "comma-separated function counts")
-	profileTime := flag.Duration("profile-time", 3*time.Second, "frontend CPU sampling duration at largest size")
+	profileTime := flag.Duration(
+		"profile-time",
+		3*time.Second,
+		"frontend CPU sampling duration at largest size",
+	)
 	flag.Parse()
 	if *out == "" || *runs < 1 || *profileTime <= 0 {
 		return fmt.Errorf("out, positive runs, and positive profile-time are required")
@@ -183,7 +192,18 @@ func run() error {
 				return err
 			}
 			if i > 0 {
-				samples = append(samples, sample{n, i, parseMS, semaMS, backendMS, toolMS, after.TotalAlloc - before.TotalAlloc})
+				samples = append(
+					samples,
+					sample{
+						n,
+						i,
+						parseMS,
+						semaMS,
+						backendMS,
+						toolMS,
+						after.TotalAlloc - before.TotalAlloc,
+					},
+				)
 			}
 		}
 	}
@@ -224,9 +244,20 @@ func run() error {
 		return err
 	}
 	metadata := map[string]any{
-		"created_utc": time.Now().UTC().Format(time.RFC3339), "commit": command("git", "rev-parse", "HEAD"),
-		"git_status": command("git", "status", "--short"), "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH,
-		"cpu": command("sysctl", "-n", "machdep.cpu.brand_string"), "logical_cpus": runtime.NumCPU(),
+		"created_utc": time.Now().
+			UTC().
+			Format(time.RFC3339),
+		"commit": command("git", "rev-parse", "HEAD"),
+		"git_status": command(
+			"git",
+			"status",
+			"--short",
+		), "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH,
+		"cpu": command(
+			"sysctl",
+			"-n",
+			"machdep.cpu.brand_string",
+		), "logical_cpus": runtime.NumCPU(),
 		"cc": cc, "cc_version": command(cc, "--version"), "flags": "-O3 -lm", "runs": *runs,
 		"warmups": 1, "profile_iterations": iterations, "profile_functions": maxCount,
 		"profile_mem_rate": runtime.MemProfileRate, "samples": samples,
@@ -259,7 +290,11 @@ func frontend(path string) (*ast.Program, *ast.Loc, float64, float64, error) {
 	parseMS := ms(start)
 	if err == nil && !collector.HasErrors() {
 		start = time.Now()
-		pprof.Do(context.Background(), pprof.Labels("phase", "sema"), func(context.Context) { err = sema.New(collector).Check(program) })
+		pprof.Do(
+			context.Background(),
+			pprof.Labels("phase", "sema"),
+			func(context.Context) { err = sema.New(collector).Check(program) },
+		)
 	}
 	if err != nil || collector.HasErrors() {
 		_ = (diagnostics.Renderer{}).Render(os.Stderr, collector)

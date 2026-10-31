@@ -180,7 +180,9 @@ func TestVendorManifestInheritanceCannotUseTheVendorRootManifest(t *testing.T) {
 			t.Cleanup(func() { removeTestBinary(t, binary) })
 		}
 		if len(diags.Diags) == 0 {
-			t.Fatal("an unrelated manifest above the top-level vendor package must not be inherited")
+			t.Fatal(
+				"an unrelated manifest above the top-level vendor package must not be inherited",
+			)
 		}
 	}
 }
@@ -351,7 +353,12 @@ func TestSDL3SnakeDrawsThroughTheNativeFacade(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary)
-	cmd.Env = append(os.Environ(), "SDL_VIDEO_DRIVER=dummy", "SDL_RENDER_DRIVER=software", "TELIA_SNAKE_FRAMES=3")
+	cmd.Env = append(
+		os.Environ(),
+		"SDL_VIDEO_DRIVER=dummy",
+		"SDL_RENDER_DRIVER=software",
+		"TELIA_SNAKE_FRAMES=3",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Snake native facade: %v\n%s", err, out)
 	}

@@ -3382,14 +3382,22 @@ func (sema *sema) checkNamespaceAccess(
 		var resolved *ast.ExprType
 		err := sema.inContext(alias.Owner, alias.File, nil, func() error {
 			var err error
-			resolved, err = sema.resolveTypeAliases(alias.Type, alias.Owner.Scope, map[*ast.TypeAlias]bool{alias: true})
+			resolved, err = sema.resolveTypeAliases(
+				alias.Type,
+				alias.Owner.Scope,
+				map[*ast.TypeAlias]bool{alias: true},
+			)
 			return err
 		})
 		if err != nil {
 			return nil, err
 		}
 		if resolved.Kind == ast.EXPR_TYPE_ENUM && len(namespaceAccess.TypeArgs) == 0 {
-			return sema.checkEnumAccess(namespaceAccess, resolved.T.(*ast.EnumType).Decl, referenceScope)
+			return sema.checkEnumAccess(
+				namespaceAccess,
+				resolved.T.(*ast.EnumType).Decl,
+				referenceScope,
+			)
 		}
 	}
 	if d, ok := left.Node.(*ast.EnumDecl); ok {
