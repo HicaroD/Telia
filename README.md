@@ -51,6 +51,7 @@ customization, upgrades, and release publishing.
 ## Language guides
 
 - [Binary-safe whole-file I/O](docs/files.md)
+- [Checked standard-stream byte I/O](docs/standard-io.md)
 - [Unit testing](docs/testing.md)
 - [Collections and composed field access](docs/collections.md)
 - [Explicit integer and pointer conversions](docs/conversions.md)

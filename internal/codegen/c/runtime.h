@@ -209,6 +209,141 @@ static inline _Error _telia_fs_write(_String path, _String data) {
     return err;
 }
 
+// Standard streams remain owned by the process. Overrides are native test seams.
+#ifndef _TELIA_IO_MAX_SIZE
+#define _TELIA_IO_MAX_SIZE SIZE_MAX
+#endif
+#ifndef _TELIA_IO_READ
+#define _TELIA_IO_READ fread
+#endif
+#ifndef _TELIA_IO_EOF
+#define _TELIA_IO_EOF feof
+#endif
+#ifndef _TELIA_IO_WRITE
+#define _TELIA_IO_WRITE fwrite
+#endif
+#ifndef _TELIA_IO_FLUSH
+#define _TELIA_IO_FLUSH fflush
+#endif
+#ifndef _TELIA_IO_ERROR
+#define _TELIA_IO_ERROR ferror
+#endif
+#ifdef _WIN32
+#ifndef _TELIA_IO_SETMODE
+#define _TELIA_IO_SETMODE _setmode
+#endif
+#else
+#include <signal.h>
+#include <pthread.h>
+#ifdef __linux__
+#include <stdio_ext.h>
+#endif
+#endif
+
+static inline _Error _telia_io_read(_String *result) {
+    *result = (_String){0};
+    _Error err = {0};
+#ifdef _WIN32
+    int mode = _TELIA_IO_SETMODE(_fileno(stdin), _O_BINARY);
+    if (mode == -1) return _TELIA_ERROR(StreamModeFailed, "stream mode failed");
+#endif
+    unsigned char *data = NULL;
+    size_t len = 0, capacity = 0;
+    unsigned char chunk[8192];
+    for (;;) {
+        size_t count = _TELIA_IO_READ(chunk, 1, sizeof(chunk), stdin);
+        if (count) {
+            if (count > _TELIA_IO_MAX_SIZE - len) {
+                err = _TELIA_ERROR(SizeOverflow, "input too large");
+                break;
+            }
+            size_t needed = len + count;
+            if (needed > capacity) {
+                size_t next = capacity ? capacity : sizeof(chunk);
+                while (next < needed) {
+                    if (next > SIZE_MAX / 2) { next = needed; break; }
+                    next *= 2;
+                }
+                unsigned char *grown = _TELIA_MALLOC(next);
+                if (!grown) { err = _TELIA_ERROR(AllocationFailed, "allocation failed"); break; }
+                if (len) memcpy(grown, data, len);
+                _TELIA_FREE(data);
+                data = grown;
+                capacity = next;
+            }
+            memcpy(data + len, chunk, count);
+            len += count;
+        }
+        if (_TELIA_IO_ERROR(stdin)) { err = _TELIA_ERROR(StreamReadFailed, "stream read failed"); break; }
+        if (_TELIA_IO_EOF(stdin)) break;
+        if (!count) { err = _TELIA_ERROR(StreamReadFailed, "stream read made no progress"); break; }
+    }
+#ifdef _WIN32
+    if (_TELIA_IO_SETMODE(_fileno(stdin), mode) == -1 && !err.present)
+        err = _TELIA_ERROR(StreamModeFailed, "stream mode restore failed");
+#endif
+    if (err.present) _TELIA_FREE(data);
+    else *result = (_String){data, len};
+    return err;
+}
+
+static inline _Error _telia_io_write(_String data, bool to_stderr) {
+    FILE *stream = to_stderr ? stderr : stdout;
+    _Error err = {0};
+#ifdef _WIN32
+    // Flush existing text output before changing its descriptor's translation.
+    if (_TELIA_IO_FLUSH(stream) != 0)
+        return _TELIA_ERROR(StreamFlushFailed, "stream flush failed");
+    int mode = _TELIA_IO_SETMODE(_fileno(stream), _O_BINARY);
+    if (mode == -1) return _TELIA_ERROR(StreamModeFailed, "stream mode failed");
+#else
+    // Block only this thread's SIGPIPE, without changing the process handler.
+    // Consume a newly generated signal before restoring the caller's mask.
+    sigset_t blocked, previous, pending;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGPIPE);
+    if (pthread_sigmask(SIG_BLOCK, &blocked, &previous) != 0)
+        return _TELIA_ERROR(StreamWriteFailed, "cannot block SIGPIPE");
+    if (sigpending(&pending) != 0) {
+        pthread_sigmask(SIG_SETMASK, &previous, NULL);
+        return _TELIA_ERROR(StreamWriteFailed, "cannot inspect pending signals");
+    }
+    bool already_pending = sigismember(&pending, SIGPIPE) == 1;
+#endif
+    size_t offset = 0;
+    while (offset < data.len) {
+        size_t count = _TELIA_IO_WRITE(data.data + offset, 1, data.len - offset, stream);
+        offset += count;
+        if (_TELIA_IO_ERROR(stream) || !count) {
+            err = _TELIA_ERROR(StreamWriteFailed, "stream write failed");
+            break;
+        }
+    }
+    if (_TELIA_IO_FLUSH(stream) != 0 && !err.present)
+        err = _TELIA_ERROR(StreamFlushFailed, "stream flush failed");
+#ifdef _WIN32
+    if (_TELIA_IO_SETMODE(_fileno(stream), mode) == -1 && !err.present)
+        err = _TELIA_ERROR(StreamModeFailed, "stream mode restore failed");
+#else
+    // Some libcs retain a failed flush's buffer and retry it at process exit.
+    // Discard unsent bytes so a checked broken pipe cannot kill the caller later.
+    if (err.present) {
+#ifdef __linux__
+        __fpurge(stream);
+#else
+        fpurge(stream);
+#endif
+    }
+    if (!already_pending && sigpending(&pending) == 0 && sigismember(&pending, SIGPIPE) == 1) {
+        int signal_number;
+        sigwait(&blocked, &signal_number);
+    }
+    if (pthread_sigmask(SIG_SETMASK, &previous, NULL) != 0 && !err.present)
+        err = _TELIA_ERROR(StreamWriteFailed, "cannot restore signal mask");
+#endif
+    return err;
+}
+
 typedef struct _TeliaArenaBlock {
     struct _TeliaArenaBlock *next;
     size_t capacity;

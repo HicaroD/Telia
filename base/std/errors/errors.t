@@ -15,4 +15,8 @@ enum Error: error {
     FileReadFailed
     FileWriteFailed
     FileCloseFailed
+    StreamReadFailed
+    StreamWriteFailed
+    StreamFlushFailed
+    StreamModeFailed
 }
