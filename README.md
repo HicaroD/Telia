@@ -31,13 +31,8 @@ Available for Linux x64, macOS Intel/Apple Silicon, and Windows x64.
 
 ### macOS / Linux
 
-Download and inspect the installer before running it:
-
 ```sh
-curl -fL https://github.com/HicaroD/Telia/releases/latest/download/install.sh -o install-telia.sh
-sh install-telia.sh
-export PATH="$HOME/.local/bin:$PATH"
-telia version
+curl -fsSL https://github.com/HicaroD/Telia/releases/latest/download/install.sh | sh
 ```
 
 Add `~/.local/bin` to your shell profile's `PATH` for future terminals.
@@ -45,11 +40,7 @@ Add `~/.local/bin` to your shell profile's `PATH` for future terminals.
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest https://github.com/HicaroD/Telia/releases/latest/download/install.ps1 -OutFile install-telia.ps1
-# Inspect the script before running it.
-.\install-telia.ps1
-$env:PATH = "$env:LOCALAPPDATA\Telia\bin;$env:PATH"
-telia version
+irm https://github.com/HicaroD/Telia/releases/latest/download/install.ps1 | iex
 ```
 
 Add `$env:LOCALAPPDATA\Telia\bin` to your user `PATH` for future terminals.
