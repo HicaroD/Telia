@@ -10,10 +10,10 @@
 #include <fcntl.h>
 #endif
 
-static int io_mode, io_calls, io_failed, io_flushes, io_modes;
+static int io_mode, io_calls, io_failed, io_flushes, io_modes, io_stdout_writes;
 static void _test_io_mode(int32_t mode) {
     io_mode = mode;
-    io_calls = io_failed = io_flushes = io_modes = 0;
+    io_calls = io_failed = io_flushes = io_modes = io_stdout_writes = 0;
 }
 static int32_t _test_io_flushes(void) { return io_flushes; }
 static int32_t _test_io_streams_open(void) {
@@ -37,6 +37,7 @@ static size_t _test_io_read(void *data, size_t size, size_t count, FILE *stream)
 }
 static size_t _test_io_write(const void *data, size_t size, size_t count, FILE *stream) {
     ++io_calls;
+    if (stream == stdout) ++io_stdout_writes;
     if (io_mode == 5) return 0;
     if (io_mode == 1 || io_mode == 4) { if (count > 7) count = 7; }
     size_t written = fwrite(data, size, count, stream);
@@ -47,6 +48,12 @@ static int _test_io_error(FILE *stream) { return io_failed || ferror(stream); }
 static int _test_io_flush(FILE *stream) {
     ++io_flushes;
     int result = fflush(stream);
+    // Fail only after stdout has been written, not after earlier stdin reads
+    // or during Windows' pre-mode flush. Leave stderr usable for diagnostics.
+    if (io_mode == 12 && stream == stdout && io_stdout_writes) {
+        io_mode = 0;
+        return EOF;
+    }
     // Windows pre-mode flush must succeed to exercise the final flush.
     if ((io_mode == 6 || io_mode == 4) && io_calls) return EOF;
     if (io_mode == 10) return EOF;

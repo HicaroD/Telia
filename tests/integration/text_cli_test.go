@@ -217,9 +217,9 @@ func TestTextCLIAllocationFailuresAndSanitizers(t *testing.T) {
 		)
 		// Mode 5 prevents both output and the diagnostic: a checked failure, not a panic.
 		checkTextCLI(t, path, nil, []string{"TELIA_TEXT_IO_MODE=5"}, "input", "", "", 1)
-		// A flush failure may leave already-emitted output and a diagnostic.
+		// Fail stdout's post-write flush once, leaving diagnostic output usable.
 		checkTextCLI(
-			t, path, nil, []string{"TELIA_TEXT_IO_MODE=6"},
+			t, path, nil, []string{"TELIA_TEXT_IO_MODE=12"},
 			"input", "input", "stdout write failed\n", 1,
 		)
 	}

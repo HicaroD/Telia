@@ -71,6 +71,30 @@ func ioControlFlags(t *testing.T, opt string) []string {
 	return flags
 }
 
+func TestIOFlushFailureAfterInputAllowsDiagnostic(t *testing.T) {
+	for _, opt := range []string{"-O0", "-O3"} {
+		out, errout := runIOSource(t, ioControls+`fn main() i32 {
+_test_io_mode(12)
+owner, read_err := io::read_stdin()
+if read_err != nil {
+return 1
+}
+defer strings::free(&owner)
+write_err := io::write_stdout(strings::view(&owner))
+if write_err.kind != errors::Error::StreamFlushFailed {
+return 2
+}
+if io::write_stderr("diagnostic\n") != nil {
+return 3
+}
+return 0
+}`, "input", ioControlFlags(t, opt)...)
+		if out != "input" || errout != "diagnostic\n" {
+			t.Fatalf("stdout=%q stderr=%q", out, errout)
+		}
+	}
+}
+
 func TestIOShortOperationsFlushAndOpenStreams(t *testing.T) {
 	input := strings.Repeat("a\x00\xff\r\n\x1a", 2000)
 	for _, opt := range []string{"-O0", "-O3"} {
