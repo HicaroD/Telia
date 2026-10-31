@@ -1,4057 +1,354 @@
 package sdl
 
-use "std::ffi::c"
-
-@[cc_macro="SDLCALL"]
-type malloc_func = fn(arg0 c::c_size_t) rawptr
-
-@[cc_macro="SDLCALL"]
-type calloc_func = fn(arg0 c::c_size_t, arg1 c::c_size_t) rawptr
-
-@[cc_macro="SDLCALL"]
-type realloc_func = fn(arg0 rawptr, arg1 c::c_size_t) rawptr
-
-@[cc_macro="SDLCALL"]
-type free_func = fn(arg0 rawptr)
-
-@[cc_macro="SDLCALL"]
-type CompareCallback = fn(arg0 const *Void, arg1 const *Void) c::c_int
-
-@[cc_macro="SDLCALL"]
-type CompareCallback_r = fn(arg0 rawptr, arg1 const *Void, arg2 const *Void) c::c_int
-
-type iconv_t = *iconv_data_t
-
-@[cc_macro="SDLCALL"]
-type AssertionHandler = fn(arg0 const *AssertData, arg1 rawptr) AssertState
-
-type SpinLock = c::c_int
-
-type PropertiesID = u32
-
-@[cc_macro="SDLCALL"]
-type CleanupPropertyCallback = fn(arg0 rawptr, arg1 rawptr)
-
-@[cc_macro="SDLCALL"]
-type EnumeratePropertiesCallback = fn(arg0 rawptr, arg1 PropertiesID, arg2 c::ConstCString)
-
-@[cc_macro="SDLCALL"]
-type ThreadFunction = fn(arg0 rawptr) c::c_int
-
-@[cc_macro="SDLCALL"]
-type FunctionPointer = fn()
-
-type ThreadID = u64
-
-type TLSID = AtomicInt
-
-@[cc_macro="SDLCALL"]
-type TLSDestructorCallback = fn(arg0 rawptr)
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_sizeCallback = fn(arg0 rawptr) i64
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_seekCallback = fn(arg0 rawptr, arg1 i64, arg2 IOWhence) i64
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_readCallback = fn(arg0 rawptr, arg1 rawptr, arg2 c::c_size_t, arg3 *IOStatus) c::c_size_t
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_writeCallback = fn(arg0 rawptr, arg1 const *Void, arg2 c::c_size_t, arg3 *IOStatus) c::c_size_t
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_flushCallback = fn(arg0 rawptr, arg1 *IOStatus) bool
-
-@[cc_macro="SDLCALL"]
-type IOStreamInterface_closeCallback = fn(arg0 rawptr) bool
-
-type AudioDeviceID = u32
-
-@[cc_macro="SDLCALL"]
-type AudioStreamCallback = fn(arg0 rawptr, arg1 *AudioStream, arg2 c::c_int, arg3 c::c_int)
-
-@[cc_macro="SDLCALL"]
-type AudioPostmixCallback = fn(arg0 rawptr, arg1 const *AudioSpec, arg2 *c::c_float, arg3 c::c_int)
-
-type BlendMode = u32
-
-type SurfaceFlags = u32
-
-type CameraID = u32
-
-@[cc_macro="SDLCALL"]
-type ClipboardDataCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 *c::c_size_t) const *Void
-
-@[cc_macro="SDLCALL"]
-type ClipboardCleanupCallback = fn(arg0 rawptr)
-
-type DisplayID = u32
-
-type WindowFlags = u64
-
-type WindowID = u32
-
-@[cc_macro="SDLCALL"]
-type HitTest = fn(arg0 *Window, arg1 const *Point, arg2 rawptr) HitTestResult
-
-type GLContext = *GLContextState
-
-type EGLDisplay = rawptr
-
-type EGLConfig = rawptr
-
-type EGLSurface = rawptr
-
-type EGLAttrib = c::c_intptr_t
-
-@[cc_macro="SDLCALL"]
-type EGLAttribArrayCallback = fn(arg0 rawptr) *EGLAttrib
-
-type EGLint = c::c_int
-
-@[cc_macro="SDLCALL"]
-type EGLIntArrayCallback = fn(arg0 rawptr, arg1 EGLDisplay, arg2 EGLConfig) *EGLint
-
-@[cc_macro="SDLCALL"]
-type DialogFileCallback = fn(arg0 rawptr, arg1 const *c::ConstCString, arg2 c::c_int)
-
-type SensorID = u32
-
-type JoystickID = u32
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_UpdateCallback = fn(arg0 rawptr)
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SetPlayerIndexCallback = fn(arg0 rawptr, arg1 c::c_int)
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_RumbleCallback = fn(arg0 rawptr, arg1 u16, arg2 u16) bool
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_RumbleTriggersCallback = fn(arg0 rawptr, arg1 u16, arg2 u16) bool
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SetLEDCallback = fn(arg0 rawptr, arg1 u8, arg2 u8, arg3 u8) bool
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SendEffectCallback = fn(arg0 rawptr, arg1 const *Void, arg2 c::c_int) bool
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_SetSensorsEnabledCallback = fn(arg0 rawptr, arg1 bool) bool
-
-@[cc_macro="SDLCALL"]
-type VirtualJoystickDesc_CleanupCallback = fn(arg0 rawptr)
-
-type KeyboardID = u32
-
-type Keymod = u16
-
-type Keycode = u32
-
-type MouseID = u32
-
-type MouseButtonFlags = u32
-
-type TouchID = u64
-
-type FingerID = u64
-
-type PenID = u32
-
-type PenInputFlags = u32
-
-@[cc_macro="SDLCALL"]
-type EventFilter = fn(arg0 rawptr, arg1 *Event) bool
-
-@[cc_macro="SDLCALL"]
-type EnumerateDirectoryCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) EnumerationResult
-
-type Time = i64
-
-type GlobFlags = u32
-
-type GPUShaderFormat = u32
-
-type GPUColorComponentFlags = u8
-
-type GPUTextureUsageFlags = u32
-
-type GPUBufferUsageFlags = u32
-
-type HapticID = u32
-
-@[cc_macro="SDLCALL"]
-type HintCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString, arg3 c::ConstCString)
-
-type InitFlags = u32
-
-@[cc_macro="SDLCALL"]
-type MainThreadCallback = fn(arg0 rawptr)
-
-@[cc_macro="SDLCALL"]
-type LogOutputFunction = fn(arg0 rawptr, arg1 c::c_int, arg2 LogPriority, arg3 c::ConstCString)
-
-type MessageBoxFlags = u32
-
-type MessageBoxButtonFlags = u32
-
-type MetalView = rawptr
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_closeCallback = fn(arg0 rawptr) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_readyCallback = fn(arg0 rawptr) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_enumerateCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 EnumerateDirectoryCallback, arg3 rawptr) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_infoCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 *PathInfo) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_read_fileCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 rawptr, arg3 u64) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_write_fileCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 const *Void, arg3 u64) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_mkdirCallback = fn(arg0 rawptr, arg1 c::ConstCString) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_removeCallback = fn(arg0 rawptr, arg1 c::ConstCString) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_renameCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_copyCallback = fn(arg0 rawptr, arg1 c::ConstCString, arg2 c::ConstCString) bool
-
-@[cc_macro="SDLCALL"]
-type StorageInterface_space_remainingCallback = fn(arg0 rawptr) u64
-
-@[cc_macro="SDLCALL"]
-type X11EventHook = fn(arg0 rawptr, arg1 *XEvent) bool
-
-type TimerID = u32
-
-@[cc_macro="SDLCALL"]
-type TimerCallback = fn(arg0 rawptr, arg1 TimerID, arg2 u32) u32
-
-@[cc_macro="SDLCALL"]
-type NSTimerCallback = fn(arg0 rawptr, arg1 TimerID, arg2 u64) u64
-
-type TrayEntryFlags = u32
-
-@[cc_macro="SDLCALL"]
-type TrayCallback = fn(arg0 rawptr, arg1 *TrayEntry)
-
-@[cc_macro="SDLCALL"]
-type main_func = fn(arg0 c::c_int, arg1 *c::CString) c::c_int
-
-@[cc_macro="SDLCALL"]
-type AppInit_func = fn(arg0 *rawptr, arg1 c::c_int, arg2 *c::CString) AppResult
-
-@[cc_macro="SDLCALL"]
-type AppIterate_func = fn(arg0 rawptr) AppResult
-
-@[cc_macro="SDLCALL"]
-type AppEvent_func = fn(arg0 rawptr, arg1 *Event) AppResult
-
-@[cc_macro="SDLCALL"]
-type AppQuit_func = fn(arg0 rawptr, arg1 AppResult)
-
-type VkInstance = *VkInstance_T
-
-type VkSurfaceKHR = *VkSurfaceKHR_T
-
-type VkPhysicalDevice = *VkPhysicalDevice_T
+use "vendor::sdl::raw"
+use "std::strings"
+
+type Environment = raw::Environment
+type Void = raw::Void
+type iconv_data_t = raw::iconv_data_t
+type AssertData = raw::AssertData
+type AssertState = raw::AssertState
+type AsyncIO = raw::AsyncIO
+type AsyncIOQueue = raw::AsyncIOQueue
+type AsyncIOTaskType = raw::AsyncIOTaskType
+type AsyncIOResult = raw::AsyncIOResult
+type AsyncIOOutcome = raw::AsyncIOOutcome
+type AtomicInt = raw::AtomicInt
+type AtomicU32 = raw::AtomicU32
+type PropertyType = raw::PropertyType
+type Thread = raw::Thread
+type ThreadPriority = raw::ThreadPriority
+type ThreadState = raw::ThreadState
+type Mutex = raw::Mutex
+type RWLock = raw::RWLock
+type Semaphore = raw::Semaphore
+type Condition = raw::Condition
+type InitState = raw::InitState
+type IOStream = raw::IOStream
+type IOWhence = raw::IOWhence
+type IOStatus = raw::IOStatus
+type IOStreamInterface = raw::IOStreamInterface
+type AudioFormat = raw::AudioFormat
+type AudioSpec = raw::AudioSpec
+type AudioStream = raw::AudioStream
+type BlendFactor = raw::BlendFactor
+type BlendOperation = raw::BlendOperation
+type PixelFormat = raw::PixelFormat
+type PixelFormatDetails = raw::PixelFormatDetails
+type Color = raw::Color
+type Palette = raw::Palette
+type Rect = raw::Rect
+type FRect = raw::FRect
+type Point = raw::Point
+type FPoint = raw::FPoint
+type Surface = raw::Surface
+type Colorspace = raw::Colorspace
+type FlipMode = raw::FlipMode
+type ScaleMode = raw::ScaleMode
+type CameraSpec = raw::CameraSpec
+type CameraPosition = raw::CameraPosition
+type Camera = raw::Camera
+type SystemTheme = raw::SystemTheme
+type DisplayOrientation = raw::DisplayOrientation
+type DisplayModeData = raw::DisplayModeData
+type DisplayMode = raw::DisplayMode
+type Window = raw::Window
+type HitTestResult = raw::HitTestResult
+type FlashOperation = raw::FlashOperation
+type GLAttr = raw::GLAttr
+type GLContextState = raw::GLContextState
+type DialogFileFilter = raw::DialogFileFilter
+type FileDialogType = raw::FileDialogType
+type GUID = raw::GUID
+type PowerState = raw::PowerState
+type SensorType = raw::SensorType
+type Sensor = raw::Sensor
+type JoystickType = raw::JoystickType
+type Joystick = raw::Joystick
+type VirtualJoystickTouchpadDesc = raw::VirtualJoystickTouchpadDesc
+type VirtualJoystickSensorDesc = raw::VirtualJoystickSensorDesc
+type VirtualJoystickDesc = raw::VirtualJoystickDesc
+type JoystickConnectionState = raw::JoystickConnectionState
+type Gamepad = raw::Gamepad
+type GamepadType = raw::GamepadType
+type GamepadBindingType = raw::GamepadBindingType
+type GamepadBindingInputAxis = raw::GamepadBindingInputAxis
+type GamepadBindingInputHat = raw::GamepadBindingInputHat
+type GamepadBindingInput = raw::GamepadBindingInput
+type GamepadButton = raw::GamepadButton
+type GamepadAxis = raw::GamepadAxis
+type GamepadBindingOutputAxis = raw::GamepadBindingOutputAxis
+type GamepadBindingOutput = raw::GamepadBindingOutput
+type GamepadBinding = raw::GamepadBinding
+type GamepadButtonLabel = raw::GamepadButtonLabel
+type Scancode = raw::Scancode
+type Cursor = raw::Cursor
+type SystemCursor = raw::SystemCursor
+type TouchDeviceType = raw::TouchDeviceType
+type Finger = raw::Finger
+type CommonEvent = raw::CommonEvent
+type EventType = raw::EventType
+type DisplayEvent = raw::DisplayEvent
+type WindowEvent = raw::WindowEvent
+type KeyboardDeviceEvent = raw::KeyboardDeviceEvent
+type KeyboardEvent = raw::KeyboardEvent
+type TextEditingEvent = raw::TextEditingEvent
+type TextEditingCandidatesEvent = raw::TextEditingCandidatesEvent
+type TextInputEvent = raw::TextInputEvent
+type MouseDeviceEvent = raw::MouseDeviceEvent
+type MouseMotionEvent = raw::MouseMotionEvent
+type MouseButtonEvent = raw::MouseButtonEvent
+type MouseWheelDirection = raw::MouseWheelDirection
+type MouseWheelEvent = raw::MouseWheelEvent
+type JoyDeviceEvent = raw::JoyDeviceEvent
+type JoyAxisEvent = raw::JoyAxisEvent
+type JoyBallEvent = raw::JoyBallEvent
+type JoyHatEvent = raw::JoyHatEvent
+type JoyButtonEvent = raw::JoyButtonEvent
+type JoyBatteryEvent = raw::JoyBatteryEvent
+type GamepadDeviceEvent = raw::GamepadDeviceEvent
+type GamepadAxisEvent = raw::GamepadAxisEvent
+type GamepadButtonEvent = raw::GamepadButtonEvent
+type GamepadTouchpadEvent = raw::GamepadTouchpadEvent
+type GamepadSensorEvent = raw::GamepadSensorEvent
+type AudioDeviceEvent = raw::AudioDeviceEvent
+type CameraDeviceEvent = raw::CameraDeviceEvent
+type SensorEvent = raw::SensorEvent
+type QuitEvent = raw::QuitEvent
+type UserEvent = raw::UserEvent
+type TouchFingerEvent = raw::TouchFingerEvent
+type PenProximityEvent = raw::PenProximityEvent
+type PenTouchEvent = raw::PenTouchEvent
+type PenMotionEvent = raw::PenMotionEvent
+type PenButtonEvent = raw::PenButtonEvent
+type PenAxis = raw::PenAxis
+type PenAxisEvent = raw::PenAxisEvent
+type RenderEvent = raw::RenderEvent
+type DropEvent = raw::DropEvent
+type ClipboardEvent = raw::ClipboardEvent
+type Event = raw::Event
+type EventAction = raw::EventAction
+type Folder = raw::Folder
+type EnumerationResult = raw::EnumerationResult
+type PathType = raw::PathType
+type PathInfo = raw::PathInfo
+type GPUDevice = raw::GPUDevice
+type GPUComputePipelineCreateInfo = raw::GPUComputePipelineCreateInfo
+type GPUComputePipeline = raw::GPUComputePipeline
+type GPUShader = raw::GPUShader
+type GPUVertexInputRate = raw::GPUVertexInputRate
+type GPUVertexBufferDescription = raw::GPUVertexBufferDescription
+type GPUVertexElementFormat = raw::GPUVertexElementFormat
+type GPUVertexAttribute = raw::GPUVertexAttribute
+type GPUVertexInputState = raw::GPUVertexInputState
+type GPUPrimitiveType = raw::GPUPrimitiveType
+type GPUFillMode = raw::GPUFillMode
+type GPUCullMode = raw::GPUCullMode
+type GPUFrontFace = raw::GPUFrontFace
+type GPURasterizerState = raw::GPURasterizerState
+type GPUSampleCount = raw::GPUSampleCount
+type GPUMultisampleState = raw::GPUMultisampleState
+type GPUCompareOp = raw::GPUCompareOp
+type GPUStencilOp = raw::GPUStencilOp
+type GPUStencilOpState = raw::GPUStencilOpState
+type GPUDepthStencilState = raw::GPUDepthStencilState
+type GPUTextureFormat = raw::GPUTextureFormat
+type GPUBlendFactor = raw::GPUBlendFactor
+type GPUBlendOp = raw::GPUBlendOp
+type GPUColorTargetBlendState = raw::GPUColorTargetBlendState
+type GPUColorTargetDescription = raw::GPUColorTargetDescription
+type GPUGraphicsPipelineTargetInfo = raw::GPUGraphicsPipelineTargetInfo
+type GPUGraphicsPipelineCreateInfo = raw::GPUGraphicsPipelineCreateInfo
+type GPUGraphicsPipeline = raw::GPUGraphicsPipeline
+type GPUFilter = raw::GPUFilter
+type GPUSamplerMipmapMode = raw::GPUSamplerMipmapMode
+type GPUSamplerAddressMode = raw::GPUSamplerAddressMode
+type GPUSamplerCreateInfo = raw::GPUSamplerCreateInfo
+type GPUSampler = raw::GPUSampler
+type GPUShaderStage = raw::GPUShaderStage
+type GPUShaderCreateInfo = raw::GPUShaderCreateInfo
+type GPUTextureType = raw::GPUTextureType
+type GPUTextureCreateInfo = raw::GPUTextureCreateInfo
+type GPUTexture = raw::GPUTexture
+type GPUBufferCreateInfo = raw::GPUBufferCreateInfo
+type GPUBuffer = raw::GPUBuffer
+type GPUTransferBufferUsage = raw::GPUTransferBufferUsage
+type GPUTransferBufferCreateInfo = raw::GPUTransferBufferCreateInfo
+type GPUTransferBuffer = raw::GPUTransferBuffer
+type GPUCommandBuffer = raw::GPUCommandBuffer
+type FColor = raw::FColor
+type GPULoadOp = raw::GPULoadOp
+type GPUStoreOp = raw::GPUStoreOp
+type GPUColorTargetInfo = raw::GPUColorTargetInfo
+type GPUDepthStencilTargetInfo = raw::GPUDepthStencilTargetInfo
+type GPURenderPass = raw::GPURenderPass
+type GPUViewport = raw::GPUViewport
+type GPUBufferBinding = raw::GPUBufferBinding
+type GPUIndexElementSize = raw::GPUIndexElementSize
+type GPUTextureSamplerBinding = raw::GPUTextureSamplerBinding
+type GPUStorageTextureReadWriteBinding = raw::GPUStorageTextureReadWriteBinding
+type GPUStorageBufferReadWriteBinding = raw::GPUStorageBufferReadWriteBinding
+type GPUComputePass = raw::GPUComputePass
+type GPUCopyPass = raw::GPUCopyPass
+type GPUTextureTransferInfo = raw::GPUTextureTransferInfo
+type GPUTextureRegion = raw::GPUTextureRegion
+type GPUTransferBufferLocation = raw::GPUTransferBufferLocation
+type GPUBufferRegion = raw::GPUBufferRegion
+type GPUTextureLocation = raw::GPUTextureLocation
+type GPUBufferLocation = raw::GPUBufferLocation
+type GPUBlitRegion = raw::GPUBlitRegion
+type GPUBlitInfo = raw::GPUBlitInfo
+type GPUSwapchainComposition = raw::GPUSwapchainComposition
+type GPUPresentMode = raw::GPUPresentMode
+type GPUFence = raw::GPUFence
+type Haptic = raw::Haptic
+type HapticDirection = raw::HapticDirection
+type HapticConstant = raw::HapticConstant
+type HapticPeriodic = raw::HapticPeriodic
+type HapticCondition = raw::HapticCondition
+type HapticRamp = raw::HapticRamp
+type HapticLeftRight = raw::HapticLeftRight
+type HapticCustom = raw::HapticCustom
+type HapticEffect = raw::HapticEffect
+type hid_bus_type = raw::hid_bus_type
+type hid_device_info = raw::hid_device_info
+type hid_device = raw::hid_device
+type HintPriority = raw::HintPriority
+type SharedObject = raw::SharedObject
+type Locale = raw::Locale
+type LogPriority = raw::LogPriority
+type MessageBoxButtonData = raw::MessageBoxButtonData
+type MessageBoxColor = raw::MessageBoxColor
+type MessageBoxColorScheme = raw::MessageBoxColorScheme
+type MessageBoxData = raw::MessageBoxData
+type Process = raw::Process
+type Renderer = raw::Renderer
+type TextureAccess = raw::TextureAccess
+type Texture = raw::Texture
+type RendererLogicalPresentation = raw::RendererLogicalPresentation
+type Vertex = raw::Vertex
+type Storage = raw::Storage
+type StorageInterface = raw::StorageInterface
+type XEvent = raw::XEvent
+type Sandbox = raw::Sandbox
+type DateFormat = raw::DateFormat
+type TimeFormat = raw::TimeFormat
+type DateTime = raw::DateTime
+type Tray = raw::Tray
+type TrayMenu = raw::TrayMenu
+type TrayEntry = raw::TrayEntry
+type AppResult = raw::AppResult
+type VkInstance_T = raw::VkInstance_T
+type VkAllocationCallbacks = raw::VkAllocationCallbacks
+type VkSurfaceKHR_T = raw::VkSurfaceKHR_T
+type VkPhysicalDevice_T = raw::VkPhysicalDevice_T
+type malloc_func = raw::malloc_func
+type calloc_func = raw::calloc_func
+type realloc_func = raw::realloc_func
+type free_func = raw::free_func
+type CompareCallback = raw::CompareCallback
+type CompareCallback_r = raw::CompareCallback_r
+type iconv_t = raw::iconv_t
+type AssertionHandler = raw::AssertionHandler
+type SpinLock = raw::SpinLock
+type PropertiesID = raw::PropertiesID
+type CleanupPropertyCallback = raw::CleanupPropertyCallback
+type EnumeratePropertiesCallback = raw::EnumeratePropertiesCallback
+type ThreadFunction = raw::ThreadFunction
+type FunctionPointer = raw::FunctionPointer
+type ThreadID = raw::ThreadID
+type TLSID = raw::TLSID
+type TLSDestructorCallback = raw::TLSDestructorCallback
+type IOStreamInterface_sizeCallback = raw::IOStreamInterface_sizeCallback
+type IOStreamInterface_seekCallback = raw::IOStreamInterface_seekCallback
+type IOStreamInterface_readCallback = raw::IOStreamInterface_readCallback
+type IOStreamInterface_writeCallback = raw::IOStreamInterface_writeCallback
+type IOStreamInterface_flushCallback = raw::IOStreamInterface_flushCallback
+type IOStreamInterface_closeCallback = raw::IOStreamInterface_closeCallback
+type AudioDeviceID = raw::AudioDeviceID
+type AudioStreamCallback = raw::AudioStreamCallback
+type AudioPostmixCallback = raw::AudioPostmixCallback
+type BlendMode = raw::BlendMode
+type SurfaceFlags = raw::SurfaceFlags
+type CameraID = raw::CameraID
+type ClipboardDataCallback = raw::ClipboardDataCallback
+type ClipboardCleanupCallback = raw::ClipboardCleanupCallback
+type DisplayID = raw::DisplayID
+type WindowFlags = raw::WindowFlags
+type WindowID = raw::WindowID
+type HitTest = raw::HitTest
+type GLContext = raw::GLContext
+type EGLDisplay = raw::EGLDisplay
+type EGLConfig = raw::EGLConfig
+type EGLSurface = raw::EGLSurface
+type EGLAttrib = raw::EGLAttrib
+type EGLAttribArrayCallback = raw::EGLAttribArrayCallback
+type EGLint = raw::EGLint
+type EGLIntArrayCallback = raw::EGLIntArrayCallback
+type DialogFileCallback = raw::DialogFileCallback
+type SensorID = raw::SensorID
+type JoystickID = raw::JoystickID
+type VirtualJoystickDesc_UpdateCallback = raw::VirtualJoystickDesc_UpdateCallback
+type VirtualJoystickDesc_SetPlayerIndexCallback = raw::VirtualJoystickDesc_SetPlayerIndexCallback
+type VirtualJoystickDesc_RumbleCallback = raw::VirtualJoystickDesc_RumbleCallback
+type VirtualJoystickDesc_RumbleTriggersCallback = raw::VirtualJoystickDesc_RumbleTriggersCallback
+type VirtualJoystickDesc_SetLEDCallback = raw::VirtualJoystickDesc_SetLEDCallback
+type VirtualJoystickDesc_SendEffectCallback = raw::VirtualJoystickDesc_SendEffectCallback
+type VirtualJoystickDesc_SetSensorsEnabledCallback = raw::VirtualJoystickDesc_SetSensorsEnabledCallback
+type VirtualJoystickDesc_CleanupCallback = raw::VirtualJoystickDesc_CleanupCallback
+type KeyboardID = raw::KeyboardID
+type Keymod = raw::Keymod
+type Keycode = raw::Keycode
+type MouseID = raw::MouseID
+type MouseButtonFlags = raw::MouseButtonFlags
+type TouchID = raw::TouchID
+type FingerID = raw::FingerID
+type PenID = raw::PenID
+type PenInputFlags = raw::PenInputFlags
+type EventFilter = raw::EventFilter
+type EnumerateDirectoryCallback = raw::EnumerateDirectoryCallback
+type Time = raw::Time
+type GlobFlags = raw::GlobFlags
+type GPUShaderFormat = raw::GPUShaderFormat
+type GPUColorComponentFlags = raw::GPUColorComponentFlags
+type GPUTextureUsageFlags = raw::GPUTextureUsageFlags
+type GPUBufferUsageFlags = raw::GPUBufferUsageFlags
+type HapticID = raw::HapticID
+type HintCallback = raw::HintCallback
+type InitFlags = raw::InitFlags
+type MainThreadCallback = raw::MainThreadCallback
+type LogOutputFunction = raw::LogOutputFunction
+type MessageBoxFlags = raw::MessageBoxFlags
+type MessageBoxButtonFlags = raw::MessageBoxButtonFlags
+type MetalView = raw::MetalView
+type StorageInterface_closeCallback = raw::StorageInterface_closeCallback
+type StorageInterface_readyCallback = raw::StorageInterface_readyCallback
+type StorageInterface_enumerateCallback = raw::StorageInterface_enumerateCallback
+type StorageInterface_infoCallback = raw::StorageInterface_infoCallback
+type StorageInterface_read_fileCallback = raw::StorageInterface_read_fileCallback
+type StorageInterface_write_fileCallback = raw::StorageInterface_write_fileCallback
+type StorageInterface_mkdirCallback = raw::StorageInterface_mkdirCallback
+type StorageInterface_removeCallback = raw::StorageInterface_removeCallback
+type StorageInterface_renameCallback = raw::StorageInterface_renameCallback
+type StorageInterface_copyCallback = raw::StorageInterface_copyCallback
+type StorageInterface_space_remainingCallback = raw::StorageInterface_space_remainingCallback
+type X11EventHook = raw::X11EventHook
+type TimerID = raw::TimerID
+type TimerCallback = raw::TimerCallback
+type NSTimerCallback = raw::NSTimerCallback
+type TrayEntryFlags = raw::TrayEntryFlags
+type TrayCallback = raw::TrayCallback
+type main_func = raw::main_func
+type AppInit_func = raw::AppInit_func
+type AppIterate_func = raw::AppIterate_func
+type AppEvent_func = raw::AppEvent_func
+type AppQuit_func = raw::AppQuit_func
+type VkInstance = raw::VkInstance
+type VkSurfaceKHR = raw::VkSurfaceKHR
+type VkPhysicalDevice = raw::VkPhysicalDevice
 
 @[header="SDL3/SDL.h"]
 extern {
-}
-
-@[header="SDL3/SDL_vulkan.h"]
-extern {
-}
-
-@[header="SDL3/SDL_main.h", default_cc_macro="SDLCALL"]
-extern {
-
-
-
-
-  @[link_name="SDL_Environment"]
-  opaque Environment
-
-  @[link_name="void"]
-  opaque Void
-
-
-
-  @[link_name="struct SDL_iconv_data_t"]
-  opaque iconv_data_t
-
-
-  @[link_name="SDL_AssertData"]
-  struct AssertData {
-    always_ignore bool
-    trigger_count c::c_uint
-    condition c::ConstCString
-    filename c::ConstCString
-    linenum c::c_int
-    function c::ConstCString
-    next const *AssertData
-  }
-
-  @[link_name="SDL_AssertState"]
-  enum AssertState {
-    @[link_name="SDL_ASSERTION_RETRY"]
-    RETRY
-    @[link_name="SDL_ASSERTION_BREAK"]
-    BREAK
-    @[link_name="SDL_ASSERTION_ABORT"]
-    ABORT
-    @[link_name="SDL_ASSERTION_IGNORE"]
-    IGNORE
-    @[link_name="SDL_ASSERTION_ALWAYS_IGNORE"]
-    ALWAYS_IGNORE
-  }
-
-
-  @[link_name="SDL_AsyncIO"]
-  opaque AsyncIO
-
-  @[link_name="SDL_AsyncIOQueue"]
-  opaque AsyncIOQueue
-
-  @[link_name="SDL_AsyncIOTaskType"]
-  enum AsyncIOTaskType {
-    @[link_name="SDL_ASYNCIO_TASK_READ"]
-    READ
-    @[link_name="SDL_ASYNCIO_TASK_WRITE"]
-    WRITE
-    @[link_name="SDL_ASYNCIO_TASK_CLOSE"]
-    CLOSE
-  }
-
-  @[link_name="SDL_AsyncIOResult"]
-  enum AsyncIOResult {
-    @[link_name="SDL_ASYNCIO_COMPLETE"]
-    COMPLETE
-    @[link_name="SDL_ASYNCIO_FAILURE"]
-    FAILURE
-    @[link_name="SDL_ASYNCIO_CANCELED"]
-    CANCELED
-  }
-
-  @[link_name="SDL_AsyncIOOutcome"]
-  struct AsyncIOOutcome {
-    asyncio *AsyncIO
-    type AsyncIOTaskType
-    result AsyncIOResult
-    buffer rawptr
-    offset u64
-    bytes_requested u64
-    bytes_transferred u64
-    userdata rawptr
-  }
-
-
-  @[link_name="SDL_AtomicInt"]
-  struct AtomicInt {
-    value c::c_int
-  }
-
-  @[link_name="SDL_AtomicU32"]
-  struct AtomicU32 {
-    value u32
-  }
-
-
-
-  @[link_name="SDL_PropertyType"]
-  enum PropertyType {
-    @[link_name="SDL_PROPERTY_TYPE_INVALID"]
-    INVALID
-    @[link_name="SDL_PROPERTY_TYPE_POINTER"]
-    POINTER
-    @[link_name="SDL_PROPERTY_TYPE_STRING"]
-    STRING
-    @[link_name="SDL_PROPERTY_TYPE_NUMBER"]
-    NUMBER
-    @[link_name="SDL_PROPERTY_TYPE_FLOAT"]
-    FLOAT
-    @[link_name="SDL_PROPERTY_TYPE_BOOLEAN"]
-    BOOLEAN
-  }
-
-
-
-
-  @[link_name="SDL_Thread"]
-  opaque Thread
-
-
-  @[link_name="SDL_ThreadPriority"]
-  enum ThreadPriority {
-    @[link_name="SDL_THREAD_PRIORITY_LOW"]
-    LOW
-    @[link_name="SDL_THREAD_PRIORITY_NORMAL"]
-    NORMAL
-    @[link_name="SDL_THREAD_PRIORITY_HIGH"]
-    HIGH
-    @[link_name="SDL_THREAD_PRIORITY_TIME_CRITICAL"]
-    TIME_CRITICAL
-  }
-
-  @[link_name="SDL_ThreadState"]
-  enum ThreadState {
-    @[link_name="SDL_THREAD_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_THREAD_ALIVE"]
-    ALIVE
-    @[link_name="SDL_THREAD_DETACHED"]
-    DETACHED
-    @[link_name="SDL_THREAD_COMPLETE"]
-    COMPLETE
-  }
-
-
-
-  @[link_name="SDL_Mutex"]
-  opaque Mutex
-
-  @[link_name="SDL_RWLock"]
-  opaque RWLock
-
-  @[link_name="SDL_Semaphore"]
-  opaque Semaphore
-
-  @[link_name="SDL_Condition"]
-  opaque Condition
-
-  @[link_name="SDL_InitState"]
-  struct InitState {
-    status AtomicInt
-    thread ThreadID
-    reserved rawptr
-  }
-
-  @[link_name="SDL_IOStream"]
-  opaque IOStream
-
-  @[link_name="SDL_IOWhence"]
-  enum IOWhence {
-    @[link_name="SDL_IO_SEEK_SET"]
-    SET
-    @[link_name="SDL_IO_SEEK_CUR"]
-    CUR
-    @[link_name="SDL_IO_SEEK_END"]
-    END
-  }
-
-  @[link_name="SDL_IOStatus"]
-  enum IOStatus {
-    @[link_name="SDL_IO_STATUS_READY"]
-    READY
-    @[link_name="SDL_IO_STATUS_ERROR"]
-    ERROR
-    @[link_name="SDL_IO_STATUS_EOF"]
-    EOF
-    @[link_name="SDL_IO_STATUS_NOT_READY"]
-    NOT_READY
-    @[link_name="SDL_IO_STATUS_READONLY"]
-    READONLY
-    @[link_name="SDL_IO_STATUS_WRITEONLY"]
-    WRITEONLY
-  }
-
-  @[link_name="SDL_IOStreamInterface"]
-  struct IOStreamInterface {
-    version u32
-    size IOStreamInterface_sizeCallback
-    seek IOStreamInterface_seekCallback
-    read IOStreamInterface_readCallback
-    write IOStreamInterface_writeCallback
-    flush IOStreamInterface_flushCallback
-    close IOStreamInterface_closeCallback
-  }
-
-
-  @[link_name="SDL_AudioFormat"]
-  enum AudioFormat {
-    @[link_name="SDL_AUDIO_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_AUDIO_U8"]
-    U8
-    @[link_name="SDL_AUDIO_S8"]
-    S8
-    @[link_name="SDL_AUDIO_S16LE"]
-    S16LE
-    @[link_name="SDL_AUDIO_S16BE"]
-    S16BE
-    @[link_name="SDL_AUDIO_S32LE"]
-    S32LE
-    @[link_name="SDL_AUDIO_S32BE"]
-    S32BE
-    @[link_name="SDL_AUDIO_F32LE"]
-    F32LE
-    @[link_name="SDL_AUDIO_F32BE"]
-    F32BE
-    @[link_name="SDL_AUDIO_S16"]
-    S16
-    @[link_name="SDL_AUDIO_S32"]
-    S32
-    @[link_name="SDL_AUDIO_F32"]
-    F32
-  }
-
-  @[link_name="SDL_AudioSpec"]
-  struct AudioSpec {
-    format AudioFormat
-    channels c::c_int
-    freq c::c_int
-  }
-
-  @[link_name="SDL_AudioStream"]
-  opaque AudioStream
-
-
-
-  @[link_name="SDL_BlendFactor"]
-  enum BlendFactor {
-    @[link_name="SDL_BLENDFACTOR_ZERO"]
-    ZERO
-    @[link_name="SDL_BLENDFACTOR_ONE"]
-    ONE
-    @[link_name="SDL_BLENDFACTOR_SRC_COLOR"]
-    SRC_COLOR
-    @[link_name="SDL_BLENDFACTOR_ONE_MINUS_SRC_COLOR"]
-    ONE_MINUS_SRC_COLOR
-    @[link_name="SDL_BLENDFACTOR_SRC_ALPHA"]
-    SRC_ALPHA
-    @[link_name="SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA"]
-    ONE_MINUS_SRC_ALPHA
-    @[link_name="SDL_BLENDFACTOR_DST_COLOR"]
-    DST_COLOR
-    @[link_name="SDL_BLENDFACTOR_ONE_MINUS_DST_COLOR"]
-    ONE_MINUS_DST_COLOR
-    @[link_name="SDL_BLENDFACTOR_DST_ALPHA"]
-    DST_ALPHA
-    @[link_name="SDL_BLENDFACTOR_ONE_MINUS_DST_ALPHA"]
-    ONE_MINUS_DST_ALPHA
-  }
-
-  @[link_name="SDL_BlendOperation"]
-  enum BlendOperation {
-    @[link_name="SDL_BLENDOPERATION_ADD"]
-    ADD
-    @[link_name="SDL_BLENDOPERATION_SUBTRACT"]
-    SUBTRACT
-    @[link_name="SDL_BLENDOPERATION_REV_SUBTRACT"]
-    REV_SUBTRACT
-    @[link_name="SDL_BLENDOPERATION_MINIMUM"]
-    MINIMUM
-    @[link_name="SDL_BLENDOPERATION_MAXIMUM"]
-    MAXIMUM
-  }
-
-
-  @[link_name="SDL_PixelFormat"]
-  enum PixelFormat {
-    @[link_name="SDL_PIXELFORMAT_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_PIXELFORMAT_INDEX1LSB"]
-    INDEX1LSB
-    @[link_name="SDL_PIXELFORMAT_INDEX1MSB"]
-    INDEX1MSB
-    @[link_name="SDL_PIXELFORMAT_INDEX2LSB"]
-    INDEX2LSB
-    @[link_name="SDL_PIXELFORMAT_INDEX2MSB"]
-    INDEX2MSB
-    @[link_name="SDL_PIXELFORMAT_INDEX4LSB"]
-    INDEX4LSB
-    @[link_name="SDL_PIXELFORMAT_INDEX4MSB"]
-    INDEX4MSB
-    @[link_name="SDL_PIXELFORMAT_INDEX8"]
-    INDEX8
-    @[link_name="SDL_PIXELFORMAT_RGB332"]
-    RGB332
-    @[link_name="SDL_PIXELFORMAT_XRGB4444"]
-    XRGB4444
-    @[link_name="SDL_PIXELFORMAT_XBGR4444"]
-    XBGR4444
-    @[link_name="SDL_PIXELFORMAT_XRGB1555"]
-    XRGB1555
-    @[link_name="SDL_PIXELFORMAT_XBGR1555"]
-    XBGR1555
-    @[link_name="SDL_PIXELFORMAT_ARGB4444"]
-    ARGB4444
-    @[link_name="SDL_PIXELFORMAT_RGBA4444"]
-    RGBA4444
-    @[link_name="SDL_PIXELFORMAT_ABGR4444"]
-    ABGR4444
-    @[link_name="SDL_PIXELFORMAT_BGRA4444"]
-    BGRA4444
-    @[link_name="SDL_PIXELFORMAT_ARGB1555"]
-    ARGB1555
-    @[link_name="SDL_PIXELFORMAT_RGBA5551"]
-    RGBA5551
-    @[link_name="SDL_PIXELFORMAT_ABGR1555"]
-    ABGR1555
-    @[link_name="SDL_PIXELFORMAT_BGRA5551"]
-    BGRA5551
-    @[link_name="SDL_PIXELFORMAT_RGB565"]
-    RGB565
-    @[link_name="SDL_PIXELFORMAT_BGR565"]
-    BGR565
-    @[link_name="SDL_PIXELFORMAT_RGB24"]
-    RGB24
-    @[link_name="SDL_PIXELFORMAT_BGR24"]
-    BGR24
-    @[link_name="SDL_PIXELFORMAT_XRGB8888"]
-    XRGB8888
-    @[link_name="SDL_PIXELFORMAT_RGBX8888"]
-    RGBX8888
-    @[link_name="SDL_PIXELFORMAT_XBGR8888"]
-    XBGR8888
-    @[link_name="SDL_PIXELFORMAT_BGRX8888"]
-    BGRX8888
-    @[link_name="SDL_PIXELFORMAT_ARGB8888"]
-    ARGB8888
-    @[link_name="SDL_PIXELFORMAT_RGBA8888"]
-    RGBA8888
-    @[link_name="SDL_PIXELFORMAT_ABGR8888"]
-    ABGR8888
-    @[link_name="SDL_PIXELFORMAT_BGRA8888"]
-    BGRA8888
-    @[link_name="SDL_PIXELFORMAT_XRGB2101010"]
-    XRGB2101010
-    @[link_name="SDL_PIXELFORMAT_XBGR2101010"]
-    XBGR2101010
-    @[link_name="SDL_PIXELFORMAT_ARGB2101010"]
-    ARGB2101010
-    @[link_name="SDL_PIXELFORMAT_ABGR2101010"]
-    ABGR2101010
-    @[link_name="SDL_PIXELFORMAT_RGB48"]
-    RGB48
-    @[link_name="SDL_PIXELFORMAT_BGR48"]
-    BGR48
-    @[link_name="SDL_PIXELFORMAT_RGBA64"]
-    RGBA64
-    @[link_name="SDL_PIXELFORMAT_ARGB64"]
-    ARGB64
-    @[link_name="SDL_PIXELFORMAT_BGRA64"]
-    BGRA64
-    @[link_name="SDL_PIXELFORMAT_ABGR64"]
-    ABGR64
-    @[link_name="SDL_PIXELFORMAT_RGB48_FLOAT"]
-    RGB48_FLOAT
-    @[link_name="SDL_PIXELFORMAT_BGR48_FLOAT"]
-    BGR48_FLOAT
-    @[link_name="SDL_PIXELFORMAT_RGBA64_FLOAT"]
-    RGBA64_FLOAT
-    @[link_name="SDL_PIXELFORMAT_ARGB64_FLOAT"]
-    ARGB64_FLOAT
-    @[link_name="SDL_PIXELFORMAT_BGRA64_FLOAT"]
-    BGRA64_FLOAT
-    @[link_name="SDL_PIXELFORMAT_ABGR64_FLOAT"]
-    ABGR64_FLOAT
-    @[link_name="SDL_PIXELFORMAT_RGB96_FLOAT"]
-    RGB96_FLOAT
-    @[link_name="SDL_PIXELFORMAT_BGR96_FLOAT"]
-    BGR96_FLOAT
-    @[link_name="SDL_PIXELFORMAT_RGBA128_FLOAT"]
-    RGBA128_FLOAT
-    @[link_name="SDL_PIXELFORMAT_ARGB128_FLOAT"]
-    ARGB128_FLOAT
-    @[link_name="SDL_PIXELFORMAT_BGRA128_FLOAT"]
-    BGRA128_FLOAT
-    @[link_name="SDL_PIXELFORMAT_ABGR128_FLOAT"]
-    ABGR128_FLOAT
-    @[link_name="SDL_PIXELFORMAT_YV12"]
-    YV12
-    @[link_name="SDL_PIXELFORMAT_IYUV"]
-    IYUV
-    @[link_name="SDL_PIXELFORMAT_YUY2"]
-    YUY2
-    @[link_name="SDL_PIXELFORMAT_UYVY"]
-    UYVY
-    @[link_name="SDL_PIXELFORMAT_YVYU"]
-    YVYU
-    @[link_name="SDL_PIXELFORMAT_NV12"]
-    NV12
-    @[link_name="SDL_PIXELFORMAT_NV21"]
-    NV21
-    @[link_name="SDL_PIXELFORMAT_P010"]
-    P010
-    @[link_name="SDL_PIXELFORMAT_EXTERNAL_OES"]
-    EXTERNAL_OES
-    @[link_name="SDL_PIXELFORMAT_MJPG"]
-    MJPG
-    @[link_name="SDL_PIXELFORMAT_RGBA32"]
-    RGBA32
-    @[link_name="SDL_PIXELFORMAT_ARGB32"]
-    ARGB32
-    @[link_name="SDL_PIXELFORMAT_BGRA32"]
-    BGRA32
-    @[link_name="SDL_PIXELFORMAT_ABGR32"]
-    ABGR32
-    @[link_name="SDL_PIXELFORMAT_RGBX32"]
-    RGBX32
-    @[link_name="SDL_PIXELFORMAT_XRGB32"]
-    XRGB32
-    @[link_name="SDL_PIXELFORMAT_BGRX32"]
-    BGRX32
-    @[link_name="SDL_PIXELFORMAT_XBGR32"]
-    XBGR32
-  }
-
-  @[link_name="SDL_PixelFormatDetails"]
-  struct PixelFormatDetails {
-    format PixelFormat
-    bits_per_pixel u8
-    bytes_per_pixel u8
-    padding u8[2]
-    Rmask u32
-    Gmask u32
-    Bmask u32
-    Amask u32
-    Rbits u8
-    Gbits u8
-    Bbits u8
-    Abits u8
-    Rshift u8
-    Gshift u8
-    Bshift u8
-    Ashift u8
-  }
-
-  @[link_name="SDL_Color"]
-  struct Color {
-    r u8
-    g u8
-    b u8
-    a u8
-  }
-
-  @[link_name="SDL_Palette"]
-  struct Palette {
-    ncolors c::c_int
-    colors *Color
-    version u32
-    refcount c::c_int
-  }
-
-  @[link_name="SDL_Rect"]
-  struct Rect {
-    x c::c_int
-    y c::c_int
-    w c::c_int
-    h c::c_int
-  }
-
-  @[link_name="SDL_FRect"]
-  struct FRect {
-    x c::c_float
-    y c::c_float
-    w c::c_float
-    h c::c_float
-  }
-
-  @[link_name="SDL_Point"]
-  struct Point {
-    x c::c_int
-    y c::c_int
-  }
-
-  @[link_name="SDL_FPoint"]
-  struct FPoint {
-    x c::c_float
-    y c::c_float
-  }
-
-
-  @[link_name="SDL_Surface"]
-  struct Surface {
-    flags SurfaceFlags
-    format PixelFormat
-    w c::c_int
-    h c::c_int
-    pitch c::c_int
-    pixels rawptr
-    refcount c::c_int
-    reserved rawptr
-  }
-
-  @[link_name="SDL_Colorspace"]
-  enum Colorspace {
-    @[link_name="SDL_COLORSPACE_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_COLORSPACE_SRGB"]
-    SRGB
-    @[link_name="SDL_COLORSPACE_SRGB_LINEAR"]
-    SRGB_LINEAR
-    @[link_name="SDL_COLORSPACE_HDR10"]
-    HDR10
-    @[link_name="SDL_COLORSPACE_JPEG"]
-    JPEG
-    @[link_name="SDL_COLORSPACE_BT601_LIMITED"]
-    BT601_LIMITED
-    @[link_name="SDL_COLORSPACE_BT601_FULL"]
-    BT601_FULL
-    @[link_name="SDL_COLORSPACE_BT709_LIMITED"]
-    BT709_LIMITED
-    @[link_name="SDL_COLORSPACE_BT709_FULL"]
-    BT709_FULL
-    @[link_name="SDL_COLORSPACE_BT2020_LIMITED"]
-    BT2020_LIMITED
-    @[link_name="SDL_COLORSPACE_BT2020_FULL"]
-    BT2020_FULL
-    @[link_name="SDL_COLORSPACE_RGB_DEFAULT"]
-    RGB_DEFAULT
-    @[link_name="SDL_COLORSPACE_YUV_DEFAULT"]
-    YUV_DEFAULT
-  }
-
-  @[link_name="SDL_FlipMode"]
-  enum FlipMode {
-    @[link_name="SDL_FLIP_NONE"]
-    NONE
-    @[link_name="SDL_FLIP_HORIZONTAL"]
-    HORIZONTAL
-    @[link_name="SDL_FLIP_VERTICAL"]
-    VERTICAL
-  }
-
-  @[link_name="SDL_ScaleMode"]
-  enum ScaleMode {
-    @[link_name="SDL_SCALEMODE_INVALID"]
-    INVALID
-    @[link_name="SDL_SCALEMODE_NEAREST"]
-    NEAREST
-    @[link_name="SDL_SCALEMODE_LINEAR"]
-    LINEAR
-  }
-
-
-  @[link_name="SDL_CameraSpec"]
-  struct CameraSpec {
-    format PixelFormat
-    colorspace Colorspace
-    width c::c_int
-    height c::c_int
-    framerate_numerator c::c_int
-    framerate_denominator c::c_int
-  }
-
-  @[link_name="SDL_CameraPosition"]
-  enum CameraPosition {
-    @[link_name="SDL_CAMERA_POSITION_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_CAMERA_POSITION_FRONT_FACING"]
-    FRONT_FACING
-    @[link_name="SDL_CAMERA_POSITION_BACK_FACING"]
-    BACK_FACING
-  }
-
-  @[link_name="SDL_Camera"]
-  opaque Camera
-
-
-
-  @[link_name="SDL_SystemTheme"]
-  enum SystemTheme {
-    @[link_name="SDL_SYSTEM_THEME_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_SYSTEM_THEME_LIGHT"]
-    LIGHT
-    @[link_name="SDL_SYSTEM_THEME_DARK"]
-    DARK
-  }
-
-
-  @[link_name="SDL_DisplayOrientation"]
-  enum DisplayOrientation {
-    @[link_name="SDL_ORIENTATION_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_ORIENTATION_LANDSCAPE"]
-    LANDSCAPE
-    @[link_name="SDL_ORIENTATION_LANDSCAPE_FLIPPED"]
-    LANDSCAPE_FLIPPED
-    @[link_name="SDL_ORIENTATION_PORTRAIT"]
-    PORTRAIT
-    @[link_name="SDL_ORIENTATION_PORTRAIT_FLIPPED"]
-    PORTRAIT_FLIPPED
-  }
-
-  @[link_name="SDL_DisplayModeData"]
-  opaque DisplayModeData
-
-  @[link_name="SDL_DisplayMode"]
-  struct DisplayMode {
-    displayID DisplayID
-    format PixelFormat
-    w c::c_int
-    h c::c_int
-    pixel_density c::c_float
-    refresh_rate c::c_float
-    refresh_rate_numerator c::c_int
-    refresh_rate_denominator c::c_int
-    internal *DisplayModeData
-  }
-
-  @[link_name="SDL_Window"]
-  opaque Window
-
-
-
-  @[link_name="SDL_HitTestResult"]
-  enum HitTestResult {
-    @[link_name="SDL_HITTEST_NORMAL"]
-    NORMAL
-    @[link_name="SDL_HITTEST_DRAGGABLE"]
-    DRAGGABLE
-    @[link_name="SDL_HITTEST_RESIZE_TOPLEFT"]
-    RESIZE_TOPLEFT
-    @[link_name="SDL_HITTEST_RESIZE_TOP"]
-    RESIZE_TOP
-    @[link_name="SDL_HITTEST_RESIZE_TOPRIGHT"]
-    RESIZE_TOPRIGHT
-    @[link_name="SDL_HITTEST_RESIZE_RIGHT"]
-    RESIZE_RIGHT
-    @[link_name="SDL_HITTEST_RESIZE_BOTTOMRIGHT"]
-    RESIZE_BOTTOMRIGHT
-    @[link_name="SDL_HITTEST_RESIZE_BOTTOM"]
-    RESIZE_BOTTOM
-    @[link_name="SDL_HITTEST_RESIZE_BOTTOMLEFT"]
-    RESIZE_BOTTOMLEFT
-    @[link_name="SDL_HITTEST_RESIZE_LEFT"]
-    RESIZE_LEFT
-  }
-
-
-  @[link_name="SDL_FlashOperation"]
-  enum FlashOperation {
-    @[link_name="SDL_FLASH_CANCEL"]
-    CANCEL
-    @[link_name="SDL_FLASH_BRIEFLY"]
-    BRIEFLY
-    @[link_name="SDL_FLASH_UNTIL_FOCUSED"]
-    UNTIL_FOCUSED
-  }
-
-  @[link_name="SDL_GLAttr"]
-  enum GLAttr {
-    @[link_name="SDL_GL_RED_SIZE"]
-    RED_SIZE
-    @[link_name="SDL_GL_GREEN_SIZE"]
-    GREEN_SIZE
-    @[link_name="SDL_GL_BLUE_SIZE"]
-    BLUE_SIZE
-    @[link_name="SDL_GL_ALPHA_SIZE"]
-    ALPHA_SIZE
-    @[link_name="SDL_GL_BUFFER_SIZE"]
-    BUFFER_SIZE
-    @[link_name="SDL_GL_DOUBLEBUFFER"]
-    DOUBLEBUFFER
-    @[link_name="SDL_GL_DEPTH_SIZE"]
-    DEPTH_SIZE
-    @[link_name="SDL_GL_STENCIL_SIZE"]
-    STENCIL_SIZE
-    @[link_name="SDL_GL_ACCUM_RED_SIZE"]
-    ACCUM_RED_SIZE
-    @[link_name="SDL_GL_ACCUM_GREEN_SIZE"]
-    ACCUM_GREEN_SIZE
-    @[link_name="SDL_GL_ACCUM_BLUE_SIZE"]
-    ACCUM_BLUE_SIZE
-    @[link_name="SDL_GL_ACCUM_ALPHA_SIZE"]
-    ACCUM_ALPHA_SIZE
-    @[link_name="SDL_GL_STEREO"]
-    STEREO
-    @[link_name="SDL_GL_MULTISAMPLEBUFFERS"]
-    MULTISAMPLEBUFFERS
-    @[link_name="SDL_GL_MULTISAMPLESAMPLES"]
-    MULTISAMPLESAMPLES
-    @[link_name="SDL_GL_ACCELERATED_VISUAL"]
-    ACCELERATED_VISUAL
-    @[link_name="SDL_GL_RETAINED_BACKING"]
-    RETAINED_BACKING
-    @[link_name="SDL_GL_CONTEXT_MAJOR_VERSION"]
-    CONTEXT_MAJOR_VERSION
-    @[link_name="SDL_GL_CONTEXT_MINOR_VERSION"]
-    CONTEXT_MINOR_VERSION
-    @[link_name="SDL_GL_CONTEXT_FLAGS"]
-    CONTEXT_FLAGS
-    @[link_name="SDL_GL_CONTEXT_PROFILE_MASK"]
-    CONTEXT_PROFILE_MASK
-    @[link_name="SDL_GL_SHARE_WITH_CURRENT_CONTEXT"]
-    SHARE_WITH_CURRENT_CONTEXT
-    @[link_name="SDL_GL_FRAMEBUFFER_SRGB_CAPABLE"]
-    FRAMEBUFFER_SRGB_CAPABLE
-    @[link_name="SDL_GL_CONTEXT_RELEASE_BEHAVIOR"]
-    CONTEXT_RELEASE_BEHAVIOR
-    @[link_name="SDL_GL_CONTEXT_RESET_NOTIFICATION"]
-    CONTEXT_RESET_NOTIFICATION
-    @[link_name="SDL_GL_CONTEXT_NO_ERROR"]
-    CONTEXT_NO_ERROR
-    @[link_name="SDL_GL_FLOATBUFFERS"]
-    FLOATBUFFERS
-    @[link_name="SDL_GL_EGL_PLATFORM"]
-    EGL_PLATFORM
-  }
-
-  @[link_name="struct SDL_GLContextState"]
-  opaque GLContextState
-
-
-
-
-
-
-
-
-
-
-  @[link_name="SDL_DialogFileFilter"]
-  struct DialogFileFilter {
-    name c::ConstCString
-    pattern c::ConstCString
-  }
-
-  @[link_name="SDL_FileDialogType"]
-  enum FileDialogType {
-    @[link_name="SDL_FILEDIALOG_OPENFILE"]
-    OPENFILE
-    @[link_name="SDL_FILEDIALOG_SAVEFILE"]
-    SAVEFILE
-    @[link_name="SDL_FILEDIALOG_OPENFOLDER"]
-    OPENFOLDER
-  }
-
-  @[link_name="SDL_GUID"]
-  struct GUID {
-    data u8[16]
-  }
-
-  @[link_name="SDL_PowerState"]
-  enum PowerState {
-    @[link_name="SDL_POWERSTATE_ERROR"]
-    ERROR
-    @[link_name="SDL_POWERSTATE_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_POWERSTATE_ON_BATTERY"]
-    ON_BATTERY
-    @[link_name="SDL_POWERSTATE_NO_BATTERY"]
-    NO_BATTERY
-    @[link_name="SDL_POWERSTATE_CHARGING"]
-    CHARGING
-    @[link_name="SDL_POWERSTATE_CHARGED"]
-    CHARGED
-  }
-
-
-  @[link_name="SDL_SensorType"]
-  enum SensorType {
-    @[link_name="SDL_SENSOR_INVALID"]
-    INVALID
-    @[link_name="SDL_SENSOR_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_SENSOR_ACCEL"]
-    ACCEL
-    @[link_name="SDL_SENSOR_GYRO"]
-    GYRO
-    @[link_name="SDL_SENSOR_ACCEL_L"]
-    ACCEL_L
-    @[link_name="SDL_SENSOR_GYRO_L"]
-    GYRO_L
-    @[link_name="SDL_SENSOR_ACCEL_R"]
-    ACCEL_R
-    @[link_name="SDL_SENSOR_GYRO_R"]
-    GYRO_R
-    @[link_name="SDL_SENSOR_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_Sensor"]
-  opaque Sensor
-
-
-  @[link_name="SDL_JoystickType"]
-  enum JoystickType {
-    @[link_name="SDL_JOYSTICK_TYPE_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_JOYSTICK_TYPE_GAMEPAD"]
-    GAMEPAD
-    @[link_name="SDL_JOYSTICK_TYPE_WHEEL"]
-    WHEEL
-    @[link_name="SDL_JOYSTICK_TYPE_ARCADE_STICK"]
-    ARCADE_STICK
-    @[link_name="SDL_JOYSTICK_TYPE_FLIGHT_STICK"]
-    FLIGHT_STICK
-    @[link_name="SDL_JOYSTICK_TYPE_DANCE_PAD"]
-    DANCE_PAD
-    @[link_name="SDL_JOYSTICK_TYPE_GUITAR"]
-    GUITAR
-    @[link_name="SDL_JOYSTICK_TYPE_DRUM_KIT"]
-    DRUM_KIT
-    @[link_name="SDL_JOYSTICK_TYPE_ARCADE_PAD"]
-    ARCADE_PAD
-    @[link_name="SDL_JOYSTICK_TYPE_THROTTLE"]
-    THROTTLE
-    @[link_name="SDL_JOYSTICK_TYPE_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_Joystick"]
-  opaque Joystick
-
-  @[link_name="SDL_VirtualJoystickTouchpadDesc"]
-  struct VirtualJoystickTouchpadDesc {
-    nfingers u16
-    padding u16[3]
-  }
-
-  @[link_name="SDL_VirtualJoystickSensorDesc"]
-  struct VirtualJoystickSensorDesc {
-    type SensorType
-    rate c::c_float
-  }
-
-  @[link_name="SDL_VirtualJoystickDesc"]
-  struct VirtualJoystickDesc {
-    version u32
-    type u16
-    padding u16
-    vendor_id u16
-    product_id u16
-    naxes u16
-    nbuttons u16
-    nballs u16
-    nhats u16
-    ntouchpads u16
-    nsensors u16
-    padding2 u16[2]
-    button_mask u32
-    axis_mask u32
-    name c::ConstCString
-    touchpads const *VirtualJoystickTouchpadDesc
-    sensors const *VirtualJoystickSensorDesc
-    userdata rawptr
-    Update VirtualJoystickDesc_UpdateCallback
-    SetPlayerIndex VirtualJoystickDesc_SetPlayerIndexCallback
-    Rumble VirtualJoystickDesc_RumbleCallback
-    RumbleTriggers VirtualJoystickDesc_RumbleTriggersCallback
-    SetLED VirtualJoystickDesc_SetLEDCallback
-    SendEffect VirtualJoystickDesc_SendEffectCallback
-    SetSensorsEnabled VirtualJoystickDesc_SetSensorsEnabledCallback
-    Cleanup VirtualJoystickDesc_CleanupCallback
-  }
-
-  @[link_name="SDL_JoystickConnectionState"]
-  enum JoystickConnectionState {
-    @[link_name="SDL_JOYSTICK_CONNECTION_INVALID"]
-    INVALID
-    @[link_name="SDL_JOYSTICK_CONNECTION_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_JOYSTICK_CONNECTION_WIRED"]
-    WIRED
-    @[link_name="SDL_JOYSTICK_CONNECTION_WIRELESS"]
-    WIRELESS
-  }
-
-  @[link_name="SDL_Gamepad"]
-  opaque Gamepad
-
-  @[link_name="SDL_GamepadType"]
-  enum GamepadType {
-    @[link_name="SDL_GAMEPAD_TYPE_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_GAMEPAD_TYPE_STANDARD"]
-    STANDARD
-    @[link_name="SDL_GAMEPAD_TYPE_XBOX360"]
-    XBOX360
-    @[link_name="SDL_GAMEPAD_TYPE_XBOXONE"]
-    XBOXONE
-    @[link_name="SDL_GAMEPAD_TYPE_PS3"]
-    PS3
-    @[link_name="SDL_GAMEPAD_TYPE_PS4"]
-    PS4
-    @[link_name="SDL_GAMEPAD_TYPE_PS5"]
-    PS5
-    @[link_name="SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO"]
-    NINTENDO_SWITCH_PRO
-    @[link_name="SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT"]
-    NINTENDO_SWITCH_JOYCON_LEFT
-    @[link_name="SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT"]
-    NINTENDO_SWITCH_JOYCON_RIGHT
-    @[link_name="SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR"]
-    NINTENDO_SWITCH_JOYCON_PAIR
-    @[link_name="SDL_GAMEPAD_TYPE_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_GamepadBindingType"]
-  enum GamepadBindingType {
-    @[link_name="SDL_GAMEPAD_BINDTYPE_NONE"]
-    NONE
-    @[link_name="SDL_GAMEPAD_BINDTYPE_BUTTON"]
-    BUTTON
-    @[link_name="SDL_GAMEPAD_BINDTYPE_AXIS"]
-    AXIS
-    @[link_name="SDL_GAMEPAD_BINDTYPE_HAT"]
-    HAT
-  }
-
-  @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->input) *)0)->axis)"]
-  struct GamepadBindingInputAxis {
-    axis c::c_int
-    axis_min c::c_int
-    axis_max c::c_int
-  }
-
-  @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->input) *)0)->hat)"]
-  struct GamepadBindingInputHat {
-    hat c::c_int
-    hat_mask c::c_int
-  }
-
-  @[link_name="__typeof__(((SDL_GamepadBinding *)0)->input)"]
-  union GamepadBindingInput {
-    button c::c_int
-    axis GamepadBindingInputAxis
-    hat GamepadBindingInputHat
-  }
-
-  @[link_name="SDL_GamepadButton"]
-  enum GamepadButton {
-    @[link_name="SDL_GAMEPAD_BUTTON_INVALID"]
-    INVALID
-    @[link_name="SDL_GAMEPAD_BUTTON_SOUTH"]
-    SOUTH
-    @[link_name="SDL_GAMEPAD_BUTTON_EAST"]
-    EAST
-    @[link_name="SDL_GAMEPAD_BUTTON_WEST"]
-    WEST
-    @[link_name="SDL_GAMEPAD_BUTTON_NORTH"]
-    NORTH
-    @[link_name="SDL_GAMEPAD_BUTTON_BACK"]
-    BACK
-    @[link_name="SDL_GAMEPAD_BUTTON_GUIDE"]
-    GUIDE
-    @[link_name="SDL_GAMEPAD_BUTTON_START"]
-    START
-    @[link_name="SDL_GAMEPAD_BUTTON_LEFT_STICK"]
-    LEFT_STICK
-    @[link_name="SDL_GAMEPAD_BUTTON_RIGHT_STICK"]
-    RIGHT_STICK
-    @[link_name="SDL_GAMEPAD_BUTTON_LEFT_SHOULDER"]
-    LEFT_SHOULDER
-    @[link_name="SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER"]
-    RIGHT_SHOULDER
-    @[link_name="SDL_GAMEPAD_BUTTON_DPAD_UP"]
-    DPAD_UP
-    @[link_name="SDL_GAMEPAD_BUTTON_DPAD_DOWN"]
-    DPAD_DOWN
-    @[link_name="SDL_GAMEPAD_BUTTON_DPAD_LEFT"]
-    DPAD_LEFT
-    @[link_name="SDL_GAMEPAD_BUTTON_DPAD_RIGHT"]
-    DPAD_RIGHT
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC1"]
-    MISC1
-    @[link_name="SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1"]
-    RIGHT_PADDLE1
-    @[link_name="SDL_GAMEPAD_BUTTON_LEFT_PADDLE1"]
-    LEFT_PADDLE1
-    @[link_name="SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2"]
-    RIGHT_PADDLE2
-    @[link_name="SDL_GAMEPAD_BUTTON_LEFT_PADDLE2"]
-    LEFT_PADDLE2
-    @[link_name="SDL_GAMEPAD_BUTTON_TOUCHPAD"]
-    TOUCHPAD
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC2"]
-    MISC2
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC3"]
-    MISC3
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC4"]
-    MISC4
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC5"]
-    MISC5
-    @[link_name="SDL_GAMEPAD_BUTTON_MISC6"]
-    MISC6
-    @[link_name="SDL_GAMEPAD_BUTTON_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_GamepadAxis"]
-  enum GamepadAxis {
-    @[link_name="SDL_GAMEPAD_AXIS_INVALID"]
-    INVALID
-    @[link_name="SDL_GAMEPAD_AXIS_LEFTX"]
-    LEFTX
-    @[link_name="SDL_GAMEPAD_AXIS_LEFTY"]
-    LEFTY
-    @[link_name="SDL_GAMEPAD_AXIS_RIGHTX"]
-    RIGHTX
-    @[link_name="SDL_GAMEPAD_AXIS_RIGHTY"]
-    RIGHTY
-    @[link_name="SDL_GAMEPAD_AXIS_LEFT_TRIGGER"]
-    LEFT_TRIGGER
-    @[link_name="SDL_GAMEPAD_AXIS_RIGHT_TRIGGER"]
-    RIGHT_TRIGGER
-    @[link_name="SDL_GAMEPAD_AXIS_COUNT"]
-    COUNT
-  }
-
-  @[link_name="__typeof__(((__typeof__(((SDL_GamepadBinding *)0)->output) *)0)->axis)"]
-  struct GamepadBindingOutputAxis {
-    axis GamepadAxis
-    axis_min c::c_int
-    axis_max c::c_int
-  }
-
-  @[link_name="__typeof__(((SDL_GamepadBinding *)0)->output)"]
-  union GamepadBindingOutput {
-    button GamepadButton
-    axis GamepadBindingOutputAxis
-  }
-
-  @[link_name="SDL_GamepadBinding"]
-  struct GamepadBinding {
-    input_type GamepadBindingType
-    input GamepadBindingInput
-    output_type GamepadBindingType
-    output GamepadBindingOutput
-  }
-
-  @[link_name="SDL_GamepadButtonLabel"]
-  enum GamepadButtonLabel {
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_A"]
-    A
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_B"]
-    B
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_X"]
-    X
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_Y"]
-    Y
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_CROSS"]
-    CROSS
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_CIRCLE"]
-    CIRCLE
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_SQUARE"]
-    SQUARE
-    @[link_name="SDL_GAMEPAD_BUTTON_LABEL_TRIANGLE"]
-    TRIANGLE
-  }
-
-
-
-  @[link_name="SDL_Scancode"]
-  enum Scancode {
-    @[link_name="SDL_SCANCODE_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_SCANCODE_A"]
-    A
-    @[link_name="SDL_SCANCODE_B"]
-    B
-    @[link_name="SDL_SCANCODE_C"]
-    C
-    @[link_name="SDL_SCANCODE_D"]
-    D
-    @[link_name="SDL_SCANCODE_E"]
-    E
-    @[link_name="SDL_SCANCODE_F"]
-    F
-    @[link_name="SDL_SCANCODE_G"]
-    G
-    @[link_name="SDL_SCANCODE_H"]
-    H
-    @[link_name="SDL_SCANCODE_I"]
-    I
-    @[link_name="SDL_SCANCODE_J"]
-    J
-    @[link_name="SDL_SCANCODE_K"]
-    K
-    @[link_name="SDL_SCANCODE_L"]
-    L
-    @[link_name="SDL_SCANCODE_M"]
-    M
-    @[link_name="SDL_SCANCODE_N"]
-    N
-    @[link_name="SDL_SCANCODE_O"]
-    O
-    @[link_name="SDL_SCANCODE_P"]
-    P
-    @[link_name="SDL_SCANCODE_Q"]
-    Q
-    @[link_name="SDL_SCANCODE_R"]
-    R
-    @[link_name="SDL_SCANCODE_S"]
-    S
-    @[link_name="SDL_SCANCODE_T"]
-    T
-    @[link_name="SDL_SCANCODE_U"]
-    U
-    @[link_name="SDL_SCANCODE_V"]
-    V
-    @[link_name="SDL_SCANCODE_W"]
-    W
-    @[link_name="SDL_SCANCODE_X"]
-    X
-    @[link_name="SDL_SCANCODE_Y"]
-    Y
-    @[link_name="SDL_SCANCODE_Z"]
-    Z
-    @[link_name="SDL_SCANCODE_1"]
-    SCANCODE_1
-    @[link_name="SDL_SCANCODE_2"]
-    SCANCODE_2
-    @[link_name="SDL_SCANCODE_3"]
-    SCANCODE_3
-    @[link_name="SDL_SCANCODE_4"]
-    SCANCODE_4
-    @[link_name="SDL_SCANCODE_5"]
-    SCANCODE_5
-    @[link_name="SDL_SCANCODE_6"]
-    SCANCODE_6
-    @[link_name="SDL_SCANCODE_7"]
-    SCANCODE_7
-    @[link_name="SDL_SCANCODE_8"]
-    SCANCODE_8
-    @[link_name="SDL_SCANCODE_9"]
-    SCANCODE_9
-    @[link_name="SDL_SCANCODE_0"]
-    SCANCODE_0
-    @[link_name="SDL_SCANCODE_RETURN"]
-    RETURN
-    @[link_name="SDL_SCANCODE_ESCAPE"]
-    ESCAPE
-    @[link_name="SDL_SCANCODE_BACKSPACE"]
-    BACKSPACE
-    @[link_name="SDL_SCANCODE_TAB"]
-    TAB
-    @[link_name="SDL_SCANCODE_SPACE"]
-    SPACE
-    @[link_name="SDL_SCANCODE_MINUS"]
-    MINUS
-    @[link_name="SDL_SCANCODE_EQUALS"]
-    EQUALS
-    @[link_name="SDL_SCANCODE_LEFTBRACKET"]
-    LEFTBRACKET
-    @[link_name="SDL_SCANCODE_RIGHTBRACKET"]
-    RIGHTBRACKET
-    @[link_name="SDL_SCANCODE_BACKSLASH"]
-    BACKSLASH
-    @[link_name="SDL_SCANCODE_NONUSHASH"]
-    NONUSHASH
-    @[link_name="SDL_SCANCODE_SEMICOLON"]
-    SEMICOLON
-    @[link_name="SDL_SCANCODE_APOSTROPHE"]
-    APOSTROPHE
-    @[link_name="SDL_SCANCODE_GRAVE"]
-    GRAVE
-    @[link_name="SDL_SCANCODE_COMMA"]
-    COMMA
-    @[link_name="SDL_SCANCODE_PERIOD"]
-    PERIOD
-    @[link_name="SDL_SCANCODE_SLASH"]
-    SLASH
-    @[link_name="SDL_SCANCODE_CAPSLOCK"]
-    CAPSLOCK
-    @[link_name="SDL_SCANCODE_F1"]
-    F1
-    @[link_name="SDL_SCANCODE_F2"]
-    F2
-    @[link_name="SDL_SCANCODE_F3"]
-    F3
-    @[link_name="SDL_SCANCODE_F4"]
-    F4
-    @[link_name="SDL_SCANCODE_F5"]
-    F5
-    @[link_name="SDL_SCANCODE_F6"]
-    F6
-    @[link_name="SDL_SCANCODE_F7"]
-    F7
-    @[link_name="SDL_SCANCODE_F8"]
-    F8
-    @[link_name="SDL_SCANCODE_F9"]
-    F9
-    @[link_name="SDL_SCANCODE_F10"]
-    F10
-    @[link_name="SDL_SCANCODE_F11"]
-    F11
-    @[link_name="SDL_SCANCODE_F12"]
-    F12
-    @[link_name="SDL_SCANCODE_PRINTSCREEN"]
-    PRINTSCREEN
-    @[link_name="SDL_SCANCODE_SCROLLLOCK"]
-    SCROLLLOCK
-    @[link_name="SDL_SCANCODE_PAUSE"]
-    PAUSE
-    @[link_name="SDL_SCANCODE_INSERT"]
-    INSERT
-    @[link_name="SDL_SCANCODE_HOME"]
-    HOME
-    @[link_name="SDL_SCANCODE_PAGEUP"]
-    PAGEUP
-    @[link_name="SDL_SCANCODE_DELETE"]
-    DELETE
-    @[link_name="SDL_SCANCODE_END"]
-    END
-    @[link_name="SDL_SCANCODE_PAGEDOWN"]
-    PAGEDOWN
-    @[link_name="SDL_SCANCODE_RIGHT"]
-    RIGHT
-    @[link_name="SDL_SCANCODE_LEFT"]
-    LEFT
-    @[link_name="SDL_SCANCODE_DOWN"]
-    DOWN
-    @[link_name="SDL_SCANCODE_UP"]
-    UP
-    @[link_name="SDL_SCANCODE_NUMLOCKCLEAR"]
-    NUMLOCKCLEAR
-    @[link_name="SDL_SCANCODE_KP_DIVIDE"]
-    KP_DIVIDE
-    @[link_name="SDL_SCANCODE_KP_MULTIPLY"]
-    KP_MULTIPLY
-    @[link_name="SDL_SCANCODE_KP_MINUS"]
-    KP_MINUS
-    @[link_name="SDL_SCANCODE_KP_PLUS"]
-    KP_PLUS
-    @[link_name="SDL_SCANCODE_KP_ENTER"]
-    KP_ENTER
-    @[link_name="SDL_SCANCODE_KP_1"]
-    KP_1
-    @[link_name="SDL_SCANCODE_KP_2"]
-    KP_2
-    @[link_name="SDL_SCANCODE_KP_3"]
-    KP_3
-    @[link_name="SDL_SCANCODE_KP_4"]
-    KP_4
-    @[link_name="SDL_SCANCODE_KP_5"]
-    KP_5
-    @[link_name="SDL_SCANCODE_KP_6"]
-    KP_6
-    @[link_name="SDL_SCANCODE_KP_7"]
-    KP_7
-    @[link_name="SDL_SCANCODE_KP_8"]
-    KP_8
-    @[link_name="SDL_SCANCODE_KP_9"]
-    KP_9
-    @[link_name="SDL_SCANCODE_KP_0"]
-    KP_0
-    @[link_name="SDL_SCANCODE_KP_PERIOD"]
-    KP_PERIOD
-    @[link_name="SDL_SCANCODE_NONUSBACKSLASH"]
-    NONUSBACKSLASH
-    @[link_name="SDL_SCANCODE_APPLICATION"]
-    APPLICATION
-    @[link_name="SDL_SCANCODE_POWER"]
-    POWER
-    @[link_name="SDL_SCANCODE_KP_EQUALS"]
-    KP_EQUALS
-    @[link_name="SDL_SCANCODE_F13"]
-    F13
-    @[link_name="SDL_SCANCODE_F14"]
-    F14
-    @[link_name="SDL_SCANCODE_F15"]
-    F15
-    @[link_name="SDL_SCANCODE_F16"]
-    F16
-    @[link_name="SDL_SCANCODE_F17"]
-    F17
-    @[link_name="SDL_SCANCODE_F18"]
-    F18
-    @[link_name="SDL_SCANCODE_F19"]
-    F19
-    @[link_name="SDL_SCANCODE_F20"]
-    F20
-    @[link_name="SDL_SCANCODE_F21"]
-    F21
-    @[link_name="SDL_SCANCODE_F22"]
-    F22
-    @[link_name="SDL_SCANCODE_F23"]
-    F23
-    @[link_name="SDL_SCANCODE_F24"]
-    F24
-    @[link_name="SDL_SCANCODE_EXECUTE"]
-    EXECUTE
-    @[link_name="SDL_SCANCODE_HELP"]
-    HELP
-    @[link_name="SDL_SCANCODE_MENU"]
-    MENU
-    @[link_name="SDL_SCANCODE_SELECT"]
-    SELECT
-    @[link_name="SDL_SCANCODE_STOP"]
-    STOP
-    @[link_name="SDL_SCANCODE_AGAIN"]
-    AGAIN
-    @[link_name="SDL_SCANCODE_UNDO"]
-    UNDO
-    @[link_name="SDL_SCANCODE_CUT"]
-    CUT
-    @[link_name="SDL_SCANCODE_COPY"]
-    COPY
-    @[link_name="SDL_SCANCODE_PASTE"]
-    PASTE
-    @[link_name="SDL_SCANCODE_FIND"]
-    FIND
-    @[link_name="SDL_SCANCODE_MUTE"]
-    MUTE
-    @[link_name="SDL_SCANCODE_VOLUMEUP"]
-    VOLUMEUP
-    @[link_name="SDL_SCANCODE_VOLUMEDOWN"]
-    VOLUMEDOWN
-    @[link_name="SDL_SCANCODE_KP_COMMA"]
-    KP_COMMA
-    @[link_name="SDL_SCANCODE_KP_EQUALSAS400"]
-    KP_EQUALSAS400
-    @[link_name="SDL_SCANCODE_INTERNATIONAL1"]
-    INTERNATIONAL1
-    @[link_name="SDL_SCANCODE_INTERNATIONAL2"]
-    INTERNATIONAL2
-    @[link_name="SDL_SCANCODE_INTERNATIONAL3"]
-    INTERNATIONAL3
-    @[link_name="SDL_SCANCODE_INTERNATIONAL4"]
-    INTERNATIONAL4
-    @[link_name="SDL_SCANCODE_INTERNATIONAL5"]
-    INTERNATIONAL5
-    @[link_name="SDL_SCANCODE_INTERNATIONAL6"]
-    INTERNATIONAL6
-    @[link_name="SDL_SCANCODE_INTERNATIONAL7"]
-    INTERNATIONAL7
-    @[link_name="SDL_SCANCODE_INTERNATIONAL8"]
-    INTERNATIONAL8
-    @[link_name="SDL_SCANCODE_INTERNATIONAL9"]
-    INTERNATIONAL9
-    @[link_name="SDL_SCANCODE_LANG1"]
-    LANG1
-    @[link_name="SDL_SCANCODE_LANG2"]
-    LANG2
-    @[link_name="SDL_SCANCODE_LANG3"]
-    LANG3
-    @[link_name="SDL_SCANCODE_LANG4"]
-    LANG4
-    @[link_name="SDL_SCANCODE_LANG5"]
-    LANG5
-    @[link_name="SDL_SCANCODE_LANG6"]
-    LANG6
-    @[link_name="SDL_SCANCODE_LANG7"]
-    LANG7
-    @[link_name="SDL_SCANCODE_LANG8"]
-    LANG8
-    @[link_name="SDL_SCANCODE_LANG9"]
-    LANG9
-    @[link_name="SDL_SCANCODE_ALTERASE"]
-    ALTERASE
-    @[link_name="SDL_SCANCODE_SYSREQ"]
-    SYSREQ
-    @[link_name="SDL_SCANCODE_CANCEL"]
-    CANCEL
-    @[link_name="SDL_SCANCODE_CLEAR"]
-    CLEAR
-    @[link_name="SDL_SCANCODE_PRIOR"]
-    PRIOR
-    @[link_name="SDL_SCANCODE_RETURN2"]
-    RETURN2
-    @[link_name="SDL_SCANCODE_SEPARATOR"]
-    SEPARATOR
-    @[link_name="SDL_SCANCODE_OUT"]
-    OUT
-    @[link_name="SDL_SCANCODE_OPER"]
-    OPER
-    @[link_name="SDL_SCANCODE_CLEARAGAIN"]
-    CLEARAGAIN
-    @[link_name="SDL_SCANCODE_CRSEL"]
-    CRSEL
-    @[link_name="SDL_SCANCODE_EXSEL"]
-    EXSEL
-    @[link_name="SDL_SCANCODE_KP_00"]
-    KP_00
-    @[link_name="SDL_SCANCODE_KP_000"]
-    KP_000
-    @[link_name="SDL_SCANCODE_THOUSANDSSEPARATOR"]
-    THOUSANDSSEPARATOR
-    @[link_name="SDL_SCANCODE_DECIMALSEPARATOR"]
-    DECIMALSEPARATOR
-    @[link_name="SDL_SCANCODE_CURRENCYUNIT"]
-    CURRENCYUNIT
-    @[link_name="SDL_SCANCODE_CURRENCYSUBUNIT"]
-    CURRENCYSUBUNIT
-    @[link_name="SDL_SCANCODE_KP_LEFTPAREN"]
-    KP_LEFTPAREN
-    @[link_name="SDL_SCANCODE_KP_RIGHTPAREN"]
-    KP_RIGHTPAREN
-    @[link_name="SDL_SCANCODE_KP_LEFTBRACE"]
-    KP_LEFTBRACE
-    @[link_name="SDL_SCANCODE_KP_RIGHTBRACE"]
-    KP_RIGHTBRACE
-    @[link_name="SDL_SCANCODE_KP_TAB"]
-    KP_TAB
-    @[link_name="SDL_SCANCODE_KP_BACKSPACE"]
-    KP_BACKSPACE
-    @[link_name="SDL_SCANCODE_KP_A"]
-    KP_A
-    @[link_name="SDL_SCANCODE_KP_B"]
-    KP_B
-    @[link_name="SDL_SCANCODE_KP_C"]
-    KP_C
-    @[link_name="SDL_SCANCODE_KP_D"]
-    KP_D
-    @[link_name="SDL_SCANCODE_KP_E"]
-    KP_E
-    @[link_name="SDL_SCANCODE_KP_F"]
-    KP_F
-    @[link_name="SDL_SCANCODE_KP_XOR"]
-    KP_XOR
-    @[link_name="SDL_SCANCODE_KP_POWER"]
-    KP_POWER
-    @[link_name="SDL_SCANCODE_KP_PERCENT"]
-    KP_PERCENT
-    @[link_name="SDL_SCANCODE_KP_LESS"]
-    KP_LESS
-    @[link_name="SDL_SCANCODE_KP_GREATER"]
-    KP_GREATER
-    @[link_name="SDL_SCANCODE_KP_AMPERSAND"]
-    KP_AMPERSAND
-    @[link_name="SDL_SCANCODE_KP_DBLAMPERSAND"]
-    KP_DBLAMPERSAND
-    @[link_name="SDL_SCANCODE_KP_VERTICALBAR"]
-    KP_VERTICALBAR
-    @[link_name="SDL_SCANCODE_KP_DBLVERTICALBAR"]
-    KP_DBLVERTICALBAR
-    @[link_name="SDL_SCANCODE_KP_COLON"]
-    KP_COLON
-    @[link_name="SDL_SCANCODE_KP_HASH"]
-    KP_HASH
-    @[link_name="SDL_SCANCODE_KP_SPACE"]
-    KP_SPACE
-    @[link_name="SDL_SCANCODE_KP_AT"]
-    KP_AT
-    @[link_name="SDL_SCANCODE_KP_EXCLAM"]
-    KP_EXCLAM
-    @[link_name="SDL_SCANCODE_KP_MEMSTORE"]
-    KP_MEMSTORE
-    @[link_name="SDL_SCANCODE_KP_MEMRECALL"]
-    KP_MEMRECALL
-    @[link_name="SDL_SCANCODE_KP_MEMCLEAR"]
-    KP_MEMCLEAR
-    @[link_name="SDL_SCANCODE_KP_MEMADD"]
-    KP_MEMADD
-    @[link_name="SDL_SCANCODE_KP_MEMSUBTRACT"]
-    KP_MEMSUBTRACT
-    @[link_name="SDL_SCANCODE_KP_MEMMULTIPLY"]
-    KP_MEMMULTIPLY
-    @[link_name="SDL_SCANCODE_KP_MEMDIVIDE"]
-    KP_MEMDIVIDE
-    @[link_name="SDL_SCANCODE_KP_PLUSMINUS"]
-    KP_PLUSMINUS
-    @[link_name="SDL_SCANCODE_KP_CLEAR"]
-    KP_CLEAR
-    @[link_name="SDL_SCANCODE_KP_CLEARENTRY"]
-    KP_CLEARENTRY
-    @[link_name="SDL_SCANCODE_KP_BINARY"]
-    KP_BINARY
-    @[link_name="SDL_SCANCODE_KP_OCTAL"]
-    KP_OCTAL
-    @[link_name="SDL_SCANCODE_KP_DECIMAL"]
-    KP_DECIMAL
-    @[link_name="SDL_SCANCODE_KP_HEXADECIMAL"]
-    KP_HEXADECIMAL
-    @[link_name="SDL_SCANCODE_LCTRL"]
-    LCTRL
-    @[link_name="SDL_SCANCODE_LSHIFT"]
-    LSHIFT
-    @[link_name="SDL_SCANCODE_LALT"]
-    LALT
-    @[link_name="SDL_SCANCODE_LGUI"]
-    LGUI
-    @[link_name="SDL_SCANCODE_RCTRL"]
-    RCTRL
-    @[link_name="SDL_SCANCODE_RSHIFT"]
-    RSHIFT
-    @[link_name="SDL_SCANCODE_RALT"]
-    RALT
-    @[link_name="SDL_SCANCODE_RGUI"]
-    RGUI
-    @[link_name="SDL_SCANCODE_MODE"]
-    MODE
-    @[link_name="SDL_SCANCODE_SLEEP"]
-    SLEEP
-    @[link_name="SDL_SCANCODE_WAKE"]
-    WAKE
-    @[link_name="SDL_SCANCODE_CHANNEL_INCREMENT"]
-    CHANNEL_INCREMENT
-    @[link_name="SDL_SCANCODE_CHANNEL_DECREMENT"]
-    CHANNEL_DECREMENT
-    @[link_name="SDL_SCANCODE_MEDIA_PLAY"]
-    MEDIA_PLAY
-    @[link_name="SDL_SCANCODE_MEDIA_PAUSE"]
-    MEDIA_PAUSE
-    @[link_name="SDL_SCANCODE_MEDIA_RECORD"]
-    MEDIA_RECORD
-    @[link_name="SDL_SCANCODE_MEDIA_FAST_FORWARD"]
-    MEDIA_FAST_FORWARD
-    @[link_name="SDL_SCANCODE_MEDIA_REWIND"]
-    MEDIA_REWIND
-    @[link_name="SDL_SCANCODE_MEDIA_NEXT_TRACK"]
-    MEDIA_NEXT_TRACK
-    @[link_name="SDL_SCANCODE_MEDIA_PREVIOUS_TRACK"]
-    MEDIA_PREVIOUS_TRACK
-    @[link_name="SDL_SCANCODE_MEDIA_STOP"]
-    MEDIA_STOP
-    @[link_name="SDL_SCANCODE_MEDIA_EJECT"]
-    MEDIA_EJECT
-    @[link_name="SDL_SCANCODE_MEDIA_PLAY_PAUSE"]
-    MEDIA_PLAY_PAUSE
-    @[link_name="SDL_SCANCODE_MEDIA_SELECT"]
-    MEDIA_SELECT
-    @[link_name="SDL_SCANCODE_AC_NEW"]
-    AC_NEW
-    @[link_name="SDL_SCANCODE_AC_OPEN"]
-    AC_OPEN
-    @[link_name="SDL_SCANCODE_AC_CLOSE"]
-    AC_CLOSE
-    @[link_name="SDL_SCANCODE_AC_EXIT"]
-    AC_EXIT
-    @[link_name="SDL_SCANCODE_AC_SAVE"]
-    AC_SAVE
-    @[link_name="SDL_SCANCODE_AC_PRINT"]
-    AC_PRINT
-    @[link_name="SDL_SCANCODE_AC_PROPERTIES"]
-    AC_PROPERTIES
-    @[link_name="SDL_SCANCODE_AC_SEARCH"]
-    AC_SEARCH
-    @[link_name="SDL_SCANCODE_AC_HOME"]
-    AC_HOME
-    @[link_name="SDL_SCANCODE_AC_BACK"]
-    AC_BACK
-    @[link_name="SDL_SCANCODE_AC_FORWARD"]
-    AC_FORWARD
-    @[link_name="SDL_SCANCODE_AC_STOP"]
-    AC_STOP
-    @[link_name="SDL_SCANCODE_AC_REFRESH"]
-    AC_REFRESH
-    @[link_name="SDL_SCANCODE_AC_BOOKMARKS"]
-    AC_BOOKMARKS
-    @[link_name="SDL_SCANCODE_SOFTLEFT"]
-    SOFTLEFT
-    @[link_name="SDL_SCANCODE_SOFTRIGHT"]
-    SOFTRIGHT
-    @[link_name="SDL_SCANCODE_CALL"]
-    CALL
-    @[link_name="SDL_SCANCODE_ENDCALL"]
-    ENDCALL
-    @[link_name="SDL_SCANCODE_RESERVED"]
-    RESERVED
-    @[link_name="SDL_SCANCODE_COUNT"]
-    COUNT
-  }
-
-
-
-
-  @[link_name="SDL_Cursor"]
-  opaque Cursor
-
-  @[link_name="SDL_SystemCursor"]
-  enum SystemCursor {
-    @[link_name="SDL_SYSTEM_CURSOR_DEFAULT"]
-    DEFAULT
-    @[link_name="SDL_SYSTEM_CURSOR_TEXT"]
-    TEXT
-    @[link_name="SDL_SYSTEM_CURSOR_WAIT"]
-    WAIT
-    @[link_name="SDL_SYSTEM_CURSOR_CROSSHAIR"]
-    CROSSHAIR
-    @[link_name="SDL_SYSTEM_CURSOR_PROGRESS"]
-    PROGRESS
-    @[link_name="SDL_SYSTEM_CURSOR_NWSE_RESIZE"]
-    NWSE_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_NESW_RESIZE"]
-    NESW_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_EW_RESIZE"]
-    EW_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_NS_RESIZE"]
-    NS_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_MOVE"]
-    MOVE
-    @[link_name="SDL_SYSTEM_CURSOR_NOT_ALLOWED"]
-    NOT_ALLOWED
-    @[link_name="SDL_SYSTEM_CURSOR_POINTER"]
-    POINTER
-    @[link_name="SDL_SYSTEM_CURSOR_NW_RESIZE"]
-    NW_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_N_RESIZE"]
-    N_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_NE_RESIZE"]
-    NE_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_E_RESIZE"]
-    E_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_SE_RESIZE"]
-    SE_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_S_RESIZE"]
-    S_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_SW_RESIZE"]
-    SW_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_W_RESIZE"]
-    W_RESIZE
-    @[link_name="SDL_SYSTEM_CURSOR_COUNT"]
-    COUNT
-  }
-
-
-  @[link_name="SDL_TouchDeviceType"]
-  enum TouchDeviceType {
-    @[link_name="SDL_TOUCH_DEVICE_INVALID"]
-    INVALID
-    @[link_name="SDL_TOUCH_DEVICE_DIRECT"]
-    DIRECT
-    @[link_name="SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE"]
-    INDIRECT_ABSOLUTE
-    @[link_name="SDL_TOUCH_DEVICE_INDIRECT_RELATIVE"]
-    INDIRECT_RELATIVE
-  }
-
-
-  @[link_name="SDL_Finger"]
-  struct Finger {
-    id FingerID
-    x c::c_float
-    y c::c_float
-    pressure c::c_float
-  }
-
-  @[link_name="SDL_CommonEvent"]
-  struct CommonEvent {
-    type u32
-    reserved u32
-    timestamp u64
-  }
-
-  @[link_name="SDL_EventType"]
-  enum EventType {
-    @[link_name="SDL_EVENT_FIRST"]
-    FIRST
-    @[link_name="SDL_EVENT_QUIT"]
-    QUIT
-    @[link_name="SDL_EVENT_TERMINATING"]
-    TERMINATING
-    @[link_name="SDL_EVENT_LOW_MEMORY"]
-    LOW_MEMORY
-    @[link_name="SDL_EVENT_WILL_ENTER_BACKGROUND"]
-    WILL_ENTER_BACKGROUND
-    @[link_name="SDL_EVENT_DID_ENTER_BACKGROUND"]
-    DID_ENTER_BACKGROUND
-    @[link_name="SDL_EVENT_WILL_ENTER_FOREGROUND"]
-    WILL_ENTER_FOREGROUND
-    @[link_name="SDL_EVENT_DID_ENTER_FOREGROUND"]
-    DID_ENTER_FOREGROUND
-    @[link_name="SDL_EVENT_LOCALE_CHANGED"]
-    LOCALE_CHANGED
-    @[link_name="SDL_EVENT_SYSTEM_THEME_CHANGED"]
-    SYSTEM_THEME_CHANGED
-    @[link_name="SDL_EVENT_DISPLAY_ORIENTATION"]
-    DISPLAY_ORIENTATION
-    @[link_name="SDL_EVENT_DISPLAY_ADDED"]
-    DISPLAY_ADDED
-    @[link_name="SDL_EVENT_DISPLAY_REMOVED"]
-    DISPLAY_REMOVED
-    @[link_name="SDL_EVENT_DISPLAY_MOVED"]
-    DISPLAY_MOVED
-    @[link_name="SDL_EVENT_DISPLAY_DESKTOP_MODE_CHANGED"]
-    DISPLAY_DESKTOP_MODE_CHANGED
-    @[link_name="SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED"]
-    DISPLAY_CURRENT_MODE_CHANGED
-    @[link_name="SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED"]
-    DISPLAY_CONTENT_SCALE_CHANGED
-    @[link_name="SDL_EVENT_DISPLAY_FIRST"]
-    DISPLAY_FIRST
-    @[link_name="SDL_EVENT_DISPLAY_LAST"]
-    DISPLAY_LAST
-    @[link_name="SDL_EVENT_WINDOW_SHOWN"]
-    WINDOW_SHOWN
-    @[link_name="SDL_EVENT_WINDOW_HIDDEN"]
-    WINDOW_HIDDEN
-    @[link_name="SDL_EVENT_WINDOW_EXPOSED"]
-    WINDOW_EXPOSED
-    @[link_name="SDL_EVENT_WINDOW_MOVED"]
-    WINDOW_MOVED
-    @[link_name="SDL_EVENT_WINDOW_RESIZED"]
-    WINDOW_RESIZED
-    @[link_name="SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED"]
-    WINDOW_PIXEL_SIZE_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_METAL_VIEW_RESIZED"]
-    WINDOW_METAL_VIEW_RESIZED
-    @[link_name="SDL_EVENT_WINDOW_MINIMIZED"]
-    WINDOW_MINIMIZED
-    @[link_name="SDL_EVENT_WINDOW_MAXIMIZED"]
-    WINDOW_MAXIMIZED
-    @[link_name="SDL_EVENT_WINDOW_RESTORED"]
-    WINDOW_RESTORED
-    @[link_name="SDL_EVENT_WINDOW_MOUSE_ENTER"]
-    WINDOW_MOUSE_ENTER
-    @[link_name="SDL_EVENT_WINDOW_MOUSE_LEAVE"]
-    WINDOW_MOUSE_LEAVE
-    @[link_name="SDL_EVENT_WINDOW_FOCUS_GAINED"]
-    WINDOW_FOCUS_GAINED
-    @[link_name="SDL_EVENT_WINDOW_FOCUS_LOST"]
-    WINDOW_FOCUS_LOST
-    @[link_name="SDL_EVENT_WINDOW_CLOSE_REQUESTED"]
-    WINDOW_CLOSE_REQUESTED
-    @[link_name="SDL_EVENT_WINDOW_HIT_TEST"]
-    WINDOW_HIT_TEST
-    @[link_name="SDL_EVENT_WINDOW_ICCPROF_CHANGED"]
-    WINDOW_ICCPROF_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_DISPLAY_CHANGED"]
-    WINDOW_DISPLAY_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED"]
-    WINDOW_DISPLAY_SCALE_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_SAFE_AREA_CHANGED"]
-    WINDOW_SAFE_AREA_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_OCCLUDED"]
-    WINDOW_OCCLUDED
-    @[link_name="SDL_EVENT_WINDOW_ENTER_FULLSCREEN"]
-    WINDOW_ENTER_FULLSCREEN
-    @[link_name="SDL_EVENT_WINDOW_LEAVE_FULLSCREEN"]
-    WINDOW_LEAVE_FULLSCREEN
-    @[link_name="SDL_EVENT_WINDOW_DESTROYED"]
-    WINDOW_DESTROYED
-    @[link_name="SDL_EVENT_WINDOW_HDR_STATE_CHANGED"]
-    WINDOW_HDR_STATE_CHANGED
-    @[link_name="SDL_EVENT_WINDOW_FIRST"]
-    WINDOW_FIRST
-    @[link_name="SDL_EVENT_WINDOW_LAST"]
-    WINDOW_LAST
-    @[link_name="SDL_EVENT_KEY_DOWN"]
-    KEY_DOWN
-    @[link_name="SDL_EVENT_KEY_UP"]
-    KEY_UP
-    @[link_name="SDL_EVENT_TEXT_EDITING"]
-    TEXT_EDITING
-    @[link_name="SDL_EVENT_TEXT_INPUT"]
-    TEXT_INPUT
-    @[link_name="SDL_EVENT_KEYMAP_CHANGED"]
-    KEYMAP_CHANGED
-    @[link_name="SDL_EVENT_KEYBOARD_ADDED"]
-    KEYBOARD_ADDED
-    @[link_name="SDL_EVENT_KEYBOARD_REMOVED"]
-    KEYBOARD_REMOVED
-    @[link_name="SDL_EVENT_TEXT_EDITING_CANDIDATES"]
-    TEXT_EDITING_CANDIDATES
-    @[link_name="SDL_EVENT_MOUSE_MOTION"]
-    MOUSE_MOTION
-    @[link_name="SDL_EVENT_MOUSE_BUTTON_DOWN"]
-    MOUSE_BUTTON_DOWN
-    @[link_name="SDL_EVENT_MOUSE_BUTTON_UP"]
-    MOUSE_BUTTON_UP
-    @[link_name="SDL_EVENT_MOUSE_WHEEL"]
-    MOUSE_WHEEL
-    @[link_name="SDL_EVENT_MOUSE_ADDED"]
-    MOUSE_ADDED
-    @[link_name="SDL_EVENT_MOUSE_REMOVED"]
-    MOUSE_REMOVED
-    @[link_name="SDL_EVENT_JOYSTICK_AXIS_MOTION"]
-    JOYSTICK_AXIS_MOTION
-    @[link_name="SDL_EVENT_JOYSTICK_BALL_MOTION"]
-    JOYSTICK_BALL_MOTION
-    @[link_name="SDL_EVENT_JOYSTICK_HAT_MOTION"]
-    JOYSTICK_HAT_MOTION
-    @[link_name="SDL_EVENT_JOYSTICK_BUTTON_DOWN"]
-    JOYSTICK_BUTTON_DOWN
-    @[link_name="SDL_EVENT_JOYSTICK_BUTTON_UP"]
-    JOYSTICK_BUTTON_UP
-    @[link_name="SDL_EVENT_JOYSTICK_ADDED"]
-    JOYSTICK_ADDED
-    @[link_name="SDL_EVENT_JOYSTICK_REMOVED"]
-    JOYSTICK_REMOVED
-    @[link_name="SDL_EVENT_JOYSTICK_BATTERY_UPDATED"]
-    JOYSTICK_BATTERY_UPDATED
-    @[link_name="SDL_EVENT_JOYSTICK_UPDATE_COMPLETE"]
-    JOYSTICK_UPDATE_COMPLETE
-    @[link_name="SDL_EVENT_GAMEPAD_AXIS_MOTION"]
-    GAMEPAD_AXIS_MOTION
-    @[link_name="SDL_EVENT_GAMEPAD_BUTTON_DOWN"]
-    GAMEPAD_BUTTON_DOWN
-    @[link_name="SDL_EVENT_GAMEPAD_BUTTON_UP"]
-    GAMEPAD_BUTTON_UP
-    @[link_name="SDL_EVENT_GAMEPAD_ADDED"]
-    GAMEPAD_ADDED
-    @[link_name="SDL_EVENT_GAMEPAD_REMOVED"]
-    GAMEPAD_REMOVED
-    @[link_name="SDL_EVENT_GAMEPAD_REMAPPED"]
-    GAMEPAD_REMAPPED
-    @[link_name="SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN"]
-    GAMEPAD_TOUCHPAD_DOWN
-    @[link_name="SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION"]
-    GAMEPAD_TOUCHPAD_MOTION
-    @[link_name="SDL_EVENT_GAMEPAD_TOUCHPAD_UP"]
-    GAMEPAD_TOUCHPAD_UP
-    @[link_name="SDL_EVENT_GAMEPAD_SENSOR_UPDATE"]
-    GAMEPAD_SENSOR_UPDATE
-    @[link_name="SDL_EVENT_GAMEPAD_UPDATE_COMPLETE"]
-    GAMEPAD_UPDATE_COMPLETE
-    @[link_name="SDL_EVENT_GAMEPAD_STEAM_HANDLE_UPDATED"]
-    GAMEPAD_STEAM_HANDLE_UPDATED
-    @[link_name="SDL_EVENT_FINGER_DOWN"]
-    FINGER_DOWN
-    @[link_name="SDL_EVENT_FINGER_UP"]
-    FINGER_UP
-    @[link_name="SDL_EVENT_FINGER_MOTION"]
-    FINGER_MOTION
-    @[link_name="SDL_EVENT_FINGER_CANCELED"]
-    FINGER_CANCELED
-    @[link_name="SDL_EVENT_CLIPBOARD_UPDATE"]
-    CLIPBOARD_UPDATE
-    @[link_name="SDL_EVENT_DROP_FILE"]
-    DROP_FILE
-    @[link_name="SDL_EVENT_DROP_TEXT"]
-    DROP_TEXT
-    @[link_name="SDL_EVENT_DROP_BEGIN"]
-    DROP_BEGIN
-    @[link_name="SDL_EVENT_DROP_COMPLETE"]
-    DROP_COMPLETE
-    @[link_name="SDL_EVENT_DROP_POSITION"]
-    DROP_POSITION
-    @[link_name="SDL_EVENT_AUDIO_DEVICE_ADDED"]
-    AUDIO_DEVICE_ADDED
-    @[link_name="SDL_EVENT_AUDIO_DEVICE_REMOVED"]
-    AUDIO_DEVICE_REMOVED
-    @[link_name="SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED"]
-    AUDIO_DEVICE_FORMAT_CHANGED
-    @[link_name="SDL_EVENT_SENSOR_UPDATE"]
-    SENSOR_UPDATE
-    @[link_name="SDL_EVENT_PEN_PROXIMITY_IN"]
-    PEN_PROXIMITY_IN
-    @[link_name="SDL_EVENT_PEN_PROXIMITY_OUT"]
-    PEN_PROXIMITY_OUT
-    @[link_name="SDL_EVENT_PEN_DOWN"]
-    PEN_DOWN
-    @[link_name="SDL_EVENT_PEN_UP"]
-    PEN_UP
-    @[link_name="SDL_EVENT_PEN_BUTTON_DOWN"]
-    PEN_BUTTON_DOWN
-    @[link_name="SDL_EVENT_PEN_BUTTON_UP"]
-    PEN_BUTTON_UP
-    @[link_name="SDL_EVENT_PEN_MOTION"]
-    PEN_MOTION
-    @[link_name="SDL_EVENT_PEN_AXIS"]
-    PEN_AXIS
-    @[link_name="SDL_EVENT_CAMERA_DEVICE_ADDED"]
-    CAMERA_DEVICE_ADDED
-    @[link_name="SDL_EVENT_CAMERA_DEVICE_REMOVED"]
-    CAMERA_DEVICE_REMOVED
-    @[link_name="SDL_EVENT_CAMERA_DEVICE_APPROVED"]
-    CAMERA_DEVICE_APPROVED
-    @[link_name="SDL_EVENT_CAMERA_DEVICE_DENIED"]
-    CAMERA_DEVICE_DENIED
-    @[link_name="SDL_EVENT_RENDER_TARGETS_RESET"]
-    RENDER_TARGETS_RESET
-    @[link_name="SDL_EVENT_RENDER_DEVICE_RESET"]
-    RENDER_DEVICE_RESET
-    @[link_name="SDL_EVENT_RENDER_DEVICE_LOST"]
-    RENDER_DEVICE_LOST
-    @[link_name="SDL_EVENT_PRIVATE0"]
-    PRIVATE0
-    @[link_name="SDL_EVENT_PRIVATE1"]
-    PRIVATE1
-    @[link_name="SDL_EVENT_PRIVATE2"]
-    PRIVATE2
-    @[link_name="SDL_EVENT_PRIVATE3"]
-    PRIVATE3
-    @[link_name="SDL_EVENT_POLL_SENTINEL"]
-    POLL_SENTINEL
-    @[link_name="SDL_EVENT_USER"]
-    USER
-    @[link_name="SDL_EVENT_LAST"]
-    LAST
-    @[link_name="SDL_EVENT_ENUM_PADDING"]
-    ENUM_PADDING
-  }
-
-  @[link_name="SDL_DisplayEvent"]
-  struct DisplayEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    displayID DisplayID
-    data1 i32
-    data2 i32
-  }
-
-  @[link_name="SDL_WindowEvent"]
-  struct WindowEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    data1 i32
-    data2 i32
-  }
-
-  @[link_name="SDL_KeyboardDeviceEvent"]
-  struct KeyboardDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which KeyboardID
-  }
-
-  @[link_name="SDL_KeyboardEvent"]
-  struct KeyboardEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which KeyboardID
-    scancode Scancode
-    key Keycode
-    mod Keymod
-    raw u16
-    down bool
-    repeat bool
-  }
-
-  @[link_name="SDL_TextEditingEvent"]
-  struct TextEditingEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    text c::ConstCString
-    start i32
-    length i32
-  }
-
-  @[link_name="SDL_TextEditingCandidatesEvent"]
-  struct TextEditingCandidatesEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    candidates const *c::ConstCString
-    num_candidates i32
-    selected_candidate i32
-    horizontal bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_TextInputEvent"]
-  struct TextInputEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    text c::ConstCString
-  }
-
-  @[link_name="SDL_MouseDeviceEvent"]
-  struct MouseDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which MouseID
-  }
-
-  @[link_name="SDL_MouseMotionEvent"]
-  struct MouseMotionEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which MouseID
-    state MouseButtonFlags
-    x c::c_float
-    y c::c_float
-    xrel c::c_float
-    yrel c::c_float
-  }
-
-  @[link_name="SDL_MouseButtonEvent"]
-  struct MouseButtonEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which MouseID
-    button u8
-    down bool
-    clicks u8
-    padding u8
-    x c::c_float
-    y c::c_float
-  }
-
-  @[link_name="SDL_MouseWheelDirection"]
-  enum MouseWheelDirection {
-    @[link_name="SDL_MOUSEWHEEL_NORMAL"]
-    NORMAL
-    @[link_name="SDL_MOUSEWHEEL_FLIPPED"]
-    FLIPPED
-  }
-
-  @[link_name="SDL_MouseWheelEvent"]
-  struct MouseWheelEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which MouseID
-    x c::c_float
-    y c::c_float
-    direction MouseWheelDirection
-    mouse_x c::c_float
-    mouse_y c::c_float
-    integer_x i32
-    integer_y i32
-  }
-
-  @[link_name="SDL_JoyDeviceEvent"]
-  struct JoyDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-  }
-
-  @[link_name="SDL_JoyAxisEvent"]
-  struct JoyAxisEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    axis u8
-    padding1 u8
-    padding2 u8
-    padding3 u8
-    value i16
-    padding4 u16
-  }
-
-  @[link_name="SDL_JoyBallEvent"]
-  struct JoyBallEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    ball u8
-    padding1 u8
-    padding2 u8
-    padding3 u8
-    xrel i16
-    yrel i16
-  }
-
-  @[link_name="SDL_JoyHatEvent"]
-  struct JoyHatEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    hat u8
-    value u8
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_JoyButtonEvent"]
-  struct JoyButtonEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    button u8
-    down bool
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_JoyBatteryEvent"]
-  struct JoyBatteryEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    state PowerState
-    percent c::c_int
-  }
-
-  @[link_name="SDL_GamepadDeviceEvent"]
-  struct GamepadDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-  }
-
-  @[link_name="SDL_GamepadAxisEvent"]
-  struct GamepadAxisEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    axis u8
-    padding1 u8
-    padding2 u8
-    padding3 u8
-    value i16
-    padding4 u16
-  }
-
-  @[link_name="SDL_GamepadButtonEvent"]
-  struct GamepadButtonEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    button u8
-    down bool
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_GamepadTouchpadEvent"]
-  struct GamepadTouchpadEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    touchpad i32
-    finger i32
-    x c::c_float
-    y c::c_float
-    pressure c::c_float
-  }
-
-  @[link_name="SDL_GamepadSensorEvent"]
-  struct GamepadSensorEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which JoystickID
-    sensor i32
-    data c::c_float[3]
-    sensor_timestamp u64
-  }
-
-  @[link_name="SDL_AudioDeviceEvent"]
-  struct AudioDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which AudioDeviceID
-    recording bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_CameraDeviceEvent"]
-  struct CameraDeviceEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which CameraID
-  }
-
-  @[link_name="SDL_SensorEvent"]
-  struct SensorEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    which SensorID
-    data c::c_float[6]
-    sensor_timestamp u64
-  }
-
-  @[link_name="SDL_QuitEvent"]
-  struct QuitEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-  }
-
-  @[link_name="SDL_UserEvent"]
-  struct UserEvent {
-    type u32
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    code i32
-    data1 rawptr
-    data2 rawptr
-  }
-
-  @[link_name="SDL_TouchFingerEvent"]
-  struct TouchFingerEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    touchID TouchID
-    fingerID FingerID
-    x c::c_float
-    y c::c_float
-    dx c::c_float
-    dy c::c_float
-    pressure c::c_float
-    windowID WindowID
-  }
-
-
-  @[link_name="SDL_PenProximityEvent"]
-  struct PenProximityEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which PenID
-  }
-
-
-  @[link_name="SDL_PenTouchEvent"]
-  struct PenTouchEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which PenID
-    pen_state PenInputFlags
-    x c::c_float
-    y c::c_float
-    eraser bool
-    down bool
-  }
-
-  @[link_name="SDL_PenMotionEvent"]
-  struct PenMotionEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which PenID
-    pen_state PenInputFlags
-    x c::c_float
-    y c::c_float
-  }
-
-  @[link_name="SDL_PenButtonEvent"]
-  struct PenButtonEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which PenID
-    pen_state PenInputFlags
-    x c::c_float
-    y c::c_float
-    button u8
-    down bool
-  }
-
-  @[link_name="SDL_PenAxis"]
-  enum PenAxis {
-    @[link_name="SDL_PEN_AXIS_PRESSURE"]
-    PRESSURE
-    @[link_name="SDL_PEN_AXIS_XTILT"]
-    XTILT
-    @[link_name="SDL_PEN_AXIS_YTILT"]
-    YTILT
-    @[link_name="SDL_PEN_AXIS_DISTANCE"]
-    DISTANCE
-    @[link_name="SDL_PEN_AXIS_ROTATION"]
-    ROTATION
-    @[link_name="SDL_PEN_AXIS_SLIDER"]
-    SLIDER
-    @[link_name="SDL_PEN_AXIS_TANGENTIAL_PRESSURE"]
-    TANGENTIAL_PRESSURE
-    @[link_name="SDL_PEN_AXIS_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_PenAxisEvent"]
-  struct PenAxisEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    which PenID
-    pen_state PenInputFlags
-    x c::c_float
-    y c::c_float
-    axis PenAxis
-    value c::c_float
-  }
-
-  @[link_name="SDL_RenderEvent"]
-  struct RenderEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-  }
-
-  @[link_name="SDL_DropEvent"]
-  struct DropEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    windowID WindowID
-    x c::c_float
-    y c::c_float
-    source c::ConstCString
-    data c::ConstCString
-  }
-
-  @[link_name="SDL_ClipboardEvent"]
-  struct ClipboardEvent {
-    type EventType
-    reserved u32
-    timestamp u64
-    owner bool
-    num_mime_types i32
-    mime_types *c::ConstCString
-  }
-
-  @[link_name="SDL_Event"]
-  union Event {
-    type u32
-    common CommonEvent
-    display DisplayEvent
-    window WindowEvent
-    kdevice KeyboardDeviceEvent
-    key KeyboardEvent
-    edit TextEditingEvent
-    edit_candidates TextEditingCandidatesEvent
-    text TextInputEvent
-    mdevice MouseDeviceEvent
-    motion MouseMotionEvent
-    button MouseButtonEvent
-    wheel MouseWheelEvent
-    jdevice JoyDeviceEvent
-    jaxis JoyAxisEvent
-    jball JoyBallEvent
-    jhat JoyHatEvent
-    jbutton JoyButtonEvent
-    jbattery JoyBatteryEvent
-    gdevice GamepadDeviceEvent
-    gaxis GamepadAxisEvent
-    gbutton GamepadButtonEvent
-    gtouchpad GamepadTouchpadEvent
-    gsensor GamepadSensorEvent
-    adevice AudioDeviceEvent
-    cdevice CameraDeviceEvent
-    sensor SensorEvent
-    quit QuitEvent
-    user UserEvent
-    tfinger TouchFingerEvent
-    pproximity PenProximityEvent
-    ptouch PenTouchEvent
-    pmotion PenMotionEvent
-    pbutton PenButtonEvent
-    paxis PenAxisEvent
-    render RenderEvent
-    drop DropEvent
-    clipboard ClipboardEvent
-    padding u8[128]
-  }
-
-  @[link_name="SDL_EventAction"]
-  enum EventAction {
-    @[link_name="SDL_ADDEVENT"]
-    ADDEVENT
-    @[link_name="SDL_PEEKEVENT"]
-    PEEKEVENT
-    @[link_name="SDL_GETEVENT"]
-    GETEVENT
-  }
-
-
-  @[link_name="SDL_Folder"]
-  enum Folder {
-    @[link_name="SDL_FOLDER_HOME"]
-    HOME
-    @[link_name="SDL_FOLDER_DESKTOP"]
-    DESKTOP
-    @[link_name="SDL_FOLDER_DOCUMENTS"]
-    DOCUMENTS
-    @[link_name="SDL_FOLDER_DOWNLOADS"]
-    DOWNLOADS
-    @[link_name="SDL_FOLDER_MUSIC"]
-    MUSIC
-    @[link_name="SDL_FOLDER_PICTURES"]
-    PICTURES
-    @[link_name="SDL_FOLDER_PUBLICSHARE"]
-    PUBLICSHARE
-    @[link_name="SDL_FOLDER_SAVEDGAMES"]
-    SAVEDGAMES
-    @[link_name="SDL_FOLDER_SCREENSHOTS"]
-    SCREENSHOTS
-    @[link_name="SDL_FOLDER_TEMPLATES"]
-    TEMPLATES
-    @[link_name="SDL_FOLDER_VIDEOS"]
-    VIDEOS
-    @[link_name="SDL_FOLDER_COUNT"]
-    COUNT
-  }
-
-  @[link_name="SDL_EnumerationResult"]
-  enum EnumerationResult {
-    @[link_name="SDL_ENUM_CONTINUE"]
-    CONTINUE
-    @[link_name="SDL_ENUM_SUCCESS"]
-    SUCCESS
-    @[link_name="SDL_ENUM_FAILURE"]
-    FAILURE
-  }
-
-
-  @[link_name="SDL_PathType"]
-  enum PathType {
-    @[link_name="SDL_PATHTYPE_NONE"]
-    NONE
-    @[link_name="SDL_PATHTYPE_FILE"]
-    FILE
-    @[link_name="SDL_PATHTYPE_DIRECTORY"]
-    DIRECTORY
-    @[link_name="SDL_PATHTYPE_OTHER"]
-    OTHER
-  }
-
-
-  @[link_name="SDL_PathInfo"]
-  struct PathInfo {
-    type PathType
-    size u64
-    create_time Time
-    modify_time Time
-    access_time Time
-  }
-
-
-
-  @[link_name="SDL_GPUDevice"]
-  opaque GPUDevice
-
-  @[link_name="SDL_GPUComputePipelineCreateInfo"]
-  struct GPUComputePipelineCreateInfo {
-    code_size c::c_size_t
-    code const *u8
-    entrypoint c::ConstCString
-    format GPUShaderFormat
-    num_samplers u32
-    num_readonly_storage_textures u32
-    num_readonly_storage_buffers u32
-    num_readwrite_storage_textures u32
-    num_readwrite_storage_buffers u32
-    num_uniform_buffers u32
-    threadcount_x u32
-    threadcount_y u32
-    threadcount_z u32
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUComputePipeline"]
-  opaque GPUComputePipeline
-
-  @[link_name="SDL_GPUShader"]
-  opaque GPUShader
-
-  @[link_name="SDL_GPUVertexInputRate"]
-  enum GPUVertexInputRate {
-    @[link_name="SDL_GPU_VERTEXINPUTRATE_VERTEX"]
-    VERTEX
-    @[link_name="SDL_GPU_VERTEXINPUTRATE_INSTANCE"]
-    INSTANCE
-  }
-
-  @[link_name="SDL_GPUVertexBufferDescription"]
-  struct GPUVertexBufferDescription {
-    slot u32
-    pitch u32
-    input_rate GPUVertexInputRate
-    instance_step_rate u32
-  }
-
-  @[link_name="SDL_GPUVertexElementFormat"]
-  enum GPUVertexElementFormat {
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_INT"]
-    INT
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_INT2"]
-    INT2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_INT3"]
-    INT3
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_INT4"]
-    INT4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UINT"]
-    UINT
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UINT2"]
-    UINT2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UINT3"]
-    UINT3
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UINT4"]
-    UINT4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_FLOAT"]
-    FLOAT
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2"]
-    FLOAT2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3"]
-    FLOAT3
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4"]
-    FLOAT4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_BYTE2"]
-    BYTE2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_BYTE4"]
-    BYTE4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UBYTE2"]
-    UBYTE2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4"]
-    UBYTE4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_BYTE2_NORM"]
-    BYTE2_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_BYTE4_NORM"]
-    BYTE4_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UBYTE2_NORM"]
-    UBYTE2_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4_NORM"]
-    UBYTE4_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_SHORT2"]
-    SHORT2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_SHORT4"]
-    SHORT4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_USHORT2"]
-    USHORT2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_USHORT4"]
-    USHORT4
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_SHORT2_NORM"]
-    SHORT2_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_SHORT4_NORM"]
-    SHORT4_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_USHORT2_NORM"]
-    USHORT2_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_USHORT4_NORM"]
-    USHORT4_NORM
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_HALF2"]
-    HALF2
-    @[link_name="SDL_GPU_VERTEXELEMENTFORMAT_HALF4"]
-    HALF4
-  }
-
-  @[link_name="SDL_GPUVertexAttribute"]
-  struct GPUVertexAttribute {
-    location u32
-    buffer_slot u32
-    format GPUVertexElementFormat
-    offset u32
-  }
-
-  @[link_name="SDL_GPUVertexInputState"]
-  struct GPUVertexInputState {
-    vertex_buffer_descriptions const *GPUVertexBufferDescription
-    num_vertex_buffers u32
-    vertex_attributes const *GPUVertexAttribute
-    num_vertex_attributes u32
-  }
-
-  @[link_name="SDL_GPUPrimitiveType"]
-  enum GPUPrimitiveType {
-    @[link_name="SDL_GPU_PRIMITIVETYPE_TRIANGLELIST"]
-    TRIANGLELIST
-    @[link_name="SDL_GPU_PRIMITIVETYPE_TRIANGLESTRIP"]
-    TRIANGLESTRIP
-    @[link_name="SDL_GPU_PRIMITIVETYPE_LINELIST"]
-    LINELIST
-    @[link_name="SDL_GPU_PRIMITIVETYPE_LINESTRIP"]
-    LINESTRIP
-    @[link_name="SDL_GPU_PRIMITIVETYPE_POINTLIST"]
-    POINTLIST
-  }
-
-  @[link_name="SDL_GPUFillMode"]
-  enum GPUFillMode {
-    @[link_name="SDL_GPU_FILLMODE_FILL"]
-    FILL
-    @[link_name="SDL_GPU_FILLMODE_LINE"]
-    LINE
-  }
-
-  @[link_name="SDL_GPUCullMode"]
-  enum GPUCullMode {
-    @[link_name="SDL_GPU_CULLMODE_NONE"]
-    NONE
-    @[link_name="SDL_GPU_CULLMODE_FRONT"]
-    FRONT
-    @[link_name="SDL_GPU_CULLMODE_BACK"]
-    BACK
-  }
-
-  @[link_name="SDL_GPUFrontFace"]
-  enum GPUFrontFace {
-    @[link_name="SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE"]
-    COUNTER_CLOCKWISE
-    @[link_name="SDL_GPU_FRONTFACE_CLOCKWISE"]
-    CLOCKWISE
-  }
-
-  @[link_name="SDL_GPURasterizerState"]
-  struct GPURasterizerState {
-    fill_mode GPUFillMode
-    cull_mode GPUCullMode
-    front_face GPUFrontFace
-    depth_bias_constant_factor c::c_float
-    depth_bias_clamp c::c_float
-    depth_bias_slope_factor c::c_float
-    enable_depth_bias bool
-    enable_depth_clip bool
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_GPUSampleCount"]
-  enum GPUSampleCount {
-    @[link_name="SDL_GPU_SAMPLECOUNT_1"]
-    GPU_SAMPLECOUNT_1
-    @[link_name="SDL_GPU_SAMPLECOUNT_2"]
-    GPU_SAMPLECOUNT_2
-    @[link_name="SDL_GPU_SAMPLECOUNT_4"]
-    GPU_SAMPLECOUNT_4
-    @[link_name="SDL_GPU_SAMPLECOUNT_8"]
-    GPU_SAMPLECOUNT_8
-  }
-
-  @[link_name="SDL_GPUMultisampleState"]
-  struct GPUMultisampleState {
-    sample_count GPUSampleCount
-    sample_mask u32
-    enable_mask bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUCompareOp"]
-  enum GPUCompareOp {
-    @[link_name="SDL_GPU_COMPAREOP_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_COMPAREOP_NEVER"]
-    NEVER
-    @[link_name="SDL_GPU_COMPAREOP_LESS"]
-    LESS
-    @[link_name="SDL_GPU_COMPAREOP_EQUAL"]
-    EQUAL
-    @[link_name="SDL_GPU_COMPAREOP_LESS_OR_EQUAL"]
-    LESS_OR_EQUAL
-    @[link_name="SDL_GPU_COMPAREOP_GREATER"]
-    GREATER
-    @[link_name="SDL_GPU_COMPAREOP_NOT_EQUAL"]
-    NOT_EQUAL
-    @[link_name="SDL_GPU_COMPAREOP_GREATER_OR_EQUAL"]
-    GREATER_OR_EQUAL
-    @[link_name="SDL_GPU_COMPAREOP_ALWAYS"]
-    ALWAYS
-  }
-
-  @[link_name="SDL_GPUStencilOp"]
-  enum GPUStencilOp {
-    @[link_name="SDL_GPU_STENCILOP_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_STENCILOP_KEEP"]
-    KEEP
-    @[link_name="SDL_GPU_STENCILOP_ZERO"]
-    ZERO
-    @[link_name="SDL_GPU_STENCILOP_REPLACE"]
-    REPLACE
-    @[link_name="SDL_GPU_STENCILOP_INCREMENT_AND_CLAMP"]
-    INCREMENT_AND_CLAMP
-    @[link_name="SDL_GPU_STENCILOP_DECREMENT_AND_CLAMP"]
-    DECREMENT_AND_CLAMP
-    @[link_name="SDL_GPU_STENCILOP_INVERT"]
-    INVERT
-    @[link_name="SDL_GPU_STENCILOP_INCREMENT_AND_WRAP"]
-    INCREMENT_AND_WRAP
-    @[link_name="SDL_GPU_STENCILOP_DECREMENT_AND_WRAP"]
-    DECREMENT_AND_WRAP
-  }
-
-  @[link_name="SDL_GPUStencilOpState"]
-  struct GPUStencilOpState {
-    fail_op GPUStencilOp
-    pass_op GPUStencilOp
-    depth_fail_op GPUStencilOp
-    compare_op GPUCompareOp
-  }
-
-  @[link_name="SDL_GPUDepthStencilState"]
-  struct GPUDepthStencilState {
-    compare_op GPUCompareOp
-    back_stencil_state GPUStencilOpState
-    front_stencil_state GPUStencilOpState
-    compare_mask u8
-    write_mask u8
-    enable_depth_test bool
-    enable_depth_write bool
-    enable_stencil_test bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUTextureFormat"]
-  enum GPUTextureFormat {
-    @[link_name="SDL_GPU_TEXTUREFORMAT_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_TEXTUREFORMAT_A8_UNORM"]
-    A8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8_UNORM"]
-    R8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8_UNORM"]
-    R8G8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM"]
-    R8G8B8A8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16_UNORM"]
-    R16_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16_UNORM"]
-    R16G16_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UNORM"]
-    R16G16B16A16_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R10G10B10A2_UNORM"]
-    R10G10B10A2_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_B5G6R5_UNORM"]
-    B5G6R5_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_B5G5R5A1_UNORM"]
-    B5G5R5A1_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_B4G4R4A4_UNORM"]
-    B4G4R4A4_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM"]
-    B8G8R8A8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM"]
-    BC1_RGBA_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM"]
-    BC2_RGBA_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM"]
-    BC3_RGBA_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC4_R_UNORM"]
-    BC4_R_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC5_RG_UNORM"]
-    BC5_RG_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM"]
-    BC7_RGBA_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC6H_RGB_FLOAT"]
-    BC6H_RGB_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC6H_RGB_UFLOAT"]
-    BC6H_RGB_UFLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8_SNORM"]
-    R8_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8_SNORM"]
-    R8G8_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8B8A8_SNORM"]
-    R8G8B8A8_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16_SNORM"]
-    R16_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16_SNORM"]
-    R16G16_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16B16A16_SNORM"]
-    R16G16B16A16_SNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16_FLOAT"]
-    R16_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16_FLOAT"]
-    R16G16_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT"]
-    R16G16B16A16_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32_FLOAT"]
-    R32_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32_FLOAT"]
-    R32G32_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT"]
-    R32G32B32A32_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R11G11B10_UFLOAT"]
-    R11G11B10_UFLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8_UINT"]
-    R8_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8_UINT"]
-    R8G8_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UINT"]
-    R8G8B8A8_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16_UINT"]
-    R16_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16_UINT"]
-    R16G16_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16B16A16_UINT"]
-    R16G16B16A16_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32_UINT"]
-    R32_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32_UINT"]
-    R32G32_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32B32A32_UINT"]
-    R32G32B32A32_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8_INT"]
-    R8_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8_INT"]
-    R8G8_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8B8A8_INT"]
-    R8G8B8A8_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16_INT"]
-    R16_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16_INT"]
-    R16G16_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R16G16B16A16_INT"]
-    R16G16B16A16_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32_INT"]
-    R32_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32_INT"]
-    R32G32_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R32G32B32A32_INT"]
-    R32G32B32A32_INT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB"]
-    R8G8B8A8_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB"]
-    B8G8R8A8_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC1_RGBA_UNORM_SRGB"]
-    BC1_RGBA_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC2_RGBA_UNORM_SRGB"]
-    BC2_RGBA_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC3_RGBA_UNORM_SRGB"]
-    BC3_RGBA_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB"]
-    BC7_RGBA_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_D16_UNORM"]
-    D16_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_D24_UNORM"]
-    D24_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_D32_FLOAT"]
-    D32_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT"]
-    D24_UNORM_S8_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT"]
-    D32_FLOAT_S8_UINT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM"]
-    ASTC_4x4_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM"]
-    ASTC_5x4_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM"]
-    ASTC_5x5_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM"]
-    ASTC_6x5_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM"]
-    ASTC_6x6_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM"]
-    ASTC_8x5_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM"]
-    ASTC_8x6_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM"]
-    ASTC_8x8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM"]
-    ASTC_10x5_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM"]
-    ASTC_10x6_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM"]
-    ASTC_10x8_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM"]
-    ASTC_10x10_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM"]
-    ASTC_12x10_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM"]
-    ASTC_12x12_UNORM
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB"]
-    ASTC_4x4_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x4_UNORM_SRGB"]
-    ASTC_5x4_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x5_UNORM_SRGB"]
-    ASTC_5x5_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x5_UNORM_SRGB"]
-    ASTC_6x5_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x6_UNORM_SRGB"]
-    ASTC_6x6_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x5_UNORM_SRGB"]
-    ASTC_8x5_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x6_UNORM_SRGB"]
-    ASTC_8x6_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x8_UNORM_SRGB"]
-    ASTC_8x8_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x5_UNORM_SRGB"]
-    ASTC_10x5_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x6_UNORM_SRGB"]
-    ASTC_10x6_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x8_UNORM_SRGB"]
-    ASTC_10x8_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x10_UNORM_SRGB"]
-    ASTC_10x10_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x10_UNORM_SRGB"]
-    ASTC_12x10_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x12_UNORM_SRGB"]
-    ASTC_12x12_UNORM_SRGB
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_4x4_FLOAT"]
-    ASTC_4x4_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x4_FLOAT"]
-    ASTC_5x4_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_5x5_FLOAT"]
-    ASTC_5x5_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x5_FLOAT"]
-    ASTC_6x5_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_6x6_FLOAT"]
-    ASTC_6x6_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x5_FLOAT"]
-    ASTC_8x5_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x6_FLOAT"]
-    ASTC_8x6_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_8x8_FLOAT"]
-    ASTC_8x8_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x5_FLOAT"]
-    ASTC_10x5_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x6_FLOAT"]
-    ASTC_10x6_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x8_FLOAT"]
-    ASTC_10x8_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_10x10_FLOAT"]
-    ASTC_10x10_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x10_FLOAT"]
-    ASTC_12x10_FLOAT
-    @[link_name="SDL_GPU_TEXTUREFORMAT_ASTC_12x12_FLOAT"]
-    ASTC_12x12_FLOAT
-  }
-
-  @[link_name="SDL_GPUBlendFactor"]
-  enum GPUBlendFactor {
-    @[link_name="SDL_GPU_BLENDFACTOR_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_BLENDFACTOR_ZERO"]
-    ZERO
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE"]
-    ONE
-    @[link_name="SDL_GPU_BLENDFACTOR_SRC_COLOR"]
-    SRC_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_COLOR"]
-    ONE_MINUS_SRC_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_DST_COLOR"]
-    DST_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE_MINUS_DST_COLOR"]
-    ONE_MINUS_DST_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_SRC_ALPHA"]
-    SRC_ALPHA
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA"]
-    ONE_MINUS_SRC_ALPHA
-    @[link_name="SDL_GPU_BLENDFACTOR_DST_ALPHA"]
-    DST_ALPHA
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE_MINUS_DST_ALPHA"]
-    ONE_MINUS_DST_ALPHA
-    @[link_name="SDL_GPU_BLENDFACTOR_CONSTANT_COLOR"]
-    CONSTANT_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_ONE_MINUS_CONSTANT_COLOR"]
-    ONE_MINUS_CONSTANT_COLOR
-    @[link_name="SDL_GPU_BLENDFACTOR_SRC_ALPHA_SATURATE"]
-    SRC_ALPHA_SATURATE
-  }
-
-  @[link_name="SDL_GPUBlendOp"]
-  enum GPUBlendOp {
-    @[link_name="SDL_GPU_BLENDOP_INVALID"]
-    INVALID
-    @[link_name="SDL_GPU_BLENDOP_ADD"]
-    ADD
-    @[link_name="SDL_GPU_BLENDOP_SUBTRACT"]
-    SUBTRACT
-    @[link_name="SDL_GPU_BLENDOP_REVERSE_SUBTRACT"]
-    REVERSE_SUBTRACT
-    @[link_name="SDL_GPU_BLENDOP_MIN"]
-    MIN
-    @[link_name="SDL_GPU_BLENDOP_MAX"]
-    MAX
-  }
-
-
-  @[link_name="SDL_GPUColorTargetBlendState"]
-  struct GPUColorTargetBlendState {
-    src_color_blendfactor GPUBlendFactor
-    dst_color_blendfactor GPUBlendFactor
-    color_blend_op GPUBlendOp
-    src_alpha_blendfactor GPUBlendFactor
-    dst_alpha_blendfactor GPUBlendFactor
-    alpha_blend_op GPUBlendOp
-    color_write_mask GPUColorComponentFlags
-    enable_blend bool
-    enable_color_write_mask bool
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_GPUColorTargetDescription"]
-  struct GPUColorTargetDescription {
-    format GPUTextureFormat
-    blend_state GPUColorTargetBlendState
-  }
-
-  @[link_name="SDL_GPUGraphicsPipelineTargetInfo"]
-  struct GPUGraphicsPipelineTargetInfo {
-    color_target_descriptions const *GPUColorTargetDescription
-    num_color_targets u32
-    depth_stencil_format GPUTextureFormat
-    has_depth_stencil_target bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUGraphicsPipelineCreateInfo"]
-  struct GPUGraphicsPipelineCreateInfo {
-    vertex_shader *GPUShader
-    fragment_shader *GPUShader
-    vertex_input_state GPUVertexInputState
-    primitive_type GPUPrimitiveType
-    rasterizer_state GPURasterizerState
-    multisample_state GPUMultisampleState
-    depth_stencil_state GPUDepthStencilState
-    target_info GPUGraphicsPipelineTargetInfo
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUGraphicsPipeline"]
-  opaque GPUGraphicsPipeline
-
-  @[link_name="SDL_GPUFilter"]
-  enum GPUFilter {
-    @[link_name="SDL_GPU_FILTER_NEAREST"]
-    NEAREST
-    @[link_name="SDL_GPU_FILTER_LINEAR"]
-    LINEAR
-  }
-
-  @[link_name="SDL_GPUSamplerMipmapMode"]
-  enum GPUSamplerMipmapMode {
-    @[link_name="SDL_GPU_SAMPLERMIPMAPMODE_NEAREST"]
-    NEAREST
-    @[link_name="SDL_GPU_SAMPLERMIPMAPMODE_LINEAR"]
-    LINEAR
-  }
-
-  @[link_name="SDL_GPUSamplerAddressMode"]
-  enum GPUSamplerAddressMode {
-    @[link_name="SDL_GPU_SAMPLERADDRESSMODE_REPEAT"]
-    REPEAT
-    @[link_name="SDL_GPU_SAMPLERADDRESSMODE_MIRRORED_REPEAT"]
-    MIRRORED_REPEAT
-    @[link_name="SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE"]
-    CLAMP_TO_EDGE
-  }
-
-  @[link_name="SDL_GPUSamplerCreateInfo"]
-  struct GPUSamplerCreateInfo {
-    min_filter GPUFilter
-    mag_filter GPUFilter
-    mipmap_mode GPUSamplerMipmapMode
-    address_mode_u GPUSamplerAddressMode
-    address_mode_v GPUSamplerAddressMode
-    address_mode_w GPUSamplerAddressMode
-    mip_lod_bias c::c_float
-    max_anisotropy c::c_float
-    compare_op GPUCompareOp
-    min_lod c::c_float
-    max_lod c::c_float
-    enable_anisotropy bool
-    enable_compare bool
-    padding1 u8
-    padding2 u8
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUSampler"]
-  opaque GPUSampler
-
-  @[link_name="SDL_GPUShaderStage"]
-  enum GPUShaderStage {
-    @[link_name="SDL_GPU_SHADERSTAGE_VERTEX"]
-    VERTEX
-    @[link_name="SDL_GPU_SHADERSTAGE_FRAGMENT"]
-    FRAGMENT
-  }
-
-  @[link_name="SDL_GPUShaderCreateInfo"]
-  struct GPUShaderCreateInfo {
-    code_size c::c_size_t
-    code const *u8
-    entrypoint c::ConstCString
-    format GPUShaderFormat
-    stage GPUShaderStage
-    num_samplers u32
-    num_storage_textures u32
-    num_storage_buffers u32
-    num_uniform_buffers u32
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUTextureType"]
-  enum GPUTextureType {
-    @[link_name="SDL_GPU_TEXTURETYPE_2D"]
-    GPU_TEXTURETYPE_2D
-    @[link_name="SDL_GPU_TEXTURETYPE_2D_ARRAY"]
-    GPU_TEXTURETYPE_2D_ARRAY
-    @[link_name="SDL_GPU_TEXTURETYPE_3D"]
-    GPU_TEXTURETYPE_3D
-    @[link_name="SDL_GPU_TEXTURETYPE_CUBE"]
-    CUBE
-    @[link_name="SDL_GPU_TEXTURETYPE_CUBE_ARRAY"]
-    CUBE_ARRAY
-  }
-
-
-  @[link_name="SDL_GPUTextureCreateInfo"]
-  struct GPUTextureCreateInfo {
-    type GPUTextureType
-    format GPUTextureFormat
-    usage GPUTextureUsageFlags
-    width u32
-    height u32
-    layer_count_or_depth u32
-    num_levels u32
-    sample_count GPUSampleCount
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUTexture"]
-  opaque GPUTexture
-
-
-  @[link_name="SDL_GPUBufferCreateInfo"]
-  struct GPUBufferCreateInfo {
-    usage GPUBufferUsageFlags
-    size u32
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUBuffer"]
-  opaque GPUBuffer
-
-  @[link_name="SDL_GPUTransferBufferUsage"]
-  enum GPUTransferBufferUsage {
-    @[link_name="SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD"]
-    UPLOAD
-    @[link_name="SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD"]
-    DOWNLOAD
-  }
-
-  @[link_name="SDL_GPUTransferBufferCreateInfo"]
-  struct GPUTransferBufferCreateInfo {
-    usage GPUTransferBufferUsage
-    size u32
-    props PropertiesID
-  }
-
-  @[link_name="SDL_GPUTransferBuffer"]
-  opaque GPUTransferBuffer
-
-  @[link_name="SDL_GPUCommandBuffer"]
-  opaque GPUCommandBuffer
-
-  @[link_name="SDL_FColor"]
-  struct FColor {
-    r c::c_float
-    g c::c_float
-    b c::c_float
-    a c::c_float
-  }
-
-  @[link_name="SDL_GPULoadOp"]
-  enum GPULoadOp {
-    @[link_name="SDL_GPU_LOADOP_LOAD"]
-    LOAD
-    @[link_name="SDL_GPU_LOADOP_CLEAR"]
-    CLEAR
-    @[link_name="SDL_GPU_LOADOP_DONT_CARE"]
-    DONT_CARE
-  }
-
-  @[link_name="SDL_GPUStoreOp"]
-  enum GPUStoreOp {
-    @[link_name="SDL_GPU_STOREOP_STORE"]
-    STORE
-    @[link_name="SDL_GPU_STOREOP_DONT_CARE"]
-    DONT_CARE
-    @[link_name="SDL_GPU_STOREOP_RESOLVE"]
-    RESOLVE
-    @[link_name="SDL_GPU_STOREOP_RESOLVE_AND_STORE"]
-    RESOLVE_AND_STORE
-  }
-
-  @[link_name="SDL_GPUColorTargetInfo"]
-  struct GPUColorTargetInfo {
-    texture *GPUTexture
-    mip_level u32
-    layer_or_depth_plane u32
-    clear_color FColor
-    load_op GPULoadOp
-    store_op GPUStoreOp
-    resolve_texture *GPUTexture
-    resolve_mip_level u32
-    resolve_layer u32
-    cycle bool
-    cycle_resolve_texture bool
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_GPUDepthStencilTargetInfo"]
-  struct GPUDepthStencilTargetInfo {
-    texture *GPUTexture
-    clear_depth c::c_float
-    load_op GPULoadOp
-    store_op GPUStoreOp
-    stencil_load_op GPULoadOp
-    stencil_store_op GPUStoreOp
-    cycle bool
-    clear_stencil u8
-    padding1 u8
-    padding2 u8
-  }
-
-  @[link_name="SDL_GPURenderPass"]
-  opaque GPURenderPass
-
-  @[link_name="SDL_GPUViewport"]
-  struct GPUViewport {
-    x c::c_float
-    y c::c_float
-    w c::c_float
-    h c::c_float
-    min_depth c::c_float
-    max_depth c::c_float
-  }
-
-  @[link_name="SDL_GPUBufferBinding"]
-  struct GPUBufferBinding {
-    buffer *GPUBuffer
-    offset u32
-  }
-
-  @[link_name="SDL_GPUIndexElementSize"]
-  enum GPUIndexElementSize {
-    @[link_name="SDL_GPU_INDEXELEMENTSIZE_16BIT"]
-    GPU_INDEXELEMENTSIZE_16BIT
-    @[link_name="SDL_GPU_INDEXELEMENTSIZE_32BIT"]
-    GPU_INDEXELEMENTSIZE_32BIT
-  }
-
-  @[link_name="SDL_GPUTextureSamplerBinding"]
-  struct GPUTextureSamplerBinding {
-    texture *GPUTexture
-    sampler *GPUSampler
-  }
-
-  @[link_name="SDL_GPUStorageTextureReadWriteBinding"]
-  struct GPUStorageTextureReadWriteBinding {
-    texture *GPUTexture
-    mip_level u32
-    layer u32
-    cycle bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUStorageBufferReadWriteBinding"]
-  struct GPUStorageBufferReadWriteBinding {
-    buffer *GPUBuffer
-    cycle bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUComputePass"]
-  opaque GPUComputePass
-
-  @[link_name="SDL_GPUCopyPass"]
-  opaque GPUCopyPass
-
-  @[link_name="SDL_GPUTextureTransferInfo"]
-  struct GPUTextureTransferInfo {
-    transfer_buffer *GPUTransferBuffer
-    offset u32
-    pixels_per_row u32
-    rows_per_layer u32
-  }
-
-  @[link_name="SDL_GPUTextureRegion"]
-  struct GPUTextureRegion {
-    texture *GPUTexture
-    mip_level u32
-    layer u32
-    x u32
-    y u32
-    z u32
-    w u32
-    h u32
-    d u32
-  }
-
-  @[link_name="SDL_GPUTransferBufferLocation"]
-  struct GPUTransferBufferLocation {
-    transfer_buffer *GPUTransferBuffer
-    offset u32
-  }
-
-  @[link_name="SDL_GPUBufferRegion"]
-  struct GPUBufferRegion {
-    buffer *GPUBuffer
-    offset u32
-    size u32
-  }
-
-  @[link_name="SDL_GPUTextureLocation"]
-  struct GPUTextureLocation {
-    texture *GPUTexture
-    mip_level u32
-    layer u32
-    x u32
-    y u32
-    z u32
-  }
-
-  @[link_name="SDL_GPUBufferLocation"]
-  struct GPUBufferLocation {
-    buffer *GPUBuffer
-    offset u32
-  }
-
-  @[link_name="SDL_GPUBlitRegion"]
-  struct GPUBlitRegion {
-    texture *GPUTexture
-    mip_level u32
-    layer_or_depth_plane u32
-    x u32
-    y u32
-    w u32
-    h u32
-  }
-
-  @[link_name="SDL_GPUBlitInfo"]
-  struct GPUBlitInfo {
-    source GPUBlitRegion
-    destination GPUBlitRegion
-    load_op GPULoadOp
-    clear_color FColor
-    flip_mode FlipMode
-    filter GPUFilter
-    cycle bool
-    padding1 u8
-    padding2 u8
-    padding3 u8
-  }
-
-  @[link_name="SDL_GPUSwapchainComposition"]
-  enum GPUSwapchainComposition {
-    @[link_name="SDL_GPU_SWAPCHAINCOMPOSITION_SDR"]
-    SDR
-    @[link_name="SDL_GPU_SWAPCHAINCOMPOSITION_SDR_LINEAR"]
-    SDR_LINEAR
-    @[link_name="SDL_GPU_SWAPCHAINCOMPOSITION_HDR_EXTENDED_LINEAR"]
-    HDR_EXTENDED_LINEAR
-    @[link_name="SDL_GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084"]
-    HDR10_ST2084
-  }
-
-  @[link_name="SDL_GPUPresentMode"]
-  enum GPUPresentMode {
-    @[link_name="SDL_GPU_PRESENTMODE_VSYNC"]
-    VSYNC
-    @[link_name="SDL_GPU_PRESENTMODE_IMMEDIATE"]
-    IMMEDIATE
-    @[link_name="SDL_GPU_PRESENTMODE_MAILBOX"]
-    MAILBOX
-  }
-
-  @[link_name="SDL_GPUFence"]
-  opaque GPUFence
-
-
-  @[link_name="SDL_Haptic"]
-  opaque Haptic
-
-  @[link_name="SDL_HapticDirection"]
-  struct HapticDirection {
-    type u8
-    dir i32[3]
-  }
-
-  @[link_name="SDL_HapticConstant"]
-  struct HapticConstant {
-    type u16
-    direction HapticDirection
-    length u32
-    delay u16
-    button u16
-    interval u16
-    level i16
-    attack_length u16
-    attack_level u16
-    fade_length u16
-    fade_level u16
-  }
-
-  @[link_name="SDL_HapticPeriodic"]
-  struct HapticPeriodic {
-    type u16
-    direction HapticDirection
-    length u32
-    delay u16
-    button u16
-    interval u16
-    period u16
-    magnitude i16
-    offset i16
-    phase u16
-    attack_length u16
-    attack_level u16
-    fade_length u16
-    fade_level u16
-  }
-
-  @[link_name="SDL_HapticCondition"]
-  struct HapticCondition {
-    type u16
-    direction HapticDirection
-    length u32
-    delay u16
-    button u16
-    interval u16
-    right_sat u16[3]
-    left_sat u16[3]
-    right_coeff i16[3]
-    left_coeff i16[3]
-    deadband u16[3]
-    center i16[3]
-  }
-
-  @[link_name="SDL_HapticRamp"]
-  struct HapticRamp {
-    type u16
-    direction HapticDirection
-    length u32
-    delay u16
-    button u16
-    interval u16
-    start i16
-    end i16
-    attack_length u16
-    attack_level u16
-    fade_length u16
-    fade_level u16
-  }
-
-  @[link_name="SDL_HapticLeftRight"]
-  struct HapticLeftRight {
-    type u16
-    length u32
-    large_magnitude u16
-    small_magnitude u16
-  }
-
-  @[link_name="SDL_HapticCustom"]
-  struct HapticCustom {
-    type u16
-    direction HapticDirection
-    length u32
-    delay u16
-    button u16
-    interval u16
-    channels u8
-    period u16
-    samples u16
-    data *u16
-    attack_length u16
-    attack_level u16
-    fade_length u16
-    fade_level u16
-  }
-
-  @[link_name="SDL_HapticEffect"]
-  union HapticEffect {
-    type u16
-    constant HapticConstant
-    periodic HapticPeriodic
-    condition HapticCondition
-    ramp HapticRamp
-    leftright HapticLeftRight
-    custom HapticCustom
-  }
-
-  @[link_name="SDL_hid_bus_type"]
-  enum hid_bus_type {
-    @[link_name="SDL_HID_API_BUS_UNKNOWN"]
-    UNKNOWN
-    @[link_name="SDL_HID_API_BUS_USB"]
-    USB
-    @[link_name="SDL_HID_API_BUS_BLUETOOTH"]
-    BLUETOOTH
-    @[link_name="SDL_HID_API_BUS_I2C"]
-    I2C
-    @[link_name="SDL_HID_API_BUS_SPI"]
-    SPI
-  }
-
-  @[link_name="SDL_hid_device_info"]
-  struct hid_device_info {
-    path c::CString
-    vendor_id c::c_ushort
-    product_id c::c_ushort
-    serial_number *c::c_wchar_t
-    release_number c::c_ushort
-    manufacturer_string *c::c_wchar_t
-    product_string *c::c_wchar_t
-    usage_page c::c_ushort
-    usage c::c_ushort
-    interface_number c::c_int
-    interface_class c::c_int
-    interface_subclass c::c_int
-    interface_protocol c::c_int
-    bus_type hid_bus_type
-    next *hid_device_info
-  }
-
-  @[link_name="SDL_hid_device"]
-  opaque hid_device
-
-  @[link_name="SDL_HintPriority"]
-  enum HintPriority {
-    @[link_name="SDL_HINT_DEFAULT"]
-    DEFAULT
-    @[link_name="SDL_HINT_NORMAL"]
-    NORMAL
-    @[link_name="SDL_HINT_OVERRIDE"]
-    OVERRIDE
-  }
-
-
-
-
-  @[link_name="SDL_SharedObject"]
-  opaque SharedObject
-
-  @[link_name="SDL_Locale"]
-  struct Locale {
-    language c::ConstCString
-    country c::ConstCString
-  }
-
-  @[link_name="SDL_LogPriority"]
-  enum LogPriority {
-    @[link_name="SDL_LOG_PRIORITY_INVALID"]
-    INVALID
-    @[link_name="SDL_LOG_PRIORITY_TRACE"]
-    TRACE
-    @[link_name="SDL_LOG_PRIORITY_VERBOSE"]
-    VERBOSE
-    @[link_name="SDL_LOG_PRIORITY_DEBUG"]
-    DEBUG
-    @[link_name="SDL_LOG_PRIORITY_INFO"]
-    INFO
-    @[link_name="SDL_LOG_PRIORITY_WARN"]
-    WARN
-    @[link_name="SDL_LOG_PRIORITY_ERROR"]
-    ERROR
-    @[link_name="SDL_LOG_PRIORITY_CRITICAL"]
-    CRITICAL
-    @[link_name="SDL_LOG_PRIORITY_COUNT"]
-    COUNT
-  }
-
-
-
-
-  @[link_name="SDL_MessageBoxButtonData"]
-  struct MessageBoxButtonData {
-    flags MessageBoxButtonFlags
-    buttonID c::c_int
-    text c::ConstCString
-  }
-
-  @[link_name="SDL_MessageBoxColor"]
-  struct MessageBoxColor {
-    r u8
-    g u8
-    b u8
-  }
-
-  @[link_name="SDL_MessageBoxColorScheme"]
-  struct MessageBoxColorScheme {
-    colors MessageBoxColor[5]
-  }
-
-  @[link_name="SDL_MessageBoxData"]
-  struct MessageBoxData {
-    flags MessageBoxFlags
-    window *Window
-    title c::ConstCString
-    message c::ConstCString
-    numbuttons c::c_int
-    buttons const *MessageBoxButtonData
-    colorScheme const *MessageBoxColorScheme
-  }
-
-
-  @[link_name="SDL_Process"]
-  opaque Process
-
-  @[link_name="SDL_Renderer"]
-  opaque Renderer
-
-  @[link_name="SDL_TextureAccess"]
-  enum TextureAccess {
-    @[link_name="SDL_TEXTUREACCESS_STATIC"]
-    STATIC
-    @[link_name="SDL_TEXTUREACCESS_STREAMING"]
-    STREAMING
-    @[link_name="SDL_TEXTUREACCESS_TARGET"]
-    TARGET
-  }
-
-  @[link_name="SDL_Texture"]
-  struct Texture {
-    format PixelFormat
-    w c::c_int
-    h c::c_int
-    refcount c::c_int
-  }
-
-  @[link_name="SDL_RendererLogicalPresentation"]
-  enum RendererLogicalPresentation {
-    @[link_name="SDL_LOGICAL_PRESENTATION_DISABLED"]
-    DISABLED
-    @[link_name="SDL_LOGICAL_PRESENTATION_STRETCH"]
-    STRETCH
-    @[link_name="SDL_LOGICAL_PRESENTATION_LETTERBOX"]
-    LETTERBOX
-    @[link_name="SDL_LOGICAL_PRESENTATION_OVERSCAN"]
-    OVERSCAN
-    @[link_name="SDL_LOGICAL_PRESENTATION_INTEGER_SCALE"]
-    INTEGER_SCALE
-  }
-
-  @[link_name="SDL_Vertex"]
-  struct Vertex {
-    position FPoint
-    color FColor
-    tex_coord FPoint
-  }
-
-  @[link_name="SDL_Storage"]
-  opaque Storage
-
-  @[link_name="SDL_StorageInterface"]
-  struct StorageInterface {
-    version u32
-    close StorageInterface_closeCallback
-    ready StorageInterface_readyCallback
-    enumerate StorageInterface_enumerateCallback
-    info StorageInterface_infoCallback
-    read_file StorageInterface_read_fileCallback
-    write_file StorageInterface_write_fileCallback
-    mkdir StorageInterface_mkdirCallback
-    remove StorageInterface_removeCallback
-    rename StorageInterface_renameCallback
-    copy StorageInterface_copyCallback
-    space_remaining StorageInterface_space_remainingCallback
-  }
-
-  @[link_name="XEvent"]
-  opaque XEvent
-
-
-  @[link_name="SDL_Sandbox"]
-  enum Sandbox {
-    @[link_name="SDL_SANDBOX_NONE"]
-    NONE
-    @[link_name="SDL_SANDBOX_UNKNOWN_CONTAINER"]
-    UNKNOWN_CONTAINER
-    @[link_name="SDL_SANDBOX_FLATPAK"]
-    FLATPAK
-    @[link_name="SDL_SANDBOX_SNAP"]
-    SNAP
-    @[link_name="SDL_SANDBOX_MACOS"]
-    MACOS
-  }
-
-  @[link_name="SDL_DateFormat"]
-  enum DateFormat {
-    @[link_name="SDL_DATE_FORMAT_YYYYMMDD"]
-    YYYYMMDD
-    @[link_name="SDL_DATE_FORMAT_DDMMYYYY"]
-    DDMMYYYY
-    @[link_name="SDL_DATE_FORMAT_MMDDYYYY"]
-    MMDDYYYY
-  }
-
-  @[link_name="SDL_TimeFormat"]
-  enum TimeFormat {
-    @[link_name="SDL_TIME_FORMAT_24HR"]
-    TIME_FORMAT_24HR
-    @[link_name="SDL_TIME_FORMAT_12HR"]
-    TIME_FORMAT_12HR
-  }
-
-  @[link_name="SDL_DateTime"]
-  struct DateTime {
-    year c::c_int
-    month c::c_int
-    day c::c_int
-    hour c::c_int
-    minute c::c_int
-    second c::c_int
-    nanosecond c::c_int
-    day_of_week c::c_int
-    utc_offset c::c_int
-  }
-
-
-
-
-  @[link_name="SDL_Tray"]
-  opaque Tray
-
-  @[link_name="SDL_TrayMenu"]
-  opaque TrayMenu
-
-  @[link_name="SDL_TrayEntry"]
-  opaque TrayEntry
-
-
-
-
-  @[link_name="SDL_AppResult"]
-  enum AppResult {
-    @[link_name="SDL_APP_CONTINUE"]
-    CONTINUE
-    @[link_name="SDL_APP_SUCCESS"]
-    SUCCESS
-    @[link_name="SDL_APP_FAILURE"]
-    FAILURE
-  }
-
-
-
-
-
-  @[link_name="struct VkInstance_T"]
-  opaque VkInstance_T
-
-
-  @[link_name="struct VkAllocationCallbacks"]
-  opaque VkAllocationCallbacks
-
-  @[link_name="struct VkSurfaceKHR_T"]
-  opaque VkSurfaceKHR_T
-
-
-  @[link_name="struct VkPhysicalDevice_T"]
-  opaque VkPhysicalDevice_T
-
-
   @[link_name="SDL_ASSERTION_RETRY"]
   const ASSERTION_RETRY u32
 
@@ -8543,732 +4840,6 @@ extern {
   @[link_name="SDL_HAT_UP"]
   const HAT_UP u32
 
-  @[link_name="SDL_HINT_ALLOW_ALT_TAB_WHILE_GRABBED"]
-  const HINT_ALLOW_ALT_TAB_WHILE_GRABBED c::ConstCString
-
-  @[link_name="SDL_HINT_ANDROID_ALLOW_RECREATE_ACTIVITY"]
-  const HINT_ANDROID_ALLOW_RECREATE_ACTIVITY c::ConstCString
-
-  @[link_name="SDL_HINT_ANDROID_BLOCK_ON_PAUSE"]
-  const HINT_ANDROID_BLOCK_ON_PAUSE c::ConstCString
-
-  @[link_name="SDL_HINT_ANDROID_LOW_LATENCY_AUDIO"]
-  const HINT_ANDROID_LOW_LATENCY_AUDIO c::ConstCString
-
-  @[link_name="SDL_HINT_ANDROID_TRAP_BACK_BUTTON"]
-  const HINT_ANDROID_TRAP_BACK_BUTTON c::ConstCString
-
-  @[link_name="SDL_HINT_APPLE_TV_CONTROLLER_UI_EVENTS"]
-  const HINT_APPLE_TV_CONTROLLER_UI_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_APPLE_TV_REMOTE_ALLOW_ROTATION"]
-  const HINT_APPLE_TV_REMOTE_ALLOW_ROTATION c::ConstCString
-
-  @[link_name="SDL_HINT_APP_ID"]
-  const HINT_APP_ID c::ConstCString
-
-  @[link_name="SDL_HINT_APP_NAME"]
-  const HINT_APP_NAME c::ConstCString
-
-  @[link_name="SDL_HINT_ASSERT"]
-  const HINT_ASSERT c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE"]
-  const HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_CATEGORY"]
-  const HINT_AUDIO_CATEGORY c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_CHANNELS"]
-  const HINT_AUDIO_CHANNELS c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DEVICE_APP_ICON_NAME"]
-  const HINT_AUDIO_DEVICE_APP_ICON_NAME c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES"]
-  const HINT_AUDIO_DEVICE_SAMPLE_FRAMES c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DEVICE_STREAM_NAME"]
-  const HINT_AUDIO_DEVICE_STREAM_NAME c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DEVICE_STREAM_ROLE"]
-  const HINT_AUDIO_DEVICE_STREAM_ROLE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DISK_INPUT_FILE"]
-  const HINT_AUDIO_DISK_INPUT_FILE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DISK_OUTPUT_FILE"]
-  const HINT_AUDIO_DISK_OUTPUT_FILE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DISK_TIMESCALE"]
-  const HINT_AUDIO_DISK_TIMESCALE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DRIVER"]
-  const HINT_AUDIO_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_DUMMY_TIMESCALE"]
-  const HINT_AUDIO_DUMMY_TIMESCALE c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_FORMAT"]
-  const HINT_AUDIO_FORMAT c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_FREQUENCY"]
-  const HINT_AUDIO_FREQUENCY c::ConstCString
-
-  @[link_name="SDL_HINT_AUDIO_INCLUDE_MONITORS"]
-  const HINT_AUDIO_INCLUDE_MONITORS c::ConstCString
-
-  @[link_name="SDL_HINT_AUTO_UPDATE_JOYSTICKS"]
-  const HINT_AUTO_UPDATE_JOYSTICKS c::ConstCString
-
-  @[link_name="SDL_HINT_AUTO_UPDATE_SENSORS"]
-  const HINT_AUTO_UPDATE_SENSORS c::ConstCString
-
-  @[link_name="SDL_HINT_BMP_SAVE_LEGACY_FORMAT"]
-  const HINT_BMP_SAVE_LEGACY_FORMAT c::ConstCString
-
-  @[link_name="SDL_HINT_CAMERA_DRIVER"]
-  const HINT_CAMERA_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_CPU_FEATURE_MASK"]
-  const HINT_CPU_FEATURE_MASK c::ConstCString
-
-  @[link_name="SDL_HINT_DISPLAY_USABLE_BOUNDS"]
-  const HINT_DISPLAY_USABLE_BOUNDS c::ConstCString
-
-  @[link_name="SDL_HINT_EGL_LIBRARY"]
-  const HINT_EGL_LIBRARY c::ConstCString
-
-  @[link_name="SDL_HINT_EMSCRIPTEN_ASYNCIFY"]
-  const HINT_EMSCRIPTEN_ASYNCIFY c::ConstCString
-
-  @[link_name="SDL_HINT_EMSCRIPTEN_CANVAS_SELECTOR"]
-  const HINT_EMSCRIPTEN_CANVAS_SELECTOR c::ConstCString
-
-  @[link_name="SDL_HINT_EMSCRIPTEN_KEYBOARD_ELEMENT"]
-  const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT c::ConstCString
-
-  @[link_name="SDL_HINT_ENABLE_SCREEN_KEYBOARD"]
-  const HINT_ENABLE_SCREEN_KEYBOARD c::ConstCString
-
-  @[link_name="SDL_HINT_EVDEV_DEVICES"]
-  const HINT_EVDEV_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_EVENT_LOGGING"]
-  const HINT_EVENT_LOGGING c::ConstCString
-
-  @[link_name="SDL_HINT_FILE_DIALOG_DRIVER"]
-  const HINT_FILE_DIALOG_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_FORCE_RAISEWINDOW"]
-  const HINT_FORCE_RAISEWINDOW c::ConstCString
-
-  @[link_name="SDL_HINT_FRAMEBUFFER_ACCELERATION"]
-  const HINT_FRAMEBUFFER_ACCELERATION c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLERCONFIG"]
-  const HINT_GAMECONTROLLERCONFIG c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLERCONFIG_FILE"]
-  const HINT_GAMECONTROLLERCONFIG_FILE c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLERTYPE"]
-  const HINT_GAMECONTROLLERTYPE c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES"]
-  const HINT_GAMECONTROLLER_IGNORE_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT"]
-  const HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT c::ConstCString
-
-  @[link_name="SDL_HINT_GAMECONTROLLER_SENSOR_FUSION"]
-  const HINT_GAMECONTROLLER_SENSOR_FUSION c::ConstCString
-
-  @[link_name="SDL_HINT_GDK_TEXTINPUT_DEFAULT_TEXT"]
-  const HINT_GDK_TEXTINPUT_DEFAULT_TEXT c::ConstCString
-
-  @[link_name="SDL_HINT_GDK_TEXTINPUT_DESCRIPTION"]
-  const HINT_GDK_TEXTINPUT_DESCRIPTION c::ConstCString
-
-  @[link_name="SDL_HINT_GDK_TEXTINPUT_MAX_LENGTH"]
-  const HINT_GDK_TEXTINPUT_MAX_LENGTH c::ConstCString
-
-  @[link_name="SDL_HINT_GDK_TEXTINPUT_SCOPE"]
-  const HINT_GDK_TEXTINPUT_SCOPE c::ConstCString
-
-  @[link_name="SDL_HINT_GDK_TEXTINPUT_TITLE"]
-  const HINT_GDK_TEXTINPUT_TITLE c::ConstCString
-
-  @[link_name="SDL_HINT_GPU_DRIVER"]
-  const HINT_GPU_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS"]
-  const HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS c::ConstCString
-
-  @[link_name="SDL_HINT_HIDAPI_IGNORE_DEVICES"]
-  const HINT_HIDAPI_IGNORE_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_HIDAPI_LIBUSB"]
-  const HINT_HIDAPI_LIBUSB c::ConstCString
-
-  @[link_name="SDL_HINT_HIDAPI_LIBUSB_WHITELIST"]
-  const HINT_HIDAPI_LIBUSB_WHITELIST c::ConstCString
-
-  @[link_name="SDL_HINT_HIDAPI_UDEV"]
-  const HINT_HIDAPI_UDEV c::ConstCString
-
-  @[link_name="SDL_HINT_IME_IMPLEMENTED_UI"]
-  const HINT_IME_IMPLEMENTED_UI c::ConstCString
-
-  @[link_name="SDL_HINT_IOS_HIDE_HOME_INDICATOR"]
-  const HINT_IOS_HIDE_HOME_INDICATOR c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS"]
-  const HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES"]
-  const HINT_JOYSTICK_ARCADESTICK_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_BLACKLIST_DEVICES"]
-  const HINT_JOYSTICK_BLACKLIST_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_DEVICE"]
-  const HINT_JOYSTICK_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_DIRECTINPUT"]
-  const HINT_JOYSTICK_DIRECTINPUT c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ENHANCED_REPORTS"]
-  const HINT_JOYSTICK_ENHANCED_REPORTS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES"]
-  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_GAMECUBE_DEVICES"]
-  const HINT_JOYSTICK_GAMECUBE_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_GAMEINPUT"]
-  const HINT_JOYSTICK_GAMEINPUT c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HAPTIC_AXES"]
-  const HINT_JOYSTICK_HAPTIC_AXES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI"]
-  const HINT_JOYSTICK_HIDAPI c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE"]
-  const HINT_JOYSTICK_HIDAPI_GAMECUBE c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE"]
-  const HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_JOY_CONS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_LUNA"]
-  const HINT_JOYSTICK_HIDAPI_LUNA c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC"]
-  const HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS3"]
-  const HINT_JOYSTICK_HIDAPI_PS3 c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER"]
-  const HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS4"]
-  const HINT_JOYSTICK_HIDAPI_PS4 c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL"]
-  const HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS5"]
-  const HINT_JOYSTICK_HIDAPI_PS5 c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SHIELD"]
-  const HINT_JOYSTICK_HIDAPI_SHIELD c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STADIA"]
-  const HINT_JOYSTICK_HIDAPI_STADIA c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM"]
-  const HINT_JOYSTICK_HIDAPI_STEAM c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK"]
-  const HINT_JOYSTICK_HIDAPI_STEAMDECK c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_STEAM_HORI"]
-  const HINT_JOYSTICK_HIDAPI_STEAM_HORI c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS"]
-  const HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_WII"]
-  const HINT_JOYSTICK_HIDAPI_WII c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX"]
-  const HINT_JOYSTICK_HIDAPI_XBOX c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360 c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_ONE c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED"]
-  const HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_IOKIT"]
-  const HINT_JOYSTICK_IOKIT c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_LINUX_CLASSIC"]
-  const HINT_JOYSTICK_LINUX_CLASSIC c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_LINUX_DEADZONES"]
-  const HINT_JOYSTICK_LINUX_DEADZONES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_LINUX_DIGITAL_HATS"]
-  const HINT_JOYSTICK_LINUX_DIGITAL_HATS c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_LINUX_HAT_DEADZONES"]
-  const HINT_JOYSTICK_LINUX_HAT_DEADZONES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_MFI"]
-  const HINT_JOYSTICK_MFI c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_RAWINPUT"]
-  const HINT_JOYSTICK_RAWINPUT c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT"]
-  const HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ROG_CHAKRAM"]
-  const HINT_JOYSTICK_ROG_CHAKRAM c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_THREAD"]
-  const HINT_JOYSTICK_THREAD c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_THROTTLE_DEVICES"]
-  const HINT_JOYSTICK_THROTTLE_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_WGI"]
-  const HINT_JOYSTICK_WGI c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_WHEEL_DEVICES"]
-  const HINT_JOYSTICK_WHEEL_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED"]
-  const HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_JOYSTICK_ZERO_CENTERED_DEVICES"]
-  const HINT_JOYSTICK_ZERO_CENTERED_DEVICES c::ConstCString
-
-  @[link_name="SDL_HINT_KEYCODE_OPTIONS"]
-  const HINT_KEYCODE_OPTIONS c::ConstCString
-
-  @[link_name="SDL_HINT_KMSDRM_DEVICE_INDEX"]
-  const HINT_KMSDRM_DEVICE_INDEX c::ConstCString
-
-  @[link_name="SDL_HINT_KMSDRM_REQUIRE_DRM_MASTER"]
-  const HINT_KMSDRM_REQUIRE_DRM_MASTER c::ConstCString
-
-  @[link_name="SDL_HINT_LOGGING"]
-  const HINT_LOGGING c::ConstCString
-
-  @[link_name="SDL_HINT_MAC_BACKGROUND_APP"]
-  const HINT_MAC_BACKGROUND_APP c::ConstCString
-
-  @[link_name="SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK"]
-  const HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK c::ConstCString
-
-  @[link_name="SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH"]
-  const HINT_MAC_OPENGL_ASYNC_DISPATCH c::ConstCString
-
-  @[link_name="SDL_HINT_MAC_OPTION_AS_ALT"]
-  const HINT_MAC_OPTION_AS_ALT c::ConstCString
-
-  @[link_name="SDL_HINT_MAC_SCROLL_MOMENTUM"]
-  const HINT_MAC_SCROLL_MOMENTUM c::ConstCString
-
-  @[link_name="SDL_HINT_MAIN_CALLBACK_RATE"]
-  const HINT_MAIN_CALLBACK_RATE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_AUTO_CAPTURE"]
-  const HINT_MOUSE_AUTO_CAPTURE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_DEFAULT_SYSTEM_CURSOR"]
-  const HINT_MOUSE_DEFAULT_SYSTEM_CURSOR c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_DOUBLE_CLICK_RADIUS"]
-  const HINT_MOUSE_DOUBLE_CLICK_RADIUS c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_DOUBLE_CLICK_TIME"]
-  const HINT_MOUSE_DOUBLE_CLICK_TIME c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE"]
-  const HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH"]
-  const HINT_MOUSE_FOCUS_CLICKTHROUGH c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_NORMAL_SPEED_SCALE"]
-  const HINT_MOUSE_NORMAL_SPEED_SCALE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_RELATIVE_CURSOR_VISIBLE"]
-  const HINT_MOUSE_RELATIVE_CURSOR_VISIBLE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_RELATIVE_MODE_CENTER"]
-  const HINT_MOUSE_RELATIVE_MODE_CENTER c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_RELATIVE_SPEED_SCALE"]
-  const HINT_MOUSE_RELATIVE_SPEED_SCALE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE"]
-  const HINT_MOUSE_RELATIVE_SYSTEM_SCALE c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_RELATIVE_WARP_MOTION"]
-  const HINT_MOUSE_RELATIVE_WARP_MOTION c::ConstCString
-
-  @[link_name="SDL_HINT_MOUSE_TOUCH_EVENTS"]
-  const HINT_MOUSE_TOUCH_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_MUTE_CONSOLE_KEYBOARD"]
-  const HINT_MUTE_CONSOLE_KEYBOARD c::ConstCString
-
-  @[link_name="SDL_HINT_NO_SIGNAL_HANDLERS"]
-  const HINT_NO_SIGNAL_HANDLERS c::ConstCString
-
-  @[link_name="SDL_HINT_OPENGL_ES_DRIVER"]
-  const HINT_OPENGL_ES_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_OPENGL_LIBRARY"]
-  const HINT_OPENGL_LIBRARY c::ConstCString
-
-  @[link_name="SDL_HINT_OPENVR_LIBRARY"]
-  const HINT_OPENVR_LIBRARY c::ConstCString
-
-  @[link_name="SDL_HINT_ORIENTATIONS"]
-  const HINT_ORIENTATIONS c::ConstCString
-
-  @[link_name="SDL_HINT_PEN_MOUSE_EVENTS"]
-  const HINT_PEN_MOUSE_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_PEN_TOUCH_EVENTS"]
-  const HINT_PEN_TOUCH_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_POLL_SENTINEL"]
-  const HINT_POLL_SENTINEL c::ConstCString
-
-  @[link_name="SDL_HINT_PREFERRED_LOCALES"]
-  const HINT_PREFERRED_LOCALES c::ConstCString
-
-  @[link_name="SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE"]
-  const HINT_QUIT_ON_LAST_WINDOW_CLOSE c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_DIRECT3D11_DEBUG"]
-  const HINT_RENDER_DIRECT3D11_DEBUG c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_DIRECT3D_THREADSAFE"]
-  const HINT_RENDER_DIRECT3D_THREADSAFE c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_DRIVER"]
-  const HINT_RENDER_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_GPU_DEBUG"]
-  const HINT_RENDER_GPU_DEBUG c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_GPU_LOW_POWER"]
-  const HINT_RENDER_GPU_LOW_POWER c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_LINE_METHOD"]
-  const HINT_RENDER_LINE_METHOD c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE"]
-  const HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_VSYNC"]
-  const HINT_RENDER_VSYNC c::ConstCString
-
-  @[link_name="SDL_HINT_RENDER_VULKAN_DEBUG"]
-  const HINT_RENDER_VULKAN_DEBUG c::ConstCString
-
-  @[link_name="SDL_HINT_RETURN_KEY_HIDES_IME"]
-  const HINT_RETURN_KEY_HIDES_IME c::ConstCString
-
-  @[link_name="SDL_HINT_ROG_GAMEPAD_MICE"]
-  const HINT_ROG_GAMEPAD_MICE c::ConstCString
-
-  @[link_name="SDL_HINT_ROG_GAMEPAD_MICE_EXCLUDED"]
-  const HINT_ROG_GAMEPAD_MICE_EXCLUDED c::ConstCString
-
-  @[link_name="SDL_HINT_RPI_VIDEO_LAYER"]
-  const HINT_RPI_VIDEO_LAYER c::ConstCString
-
-  @[link_name="SDL_HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME"]
-  const HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME c::ConstCString
-
-  @[link_name="SDL_HINT_SHUTDOWN_DBUS_ON_QUIT"]
-  const HINT_SHUTDOWN_DBUS_ON_QUIT c::ConstCString
-
-  @[link_name="SDL_HINT_STORAGE_TITLE_DRIVER"]
-  const HINT_STORAGE_TITLE_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_STORAGE_USER_DRIVER"]
-  const HINT_STORAGE_USER_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL"]
-  const HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL c::ConstCString
-
-  @[link_name="SDL_HINT_THREAD_PRIORITY_POLICY"]
-  const HINT_THREAD_PRIORITY_POLICY c::ConstCString
-
-  @[link_name="SDL_HINT_TIMER_RESOLUTION"]
-  const HINT_TIMER_RESOLUTION c::ConstCString
-
-  @[link_name="SDL_HINT_TOUCH_MOUSE_EVENTS"]
-  const HINT_TOUCH_MOUSE_EVENTS c::ConstCString
-
-  @[link_name="SDL_HINT_TRACKPAD_IS_TOUCH_ONLY"]
-  const HINT_TRACKPAD_IS_TOUCH_ONLY c::ConstCString
-
-  @[link_name="SDL_HINT_TV_REMOTE_AS_JOYSTICK"]
-  const HINT_TV_REMOTE_AS_JOYSTICK c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_ALLOW_SCREENSAVER"]
-  const HINT_VIDEO_ALLOW_SCREENSAVER c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_DISPLAY_PRIORITY"]
-  const HINT_VIDEO_DISPLAY_PRIORITY c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_DOUBLE_BUFFER"]
-  const HINT_VIDEO_DOUBLE_BUFFER c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_DRIVER"]
-  const HINT_VIDEO_DRIVER c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_DUMMY_SAVE_FRAMES"]
-  const HINT_VIDEO_DUMMY_SAVE_FRAMES c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK"]
-  const HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_FORCE_EGL"]
-  const HINT_VIDEO_FORCE_EGL c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY"]
-  const HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES"]
-  const HINT_VIDEO_MAC_FULLSCREEN_SPACES c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS"]
-  const HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_OFFSCREEN_SAVE_FRAMES"]
-  const HINT_VIDEO_OFFSCREEN_SAVE_FRAMES c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_SYNC_WINDOW_OPERATIONS"]
-  const HINT_VIDEO_SYNC_WINDOW_OPERATIONS c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR"]
-  const HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WAYLAND_MODE_EMULATION"]
-  const HINT_VIDEO_WAYLAND_MODE_EMULATION c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WAYLAND_MODE_SCALING"]
-  const HINT_VIDEO_WAYLAND_MODE_SCALING c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WAYLAND_PREFER_LIBDECOR"]
-  const HINT_VIDEO_WAYLAND_PREFER_LIBDECOR c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY"]
-  const HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_WIN_D3DCOMPILER"]
-  const HINT_VIDEO_WIN_D3DCOMPILER c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT"]
-  const HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR"]
-  const HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_NET_WM_PING"]
-  const HINT_VIDEO_X11_NET_WM_PING c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_NODIRECTCOLOR"]
-  const HINT_VIDEO_X11_NODIRECTCOLOR c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_SCALING_FACTOR"]
-  const HINT_VIDEO_X11_SCALING_FACTOR c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_VISUALID"]
-  const HINT_VIDEO_X11_VISUALID c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_WINDOW_VISUALID"]
-  const HINT_VIDEO_X11_WINDOW_VISUALID c::ConstCString
-
-  @[link_name="SDL_HINT_VIDEO_X11_XRANDR"]
-  const HINT_VIDEO_X11_XRANDR c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_ENABLE_BACK_TOUCH"]
-  const HINT_VITA_ENABLE_BACK_TOUCH c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_ENABLE_FRONT_TOUCH"]
-  const HINT_VITA_ENABLE_FRONT_TOUCH c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_MODULE_PATH"]
-  const HINT_VITA_MODULE_PATH c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_PVR_INIT"]
-  const HINT_VITA_PVR_INIT c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_PVR_OPENGL"]
-  const HINT_VITA_PVR_OPENGL c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_RESOLUTION"]
-  const HINT_VITA_RESOLUTION c::ConstCString
-
-  @[link_name="SDL_HINT_VITA_TOUCH_MOUSE_DEVICE"]
-  const HINT_VITA_TOUCH_MOUSE_DEVICE c::ConstCString
-
-  @[link_name="SDL_HINT_VULKAN_DISPLAY"]
-  const HINT_VULKAN_DISPLAY c::ConstCString
-
-  @[link_name="SDL_HINT_VULKAN_LIBRARY"]
-  const HINT_VULKAN_LIBRARY c::ConstCString
-
-  @[link_name="SDL_HINT_WAVE_CHUNK_LIMIT"]
-  const HINT_WAVE_CHUNK_LIMIT c::ConstCString
-
-  @[link_name="SDL_HINT_WAVE_FACT_CHUNK"]
-  const HINT_WAVE_FACT_CHUNK c::ConstCString
-
-  @[link_name="SDL_HINT_WAVE_RIFF_CHUNK_SIZE"]
-  const HINT_WAVE_RIFF_CHUNK_SIZE c::ConstCString
-
-  @[link_name="SDL_HINT_WAVE_TRUNCATION"]
-  const HINT_WAVE_TRUNCATION c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_CLOSE_ON_ALT_F4"]
-  const HINT_WINDOWS_CLOSE_ON_ALT_F4 c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS"]
-  const HINT_WINDOWS_ENABLE_MENU_MNEMONICS c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP"]
-  const HINT_WINDOWS_ENABLE_MESSAGELOOP c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_ERASE_BACKGROUND_MODE"]
-  const HINT_WINDOWS_ERASE_BACKGROUND_MODE c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL"]
-  const HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_GAMEINPUT"]
-  const HINT_WINDOWS_GAMEINPUT c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_INTRESOURCE_ICON"]
-  const HINT_WINDOWS_INTRESOURCE_ICON c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_INTRESOURCE_ICON_SMALL"]
-  const HINT_WINDOWS_INTRESOURCE_ICON_SMALL c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_RAW_KEYBOARD"]
-  const HINT_WINDOWS_RAW_KEYBOARD c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOWS_USE_D3D9EX"]
-  const HINT_WINDOWS_USE_D3D9EX c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOW_ACTIVATE_WHEN_RAISED"]
-  const HINT_WINDOW_ACTIVATE_WHEN_RAISED c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOW_ACTIVATE_WHEN_SHOWN"]
-  const HINT_WINDOW_ACTIVATE_WHEN_SHOWN c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOW_ALLOW_TOPMOST"]
-  const HINT_WINDOW_ALLOW_TOPMOST c::ConstCString
-
-  @[link_name="SDL_HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN"]
-  const HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN c::ConstCString
-
-  @[link_name="SDL_HINT_X11_FORCE_OVERRIDE_REDIRECT"]
-  const HINT_X11_FORCE_OVERRIDE_REDIRECT c::ConstCString
-
-  @[link_name="SDL_HINT_X11_WINDOW_TYPE"]
-  const HINT_X11_WINDOW_TYPE c::ConstCString
-
-  @[link_name="SDL_HINT_X11_XCB_LIBRARY"]
-  const HINT_X11_XCB_LIBRARY c::ConstCString
-
-  @[link_name="SDL_HINT_XINPUT_ENABLED"]
-  const HINT_XINPUT_ENABLED c::ConstCString
-
-  @[link_name="SDL_ICONV_E2BIG"]
-  const ICONV_E2BIG c::c_ulong
-
-  @[link_name="SDL_ICONV_EILSEQ"]
-  const ICONV_EILSEQ c::c_ulong
-
-  @[link_name="SDL_ICONV_EINVAL"]
-  const ICONV_EINVAL c::c_ulong
-
-  @[link_name="SDL_ICONV_ERROR"]
-  const ICONV_ERROR c::c_ulong
-
   @[link_name="SDL_INIT_AUDIO"]
   const INIT_AUDIO u32
 
@@ -9488,732 +5059,6 @@ extern {
   @[link_name="SDL_PI_F"]
   const PI_F f32
 
-  @[link_name="SDL_PROP_APP_METADATA_COPYRIGHT_STRING"]
-  const PROP_APP_METADATA_COPYRIGHT_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_CREATOR_STRING"]
-  const PROP_APP_METADATA_CREATOR_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_IDENTIFIER_STRING"]
-  const PROP_APP_METADATA_IDENTIFIER_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_NAME_STRING"]
-  const PROP_APP_METADATA_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_TYPE_STRING"]
-  const PROP_APP_METADATA_TYPE_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_URL_STRING"]
-  const PROP_APP_METADATA_URL_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_APP_METADATA_VERSION_STRING"]
-  const PROP_APP_METADATA_VERSION_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_DISPLAY_HDR_ENABLED_BOOLEAN"]
-  const PROP_DISPLAY_HDR_ENABLED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER"]
-  const PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_ACCEPT_STRING"]
-  const PROP_FILE_DIALOG_ACCEPT_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_CANCEL_STRING"]
-  const PROP_FILE_DIALOG_CANCEL_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_FILTERS_POINTER"]
-  const PROP_FILE_DIALOG_FILTERS_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_LOCATION_STRING"]
-  const PROP_FILE_DIALOG_LOCATION_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_MANY_BOOLEAN"]
-  const PROP_FILE_DIALOG_MANY_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_NFILTERS_NUMBER"]
-  const PROP_FILE_DIALOG_NFILTERS_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_TITLE_STRING"]
-  const PROP_FILE_DIALOG_TITLE_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_FILE_DIALOG_WINDOW_POINTER"]
-  const PROP_FILE_DIALOG_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN"]
-  const PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER"]
-  const PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_BUFFER_CREATE_NAME_STRING"]
-  const PROP_GPU_BUFFER_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING"]
-  const PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING"]
-  const PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING"]
-  const PROP_GPU_DEVICE_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN"]
-  const PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING"]
-  const PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_SAMPLER_CREATE_NAME_STRING"]
-  const PROP_GPU_SAMPLER_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_SHADER_CREATE_NAME_STRING"]
-  const PROP_GPU_SHADER_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER"]
-  const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TEXTURE_CREATE_NAME_STRING"]
-  const PROP_GPU_TEXTURE_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING"]
-  const PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_ANDROID_AASSET_POINTER"]
-  const PROP_IOSTREAM_ANDROID_AASSET_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER"]
-  const PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER"]
-  const PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER"]
-  const PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_MEMORY_POINTER"]
-  const PROP_IOSTREAM_MEMORY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_MEMORY_SIZE_NUMBER"]
-  const PROP_IOSTREAM_MEMORY_SIZE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_STDIO_FILE_POINTER"]
-  const PROP_IOSTREAM_STDIO_FILE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_IOSTREAM_WINDOWS_HANDLE_POINTER"]
-  const PROP_IOSTREAM_WINDOWS_HANDLE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN"]
-  const PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_BACKGROUND_BOOLEAN"]
-  const PROP_PROCESS_BACKGROUND_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_ARGS_POINTER"]
-  const PROP_PROCESS_CREATE_ARGS_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN"]
-  const PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_ENVIRONMENT_POINTER"]
-  const PROP_PROCESS_CREATE_ENVIRONMENT_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_NUMBER"]
-  const PROP_PROCESS_CREATE_STDERR_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_POINTER"]
-  const PROP_PROCESS_CREATE_STDERR_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN"]
-  const PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDIN_NUMBER"]
-  const PROP_PROCESS_CREATE_STDIN_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDIN_POINTER"]
-  const PROP_PROCESS_CREATE_STDIN_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDOUT_NUMBER"]
-  const PROP_PROCESS_CREATE_STDOUT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_CREATE_STDOUT_POINTER"]
-  const PROP_PROCESS_CREATE_STDOUT_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_PID_NUMBER"]
-  const PROP_PROCESS_PID_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_STDERR_POINTER"]
-  const PROP_PROCESS_STDERR_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_STDIN_POINTER"]
-  const PROP_PROCESS_STDIN_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_PROCESS_STDOUT_POINTER"]
-  const PROP_PROCESS_STDOUT_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_NAME_STRING"]
-  const PROP_RENDERER_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER"]
-  const PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER"]
-  const PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_SURFACE_POINTER"]
-  const PROP_RENDERER_CREATE_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER"]
-  const PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER"]
-  const PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_CREATE_WINDOW_POINTER"]
-  const PROP_RENDERER_CREATE_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D11_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D11_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D11_SWAPCHAIN_POINTER"]
-  const PROP_RENDERER_D3D11_SWAPCHAIN_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER"]
-  const PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D12_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D12_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D12_SWAPCHAIN_POINTER"]
-  const PROP_RENDERER_D3D12_SWAPCHAIN_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_D3D9_DEVICE_POINTER"]
-  const PROP_RENDERER_D3D9_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_GPU_DEVICE_POINTER"]
-  const PROP_RENDERER_GPU_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_HDR_ENABLED_BOOLEAN"]
-  const PROP_RENDERER_HDR_ENABLED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_HDR_HEADROOM_FLOAT"]
-  const PROP_RENDERER_HDR_HEADROOM_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER"]
-  const PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_NAME_STRING"]
-  const PROP_RENDERER_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER"]
-  const PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_SDR_WHITE_POINT_FLOAT"]
-  const PROP_RENDERER_SDR_WHITE_POINT_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_SURFACE_POINTER"]
-  const PROP_RENDERER_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_TEXTURE_FORMATS_POINTER"]
-  const PROP_RENDERER_TEXTURE_FORMATS_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VSYNC_NUMBER"]
-  const PROP_RENDERER_VSYNC_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_DEVICE_POINTER"]
-  const PROP_RENDERER_VULKAN_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_INSTANCE_POINTER"]
-  const PROP_RENDERER_VULKAN_INSTANCE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER"]
-  const PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER"]
-  const PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_SURFACE_NUMBER"]
-  const PROP_RENDERER_VULKAN_SURFACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER"]
-  const PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_RENDERER_WINDOW_POINTER"]
-  const PROP_RENDERER_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_SURFACE_HDR_HEADROOM_FLOAT"]
-  const PROP_SURFACE_HDR_HEADROOM_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_SURFACE_HOTSPOT_X_NUMBER"]
-  const PROP_SURFACE_HOTSPOT_X_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_SURFACE_HOTSPOT_Y_NUMBER"]
-  const PROP_SURFACE_HOTSPOT_Y_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_SURFACE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_SURFACE_SDR_WHITE_POINT_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_SURFACE_TONEMAP_OPERATOR_STRING"]
-  const PROP_SURFACE_TONEMAP_OPERATOR_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER"]
-  const PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN"]
-  const PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTINPUT_CAPITALIZATION_NUMBER"]
-  const PROP_TEXTINPUT_CAPITALIZATION_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN"]
-  const PROP_TEXTINPUT_MULTILINE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTINPUT_TYPE_NUMBER"]
-  const PROP_TEXTINPUT_TYPE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_ACCESS_NUMBER"]
-  const PROP_TEXTURE_ACCESS_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_COLORSPACE_NUMBER"]
-  const PROP_TEXTURE_COLORSPACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_ACCESS_NUMBER"]
-  const PROP_TEXTURE_CREATE_ACCESS_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_COLORSPACE_NUMBER"]
-  const PROP_TEXTURE_CREATE_COLORSPACE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_FORMAT_NUMBER"]
-  const PROP_TEXTURE_CREATE_FORMAT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT"]
-  const PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER"]
-  const PROP_TEXTURE_CREATE_HEIGHT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER"]
-  const PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_CREATE_WIDTH_NUMBER"]
-  const PROP_TEXTURE_CREATE_WIDTH_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_U_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D11_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_D3D11_TEXTURE_V_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_U_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_U_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_D3D12_TEXTURE_V_POINTER"]
-  const PROP_TEXTURE_D3D12_TEXTURE_V_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_FORMAT_NUMBER"]
-  const PROP_TEXTURE_FORMAT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_HDR_HEADROOM_FLOAT"]
-  const PROP_TEXTURE_HDR_HEADROOM_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_HEIGHT_NUMBER"]
-  const PROP_TEXTURE_HEIGHT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER"]
-  const PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEX_H_FLOAT"]
-  const PROP_TEXTURE_OPENGL_TEX_H_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_OPENGL_TEX_W_FLOAT"]
-  const PROP_TEXTURE_OPENGL_TEX_W_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_SDR_WHITE_POINT_FLOAT"]
-  const PROP_TEXTURE_SDR_WHITE_POINT_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_VULKAN_TEXTURE_NUMBER"]
-  const PROP_TEXTURE_VULKAN_TEXTURE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_TEXTURE_WIDTH_NUMBER"]
-  const PROP_TEXTURE_WIDTH_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER"]
-  const PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_THREAD_CREATE_NAME_STRING"]
-  const PROP_THREAD_CREATE_NAME_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER"]
-  const PROP_THREAD_CREATE_STACKSIZE_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_THREAD_CREATE_USERDATA_POINTER"]
-  const PROP_THREAD_CREATE_USERDATA_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_ANDROID_SURFACE_POINTER"]
-  const PROP_WINDOW_ANDROID_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_ANDROID_WINDOW_POINTER"]
-  const PROP_WINDOW_ANDROID_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER"]
-  const PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_COCOA_WINDOW_POINTER"]
-  const PROP_WINDOW_COCOA_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN"]
-  const PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_COCOA_VIEW_POINTER"]
-  const PROP_WINDOW_CREATE_COCOA_VIEW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER"]
-  const PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN"]
-  const PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER"]
-  const PROP_WINDOW_CREATE_FLAGS_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN"]
-  const PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER"]
-  const PROP_WINDOW_CREATE_HEIGHT_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_HIDDEN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_HIDDEN_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN"]
-  const PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_MENU_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MENU_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_METAL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_METAL_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_MODAL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MODAL_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN"]
-  const PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_OPENGL_BOOLEAN"]
-  const PROP_WINDOW_CREATE_OPENGL_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_PARENT_POINTER"]
-  const PROP_WINDOW_CREATE_PARENT_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN"]
-  const PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_TITLE_STRING"]
-  const PROP_WINDOW_CREATE_TITLE_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN"]
-  const PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN"]
-  const PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_UTILITY_BOOLEAN"]
-  const PROP_WINDOW_CREATE_UTILITY_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN"]
-  const PROP_WINDOW_CREATE_VULKAN_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN"]
-  const PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN"]
-  const PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER"]
-  const PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER"]
-  const PROP_WINDOW_CREATE_WIDTH_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WIN32_HWND_POINTER"]
-  const PROP_WINDOW_CREATE_WIN32_HWND_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER"]
-  const PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_X11_WINDOW_NUMBER"]
-  const PROP_WINDOW_CREATE_X11_WINDOW_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_X_NUMBER"]
-  const PROP_WINDOW_CREATE_X_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_CREATE_Y_NUMBER"]
-  const PROP_WINDOW_CREATE_Y_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_HDR_ENABLED_BOOLEAN"]
-  const PROP_WINDOW_HDR_ENABLED_BOOLEAN c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_HDR_HEADROOM_FLOAT"]
-  const PROP_WINDOW_HDR_HEADROOM_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER"]
-  const PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_KMSDRM_DRM_FD_NUMBER"]
-  const PROP_WINDOW_KMSDRM_DRM_FD_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER"]
-  const PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_OPENVR_OVERLAY_ID"]
-  const PROP_WINDOW_OPENVR_OVERLAY_ID c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT"]
-  const PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_SHAPE_POINTER"]
-  const PROP_WINDOW_SHAPE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER"]
-  const PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER"]
-  const PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER"]
-  const PROP_WINDOW_UIKIT_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_VIVANTE_DISPLAY_POINTER"]
-  const PROP_WINDOW_VIVANTE_DISPLAY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_VIVANTE_SURFACE_POINTER"]
-  const PROP_WINDOW_VIVANTE_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_VIVANTE_WINDOW_POINTER"]
-  const PROP_WINDOW_VIVANTE_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_DISPLAY_POINTER"]
-  const PROP_WINDOW_WAYLAND_DISPLAY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER"]
-  const PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_SURFACE_POINTER"]
-  const PROP_WINDOW_WAYLAND_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_VIEWPORT_POINTER"]
-  const PROP_WINDOW_WAYLAND_VIEWPORT_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING"]
-  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER"]
-  const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WIN32_HDC_POINTER"]
-  const PROP_WINDOW_WIN32_HDC_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WIN32_HWND_POINTER"]
-  const PROP_WINDOW_WIN32_HWND_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_WIN32_INSTANCE_POINTER"]
-  const PROP_WINDOW_WIN32_INSTANCE_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_X11_DISPLAY_POINTER"]
-  const PROP_WINDOW_X11_DISPLAY_POINTER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_X11_SCREEN_NUMBER"]
-  const PROP_WINDOW_X11_SCREEN_NUMBER c::ConstCString
-
-  @[link_name="SDL_PROP_WINDOW_X11_WINDOW_NUMBER"]
-  const PROP_WINDOW_X11_WINDOW_NUMBER c::ConstCString
-
   @[link_name="SDL_RENDERER_VSYNC_ADAPTIVE"]
   const RENDERER_VSYNC_ADAPTIVE i32
 
@@ -10351,3673 +5196,4432 @@ extern {
 
   @[link_name="SDL_WINDOW_VULKAN"]
   const WINDOW_VULKAN u64
-
-  @[link_name="SDL_malloc"]
-  fn malloc(size c::c_size_t) rawptr
-
-  @[link_name="SDL_calloc"]
-  fn calloc(nmemb c::c_size_t, size c::c_size_t) rawptr
-
-  @[link_name="SDL_realloc"]
-  fn realloc(mem rawptr, size c::c_size_t) rawptr
-
-  @[link_name="SDL_free"]
-  fn free(mem rawptr)
-
-  @[link_name="SDL_GetOriginalMemoryFunctions"]
-  fn get_original_memory_functions(malloc_func *malloc_func, calloc_func *calloc_func, realloc_func *realloc_func, free_func *free_func)
-
-  @[link_name="SDL_GetMemoryFunctions"]
-  fn get_memory_functions(malloc_func *malloc_func, calloc_func *calloc_func, realloc_func *realloc_func, free_func *free_func)
-
-  @[link_name="SDL_SetMemoryFunctions"]
-  fn set_memory_functions(malloc_func malloc_func, calloc_func calloc_func, realloc_func realloc_func, free_func free_func) bool
-
-  @[link_name="SDL_aligned_alloc"]
-  fn aligned_alloc(alignment c::c_size_t, size c::c_size_t) rawptr
-
-  @[link_name="SDL_aligned_free"]
-  fn aligned_free(mem rawptr)
-
-  @[link_name="SDL_GetNumAllocations"]
-  fn get_num_allocations() c::c_int
-
-  @[link_name="SDL_GetEnvironment"]
-  fn get_environment() *Environment
-
-  @[link_name="SDL_CreateEnvironment"]
-  fn create_environment(populated bool) *Environment
-
-  @[link_name="SDL_GetEnvironmentVariable"]
-  fn get_environment_variable(env *Environment, name c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_GetEnvironmentVariables"]
-  fn get_environment_variables(env *Environment) *c::CString
-
-  @[link_name="SDL_SetEnvironmentVariable"]
-  fn set_environment_variable(env *Environment, name c::ConstCString, value c::ConstCString, overwrite bool) bool
-
-  @[link_name="SDL_UnsetEnvironmentVariable"]
-  fn unset_environment_variable(env *Environment, name c::ConstCString) bool
-
-  @[link_name="SDL_DestroyEnvironment"]
-  fn destroy_environment(env *Environment)
-
-  @[link_name="SDL_getenv"]
-  fn getenv(name c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_getenv_unsafe"]
-  fn getenv_unsafe(name c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_setenv_unsafe"]
-  fn setenv_unsafe(name c::ConstCString, value c::ConstCString, overwrite c::c_int) c::c_int
-
-  @[link_name="SDL_unsetenv_unsafe"]
-  fn unsetenv_unsafe(name c::ConstCString) c::c_int
-
-  @[link_name="SDL_qsort"]
-  fn qsort(base rawptr, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback)
-
-  @[link_name="SDL_bsearch"]
-  fn bsearch(key const *Void, base const *Void, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback) rawptr
-
-  @[link_name="SDL_qsort_r"]
-  fn qsort_r(base rawptr, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback_r, userdata rawptr)
-
-  @[link_name="SDL_bsearch_r"]
-  fn bsearch_r(key const *Void, base const *Void, nmemb c::c_size_t, size c::c_size_t, compare CompareCallback_r, userdata rawptr) rawptr
-
-  @[link_name="SDL_abs"]
-  fn abs(x c::c_int) c::c_int
-
-  @[link_name="SDL_isalpha"]
-  fn isalpha(x c::c_int) c::c_int
-
-  @[link_name="SDL_isalnum"]
-  fn isalnum(x c::c_int) c::c_int
-
-  @[link_name="SDL_isblank"]
-  fn isblank(x c::c_int) c::c_int
-
-  @[link_name="SDL_iscntrl"]
-  fn iscntrl(x c::c_int) c::c_int
-
-  @[link_name="SDL_isdigit"]
-  fn isdigit(x c::c_int) c::c_int
-
-  @[link_name="SDL_isxdigit"]
-  fn isxdigit(x c::c_int) c::c_int
-
-  @[link_name="SDL_ispunct"]
-  fn ispunct(x c::c_int) c::c_int
-
-  @[link_name="SDL_isspace"]
-  fn isspace(x c::c_int) c::c_int
-
-  @[link_name="SDL_isupper"]
-  fn isupper(x c::c_int) c::c_int
-
-  @[link_name="SDL_islower"]
-  fn islower(x c::c_int) c::c_int
-
-  @[link_name="SDL_isprint"]
-  fn isprint(x c::c_int) c::c_int
-
-  @[link_name="SDL_isgraph"]
-  fn isgraph(x c::c_int) c::c_int
-
-  @[link_name="SDL_toupper"]
-  fn toupper(x c::c_int) c::c_int
-
-  @[link_name="SDL_tolower"]
-  fn tolower(x c::c_int) c::c_int
-
-  @[link_name="SDL_crc16"]
-  fn crc16(crc u16, data const *Void, len c::c_size_t) u16
-
-  @[link_name="SDL_crc32"]
-  fn crc32(crc u32, data const *Void, len c::c_size_t) u32
-
-  @[link_name="SDL_murmur3_32"]
-  fn murmur3_32(data const *Void, len c::c_size_t, seed u32) u32
-
-  @[link_name="SDL_memcpy"]
-  fn memcpy(dst rawptr, src const *Void, len c::c_size_t) rawptr
-
-  @[link_name="SDL_memmove"]
-  fn memmove(dst rawptr, src const *Void, len c::c_size_t) rawptr
-
-  @[link_name="SDL_memset"]
-  fn memset(dst rawptr, c c::c_int, len c::c_size_t) rawptr
-
-  @[link_name="SDL_memset4"]
-  fn memset4(dst rawptr, val u32, dwords c::c_size_t) rawptr
-
-  @[link_name="SDL_memcmp"]
-  fn memcmp(s1 const *Void, s2 const *Void, len c::c_size_t) c::c_int
-
-  @[link_name="SDL_wcslen"]
-  fn wcslen(wstr const *c::c_wchar_t) c::c_size_t
-
-  @[link_name="SDL_wcsnlen"]
-  fn wcsnlen(wstr const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_wcslcpy"]
-  fn wcslcpy(dst *c::c_wchar_t, src const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_wcslcat"]
-  fn wcslcat(dst *c::c_wchar_t, src const *c::c_wchar_t, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_wcsdup"]
-  fn wcsdup(wstr const *c::c_wchar_t) *c::c_wchar_t
-
-  @[link_name="SDL_wcsstr"]
-  fn wcsstr(haystack const *c::c_wchar_t, needle const *c::c_wchar_t) *c::c_wchar_t
-
-  @[link_name="SDL_wcsnstr"]
-  fn wcsnstr(haystack const *c::c_wchar_t, needle const *c::c_wchar_t, maxlen c::c_size_t) *c::c_wchar_t
-
-  @[link_name="SDL_wcscmp"]
-  fn wcscmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t) c::c_int
-
-  @[link_name="SDL_wcsncmp"]
-  fn wcsncmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_wcscasecmp"]
-  fn wcscasecmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t) c::c_int
-
-  @[link_name="SDL_wcsncasecmp"]
-  fn wcsncasecmp(str1 const *c::c_wchar_t, str2 const *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_wcstol"]
-  fn wcstol(str const *c::c_wchar_t, endp **c::c_wchar_t, base c::c_int) c::c_long
-
-  @[link_name="SDL_strlen"]
-  fn strlen(str c::ConstCString) c::c_size_t
-
-  @[link_name="SDL_strnlen"]
-  fn strnlen(str c::ConstCString, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_strlcpy"]
-  fn strlcpy(dst c::CString, src c::ConstCString, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_utf8strlcpy"]
-  fn utf8strlcpy(dst c::CString, src c::ConstCString, dst_bytes c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_strlcat"]
-  fn strlcat(dst c::CString, src c::ConstCString, maxlen c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_strdup"]
-  fn strdup(str c::ConstCString) c::CString
-
-  @[link_name="SDL_strndup"]
-  fn strndup(str c::ConstCString, maxlen c::c_size_t) c::CString
-
-  @[link_name="SDL_strrev"]
-  fn strrev(str c::CString) c::CString
-
-  @[link_name="SDL_strupr"]
-  fn strupr(str c::CString) c::CString
-
-  @[link_name="SDL_strlwr"]
-  fn strlwr(str c::CString) c::CString
-
-  @[link_name="SDL_strchr"]
-  fn strchr(str c::ConstCString, c c::c_int) c::CString
-
-  @[link_name="SDL_strrchr"]
-  fn strrchr(str c::ConstCString, c c::c_int) c::CString
-
-  @[link_name="SDL_strstr"]
-  fn strstr(haystack c::ConstCString, needle c::ConstCString) c::CString
-
-  @[link_name="SDL_strnstr"]
-  fn strnstr(haystack c::ConstCString, needle c::ConstCString, maxlen c::c_size_t) c::CString
-
-  @[link_name="SDL_strcasestr"]
-  fn strcasestr(haystack c::ConstCString, needle c::ConstCString) c::CString
-
-  @[link_name="SDL_strtok_r"]
-  fn strtok_r(str c::CString, delim c::ConstCString, saveptr *c::CString) c::CString
-
-  @[link_name="SDL_utf8strlen"]
-  fn utf8strlen(str c::ConstCString) c::c_size_t
-
-  @[link_name="SDL_utf8strnlen"]
-  fn utf8strnlen(str c::ConstCString, bytes c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_itoa"]
-  fn itoa(value c::c_int, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_uitoa"]
-  fn uitoa(value c::c_uint, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_ltoa"]
-  fn ltoa(value c::c_long, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_ultoa"]
-  fn ultoa(value c::c_ulong, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_lltoa"]
-  fn lltoa(value c::c_longlong, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_ulltoa"]
-  fn ulltoa(value c::c_ulonglong, str c::CString, radix c::c_int) c::CString
-
-  @[link_name="SDL_atoi"]
-  fn atoi(str c::ConstCString) c::c_int
-
-  @[link_name="SDL_atof"]
-  fn atof(str c::ConstCString) c::c_double
-
-  @[link_name="SDL_strtol"]
-  fn strtol(str c::ConstCString, endp *c::CString, base c::c_int) c::c_long
-
-  @[link_name="SDL_strtoul"]
-  fn strtoul(str c::ConstCString, endp *c::CString, base c::c_int) c::c_ulong
-
-  @[link_name="SDL_strtoll"]
-  fn strtoll(str c::ConstCString, endp *c::CString, base c::c_int) c::c_longlong
-
-  @[link_name="SDL_strtoull"]
-  fn strtoull(str c::ConstCString, endp *c::CString, base c::c_int) c::c_ulonglong
-
-  @[link_name="SDL_strtod"]
-  fn strtod(str c::ConstCString, endp *c::CString) c::c_double
-
-  @[link_name="SDL_strcmp"]
-  fn strcmp(str1 c::ConstCString, str2 c::ConstCString) c::c_int
-
-  @[link_name="SDL_strncmp"]
-  fn strncmp(str1 c::ConstCString, str2 c::ConstCString, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_strcasecmp"]
-  fn strcasecmp(str1 c::ConstCString, str2 c::ConstCString) c::c_int
-
-  @[link_name="SDL_strncasecmp"]
-  fn strncasecmp(str1 c::ConstCString, str2 c::ConstCString, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_strpbrk"]
-  fn strpbrk(str c::ConstCString, breakset c::ConstCString) c::CString
-
-  @[link_name="SDL_StepUTF8"]
-  fn step_utf8(pstr *c::ConstCString, pslen *c::c_size_t) u32
-
-  @[link_name="SDL_StepBackUTF8"]
-  fn step_back_utf8(start c::ConstCString, pstr *c::ConstCString) u32
-
-  @[link_name="SDL_UCS4ToUTF8"]
-  fn ucs4_to_utf8(codepoint u32, dst c::CString) c::CString
-
-  @[link_name="SDL_sscanf"]
-  fn sscanf(text c::ConstCString, fmt c::ConstCString, args @c ...) c::c_int
-
-  @[link_name="SDL_vsscanf"]
-  fn vsscanf(text c::ConstCString, fmt c::ConstCString, ap c::c_va_list) c::c_int
-
-  @[link_name="SDL_snprintf"]
-  fn snprintf(text c::CString, maxlen c::c_size_t, fmt c::ConstCString, args @c ...) c::c_int
-
-  @[link_name="SDL_swprintf"]
-  fn swprintf(text *c::c_wchar_t, maxlen c::c_size_t, fmt const *c::c_wchar_t, args @c ...) c::c_int
-
-  @[link_name="SDL_vsnprintf"]
-  fn vsnprintf(text c::CString, maxlen c::c_size_t, fmt c::ConstCString, ap c::c_va_list) c::c_int
-
-  @[link_name="SDL_vswprintf"]
-  fn vswprintf(text *c::c_wchar_t, maxlen c::c_size_t, fmt const *c::c_wchar_t, ap c::c_va_list) c::c_int
-
-  @[link_name="SDL_asprintf"]
-  fn asprintf(strp *c::CString, fmt c::ConstCString, args @c ...) c::c_int
-
-  @[link_name="SDL_vasprintf"]
-  fn vasprintf(strp *c::CString, fmt c::ConstCString, ap c::c_va_list) c::c_int
-
-  @[link_name="SDL_srand"]
-  fn srand(seed u64)
-
-  @[link_name="SDL_rand"]
-  fn rand(n i32) i32
-
-  @[link_name="SDL_randf"]
-  fn randf() c::c_float
-
-  @[link_name="SDL_rand_bits"]
-  fn rand_bits() u32
-
-  @[link_name="SDL_rand_r"]
-  fn rand_r(state *u64, n i32) i32
-
-  @[link_name="SDL_randf_r"]
-  fn randf_r(state *u64) c::c_float
-
-  @[link_name="SDL_rand_bits_r"]
-  fn rand_bits_r(state *u64) u32
-
-  @[link_name="SDL_acos"]
-  fn acos(x c::c_double) c::c_double
-
-  @[link_name="SDL_acosf"]
-  fn acosf(x c::c_float) c::c_float
-
-  @[link_name="SDL_asin"]
-  fn asin(x c::c_double) c::c_double
-
-  @[link_name="SDL_asinf"]
-  fn asinf(x c::c_float) c::c_float
-
-  @[link_name="SDL_atan"]
-  fn atan(x c::c_double) c::c_double
-
-  @[link_name="SDL_atanf"]
-  fn atanf(x c::c_float) c::c_float
-
-  @[link_name="SDL_atan2"]
-  fn atan2(y c::c_double, x c::c_double) c::c_double
-
-  @[link_name="SDL_atan2f"]
-  fn atan2f(y c::c_float, x c::c_float) c::c_float
-
-  @[link_name="SDL_ceil"]
-  fn ceil(x c::c_double) c::c_double
-
-  @[link_name="SDL_ceilf"]
-  fn ceilf(x c::c_float) c::c_float
-
-  @[link_name="SDL_copysign"]
-  fn copysign(x c::c_double, y c::c_double) c::c_double
-
-  @[link_name="SDL_copysignf"]
-  fn copysignf(x c::c_float, y c::c_float) c::c_float
-
-  @[link_name="SDL_cos"]
-  fn cos(x c::c_double) c::c_double
-
-  @[link_name="SDL_cosf"]
-  fn cosf(x c::c_float) c::c_float
-
-  @[link_name="SDL_exp"]
-  fn exp(x c::c_double) c::c_double
-
-  @[link_name="SDL_expf"]
-  fn expf(x c::c_float) c::c_float
-
-  @[link_name="SDL_fabs"]
-  fn fabs(x c::c_double) c::c_double
-
-  @[link_name="SDL_fabsf"]
-  fn fabsf(x c::c_float) c::c_float
-
-  @[link_name="SDL_floor"]
-  fn floor(x c::c_double) c::c_double
-
-  @[link_name="SDL_floorf"]
-  fn floorf(x c::c_float) c::c_float
-
-  @[link_name="SDL_trunc"]
-  fn trunc(x c::c_double) c::c_double
-
-  @[link_name="SDL_truncf"]
-  fn truncf(x c::c_float) c::c_float
-
-  @[link_name="SDL_fmod"]
-  fn fmod(x c::c_double, y c::c_double) c::c_double
-
-  @[link_name="SDL_fmodf"]
-  fn fmodf(x c::c_float, y c::c_float) c::c_float
-
-  @[link_name="SDL_isinf"]
-  fn isinf(x c::c_double) c::c_int
-
-  @[link_name="SDL_isinff"]
-  fn isinff(x c::c_float) c::c_int
-
-  @[link_name="SDL_isnan"]
-  fn isnan(x c::c_double) c::c_int
-
-  @[link_name="SDL_isnanf"]
-  fn isnanf(x c::c_float) c::c_int
-
-  @[link_name="SDL_log"]
-  fn log_f64(x c::c_double) c::c_double
-
-  @[link_name="SDL_logf"]
-  fn logf(x c::c_float) c::c_float
-
-  @[link_name="SDL_log10"]
-  fn log10(x c::c_double) c::c_double
-
-  @[link_name="SDL_log10f"]
-  fn log10f(x c::c_float) c::c_float
-
-  @[link_name="SDL_modf"]
-  fn modf(x c::c_double, y *c::c_double) c::c_double
-
-  @[link_name="SDL_modff"]
-  fn modff(x c::c_float, y *c::c_float) c::c_float
-
-  @[link_name="SDL_pow"]
-  fn pow(x c::c_double, y c::c_double) c::c_double
-
-  @[link_name="SDL_powf"]
-  fn powf(x c::c_float, y c::c_float) c::c_float
-
-  @[link_name="SDL_round"]
-  fn round(x c::c_double) c::c_double
-
-  @[link_name="SDL_roundf"]
-  fn roundf(x c::c_float) c::c_float
-
-  @[link_name="SDL_lround"]
-  fn lround(x c::c_double) c::c_long
-
-  @[link_name="SDL_lroundf"]
-  fn lroundf(x c::c_float) c::c_long
-
-  @[link_name="SDL_scalbn"]
-  fn scalbn(x c::c_double, n c::c_int) c::c_double
-
-  @[link_name="SDL_scalbnf"]
-  fn scalbnf(x c::c_float, n c::c_int) c::c_float
-
-  @[link_name="SDL_sin"]
-  fn sin(x c::c_double) c::c_double
-
-  @[link_name="SDL_sinf"]
-  fn sinf(x c::c_float) c::c_float
-
-  @[link_name="SDL_sqrt"]
-  fn sqrt(x c::c_double) c::c_double
-
-  @[link_name="SDL_sqrtf"]
-  fn sqrtf(x c::c_float) c::c_float
-
-  @[link_name="SDL_tan"]
-  fn tan(x c::c_double) c::c_double
-
-  @[link_name="SDL_tanf"]
-  fn tanf(x c::c_float) c::c_float
-
-  @[link_name="SDL_iconv_open"]
-  fn iconv_open(tocode c::ConstCString, fromcode c::ConstCString) iconv_t
-
-  @[link_name="SDL_iconv_close"]
-  fn iconv_close(cd iconv_t) c::c_int
-
-  @[link_name="SDL_iconv"]
-  fn iconv(cd iconv_t, inbuf *c::ConstCString, inbytesleft *c::c_size_t, outbuf *c::CString, outbytesleft *c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_iconv_string"]
-  fn iconv_string(tocode c::ConstCString, fromcode c::ConstCString, inbuf c::ConstCString, inbytesleft c::c_size_t) c::CString
-
-  @[link_name="SDL_size_mul_check_overflow"]
-  fn size_mul_check_overflow(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
-
-  @[link_name="SDL_size_mul_check_overflow_builtin"]
-  fn size_mul_check_overflow_builtin(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
-
-  @[link_name="SDL_size_add_check_overflow"]
-  fn size_add_check_overflow(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
-
-  @[link_name="SDL_size_add_check_overflow_builtin"]
-  fn size_add_check_overflow_builtin(a c::c_size_t, b c::c_size_t, ret *c::c_size_t) bool
-
-  @[link_name="SDL_ReportAssertion"]
-  fn report_assertion(data *AssertData, func c::ConstCString, file c::ConstCString, line c::c_int) AssertState
-
-  @[link_name="SDL_SetAssertionHandler"]
-  fn set_assertion_handler(handler AssertionHandler, userdata rawptr)
-
-  @[link_name="SDL_GetDefaultAssertionHandler"]
-  fn get_default_assertion_handler() AssertionHandler
-
-  @[link_name="SDL_GetAssertionHandler"]
-  fn get_assertion_handler(puserdata *rawptr) AssertionHandler
-
-  @[link_name="SDL_GetAssertionReport"]
-  fn get_assertion_report() const *AssertData
-
-  @[link_name="SDL_ResetAssertionReport"]
-  fn reset_assertion_report()
-
-  @[link_name="SDL_AsyncIOFromFile"]
-  fn async_io_from_file(file c::ConstCString, mode c::ConstCString) *AsyncIO
-
-  @[link_name="SDL_GetAsyncIOSize"]
-  fn get_async_io_size(asyncio *AsyncIO) i64
-
-  @[link_name="SDL_ReadAsyncIO"]
-  fn read_async_io(asyncio *AsyncIO, ptr rawptr, offset u64, size u64, queue *AsyncIOQueue, userdata rawptr) bool
-
-  @[link_name="SDL_WriteAsyncIO"]
-  fn write_async_io(asyncio *AsyncIO, ptr rawptr, offset u64, size u64, queue *AsyncIOQueue, userdata rawptr) bool
-
-  @[link_name="SDL_CloseAsyncIO"]
-  fn close_async_io(asyncio *AsyncIO, flush bool, queue *AsyncIOQueue, userdata rawptr) bool
-
-  @[link_name="SDL_CreateAsyncIOQueue"]
-  fn create_async_io_queue() *AsyncIOQueue
-
-  @[link_name="SDL_DestroyAsyncIOQueue"]
-  fn destroy_async_io_queue(queue *AsyncIOQueue)
-
-  @[link_name="SDL_GetAsyncIOResult"]
-  fn get_async_io_result(queue *AsyncIOQueue, outcome *AsyncIOOutcome) bool
-
-  @[link_name="SDL_WaitAsyncIOResult"]
-  fn wait_async_io_result(queue *AsyncIOQueue, outcome *AsyncIOOutcome, timeoutMS i32) bool
-
-  @[link_name="SDL_SignalAsyncIOQueue"]
-  fn signal_async_io_queue(queue *AsyncIOQueue)
-
-  @[link_name="SDL_LoadFileAsync"]
-  fn load_file_async(file c::ConstCString, queue *AsyncIOQueue, userdata rawptr) bool
-
-  @[link_name="SDL_TryLockSpinlock"]
-  fn try_lock_spinlock(lock *SpinLock) bool
-
-  @[link_name="SDL_LockSpinlock"]
-  fn lock_spinlock(lock *SpinLock)
-
-  @[link_name="SDL_UnlockSpinlock"]
-  fn unlock_spinlock(lock *SpinLock)
-
-  @[link_name="SDL_MemoryBarrierReleaseFunction"]
-  fn memory_barrier_release_function()
-
-  @[link_name="SDL_MemoryBarrierAcquireFunction"]
-  fn memory_barrier_acquire_function()
-
-  @[link_name="SDL_CompareAndSwapAtomicInt"]
-  fn compare_and_swap_atomic_int(a *AtomicInt, oldval c::c_int, newval c::c_int) bool
-
-  @[link_name="SDL_SetAtomicInt"]
-  fn set_atomic_int(a *AtomicInt, v c::c_int) c::c_int
-
-  @[link_name="SDL_GetAtomicInt"]
-  fn get_atomic_int(a *AtomicInt) c::c_int
-
-  @[link_name="SDL_AddAtomicInt"]
-  fn add_atomic_int(a *AtomicInt, v c::c_int) c::c_int
-
-  @[link_name="SDL_CompareAndSwapAtomicU32"]
-  fn compare_and_swap_atomic_u32(a *AtomicU32, oldval u32, newval u32) bool
-
-  @[link_name="SDL_SetAtomicU32"]
-  fn set_atomic_u32(a *AtomicU32, v u32) u32
-
-  @[link_name="SDL_GetAtomicU32"]
-  fn get_atomic_u32(a *AtomicU32) u32
-
-  @[link_name="SDL_CompareAndSwapAtomicPointer"]
-  fn compare_and_swap_atomic_pointer(a *rawptr, oldval rawptr, newval rawptr) bool
-
-  @[link_name="SDL_SetAtomicPointer"]
-  fn set_atomic_pointer(a *rawptr, v rawptr) rawptr
-
-  @[link_name="SDL_GetAtomicPointer"]
-  fn get_atomic_pointer(a *rawptr) rawptr
-
-  @[link_name="SDL_SwapFloat"]
-  fn swap_float(x c::c_float) c::c_float
-
-  @[link_name="SDL_SetError"]
-  fn set_error(fmt c::ConstCString, args @c ...) bool
-
-  @[link_name="SDL_SetErrorV"]
-  fn set_error_v(fmt c::ConstCString, ap c::c_va_list) bool
-
-  @[link_name="SDL_OutOfMemory"]
-  fn out_of_memory() bool
-
-  @[link_name="SDL_GetError"]
-  fn get_error() c::ConstCString
-
-  @[link_name="SDL_ClearError"]
-  fn clear_error() bool
-
-  @[link_name="SDL_GetGlobalProperties"]
-  fn get_global_properties() PropertiesID
-
-  @[link_name="SDL_CreateProperties"]
-  fn create_properties() PropertiesID
-
-  @[link_name="SDL_CopyProperties"]
-  fn copy_properties(src PropertiesID, dst PropertiesID) bool
-
-  @[link_name="SDL_LockProperties"]
-  fn lock_properties(props PropertiesID) bool
-
-  @[link_name="SDL_UnlockProperties"]
-  fn unlock_properties(props PropertiesID)
-
-  @[link_name="SDL_SetPointerPropertyWithCleanup"]
-  fn set_pointer_property_with_cleanup(props PropertiesID, name c::ConstCString, value rawptr, cleanup CleanupPropertyCallback, userdata rawptr) bool
-
-  @[link_name="SDL_SetPointerProperty"]
-  fn set_pointer_property(props PropertiesID, name c::ConstCString, value rawptr) bool
-
-  @[link_name="SDL_SetStringProperty"]
-  fn set_string_property(props PropertiesID, name c::ConstCString, value c::ConstCString) bool
-
-  @[link_name="SDL_SetNumberProperty"]
-  fn set_number_property(props PropertiesID, name c::ConstCString, value i64) bool
-
-  @[link_name="SDL_SetFloatProperty"]
-  fn set_float_property(props PropertiesID, name c::ConstCString, value c::c_float) bool
-
-  @[link_name="SDL_SetBooleanProperty"]
-  fn set_boolean_property(props PropertiesID, name c::ConstCString, value bool) bool
-
-  @[link_name="SDL_HasProperty"]
-  fn has_property(props PropertiesID, name c::ConstCString) bool
-
-  @[link_name="SDL_GetPropertyType"]
-  fn get_property_type(props PropertiesID, name c::ConstCString) PropertyType
-
-  @[link_name="SDL_GetPointerProperty"]
-  fn get_pointer_property(props PropertiesID, name c::ConstCString, default_value rawptr) rawptr
-
-  @[link_name="SDL_GetStringProperty"]
-  fn get_string_property(props PropertiesID, name c::ConstCString, default_value c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_GetNumberProperty"]
-  fn get_number_property(props PropertiesID, name c::ConstCString, default_value i64) i64
-
-  @[link_name="SDL_GetFloatProperty"]
-  fn get_float_property(props PropertiesID, name c::ConstCString, default_value c::c_float) c::c_float
-
-  @[link_name="SDL_GetBooleanProperty"]
-  fn get_boolean_property(props PropertiesID, name c::ConstCString, default_value bool) bool
-
-  @[link_name="SDL_ClearProperty"]
-  fn clear_property(props PropertiesID, name c::ConstCString) bool
-
-  @[link_name="SDL_EnumerateProperties"]
-  fn enumerate_properties(props PropertiesID, callback EnumeratePropertiesCallback, userdata rawptr) bool
-
-  @[link_name="SDL_DestroyProperties"]
-  fn destroy_properties(props PropertiesID)
-
-  @[link_name="SDL_CreateThreadRuntime"]
-  fn create_thread_runtime(fn_ ThreadFunction, name c::ConstCString, data rawptr, pfnBeginThread FunctionPointer, pfnEndThread FunctionPointer) *Thread
-
-  @[link_name="SDL_CreateThreadWithPropertiesRuntime"]
-  fn create_thread_with_properties_runtime(props PropertiesID, pfnBeginThread FunctionPointer, pfnEndThread FunctionPointer) *Thread
-
-  @[link_name="SDL_GetThreadName"]
-  fn get_thread_name(thread *Thread) c::ConstCString
-
-  @[link_name="SDL_GetCurrentThreadID"]
-  fn get_current_thread_id() ThreadID
-
-  @[link_name="SDL_GetThreadID"]
-  fn get_thread_id(thread *Thread) ThreadID
-
-  @[link_name="SDL_SetCurrentThreadPriority"]
-  fn set_current_thread_priority(priority ThreadPriority) bool
-
-  @[link_name="SDL_WaitThread"]
-  fn wait_thread(thread *Thread, status *c::c_int)
-
-  @[link_name="SDL_GetThreadState"]
-  fn get_thread_state(thread *Thread) ThreadState
-
-  @[link_name="SDL_DetachThread"]
-  fn detach_thread(thread *Thread)
-
-  @[link_name="SDL_GetTLS"]
-  fn get_tls(id *TLSID) rawptr
-
-  @[link_name="SDL_SetTLS"]
-  fn set_tls(id *TLSID, value const *Void, destructor TLSDestructorCallback) bool
-
-  @[link_name="SDL_CleanupTLS"]
-  fn cleanup_tls()
-
-  @[link_name="SDL_CreateMutex"]
-  fn create_mutex() *Mutex
-
-  @[link_name="SDL_LockMutex"]
-  fn lock_mutex(mutex *Mutex)
-
-  @[link_name="SDL_TryLockMutex"]
-  fn try_lock_mutex(mutex *Mutex) bool
-
-  @[link_name="SDL_UnlockMutex"]
-  fn unlock_mutex(mutex *Mutex)
-
-  @[link_name="SDL_DestroyMutex"]
-  fn destroy_mutex(mutex *Mutex)
-
-  @[link_name="SDL_CreateRWLock"]
-  fn create_rw_lock() *RWLock
-
-  @[link_name="SDL_LockRWLockForReading"]
-  fn lock_rw_lock_for_reading(rwlock *RWLock)
-
-  @[link_name="SDL_LockRWLockForWriting"]
-  fn lock_rw_lock_for_writing(rwlock *RWLock)
-
-  @[link_name="SDL_TryLockRWLockForReading"]
-  fn try_lock_rw_lock_for_reading(rwlock *RWLock) bool
-
-  @[link_name="SDL_TryLockRWLockForWriting"]
-  fn try_lock_rw_lock_for_writing(rwlock *RWLock) bool
-
-  @[link_name="SDL_UnlockRWLock"]
-  fn unlock_rw_lock(rwlock *RWLock)
-
-  @[link_name="SDL_DestroyRWLock"]
-  fn destroy_rw_lock(rwlock *RWLock)
-
-  @[link_name="SDL_CreateSemaphore"]
-  fn create_semaphore(initial_value u32) *Semaphore
-
-  @[link_name="SDL_DestroySemaphore"]
-  fn destroy_semaphore(sem *Semaphore)
-
-  @[link_name="SDL_WaitSemaphore"]
-  fn wait_semaphore(sem *Semaphore)
-
-  @[link_name="SDL_TryWaitSemaphore"]
-  fn try_wait_semaphore(sem *Semaphore) bool
-
-  @[link_name="SDL_WaitSemaphoreTimeout"]
-  fn wait_semaphore_timeout(sem *Semaphore, timeoutMS i32) bool
-
-  @[link_name="SDL_SignalSemaphore"]
-  fn signal_semaphore(sem *Semaphore)
-
-  @[link_name="SDL_GetSemaphoreValue"]
-  fn get_semaphore_value(sem *Semaphore) u32
-
-  @[link_name="SDL_CreateCondition"]
-  fn create_condition() *Condition
-
-  @[link_name="SDL_DestroyCondition"]
-  fn destroy_condition(cond *Condition)
-
-  @[link_name="SDL_SignalCondition"]
-  fn signal_condition(cond *Condition)
-
-  @[link_name="SDL_BroadcastCondition"]
-  fn broadcast_condition(cond *Condition)
-
-  @[link_name="SDL_WaitCondition"]
-  fn wait_condition(cond *Condition, mutex *Mutex)
-
-  @[link_name="SDL_WaitConditionTimeout"]
-  fn wait_condition_timeout(cond *Condition, mutex *Mutex, timeoutMS i32) bool
-
-  @[link_name="SDL_ShouldInit"]
-  fn should_init(state *InitState) bool
-
-  @[link_name="SDL_ShouldQuit"]
-  fn should_quit(state *InitState) bool
-
-  @[link_name="SDL_SetInitialized"]
-  fn set_initialized(state *InitState, initialized bool)
-
-  @[link_name="SDL_IOFromFile"]
-  fn io_from_file(file c::ConstCString, mode c::ConstCString) *IOStream
-
-  @[link_name="SDL_IOFromMem"]
-  fn io_from_mem(mem rawptr, size c::c_size_t) *IOStream
-
-  @[link_name="SDL_IOFromConstMem"]
-  fn io_from_const_mem(mem const *Void, size c::c_size_t) *IOStream
-
-  @[link_name="SDL_IOFromDynamicMem"]
-  fn io_from_dynamic_mem() *IOStream
-
-  @[link_name="SDL_OpenIO"]
-  fn open_io(iface const *IOStreamInterface, userdata rawptr) *IOStream
-
-  @[link_name="SDL_CloseIO"]
-  fn close_io(context *IOStream) bool
-
-  @[link_name="SDL_GetIOProperties"]
-  fn get_io_properties(context *IOStream) PropertiesID
-
-  @[link_name="SDL_GetIOStatus"]
-  fn get_io_status(context *IOStream) IOStatus
-
-  @[link_name="SDL_GetIOSize"]
-  fn get_io_size(context *IOStream) i64
-
-  @[link_name="SDL_SeekIO"]
-  fn seek_io(context *IOStream, offset i64, whence IOWhence) i64
-
-  @[link_name="SDL_TellIO"]
-  fn tell_io(context *IOStream) i64
-
-  @[link_name="SDL_ReadIO"]
-  fn read_io(context *IOStream, ptr rawptr, size c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_WriteIO"]
-  fn write_io(context *IOStream, ptr const *Void, size c::c_size_t) c::c_size_t
-
-  @[link_name="SDL_IOprintf"]
-  fn i_oprintf(context *IOStream, fmt c::ConstCString, args @c ...) c::c_size_t
-
-  @[link_name="SDL_IOvprintf"]
-  fn i_ovprintf(context *IOStream, fmt c::ConstCString, ap c::c_va_list) c::c_size_t
-
-  @[link_name="SDL_FlushIO"]
-  fn flush_io(context *IOStream) bool
-
-  @[link_name="SDL_LoadFile_IO"]
-  fn load_file_io(src *IOStream, datasize *c::c_size_t, closeio bool) rawptr
-
-  @[link_name="SDL_LoadFile"]
-  fn load_file(file c::ConstCString, datasize *c::c_size_t) rawptr
-
-  @[link_name="SDL_SaveFile_IO"]
-  fn save_file_io(src *IOStream, data const *Void, datasize c::c_size_t, closeio bool) bool
-
-  @[link_name="SDL_SaveFile"]
-  fn save_file(file c::ConstCString, data const *Void, datasize c::c_size_t) bool
-
-  @[link_name="SDL_ReadU8"]
-  fn read_u8(src *IOStream, value *u8) bool
-
-  @[link_name="SDL_ReadS8"]
-  fn read_s8(src *IOStream, value *i8) bool
-
-  @[link_name="SDL_ReadU16LE"]
-  fn read_u16_le(src *IOStream, value *u16) bool
-
-  @[link_name="SDL_ReadS16LE"]
-  fn read_s16_le(src *IOStream, value *i16) bool
-
-  @[link_name="SDL_ReadU16BE"]
-  fn read_u16_be(src *IOStream, value *u16) bool
-
-  @[link_name="SDL_ReadS16BE"]
-  fn read_s16_be(src *IOStream, value *i16) bool
-
-  @[link_name="SDL_ReadU32LE"]
-  fn read_u32_le(src *IOStream, value *u32) bool
-
-  @[link_name="SDL_ReadS32LE"]
-  fn read_s32_le(src *IOStream, value *i32) bool
-
-  @[link_name="SDL_ReadU32BE"]
-  fn read_u32_be(src *IOStream, value *u32) bool
-
-  @[link_name="SDL_ReadS32BE"]
-  fn read_s32_be(src *IOStream, value *i32) bool
-
-  @[link_name="SDL_ReadU64LE"]
-  fn read_u64_le(src *IOStream, value *u64) bool
-
-  @[link_name="SDL_ReadS64LE"]
-  fn read_s64_le(src *IOStream, value *i64) bool
-
-  @[link_name="SDL_ReadU64BE"]
-  fn read_u64_be(src *IOStream, value *u64) bool
-
-  @[link_name="SDL_ReadS64BE"]
-  fn read_s64_be(src *IOStream, value *i64) bool
-
-  @[link_name="SDL_WriteU8"]
-  fn write_u8(dst *IOStream, value u8) bool
-
-  @[link_name="SDL_WriteS8"]
-  fn write_s8(dst *IOStream, value i8) bool
-
-  @[link_name="SDL_WriteU16LE"]
-  fn write_u16_le(dst *IOStream, value u16) bool
-
-  @[link_name="SDL_WriteS16LE"]
-  fn write_s16_le(dst *IOStream, value i16) bool
-
-  @[link_name="SDL_WriteU16BE"]
-  fn write_u16_be(dst *IOStream, value u16) bool
-
-  @[link_name="SDL_WriteS16BE"]
-  fn write_s16_be(dst *IOStream, value i16) bool
-
-  @[link_name="SDL_WriteU32LE"]
-  fn write_u32_le(dst *IOStream, value u32) bool
-
-  @[link_name="SDL_WriteS32LE"]
-  fn write_s32_le(dst *IOStream, value i32) bool
-
-  @[link_name="SDL_WriteU32BE"]
-  fn write_u32_be(dst *IOStream, value u32) bool
-
-  @[link_name="SDL_WriteS32BE"]
-  fn write_s32_be(dst *IOStream, value i32) bool
-
-  @[link_name="SDL_WriteU64LE"]
-  fn write_u64_le(dst *IOStream, value u64) bool
-
-  @[link_name="SDL_WriteS64LE"]
-  fn write_s64_le(dst *IOStream, value i64) bool
-
-  @[link_name="SDL_WriteU64BE"]
-  fn write_u64_be(dst *IOStream, value u64) bool
-
-  @[link_name="SDL_WriteS64BE"]
-  fn write_s64_be(dst *IOStream, value i64) bool
-
-  @[link_name="SDL_GetNumAudioDrivers"]
-  fn get_num_audio_drivers() c::c_int
-
-  @[link_name="SDL_GetAudioDriver"]
-  fn get_audio_driver(index c::c_int) c::ConstCString
-
-  @[link_name="SDL_GetCurrentAudioDriver"]
-  fn get_current_audio_driver() c::ConstCString
-
-  @[link_name="SDL_GetAudioPlaybackDevices"]
-  fn get_audio_playback_devices(count *c::c_int) *AudioDeviceID
-
-  @[link_name="SDL_GetAudioRecordingDevices"]
-  fn get_audio_recording_devices(count *c::c_int) *AudioDeviceID
-
-  @[link_name="SDL_GetAudioDeviceName"]
-  fn get_audio_device_name(devid AudioDeviceID) c::ConstCString
-
-  @[link_name="SDL_GetAudioDeviceFormat"]
-  fn get_audio_device_format(devid AudioDeviceID, spec *AudioSpec, sample_frames *c::c_int) bool
-
-  @[link_name="SDL_GetAudioDeviceChannelMap"]
-  fn get_audio_device_channel_map(devid AudioDeviceID, count *c::c_int) *c::c_int
-
-  @[link_name="SDL_OpenAudioDevice"]
-  fn open_audio_device(devid AudioDeviceID, spec const *AudioSpec) AudioDeviceID
-
-  @[link_name="SDL_IsAudioDevicePhysical"]
-  fn is_audio_device_physical(devid AudioDeviceID) bool
-
-  @[link_name="SDL_IsAudioDevicePlayback"]
-  fn is_audio_device_playback(devid AudioDeviceID) bool
-
-  @[link_name="SDL_PauseAudioDevice"]
-  fn pause_audio_device(devid AudioDeviceID) bool
-
-  @[link_name="SDL_ResumeAudioDevice"]
-  fn resume_audio_device(devid AudioDeviceID) bool
-
-  @[link_name="SDL_AudioDevicePaused"]
-  fn audio_device_paused(devid AudioDeviceID) bool
-
-  @[link_name="SDL_GetAudioDeviceGain"]
-  fn get_audio_device_gain(devid AudioDeviceID) c::c_float
-
-  @[link_name="SDL_SetAudioDeviceGain"]
-  fn set_audio_device_gain(devid AudioDeviceID, gain c::c_float) bool
-
-  @[link_name="SDL_CloseAudioDevice"]
-  fn close_audio_device(devid AudioDeviceID)
-
-  @[link_name="SDL_BindAudioStreams"]
-  fn bind_audio_streams(devid AudioDeviceID, streams const **AudioStream, num_streams c::c_int) bool
-
-  @[link_name="SDL_BindAudioStream"]
-  fn bind_audio_stream(devid AudioDeviceID, stream *AudioStream) bool
-
-  @[link_name="SDL_UnbindAudioStreams"]
-  fn unbind_audio_streams(streams const **AudioStream, num_streams c::c_int)
-
-  @[link_name="SDL_UnbindAudioStream"]
-  fn unbind_audio_stream(stream *AudioStream)
-
-  @[link_name="SDL_GetAudioStreamDevice"]
-  fn get_audio_stream_device(stream *AudioStream) AudioDeviceID
-
-  @[link_name="SDL_CreateAudioStream"]
-  fn create_audio_stream(src_spec const *AudioSpec, dst_spec const *AudioSpec) *AudioStream
-
-  @[link_name="SDL_GetAudioStreamProperties"]
-  fn get_audio_stream_properties(stream *AudioStream) PropertiesID
-
-  @[link_name="SDL_GetAudioStreamFormat"]
-  fn get_audio_stream_format(stream *AudioStream, src_spec *AudioSpec, dst_spec *AudioSpec) bool
-
-  @[link_name="SDL_SetAudioStreamFormat"]
-  fn set_audio_stream_format(stream *AudioStream, src_spec const *AudioSpec, dst_spec const *AudioSpec) bool
-
-  @[link_name="SDL_GetAudioStreamFrequencyRatio"]
-  fn get_audio_stream_frequency_ratio(stream *AudioStream) c::c_float
-
-  @[link_name="SDL_SetAudioStreamFrequencyRatio"]
-  fn set_audio_stream_frequency_ratio(stream *AudioStream, ratio c::c_float) bool
-
-  @[link_name="SDL_GetAudioStreamGain"]
-  fn get_audio_stream_gain(stream *AudioStream) c::c_float
-
-  @[link_name="SDL_SetAudioStreamGain"]
-  fn set_audio_stream_gain(stream *AudioStream, gain c::c_float) bool
-
-  @[link_name="SDL_GetAudioStreamInputChannelMap"]
-  fn get_audio_stream_input_channel_map(stream *AudioStream, count *c::c_int) *c::c_int
-
-  @[link_name="SDL_GetAudioStreamOutputChannelMap"]
-  fn get_audio_stream_output_channel_map(stream *AudioStream, count *c::c_int) *c::c_int
-
-  @[link_name="SDL_SetAudioStreamInputChannelMap"]
-  fn set_audio_stream_input_channel_map(stream *AudioStream, chmap const *c::c_int, count c::c_int) bool
-
-  @[link_name="SDL_SetAudioStreamOutputChannelMap"]
-  fn set_audio_stream_output_channel_map(stream *AudioStream, chmap const *c::c_int, count c::c_int) bool
-
-  @[link_name="SDL_PutAudioStreamData"]
-  fn put_audio_stream_data(stream *AudioStream, buf const *Void, len c::c_int) bool
-
-  @[link_name="SDL_GetAudioStreamData"]
-  fn get_audio_stream_data(stream *AudioStream, buf rawptr, len c::c_int) c::c_int
-
-  @[link_name="SDL_GetAudioStreamAvailable"]
-  fn get_audio_stream_available(stream *AudioStream) c::c_int
-
-  @[link_name="SDL_GetAudioStreamQueued"]
-  fn get_audio_stream_queued(stream *AudioStream) c::c_int
-
-  @[link_name="SDL_FlushAudioStream"]
-  fn flush_audio_stream(stream *AudioStream) bool
-
-  @[link_name="SDL_ClearAudioStream"]
-  fn clear_audio_stream(stream *AudioStream) bool
-
-  @[link_name="SDL_PauseAudioStreamDevice"]
-  fn pause_audio_stream_device(stream *AudioStream) bool
-
-  @[link_name="SDL_ResumeAudioStreamDevice"]
-  fn resume_audio_stream_device(stream *AudioStream) bool
-
-  @[link_name="SDL_AudioStreamDevicePaused"]
-  fn audio_stream_device_paused(stream *AudioStream) bool
-
-  @[link_name="SDL_LockAudioStream"]
-  fn lock_audio_stream(stream *AudioStream) bool
-
-  @[link_name="SDL_UnlockAudioStream"]
-  fn unlock_audio_stream(stream *AudioStream) bool
-
-  @[link_name="SDL_SetAudioStreamGetCallback"]
-  fn set_audio_stream_get_callback(stream *AudioStream, callback AudioStreamCallback, userdata rawptr) bool
-
-  @[link_name="SDL_SetAudioStreamPutCallback"]
-  fn set_audio_stream_put_callback(stream *AudioStream, callback AudioStreamCallback, userdata rawptr) bool
-
-  @[link_name="SDL_DestroyAudioStream"]
-  fn destroy_audio_stream(stream *AudioStream)
-
-  @[link_name="SDL_OpenAudioDeviceStream"]
-  fn open_audio_device_stream(devid AudioDeviceID, spec const *AudioSpec, callback AudioStreamCallback, userdata rawptr) *AudioStream
-
-  @[link_name="SDL_SetAudioPostmixCallback"]
-  fn set_audio_postmix_callback(devid AudioDeviceID, callback AudioPostmixCallback, userdata rawptr) bool
-
-  @[link_name="SDL_LoadWAV_IO"]
-  fn load_wav_io(src *IOStream, closeio bool, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool
-
-  @[link_name="SDL_LoadWAV"]
-  fn load_wav(path c::ConstCString, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool
-
-  @[link_name="SDL_MixAudio"]
-  fn mix_audio(dst *u8, src const *u8, format AudioFormat, len u32, volume c::c_float) bool
-
-  @[link_name="SDL_ConvertAudioSamples"]
-  fn convert_audio_samples(src_spec const *AudioSpec, src_data const *u8, src_len c::c_int, dst_spec const *AudioSpec, dst_data **u8, dst_len *c::c_int) bool
-
-  @[link_name="SDL_GetAudioFormatName"]
-  fn get_audio_format_name(format AudioFormat) c::ConstCString
-
-  @[link_name="SDL_GetSilenceValueForFormat"]
-  fn get_silence_value_for_format(format AudioFormat) c::c_int
-
-  @[link_name="SDL_MostSignificantBitIndex32"]
-  fn most_significant_bit_index32(x u32) c::c_int
-
-  @[link_name="SDL_HasExactlyOneBitSet32"]
-  fn has_exactly_one_bit_set32(x u32) bool
-
-  @[link_name="SDL_ComposeCustomBlendMode"]
-  fn compose_custom_blend_mode(srcColorFactor BlendFactor, dstColorFactor BlendFactor, colorOperation BlendOperation, srcAlphaFactor BlendFactor, dstAlphaFactor BlendFactor, alphaOperation BlendOperation) BlendMode
-
-  @[link_name="SDL_GetPixelFormatName"]
-  fn get_pixel_format_name(format PixelFormat) c::ConstCString
-
-  @[link_name="SDL_GetMasksForPixelFormat"]
-  fn get_masks_for_pixel_format(format PixelFormat, bpp *c::c_int, Rmask *u32, Gmask *u32, Bmask *u32, Amask *u32) bool
-
-  @[link_name="SDL_GetPixelFormatForMasks"]
-  fn get_pixel_format_for_masks(bpp c::c_int, Rmask u32, Gmask u32, Bmask u32, Amask u32) PixelFormat
-
-  @[link_name="SDL_GetPixelFormatDetails"]
-  fn get_pixel_format_details(format PixelFormat) const *PixelFormatDetails
-
-  @[link_name="SDL_CreatePalette"]
-  fn create_palette(ncolors c::c_int) *Palette
-
-  @[link_name="SDL_SetPaletteColors"]
-  fn set_palette_colors(palette *Palette, colors const *Color, firstcolor c::c_int, ncolors c::c_int) bool
-
-  @[link_name="SDL_DestroyPalette"]
-  fn destroy_palette(palette *Palette)
-
-  @[link_name="SDL_MapRGB"]
-  fn map_rgb(format const *PixelFormatDetails, palette const *Palette, r u8, g u8, b u8) u32
-
-  @[link_name="SDL_MapRGBA"]
-  fn map_rgba(format const *PixelFormatDetails, palette const *Palette, r u8, g u8, b u8, a u8) u32
-
-  @[link_name="SDL_GetRGB"]
-  fn get_rgb(pixel u32, format const *PixelFormatDetails, palette const *Palette, r *u8, g *u8, b *u8)
-
-  @[link_name="SDL_GetRGBA"]
-  fn get_rgba(pixel u32, format const *PixelFormatDetails, palette const *Palette, r *u8, g *u8, b *u8, a *u8)
-
-  @[link_name="SDL_RectToFRect"]
-  fn rect_to_f_rect(rect const *Rect, frect *FRect)
-
-  @[link_name="SDL_PointInRect"]
-  fn point_in_rect(p const *Point, r const *Rect) bool
-
-  @[link_name="SDL_RectEmpty"]
-  fn rect_empty(r const *Rect) bool
-
-  @[link_name="SDL_RectsEqual"]
-  fn rects_equal(a const *Rect, b const *Rect) bool
-
-  @[link_name="SDL_HasRectIntersection"]
-  fn has_rect_intersection(A const *Rect, B const *Rect) bool
-
-  @[link_name="SDL_GetRectIntersection"]
-  fn get_rect_intersection(A const *Rect, B const *Rect, result *Rect) bool
-
-  @[link_name="SDL_GetRectUnion"]
-  fn get_rect_union(A const *Rect, B const *Rect, result *Rect) bool
-
-  @[link_name="SDL_GetRectEnclosingPoints"]
-  fn get_rect_enclosing_points(points const *Point, count c::c_int, clip const *Rect, result *Rect) bool
-
-  @[link_name="SDL_GetRectAndLineIntersection"]
-  fn get_rect_and_line_intersection(rect const *Rect, X1 *c::c_int, Y1 *c::c_int, X2 *c::c_int, Y2 *c::c_int) bool
-
-  @[link_name="SDL_PointInRectFloat"]
-  fn point_in_rect_float(p const *FPoint, r const *FRect) bool
-
-  @[link_name="SDL_RectEmptyFloat"]
-  fn rect_empty_float(r const *FRect) bool
-
-  @[link_name="SDL_RectsEqualEpsilon"]
-  fn rects_equal_epsilon(a const *FRect, b const *FRect, epsilon c::c_float) bool
-
-  @[link_name="SDL_RectsEqualFloat"]
-  fn rects_equal_float(a const *FRect, b const *FRect) bool
-
-  @[link_name="SDL_HasRectIntersectionFloat"]
-  fn has_rect_intersection_float(A const *FRect, B const *FRect) bool
-
-  @[link_name="SDL_GetRectIntersectionFloat"]
-  fn get_rect_intersection_float(A const *FRect, B const *FRect, result *FRect) bool
-
-  @[link_name="SDL_GetRectUnionFloat"]
-  fn get_rect_union_float(A const *FRect, B const *FRect, result *FRect) bool
-
-  @[link_name="SDL_GetRectEnclosingPointsFloat"]
-  fn get_rect_enclosing_points_float(points const *FPoint, count c::c_int, clip const *FRect, result *FRect) bool
-
-  @[link_name="SDL_GetRectAndLineIntersectionFloat"]
-  fn get_rect_and_line_intersection_float(rect const *FRect, X1 *c::c_float, Y1 *c::c_float, X2 *c::c_float, Y2 *c::c_float) bool
-
-  @[link_name="SDL_CreateSurface"]
-  fn create_surface(width c::c_int, height c::c_int, format PixelFormat) *Surface
-
-  @[link_name="SDL_CreateSurfaceFrom"]
-  fn create_surface_from(width c::c_int, height c::c_int, format PixelFormat, pixels rawptr, pitch c::c_int) *Surface
-
-  @[link_name="SDL_DestroySurface"]
-  fn destroy_surface(surface *Surface)
-
-  @[link_name="SDL_GetSurfaceProperties"]
-  fn get_surface_properties(surface *Surface) PropertiesID
-
-  @[link_name="SDL_SetSurfaceColorspace"]
-  fn set_surface_colorspace(surface *Surface, colorspace Colorspace) bool
-
-  @[link_name="SDL_GetSurfaceColorspace"]
-  fn get_surface_colorspace(surface *Surface) Colorspace
-
-  @[link_name="SDL_CreateSurfacePalette"]
-  fn create_surface_palette(surface *Surface) *Palette
-
-  @[link_name="SDL_SetSurfacePalette"]
-  fn set_surface_palette(surface *Surface, palette *Palette) bool
-
-  @[link_name="SDL_GetSurfacePalette"]
-  fn get_surface_palette(surface *Surface) *Palette
-
-  @[link_name="SDL_AddSurfaceAlternateImage"]
-  fn add_surface_alternate_image(surface *Surface, image *Surface) bool
-
-  @[link_name="SDL_SurfaceHasAlternateImages"]
-  fn surface_has_alternate_images(surface *Surface) bool
-
-  @[link_name="SDL_GetSurfaceImages"]
-  fn get_surface_images(surface *Surface, count *c::c_int) **Surface
-
-  @[link_name="SDL_RemoveSurfaceAlternateImages"]
-  fn remove_surface_alternate_images(surface *Surface)
-
-  @[link_name="SDL_LockSurface"]
-  fn lock_surface(surface *Surface) bool
-
-  @[link_name="SDL_UnlockSurface"]
-  fn unlock_surface(surface *Surface)
-
-  @[link_name="SDL_LoadBMP_IO"]
-  fn load_bmp_io(src *IOStream, closeio bool) *Surface
-
-  @[link_name="SDL_LoadBMP"]
-  fn load_bmp(file c::ConstCString) *Surface
-
-  @[link_name="SDL_SaveBMP_IO"]
-  fn save_bmp_io(surface *Surface, dst *IOStream, closeio bool) bool
-
-  @[link_name="SDL_SaveBMP"]
-  fn save_bmp(surface *Surface, file c::ConstCString) bool
-
-  @[link_name="SDL_SetSurfaceRLE"]
-  fn set_surface_rle(surface *Surface, enabled bool) bool
-
-  @[link_name="SDL_SurfaceHasRLE"]
-  fn surface_has_rle(surface *Surface) bool
-
-  @[link_name="SDL_SetSurfaceColorKey"]
-  fn set_surface_color_key(surface *Surface, enabled bool, key u32) bool
-
-  @[link_name="SDL_SurfaceHasColorKey"]
-  fn surface_has_color_key(surface *Surface) bool
-
-  @[link_name="SDL_GetSurfaceColorKey"]
-  fn get_surface_color_key(surface *Surface, key *u32) bool
-
-  @[link_name="SDL_SetSurfaceColorMod"]
-  fn set_surface_color_mod(surface *Surface, r u8, g u8, b u8) bool
-
-  @[link_name="SDL_GetSurfaceColorMod"]
-  fn get_surface_color_mod(surface *Surface, r *u8, g *u8, b *u8) bool
-
-  @[link_name="SDL_SetSurfaceAlphaMod"]
-  fn set_surface_alpha_mod(surface *Surface, alpha u8) bool
-
-  @[link_name="SDL_GetSurfaceAlphaMod"]
-  fn get_surface_alpha_mod(surface *Surface, alpha *u8) bool
-
-  @[link_name="SDL_SetSurfaceBlendMode"]
-  fn set_surface_blend_mode(surface *Surface, blendMode BlendMode) bool
-
-  @[link_name="SDL_GetSurfaceBlendMode"]
-  fn get_surface_blend_mode(surface *Surface, blendMode *BlendMode) bool
-
-  @[link_name="SDL_SetSurfaceClipRect"]
-  fn set_surface_clip_rect(surface *Surface, rect const *Rect) bool
-
-  @[link_name="SDL_GetSurfaceClipRect"]
-  fn get_surface_clip_rect(surface *Surface, rect *Rect) bool
-
-  @[link_name="SDL_FlipSurface"]
-  fn flip_surface(surface *Surface, flip FlipMode) bool
-
-  @[link_name="SDL_DuplicateSurface"]
-  fn duplicate_surface(surface *Surface) *Surface
-
-  @[link_name="SDL_ScaleSurface"]
-  fn scale_surface(surface *Surface, width c::c_int, height c::c_int, scaleMode ScaleMode) *Surface
-
-  @[link_name="SDL_ConvertSurface"]
-  fn convert_surface(surface *Surface, format PixelFormat) *Surface
-
-  @[link_name="SDL_ConvertSurfaceAndColorspace"]
-  fn convert_surface_and_colorspace(surface *Surface, format PixelFormat, palette *Palette, colorspace Colorspace, props PropertiesID) *Surface
-
-  @[link_name="SDL_ConvertPixels"]
-  fn convert_pixels(width c::c_int, height c::c_int, src_format PixelFormat, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst rawptr, dst_pitch c::c_int) bool
-
-  @[link_name="SDL_ConvertPixelsAndColorspace"]
-  fn convert_pixels_and_colorspace(width c::c_int, height c::c_int, src_format PixelFormat, src_colorspace Colorspace, src_properties PropertiesID, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst_colorspace Colorspace, dst_properties PropertiesID, dst rawptr, dst_pitch c::c_int) bool
-
-  @[link_name="SDL_PremultiplyAlpha"]
-  fn premultiply_alpha(width c::c_int, height c::c_int, src_format PixelFormat, src const *Void, src_pitch c::c_int, dst_format PixelFormat, dst rawptr, dst_pitch c::c_int, linear bool) bool
-
-  @[link_name="SDL_PremultiplySurfaceAlpha"]
-  fn premultiply_surface_alpha(surface *Surface, linear bool) bool
-
-  @[link_name="SDL_ClearSurface"]
-  fn clear_surface(surface *Surface, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
-
-  @[link_name="SDL_FillSurfaceRect"]
-  fn fill_surface_rect(dst *Surface, rect const *Rect, color u32) bool
-
-  @[link_name="SDL_FillSurfaceRects"]
-  fn fill_surface_rects(dst *Surface, rects const *Rect, count c::c_int, color u32) bool
-
-  @[link_name="SDL_BlitSurface"]
-  fn blit_surface(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool
-
-  @[link_name="SDL_BlitSurfaceUnchecked"]
-  fn blit_surface_unchecked(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool
-
-  @[link_name="SDL_BlitSurfaceScaled"]
-  fn blit_surface_scaled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool
-
-  @[link_name="SDL_BlitSurfaceUncheckedScaled"]
-  fn blit_surface_unchecked_scaled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool
-
-  @[link_name="SDL_StretchSurface"]
-  fn stretch_surface(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool
-
-  @[link_name="SDL_BlitSurfaceTiled"]
-  fn blit_surface_tiled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool
-
-  @[link_name="SDL_BlitSurfaceTiledWithScale"]
-  fn blit_surface_tiled_with_scale(src *Surface, srcrect const *Rect, scale c::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
-
-  @[link_name="SDL_BlitSurface9Grid"]
-  fn blit_surface9_grid(src *Surface, srcrect const *Rect, left_width c::c_int, right_width c::c_int, top_height c::c_int, bottom_height c::c_int, scale c::c_float, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool
-
-  @[link_name="SDL_MapSurfaceRGB"]
-  fn map_surface_rgb(surface *Surface, r u8, g u8, b u8) u32
-
-  @[link_name="SDL_MapSurfaceRGBA"]
-  fn map_surface_rgba(surface *Surface, r u8, g u8, b u8, a u8) u32
-
-  @[link_name="SDL_ReadSurfacePixel"]
-  fn read_surface_pixel(surface *Surface, x c::c_int, y c::c_int, r *u8, g *u8, b *u8, a *u8) bool
-
-  @[link_name="SDL_ReadSurfacePixelFloat"]
-  fn read_surface_pixel_float(surface *Surface, x c::c_int, y c::c_int, r *c::c_float, g *c::c_float, b *c::c_float, a *c::c_float) bool
-
-  @[link_name="SDL_WriteSurfacePixel"]
-  fn write_surface_pixel(surface *Surface, x c::c_int, y c::c_int, r u8, g u8, b u8, a u8) bool
-
-  @[link_name="SDL_WriteSurfacePixelFloat"]
-  fn write_surface_pixel_float(surface *Surface, x c::c_int, y c::c_int, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
-
-  @[link_name="SDL_GetNumCameraDrivers"]
-  fn get_num_camera_drivers() c::c_int
-
-  @[link_name="SDL_GetCameraDriver"]
-  fn get_camera_driver(index c::c_int) c::ConstCString
-
-  @[link_name="SDL_GetCurrentCameraDriver"]
-  fn get_current_camera_driver() c::ConstCString
-
-  @[link_name="SDL_GetCameras"]
-  fn get_cameras(count *c::c_int) *CameraID
-
-  @[link_name="SDL_GetCameraSupportedFormats"]
-  fn get_camera_supported_formats(instance_id CameraID, count *c::c_int) **CameraSpec
-
-  @[link_name="SDL_GetCameraName"]
-  fn get_camera_name(instance_id CameraID) c::ConstCString
-
-  @[link_name="SDL_GetCameraPosition"]
-  fn get_camera_position(instance_id CameraID) CameraPosition
-
-  @[link_name="SDL_OpenCamera"]
-  fn open_camera(instance_id CameraID, spec const *CameraSpec) *Camera
-
-  @[link_name="SDL_GetCameraPermissionState"]
-  fn get_camera_permission_state(camera *Camera) c::c_int
-
-  @[link_name="SDL_GetCameraID"]
-  fn get_camera_id(camera *Camera) CameraID
-
-  @[link_name="SDL_GetCameraProperties"]
-  fn get_camera_properties(camera *Camera) PropertiesID
-
-  @[link_name="SDL_GetCameraFormat"]
-  fn get_camera_format(camera *Camera, spec *CameraSpec) bool
-
-  @[link_name="SDL_AcquireCameraFrame"]
-  fn acquire_camera_frame(camera *Camera, timestampNS *u64) *Surface
-
-  @[link_name="SDL_ReleaseCameraFrame"]
-  fn release_camera_frame(camera *Camera, frame *Surface)
-
-  @[link_name="SDL_CloseCamera"]
-  fn close_camera(camera *Camera)
-
-  @[link_name="SDL_SetClipboardText"]
-  fn set_clipboard_text(text c::ConstCString) bool
-
-  @[link_name="SDL_GetClipboardText"]
-  fn get_clipboard_text() c::CString
-
-  @[link_name="SDL_HasClipboardText"]
-  fn has_clipboard_text() bool
-
-  @[link_name="SDL_SetPrimarySelectionText"]
-  fn set_primary_selection_text(text c::ConstCString) bool
-
-  @[link_name="SDL_GetPrimarySelectionText"]
-  fn get_primary_selection_text() c::CString
-
-  @[link_name="SDL_HasPrimarySelectionText"]
-  fn has_primary_selection_text() bool
-
-  @[link_name="SDL_SetClipboardData"]
-  fn set_clipboard_data(callback ClipboardDataCallback, cleanup ClipboardCleanupCallback, userdata rawptr, mime_types *c::ConstCString, num_mime_types c::c_size_t) bool
-
-  @[link_name="SDL_ClearClipboardData"]
-  fn clear_clipboard_data() bool
-
-  @[link_name="SDL_GetClipboardData"]
-  fn get_clipboard_data(mime_type c::ConstCString, size *c::c_size_t) rawptr
-
-  @[link_name="SDL_HasClipboardData"]
-  fn has_clipboard_data(mime_type c::ConstCString) bool
-
-  @[link_name="SDL_GetClipboardMimeTypes"]
-  fn get_clipboard_mime_types(num_mime_types *c::c_size_t) *c::CString
-
-  @[link_name="SDL_GetNumLogicalCPUCores"]
-  fn get_num_logical_cpu_cores() c::c_int
-
-  @[link_name="SDL_GetCPUCacheLineSize"]
-  fn get_cpu_cache_line_size() c::c_int
-
-  @[link_name="SDL_HasAltiVec"]
-  fn has_alti_vec() bool
-
-  @[link_name="SDL_HasMMX"]
-  fn has_mmx() bool
-
-  @[link_name="SDL_HasSSE"]
-  fn has_sse() bool
-
-  @[link_name="SDL_HasSSE2"]
-  fn has_sse2() bool
-
-  @[link_name="SDL_HasSSE3"]
-  fn has_sse3() bool
-
-  @[link_name="SDL_HasSSE41"]
-  fn has_sse41() bool
-
-  @[link_name="SDL_HasSSE42"]
-  fn has_sse42() bool
-
-  @[link_name="SDL_HasAVX"]
-  fn has_avx() bool
-
-  @[link_name="SDL_HasAVX2"]
-  fn has_avx2() bool
-
-  @[link_name="SDL_HasAVX512F"]
-  fn has_avx512_f() bool
-
-  @[link_name="SDL_HasARMSIMD"]
-  fn has_armsimd() bool
-
-  @[link_name="SDL_HasNEON"]
-  fn has_neon() bool
-
-  @[link_name="SDL_HasLSX"]
-  fn has_lsx() bool
-
-  @[link_name="SDL_HasLASX"]
-  fn has_lasx() bool
-
-  @[link_name="SDL_GetSystemRAM"]
-  fn get_system_ram() c::c_int
-
-  @[link_name="SDL_GetSIMDAlignment"]
-  fn get_simd_alignment() c::c_size_t
-
-  @[link_name="SDL_GetNumVideoDrivers"]
-  fn get_num_video_drivers() c::c_int
-
-  @[link_name="SDL_GetVideoDriver"]
-  fn get_video_driver(index c::c_int) c::ConstCString
-
-  @[link_name="SDL_GetCurrentVideoDriver"]
-  fn get_current_video_driver() c::ConstCString
-
-  @[link_name="SDL_GetSystemTheme"]
-  fn get_system_theme() SystemTheme
-
-  @[link_name="SDL_GetDisplays"]
-  fn get_displays(count *c::c_int) *DisplayID
-
-  @[link_name="SDL_GetPrimaryDisplay"]
-  fn get_primary_display() DisplayID
-
-  @[link_name="SDL_GetDisplayProperties"]
-  fn get_display_properties(displayID DisplayID) PropertiesID
-
-  @[link_name="SDL_GetDisplayName"]
-  fn get_display_name(displayID DisplayID) c::ConstCString
-
-  @[link_name="SDL_GetDisplayBounds"]
-  fn get_display_bounds(displayID DisplayID, rect *Rect) bool
-
-  @[link_name="SDL_GetDisplayUsableBounds"]
-  fn get_display_usable_bounds(displayID DisplayID, rect *Rect) bool
-
-  @[link_name="SDL_GetNaturalDisplayOrientation"]
-  fn get_natural_display_orientation(displayID DisplayID) DisplayOrientation
-
-  @[link_name="SDL_GetCurrentDisplayOrientation"]
-  fn get_current_display_orientation(displayID DisplayID) DisplayOrientation
-
-  @[link_name="SDL_GetDisplayContentScale"]
-  fn get_display_content_scale(displayID DisplayID) c::c_float
-
-  @[link_name="SDL_GetFullscreenDisplayModes"]
-  fn get_fullscreen_display_modes(displayID DisplayID, count *c::c_int) **DisplayMode
-
-  @[link_name="SDL_GetClosestFullscreenDisplayMode"]
-  fn get_closest_fullscreen_display_mode(displayID DisplayID, w c::c_int, h c::c_int, refresh_rate c::c_float, include_high_density_modes bool, closest *DisplayMode) bool
-
-  @[link_name="SDL_GetDesktopDisplayMode"]
-  fn get_desktop_display_mode(displayID DisplayID) const *DisplayMode
-
-  @[link_name="SDL_GetCurrentDisplayMode"]
-  fn get_current_display_mode(displayID DisplayID) const *DisplayMode
-
-  @[link_name="SDL_GetDisplayForPoint"]
-  fn get_display_for_point(point const *Point) DisplayID
-
-  @[link_name="SDL_GetDisplayForRect"]
-  fn get_display_for_rect(rect const *Rect) DisplayID
-
-  @[link_name="SDL_GetDisplayForWindow"]
-  fn get_display_for_window(window *Window) DisplayID
-
-  @[link_name="SDL_GetWindowPixelDensity"]
-  fn get_window_pixel_density(window *Window) c::c_float
-
-  @[link_name="SDL_GetWindowDisplayScale"]
-  fn get_window_display_scale(window *Window) c::c_float
-
-  @[link_name="SDL_SetWindowFullscreenMode"]
-  fn set_window_fullscreen_mode(window *Window, mode const *DisplayMode) bool
-
-  @[link_name="SDL_GetWindowFullscreenMode"]
-  fn get_window_fullscreen_mode(window *Window) const *DisplayMode
-
-  @[link_name="SDL_GetWindowICCProfile"]
-  fn get_window_icc_profile(window *Window, size *c::c_size_t) rawptr
-
-  @[link_name="SDL_GetWindowPixelFormat"]
-  fn get_window_pixel_format(window *Window) PixelFormat
-
-  @[link_name="SDL_GetWindows"]
-  fn get_windows(count *c::c_int) **Window
-
-  @[link_name="SDL_CreateWindow"]
-  fn create_window(title c::ConstCString, w c::c_int, h c::c_int, flags WindowFlags) *Window
-
-  @[link_name="SDL_CreatePopupWindow"]
-  fn create_popup_window(parent *Window, offset_x c::c_int, offset_y c::c_int, w c::c_int, h c::c_int, flags WindowFlags) *Window
-
-  @[link_name="SDL_CreateWindowWithProperties"]
-  fn create_window_with_properties(props PropertiesID) *Window
-
-  @[link_name="SDL_GetWindowID"]
-  fn get_window_id(window *Window) WindowID
-
-  @[link_name="SDL_GetWindowFromID"]
-  fn get_window_from_id(id WindowID) *Window
-
-  @[link_name="SDL_GetWindowParent"]
-  fn get_window_parent(window *Window) *Window
-
-  @[link_name="SDL_GetWindowProperties"]
-  fn get_window_properties(window *Window) PropertiesID
-
-  @[link_name="SDL_GetWindowFlags"]
-  fn get_window_flags(window *Window) WindowFlags
-
-  @[link_name="SDL_SetWindowTitle"]
-  fn set_window_title(window *Window, title c::ConstCString) bool
-
-  @[link_name="SDL_GetWindowTitle"]
-  fn get_window_title(window *Window) c::ConstCString
-
-  @[link_name="SDL_SetWindowIcon"]
-  fn set_window_icon(window *Window, icon *Surface) bool
-
-  @[link_name="SDL_SetWindowPosition"]
-  fn set_window_position(window *Window, x c::c_int, y c::c_int) bool
-
-  @[link_name="SDL_GetWindowPosition"]
-  fn get_window_position(window *Window, x *c::c_int, y *c::c_int) bool
-
-  @[link_name="SDL_SetWindowSize"]
-  fn set_window_size(window *Window, w c::c_int, h c::c_int) bool
-
-  @[link_name="SDL_GetWindowSize"]
-  fn get_window_size(window *Window, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_GetWindowSafeArea"]
-  fn get_window_safe_area(window *Window, rect *Rect) bool
-
-  @[link_name="SDL_SetWindowAspectRatio"]
-  fn set_window_aspect_ratio(window *Window, min_aspect c::c_float, max_aspect c::c_float) bool
-
-  @[link_name="SDL_GetWindowAspectRatio"]
-  fn get_window_aspect_ratio(window *Window, min_aspect *c::c_float, max_aspect *c::c_float) bool
-
-  @[link_name="SDL_GetWindowBordersSize"]
-  fn get_window_borders_size(window *Window, top *c::c_int, left *c::c_int, bottom *c::c_int, right *c::c_int) bool
-
-  @[link_name="SDL_GetWindowSizeInPixels"]
-  fn get_window_size_in_pixels(window *Window, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_SetWindowMinimumSize"]
-  fn set_window_minimum_size(window *Window, min_w c::c_int, min_h c::c_int) bool
-
-  @[link_name="SDL_GetWindowMinimumSize"]
-  fn get_window_minimum_size(window *Window, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_SetWindowMaximumSize"]
-  fn set_window_maximum_size(window *Window, max_w c::c_int, max_h c::c_int) bool
-
-  @[link_name="SDL_GetWindowMaximumSize"]
-  fn get_window_maximum_size(window *Window, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_SetWindowBordered"]
-  fn set_window_bordered(window *Window, bordered bool) bool
-
-  @[link_name="SDL_SetWindowResizable"]
-  fn set_window_resizable(window *Window, resizable bool) bool
-
-  @[link_name="SDL_SetWindowAlwaysOnTop"]
-  fn set_window_always_on_top(window *Window, on_top bool) bool
-
-  @[link_name="SDL_ShowWindow"]
-  fn show_window(window *Window) bool
-
-  @[link_name="SDL_HideWindow"]
-  fn hide_window(window *Window) bool
-
-  @[link_name="SDL_RaiseWindow"]
-  fn raise_window(window *Window) bool
-
-  @[link_name="SDL_MaximizeWindow"]
-  fn maximize_window(window *Window) bool
-
-  @[link_name="SDL_MinimizeWindow"]
-  fn minimize_window(window *Window) bool
-
-  @[link_name="SDL_RestoreWindow"]
-  fn restore_window(window *Window) bool
-
-  @[link_name="SDL_SetWindowFullscreen"]
-  fn set_window_fullscreen(window *Window, fullscreen bool) bool
-
-  @[link_name="SDL_SyncWindow"]
-  fn sync_window(window *Window) bool
-
-  @[link_name="SDL_WindowHasSurface"]
-  fn window_has_surface(window *Window) bool
-
-  @[link_name="SDL_GetWindowSurface"]
-  fn get_window_surface(window *Window) *Surface
-
-  @[link_name="SDL_SetWindowSurfaceVSync"]
-  fn set_window_surface_v_sync(window *Window, vsync c::c_int) bool
-
-  @[link_name="SDL_GetWindowSurfaceVSync"]
-  fn get_window_surface_v_sync(window *Window, vsync *c::c_int) bool
-
-  @[link_name="SDL_UpdateWindowSurface"]
-  fn update_window_surface(window *Window) bool
-
-  @[link_name="SDL_UpdateWindowSurfaceRects"]
-  fn update_window_surface_rects(window *Window, rects const *Rect, numrects c::c_int) bool
-
-  @[link_name="SDL_DestroyWindowSurface"]
-  fn destroy_window_surface(window *Window) bool
-
-  @[link_name="SDL_SetWindowKeyboardGrab"]
-  fn set_window_keyboard_grab(window *Window, grabbed bool) bool
-
-  @[link_name="SDL_SetWindowMouseGrab"]
-  fn set_window_mouse_grab(window *Window, grabbed bool) bool
-
-  @[link_name="SDL_GetWindowKeyboardGrab"]
-  fn get_window_keyboard_grab(window *Window) bool
-
-  @[link_name="SDL_GetWindowMouseGrab"]
-  fn get_window_mouse_grab(window *Window) bool
-
-  @[link_name="SDL_GetGrabbedWindow"]
-  fn get_grabbed_window() *Window
-
-  @[link_name="SDL_SetWindowMouseRect"]
-  fn set_window_mouse_rect(window *Window, rect const *Rect) bool
-
-  @[link_name="SDL_GetWindowMouseRect"]
-  fn get_window_mouse_rect(window *Window) const *Rect
-
-  @[link_name="SDL_SetWindowOpacity"]
-  fn set_window_opacity(window *Window, opacity c::c_float) bool
-
-  @[link_name="SDL_GetWindowOpacity"]
-  fn get_window_opacity(window *Window) c::c_float
-
-  @[link_name="SDL_SetWindowParent"]
-  fn set_window_parent(window *Window, parent *Window) bool
-
-  @[link_name="SDL_SetWindowModal"]
-  fn set_window_modal(window *Window, modal bool) bool
-
-  @[link_name="SDL_SetWindowFocusable"]
-  fn set_window_focusable(window *Window, focusable bool) bool
-
-  @[link_name="SDL_ShowWindowSystemMenu"]
-  fn show_window_system_menu(window *Window, x c::c_int, y c::c_int) bool
-
-  @[link_name="SDL_SetWindowHitTest"]
-  fn set_window_hit_test(window *Window, callback HitTest, callback_data rawptr) bool
-
-  @[link_name="SDL_SetWindowShape"]
-  fn set_window_shape(window *Window, shape *Surface) bool
-
-  @[link_name="SDL_FlashWindow"]
-  fn flash_window(window *Window, operation FlashOperation) bool
-
-  @[link_name="SDL_DestroyWindow"]
-  fn destroy_window(window *Window)
-
-  @[link_name="SDL_ScreenSaverEnabled"]
-  fn screen_saver_enabled() bool
-
-  @[link_name="SDL_EnableScreenSaver"]
-  fn enable_screen_saver() bool
-
-  @[link_name="SDL_DisableScreenSaver"]
-  fn disable_screen_saver() bool
-
-  @[link_name="SDL_GL_LoadLibrary"]
-  fn gl_load_library(path c::ConstCString) bool
-
-  @[link_name="SDL_GL_GetProcAddress"]
-  fn gl_get_proc_address(proc c::ConstCString) FunctionPointer
-
-  @[link_name="SDL_EGL_GetProcAddress"]
-  fn egl_get_proc_address(proc c::ConstCString) FunctionPointer
-
-  @[link_name="SDL_GL_UnloadLibrary"]
-  fn gl_unload_library()
-
-  @[link_name="SDL_GL_ExtensionSupported"]
-  fn gl_extension_supported(extension c::ConstCString) bool
-
-  @[link_name="SDL_GL_ResetAttributes"]
-  fn gl_reset_attributes()
-
-  @[link_name="SDL_GL_SetAttribute"]
-  fn gl_set_attribute(attr GLAttr, value c::c_int) bool
-
-  @[link_name="SDL_GL_GetAttribute"]
-  fn gl_get_attribute(attr GLAttr, value *c::c_int) bool
-
-  @[link_name="SDL_GL_CreateContext"]
-  fn gl_create_context(window *Window) GLContext
-
-  @[link_name="SDL_GL_MakeCurrent"]
-  fn gl_make_current(window *Window, context GLContext) bool
-
-  @[link_name="SDL_GL_GetCurrentWindow"]
-  fn gl_get_current_window() *Window
-
-  @[link_name="SDL_GL_GetCurrentContext"]
-  fn gl_get_current_context() GLContext
-
-  @[link_name="SDL_EGL_GetCurrentDisplay"]
-  fn egl_get_current_display() EGLDisplay
-
-  @[link_name="SDL_EGL_GetCurrentConfig"]
-  fn egl_get_current_config() EGLConfig
-
-  @[link_name="SDL_EGL_GetWindowSurface"]
-  fn egl_get_window_surface(window *Window) EGLSurface
-
-  @[link_name="SDL_EGL_SetAttributeCallbacks"]
-  fn egl_set_attribute_callbacks(platformAttribCallback EGLAttribArrayCallback, surfaceAttribCallback EGLIntArrayCallback, contextAttribCallback EGLIntArrayCallback, userdata rawptr)
-
-  @[link_name="SDL_GL_SetSwapInterval"]
-  fn gl_set_swap_interval(interval c::c_int) bool
-
-  @[link_name="SDL_GL_GetSwapInterval"]
-  fn gl_get_swap_interval(interval *c::c_int) bool
-
-  @[link_name="SDL_GL_SwapWindow"]
-  fn gl_swap_window(window *Window) bool
-
-  @[link_name="SDL_GL_DestroyContext"]
-  fn gl_destroy_context(context GLContext) bool
-
-  @[link_name="SDL_ShowOpenFileDialog"]
-  fn show_open_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters c::c_int, default_location c::ConstCString, allow_many bool)
-
-  @[link_name="SDL_ShowSaveFileDialog"]
-  fn show_save_file_dialog(callback DialogFileCallback, userdata rawptr, window *Window, filters const *DialogFileFilter, nfilters c::c_int, default_location c::ConstCString)
-
-  @[link_name="SDL_ShowOpenFolderDialog"]
-  fn show_open_folder_dialog(callback DialogFileCallback, userdata rawptr, window *Window, default_location c::ConstCString, allow_many bool)
-
-  @[link_name="SDL_ShowFileDialogWithProperties"]
-  fn show_file_dialog_with_properties(type_ FileDialogType, callback DialogFileCallback, userdata rawptr, props PropertiesID)
-
-  @[link_name="SDL_GUIDToString"]
-  fn guid_to_string(guid GUID, pszGUID c::CString, cbGUID c::c_int)
-
-  @[link_name="SDL_StringToGUID"]
-  fn string_to_guid(pchGUID c::ConstCString) GUID
-
-  @[link_name="SDL_GetPowerInfo"]
-  fn get_power_info(seconds *c::c_int, percent *c::c_int) PowerState
-
-  @[link_name="SDL_GetSensors"]
-  fn get_sensors(count *c::c_int) *SensorID
-
-  @[link_name="SDL_GetSensorNameForID"]
-  fn get_sensor_name_for_id(instance_id SensorID) c::ConstCString
-
-  @[link_name="SDL_GetSensorTypeForID"]
-  fn get_sensor_type_for_id(instance_id SensorID) SensorType
-
-  @[link_name="SDL_GetSensorNonPortableTypeForID"]
-  fn get_sensor_non_portable_type_for_id(instance_id SensorID) c::c_int
-
-  @[link_name="SDL_OpenSensor"]
-  fn open_sensor(instance_id SensorID) *Sensor
-
-  @[link_name="SDL_GetSensorFromID"]
-  fn get_sensor_from_id(instance_id SensorID) *Sensor
-
-  @[link_name="SDL_GetSensorProperties"]
-  fn get_sensor_properties(sensor *Sensor) PropertiesID
-
-  @[link_name="SDL_GetSensorName"]
-  fn get_sensor_name(sensor *Sensor) c::ConstCString
-
-  @[link_name="SDL_GetSensorType"]
-  fn get_sensor_type(sensor *Sensor) SensorType
-
-  @[link_name="SDL_GetSensorNonPortableType"]
-  fn get_sensor_non_portable_type(sensor *Sensor) c::c_int
-
-  @[link_name="SDL_GetSensorID"]
-  fn get_sensor_id(sensor *Sensor) SensorID
-
-  @[link_name="SDL_GetSensorData"]
-  fn get_sensor_data(sensor *Sensor, data *c::c_float, num_values c::c_int) bool
-
-  @[link_name="SDL_CloseSensor"]
-  fn close_sensor(sensor *Sensor)
-
-  @[link_name="SDL_UpdateSensors"]
-  fn update_sensors()
-
-  @[link_name="SDL_LockJoysticks"]
-  fn lock_joysticks()
-
-  @[link_name="SDL_UnlockJoysticks"]
-  fn unlock_joysticks()
-
-  @[link_name="SDL_HasJoystick"]
-  fn has_joystick() bool
-
-  @[link_name="SDL_GetJoysticks"]
-  fn get_joysticks(count *c::c_int) *JoystickID
-
-  @[link_name="SDL_GetJoystickNameForID"]
-  fn get_joystick_name_for_id(instance_id JoystickID) c::ConstCString
-
-  @[link_name="SDL_GetJoystickPathForID"]
-  fn get_joystick_path_for_id(instance_id JoystickID) c::ConstCString
-
-  @[link_name="SDL_GetJoystickPlayerIndexForID"]
-  fn get_joystick_player_index_for_id(instance_id JoystickID) c::c_int
-
-  @[link_name="SDL_GetJoystickGUIDForID"]
-  fn get_joystick_guid_for_id(instance_id JoystickID) GUID
-
-  @[link_name="SDL_GetJoystickVendorForID"]
-  fn get_joystick_vendor_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetJoystickProductForID"]
-  fn get_joystick_product_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetJoystickProductVersionForID"]
-  fn get_joystick_product_version_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetJoystickTypeForID"]
-  fn get_joystick_type_for_id(instance_id JoystickID) JoystickType
-
-  @[link_name="SDL_OpenJoystick"]
-  fn open_joystick(instance_id JoystickID) *Joystick
-
-  @[link_name="SDL_GetJoystickFromID"]
-  fn get_joystick_from_id(instance_id JoystickID) *Joystick
-
-  @[link_name="SDL_GetJoystickFromPlayerIndex"]
-  fn get_joystick_from_player_index(player_index c::c_int) *Joystick
-
-  @[link_name="SDL_AttachVirtualJoystick"]
-  fn attach_virtual_joystick(desc const *VirtualJoystickDesc) JoystickID
-
-  @[link_name="SDL_DetachVirtualJoystick"]
-  fn detach_virtual_joystick(instance_id JoystickID) bool
-
-  @[link_name="SDL_IsJoystickVirtual"]
-  fn is_joystick_virtual(instance_id JoystickID) bool
-
-  @[link_name="SDL_SetJoystickVirtualAxis"]
-  fn set_joystick_virtual_axis(joystick *Joystick, axis c::c_int, value i16) bool
-
-  @[link_name="SDL_SetJoystickVirtualBall"]
-  fn set_joystick_virtual_ball(joystick *Joystick, ball c::c_int, xrel i16, yrel i16) bool
-
-  @[link_name="SDL_SetJoystickVirtualButton"]
-  fn set_joystick_virtual_button(joystick *Joystick, button c::c_int, down bool) bool
-
-  @[link_name="SDL_SetJoystickVirtualHat"]
-  fn set_joystick_virtual_hat(joystick *Joystick, hat c::c_int, value u8) bool
-
-  @[link_name="SDL_SetJoystickVirtualTouchpad"]
-  fn set_joystick_virtual_touchpad(joystick *Joystick, touchpad c::c_int, finger c::c_int, down bool, x c::c_float, y c::c_float, pressure c::c_float) bool
-
-  @[link_name="SDL_SendJoystickVirtualSensorData"]
-  fn send_joystick_virtual_sensor_data(joystick *Joystick, type_ SensorType, sensor_timestamp u64, data const *c::c_float, num_values c::c_int) bool
-
-  @[link_name="SDL_GetJoystickProperties"]
-  fn get_joystick_properties(joystick *Joystick) PropertiesID
-
-  @[link_name="SDL_GetJoystickName"]
-  fn get_joystick_name(joystick *Joystick) c::ConstCString
-
-  @[link_name="SDL_GetJoystickPath"]
-  fn get_joystick_path(joystick *Joystick) c::ConstCString
-
-  @[link_name="SDL_GetJoystickPlayerIndex"]
-  fn get_joystick_player_index(joystick *Joystick) c::c_int
-
-  @[link_name="SDL_SetJoystickPlayerIndex"]
-  fn set_joystick_player_index(joystick *Joystick, player_index c::c_int) bool
-
-  @[link_name="SDL_GetJoystickGUID"]
-  fn get_joystick_guid(joystick *Joystick) GUID
-
-  @[link_name="SDL_GetJoystickVendor"]
-  fn get_joystick_vendor(joystick *Joystick) u16
-
-  @[link_name="SDL_GetJoystickProduct"]
-  fn get_joystick_product(joystick *Joystick) u16
-
-  @[link_name="SDL_GetJoystickProductVersion"]
-  fn get_joystick_product_version(joystick *Joystick) u16
-
-  @[link_name="SDL_GetJoystickFirmwareVersion"]
-  fn get_joystick_firmware_version(joystick *Joystick) u16
-
-  @[link_name="SDL_GetJoystickSerial"]
-  fn get_joystick_serial(joystick *Joystick) c::ConstCString
-
-  @[link_name="SDL_GetJoystickType"]
-  fn get_joystick_type(joystick *Joystick) JoystickType
-
-  @[link_name="SDL_GetJoystickGUIDInfo"]
-  fn get_joystick_guid_info(guid GUID, vendor *u16, product *u16, version *u16, crc16 *u16)
-
-  @[link_name="SDL_JoystickConnected"]
-  fn joystick_connected(joystick *Joystick) bool
-
-  @[link_name="SDL_GetJoystickID"]
-  fn get_joystick_id(joystick *Joystick) JoystickID
-
-  @[link_name="SDL_GetNumJoystickAxes"]
-  fn get_num_joystick_axes(joystick *Joystick) c::c_int
-
-  @[link_name="SDL_GetNumJoystickBalls"]
-  fn get_num_joystick_balls(joystick *Joystick) c::c_int
-
-  @[link_name="SDL_GetNumJoystickHats"]
-  fn get_num_joystick_hats(joystick *Joystick) c::c_int
-
-  @[link_name="SDL_GetNumJoystickButtons"]
-  fn get_num_joystick_buttons(joystick *Joystick) c::c_int
-
-  @[link_name="SDL_SetJoystickEventsEnabled"]
-  fn set_joystick_events_enabled(enabled bool)
-
-  @[link_name="SDL_JoystickEventsEnabled"]
-  fn joystick_events_enabled() bool
-
-  @[link_name="SDL_UpdateJoysticks"]
-  fn update_joysticks()
-
-  @[link_name="SDL_GetJoystickAxis"]
-  fn get_joystick_axis(joystick *Joystick, axis c::c_int) i16
-
-  @[link_name="SDL_GetJoystickAxisInitialState"]
-  fn get_joystick_axis_initial_state(joystick *Joystick, axis c::c_int, state *i16) bool
-
-  @[link_name="SDL_GetJoystickBall"]
-  fn get_joystick_ball(joystick *Joystick, ball c::c_int, dx *c::c_int, dy *c::c_int) bool
-
-  @[link_name="SDL_GetJoystickHat"]
-  fn get_joystick_hat(joystick *Joystick, hat c::c_int) u8
-
-  @[link_name="SDL_GetJoystickButton"]
-  fn get_joystick_button(joystick *Joystick, button c::c_int) bool
-
-  @[link_name="SDL_RumbleJoystick"]
-  fn rumble_joystick(joystick *Joystick, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool
-
-  @[link_name="SDL_RumbleJoystickTriggers"]
-  fn rumble_joystick_triggers(joystick *Joystick, left_rumble u16, right_rumble u16, duration_ms u32) bool
-
-  @[link_name="SDL_SetJoystickLED"]
-  fn set_joystick_led(joystick *Joystick, red u8, green u8, blue u8) bool
-
-  @[link_name="SDL_SendJoystickEffect"]
-  fn send_joystick_effect(joystick *Joystick, data const *Void, size c::c_int) bool
-
-  @[link_name="SDL_CloseJoystick"]
-  fn close_joystick(joystick *Joystick)
-
-  @[link_name="SDL_GetJoystickConnectionState"]
-  fn get_joystick_connection_state(joystick *Joystick) JoystickConnectionState
-
-  @[link_name="SDL_GetJoystickPowerInfo"]
-  fn get_joystick_power_info(joystick *Joystick, percent *c::c_int) PowerState
-
-  @[link_name="SDL_AddGamepadMapping"]
-  fn add_gamepad_mapping(mapping c::ConstCString) c::c_int
-
-  @[link_name="SDL_AddGamepadMappingsFromIO"]
-  fn add_gamepad_mappings_from_io(src *IOStream, closeio bool) c::c_int
-
-  @[link_name="SDL_AddGamepadMappingsFromFile"]
-  fn add_gamepad_mappings_from_file(file c::ConstCString) c::c_int
-
-  @[link_name="SDL_ReloadGamepadMappings"]
-  fn reload_gamepad_mappings() bool
-
-  @[link_name="SDL_GetGamepadMappings"]
-  fn get_gamepad_mappings(count *c::c_int) *c::CString
-
-  @[link_name="SDL_GetGamepadMappingForGUID"]
-  fn get_gamepad_mapping_for_guid(guid GUID) c::CString
-
-  @[link_name="SDL_GetGamepadMapping"]
-  fn get_gamepad_mapping(gamepad *Gamepad) c::CString
-
-  @[link_name="SDL_SetGamepadMapping"]
-  fn set_gamepad_mapping(instance_id JoystickID, mapping c::ConstCString) bool
-
-  @[link_name="SDL_HasGamepad"]
-  fn has_gamepad() bool
-
-  @[link_name="SDL_GetGamepads"]
-  fn get_gamepads(count *c::c_int) *JoystickID
-
-  @[link_name="SDL_IsGamepad"]
-  fn is_gamepad(instance_id JoystickID) bool
-
-  @[link_name="SDL_GetGamepadNameForID"]
-  fn get_gamepad_name_for_id(instance_id JoystickID) c::ConstCString
-
-  @[link_name="SDL_GetGamepadPathForID"]
-  fn get_gamepad_path_for_id(instance_id JoystickID) c::ConstCString
-
-  @[link_name="SDL_GetGamepadPlayerIndexForID"]
-  fn get_gamepad_player_index_for_id(instance_id JoystickID) c::c_int
-
-  @[link_name="SDL_GetGamepadGUIDForID"]
-  fn get_gamepad_guid_for_id(instance_id JoystickID) GUID
-
-  @[link_name="SDL_GetGamepadVendorForID"]
-  fn get_gamepad_vendor_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetGamepadProductForID"]
-  fn get_gamepad_product_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetGamepadProductVersionForID"]
-  fn get_gamepad_product_version_for_id(instance_id JoystickID) u16
-
-  @[link_name="SDL_GetGamepadTypeForID"]
-  fn get_gamepad_type_for_id(instance_id JoystickID) GamepadType
-
-  @[link_name="SDL_GetRealGamepadTypeForID"]
-  fn get_real_gamepad_type_for_id(instance_id JoystickID) GamepadType
-
-  @[link_name="SDL_GetGamepadMappingForID"]
-  fn get_gamepad_mapping_for_id(instance_id JoystickID) c::CString
-
-  @[link_name="SDL_OpenGamepad"]
-  fn open_gamepad(instance_id JoystickID) *Gamepad
-
-  @[link_name="SDL_GetGamepadFromID"]
-  fn get_gamepad_from_id(instance_id JoystickID) *Gamepad
-
-  @[link_name="SDL_GetGamepadFromPlayerIndex"]
-  fn get_gamepad_from_player_index(player_index c::c_int) *Gamepad
-
-  @[link_name="SDL_GetGamepadProperties"]
-  fn get_gamepad_properties(gamepad *Gamepad) PropertiesID
-
-  @[link_name="SDL_GetGamepadID"]
-  fn get_gamepad_id(gamepad *Gamepad) JoystickID
-
-  @[link_name="SDL_GetGamepadName"]
-  fn get_gamepad_name(gamepad *Gamepad) c::ConstCString
-
-  @[link_name="SDL_GetGamepadPath"]
-  fn get_gamepad_path(gamepad *Gamepad) c::ConstCString
-
-  @[link_name="SDL_GetGamepadType"]
-  fn get_gamepad_type(gamepad *Gamepad) GamepadType
-
-  @[link_name="SDL_GetRealGamepadType"]
-  fn get_real_gamepad_type(gamepad *Gamepad) GamepadType
-
-  @[link_name="SDL_GetGamepadPlayerIndex"]
-  fn get_gamepad_player_index(gamepad *Gamepad) c::c_int
-
-  @[link_name="SDL_SetGamepadPlayerIndex"]
-  fn set_gamepad_player_index(gamepad *Gamepad, player_index c::c_int) bool
-
-  @[link_name="SDL_GetGamepadVendor"]
-  fn get_gamepad_vendor(gamepad *Gamepad) u16
-
-  @[link_name="SDL_GetGamepadProduct"]
-  fn get_gamepad_product(gamepad *Gamepad) u16
-
-  @[link_name="SDL_GetGamepadProductVersion"]
-  fn get_gamepad_product_version(gamepad *Gamepad) u16
-
-  @[link_name="SDL_GetGamepadFirmwareVersion"]
-  fn get_gamepad_firmware_version(gamepad *Gamepad) u16
-
-  @[link_name="SDL_GetGamepadSerial"]
-  fn get_gamepad_serial(gamepad *Gamepad) c::ConstCString
-
-  @[link_name="SDL_GetGamepadSteamHandle"]
-  fn get_gamepad_steam_handle(gamepad *Gamepad) u64
-
-  @[link_name="SDL_GetGamepadConnectionState"]
-  fn get_gamepad_connection_state(gamepad *Gamepad) JoystickConnectionState
-
-  @[link_name="SDL_GetGamepadPowerInfo"]
-  fn get_gamepad_power_info(gamepad *Gamepad, percent *c::c_int) PowerState
-
-  @[link_name="SDL_GamepadConnected"]
-  fn gamepad_connected(gamepad *Gamepad) bool
-
-  @[link_name="SDL_GetGamepadJoystick"]
-  fn get_gamepad_joystick(gamepad *Gamepad) *Joystick
-
-  @[link_name="SDL_SetGamepadEventsEnabled"]
-  fn set_gamepad_events_enabled(enabled bool)
-
-  @[link_name="SDL_GamepadEventsEnabled"]
-  fn gamepad_events_enabled() bool
-
-  @[link_name="SDL_GetGamepadBindings"]
-  fn get_gamepad_bindings(gamepad *Gamepad, count *c::c_int) **GamepadBinding
-
-  @[link_name="SDL_UpdateGamepads"]
-  fn update_gamepads()
-
-  @[link_name="SDL_GetGamepadTypeFromString"]
-  fn get_gamepad_type_from_string(str c::ConstCString) GamepadType
-
-  @[link_name="SDL_GetGamepadStringForType"]
-  fn get_gamepad_string_for_type(type_ GamepadType) c::ConstCString
-
-  @[link_name="SDL_GetGamepadAxisFromString"]
-  fn get_gamepad_axis_from_string(str c::ConstCString) GamepadAxis
-
-  @[link_name="SDL_GetGamepadStringForAxis"]
-  fn get_gamepad_string_for_axis(axis GamepadAxis) c::ConstCString
-
-  @[link_name="SDL_GamepadHasAxis"]
-  fn gamepad_has_axis(gamepad *Gamepad, axis GamepadAxis) bool
-
-  @[link_name="SDL_GetGamepadAxis"]
-  fn get_gamepad_axis(gamepad *Gamepad, axis GamepadAxis) i16
-
-  @[link_name="SDL_GetGamepadButtonFromString"]
-  fn get_gamepad_button_from_string(str c::ConstCString) GamepadButton
-
-  @[link_name="SDL_GetGamepadStringForButton"]
-  fn get_gamepad_string_for_button(button GamepadButton) c::ConstCString
-
-  @[link_name="SDL_GamepadHasButton"]
-  fn gamepad_has_button(gamepad *Gamepad, button GamepadButton) bool
-
-  @[link_name="SDL_GetGamepadButton"]
-  fn get_gamepad_button(gamepad *Gamepad, button GamepadButton) bool
-
-  @[link_name="SDL_GetGamepadButtonLabelForType"]
-  fn get_gamepad_button_label_for_type(type_ GamepadType, button GamepadButton) GamepadButtonLabel
-
-  @[link_name="SDL_GetGamepadButtonLabel"]
-  fn get_gamepad_button_label(gamepad *Gamepad, button GamepadButton) GamepadButtonLabel
-
-  @[link_name="SDL_GetNumGamepadTouchpads"]
-  fn get_num_gamepad_touchpads(gamepad *Gamepad) c::c_int
-
-  @[link_name="SDL_GetNumGamepadTouchpadFingers"]
-  fn get_num_gamepad_touchpad_fingers(gamepad *Gamepad, touchpad c::c_int) c::c_int
-
-  @[link_name="SDL_GetGamepadTouchpadFinger"]
-  fn get_gamepad_touchpad_finger(gamepad *Gamepad, touchpad c::c_int, finger c::c_int, down *bool, x *c::c_float, y *c::c_float, pressure *c::c_float) bool
-
-  @[link_name="SDL_GamepadHasSensor"]
-  fn gamepad_has_sensor(gamepad *Gamepad, type_ SensorType) bool
-
-  @[link_name="SDL_SetGamepadSensorEnabled"]
-  fn set_gamepad_sensor_enabled(gamepad *Gamepad, type_ SensorType, enabled bool) bool
-
-  @[link_name="SDL_GamepadSensorEnabled"]
-  fn gamepad_sensor_enabled(gamepad *Gamepad, type_ SensorType) bool
-
-  @[link_name="SDL_GetGamepadSensorDataRate"]
-  fn get_gamepad_sensor_data_rate(gamepad *Gamepad, type_ SensorType) c::c_float
-
-  @[link_name="SDL_GetGamepadSensorData"]
-  fn get_gamepad_sensor_data(gamepad *Gamepad, type_ SensorType, data *c::c_float, num_values c::c_int) bool
-
-  @[link_name="SDL_RumbleGamepad"]
-  fn rumble_gamepad(gamepad *Gamepad, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool
-
-  @[link_name="SDL_RumbleGamepadTriggers"]
-  fn rumble_gamepad_triggers(gamepad *Gamepad, left_rumble u16, right_rumble u16, duration_ms u32) bool
-
-  @[link_name="SDL_SetGamepadLED"]
-  fn set_gamepad_led(gamepad *Gamepad, red u8, green u8, blue u8) bool
-
-  @[link_name="SDL_SendGamepadEffect"]
-  fn send_gamepad_effect(gamepad *Gamepad, data const *Void, size c::c_int) bool
-
-  @[link_name="SDL_CloseGamepad"]
-  fn close_gamepad(gamepad *Gamepad)
-
-  @[link_name="SDL_GetGamepadAppleSFSymbolsNameForButton"]
-  fn get_gamepad_apple_sf_symbols_name_for_button(gamepad *Gamepad, button GamepadButton) c::ConstCString
-
-  @[link_name="SDL_GetGamepadAppleSFSymbolsNameForAxis"]
-  fn get_gamepad_apple_sf_symbols_name_for_axis(gamepad *Gamepad, axis GamepadAxis) c::ConstCString
-
-  @[link_name="SDL_HasKeyboard"]
-  fn has_keyboard() bool
-
-  @[link_name="SDL_GetKeyboards"]
-  fn get_keyboards(count *c::c_int) *KeyboardID
-
-  @[link_name="SDL_GetKeyboardNameForID"]
-  fn get_keyboard_name_for_id(instance_id KeyboardID) c::ConstCString
-
-  @[link_name="SDL_GetKeyboardFocus"]
-  fn get_keyboard_focus() *Window
-
-  @[link_name="SDL_GetKeyboardState"]
-  fn get_keyboard_state(numkeys *c::c_int) const *bool
-
-  @[link_name="SDL_ResetKeyboard"]
-  fn reset_keyboard()
-
-  @[link_name="SDL_GetModState"]
-  fn get_mod_state() Keymod
-
-  @[link_name="SDL_SetModState"]
-  fn set_mod_state(modstate Keymod)
-
-  @[link_name="SDL_GetKeyFromScancode"]
-  fn get_key_from_scancode(scancode Scancode, modstate Keymod, key_event bool) Keycode
-
-  @[link_name="SDL_GetScancodeFromKey"]
-  fn get_scancode_from_key(key Keycode, modstate *Keymod) Scancode
-
-  @[link_name="SDL_SetScancodeName"]
-  fn set_scancode_name(scancode Scancode, name c::ConstCString) bool
-
-  @[link_name="SDL_GetScancodeName"]
-  fn get_scancode_name(scancode Scancode) c::ConstCString
-
-  @[link_name="SDL_GetScancodeFromName"]
-  fn get_scancode_from_name(name c::ConstCString) Scancode
-
-  @[link_name="SDL_GetKeyName"]
-  fn get_key_name(key Keycode) c::ConstCString
-
-  @[link_name="SDL_GetKeyFromName"]
-  fn get_key_from_name(name c::ConstCString) Keycode
-
-  @[link_name="SDL_StartTextInput"]
-  fn start_text_input(window *Window) bool
-
-  @[link_name="SDL_StartTextInputWithProperties"]
-  fn start_text_input_with_properties(window *Window, props PropertiesID) bool
-
-  @[link_name="SDL_TextInputActive"]
-  fn text_input_active(window *Window) bool
-
-  @[link_name="SDL_StopTextInput"]
-  fn stop_text_input(window *Window) bool
-
-  @[link_name="SDL_ClearComposition"]
-  fn clear_composition(window *Window) bool
-
-  @[link_name="SDL_SetTextInputArea"]
-  fn set_text_input_area(window *Window, rect const *Rect, cursor c::c_int) bool
-
-  @[link_name="SDL_GetTextInputArea"]
-  fn get_text_input_area(window *Window, rect *Rect, cursor *c::c_int) bool
-
-  @[link_name="SDL_HasScreenKeyboardSupport"]
-  fn has_screen_keyboard_support() bool
-
-  @[link_name="SDL_ScreenKeyboardShown"]
-  fn screen_keyboard_shown(window *Window) bool
-
-  @[link_name="SDL_HasMouse"]
-  fn has_mouse() bool
-
-  @[link_name="SDL_GetMice"]
-  fn get_mice(count *c::c_int) *MouseID
-
-  @[link_name="SDL_GetMouseNameForID"]
-  fn get_mouse_name_for_id(instance_id MouseID) c::ConstCString
-
-  @[link_name="SDL_GetMouseFocus"]
-  fn get_mouse_focus() *Window
-
-  @[link_name="SDL_GetMouseState"]
-  fn get_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
-
-  @[link_name="SDL_GetGlobalMouseState"]
-  fn get_global_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
-
-  @[link_name="SDL_GetRelativeMouseState"]
-  fn get_relative_mouse_state(x *c::c_float, y *c::c_float) MouseButtonFlags
-
-  @[link_name="SDL_WarpMouseInWindow"]
-  fn warp_mouse_in_window(window *Window, x c::c_float, y c::c_float)
-
-  @[link_name="SDL_WarpMouseGlobal"]
-  fn warp_mouse_global(x c::c_float, y c::c_float) bool
-
-  @[link_name="SDL_SetWindowRelativeMouseMode"]
-  fn set_window_relative_mouse_mode(window *Window, enabled bool) bool
-
-  @[link_name="SDL_GetWindowRelativeMouseMode"]
-  fn get_window_relative_mouse_mode(window *Window) bool
-
-  @[link_name="SDL_CaptureMouse"]
-  fn capture_mouse(enabled bool) bool
-
-  @[link_name="SDL_CreateCursor"]
-  fn create_cursor(data const *u8, mask const *u8, w c::c_int, h c::c_int, hot_x c::c_int, hot_y c::c_int) *Cursor
-
-  @[link_name="SDL_CreateColorCursor"]
-  fn create_color_cursor(surface *Surface, hot_x c::c_int, hot_y c::c_int) *Cursor
-
-  @[link_name="SDL_CreateSystemCursor"]
-  fn create_system_cursor(id SystemCursor) *Cursor
-
-  @[link_name="SDL_SetCursor"]
-  fn set_cursor(cursor *Cursor) bool
-
-  @[link_name="SDL_GetCursor"]
-  fn get_cursor() *Cursor
-
-  @[link_name="SDL_GetDefaultCursor"]
-  fn get_default_cursor() *Cursor
-
-  @[link_name="SDL_DestroyCursor"]
-  fn destroy_cursor(cursor *Cursor)
-
-  @[link_name="SDL_ShowCursor"]
-  fn show_cursor() bool
-
-  @[link_name="SDL_HideCursor"]
-  fn hide_cursor() bool
-
-  @[link_name="SDL_CursorVisible"]
-  fn cursor_visible() bool
-
-  @[link_name="SDL_GetTouchDevices"]
-  fn get_touch_devices(count *c::c_int) *TouchID
-
-  @[link_name="SDL_GetTouchDeviceName"]
-  fn get_touch_device_name(touchID TouchID) c::ConstCString
-
-  @[link_name="SDL_GetTouchDeviceType"]
-  fn get_touch_device_type(touchID TouchID) TouchDeviceType
-
-  @[link_name="SDL_GetTouchFingers"]
-  fn get_touch_fingers(touchID TouchID, count *c::c_int) **Finger
-
-  @[link_name="SDL_PumpEvents"]
-  fn pump_events()
-
-  @[link_name="SDL_PeepEvents"]
-  fn peep_events(events *Event, numevents c::c_int, action EventAction, minType u32, maxType u32) c::c_int
-
-  @[link_name="SDL_HasEvent"]
-  fn has_event(type_ u32) bool
-
-  @[link_name="SDL_HasEvents"]
-  fn has_events(minType u32, maxType u32) bool
-
-  @[link_name="SDL_FlushEvent"]
-  fn flush_event(type_ u32)
-
-  @[link_name="SDL_FlushEvents"]
-  fn flush_events(minType u32, maxType u32)
-
-  @[link_name="SDL_PollEvent"]
-  fn poll_event(event *Event) bool
-
-  @[link_name="SDL_WaitEvent"]
-  fn wait_event(event *Event) bool
-
-  @[link_name="SDL_WaitEventTimeout"]
-  fn wait_event_timeout(event *Event, timeoutMS i32) bool
-
-  @[link_name="SDL_PushEvent"]
-  fn push_event(event *Event) bool
-
-  @[link_name="SDL_SetEventFilter"]
-  fn set_event_filter(filter EventFilter, userdata rawptr)
-
-  @[link_name="SDL_GetEventFilter"]
-  fn get_event_filter(filter *EventFilter, userdata *rawptr) bool
-
-  @[link_name="SDL_AddEventWatch"]
-  fn add_event_watch(filter EventFilter, userdata rawptr) bool
-
-  @[link_name="SDL_RemoveEventWatch"]
-  fn remove_event_watch(filter EventFilter, userdata rawptr)
-
-  @[link_name="SDL_FilterEvents"]
-  fn filter_events(filter EventFilter, userdata rawptr)
-
-  @[link_name="SDL_SetEventEnabled"]
-  fn set_event_enabled(type_ u32, enabled bool)
-
-  @[link_name="SDL_EventEnabled"]
-  fn event_enabled(type_ u32) bool
-
-  @[link_name="SDL_RegisterEvents"]
-  fn register_events(numevents c::c_int) u32
-
-  @[link_name="SDL_GetWindowFromEvent"]
-  fn get_window_from_event(event const *Event) *Window
-
-  @[link_name="SDL_GetBasePath"]
-  fn get_base_path() c::ConstCString
-
-  @[link_name="SDL_GetPrefPath"]
-  fn get_pref_path(org c::ConstCString, app c::ConstCString) c::CString
-
-  @[link_name="SDL_GetUserFolder"]
-  fn get_user_folder(folder Folder) c::ConstCString
-
-  @[link_name="SDL_CreateDirectory"]
-  fn create_directory(path c::ConstCString) bool
-
-  @[link_name="SDL_EnumerateDirectory"]
-  fn enumerate_directory(path c::ConstCString, callback EnumerateDirectoryCallback, userdata rawptr) bool
-
-  @[link_name="SDL_RemovePath"]
-  fn remove_path(path c::ConstCString) bool
-
-  @[link_name="SDL_RenamePath"]
-  fn rename_path(oldpath c::ConstCString, newpath c::ConstCString) bool
-
-  @[link_name="SDL_CopyFile"]
-  fn copy_file(oldpath c::ConstCString, newpath c::ConstCString) bool
-
-  @[link_name="SDL_GetPathInfo"]
-  fn get_path_info(path c::ConstCString, info *PathInfo) bool
-
-  @[link_name="SDL_GlobDirectory"]
-  fn glob_directory(path c::ConstCString, pattern c::ConstCString, flags GlobFlags, count *c::c_int) *c::CString
-
-  @[link_name="SDL_GetCurrentDirectory"]
-  fn get_current_directory() c::CString
-
-  @[link_name="SDL_GPUSupportsShaderFormats"]
-  fn gpu_supports_shader_formats(format_flags GPUShaderFormat, name c::ConstCString) bool
-
-  @[link_name="SDL_GPUSupportsProperties"]
-  fn gpu_supports_properties(props PropertiesID) bool
-
-  @[link_name="SDL_CreateGPUDevice"]
-  fn create_gpu_device(format_flags GPUShaderFormat, debug_mode bool, name c::ConstCString) *GPUDevice
-
-  @[link_name="SDL_CreateGPUDeviceWithProperties"]
-  fn create_gpu_device_with_properties(props PropertiesID) *GPUDevice
-
-  @[link_name="SDL_DestroyGPUDevice"]
-  fn destroy_gpu_device(device *GPUDevice)
-
-  @[link_name="SDL_GetNumGPUDrivers"]
-  fn get_num_gpu_drivers() c::c_int
-
-  @[link_name="SDL_GetGPUDriver"]
-  fn get_gpu_driver(index c::c_int) c::ConstCString
-
-  @[link_name="SDL_GetGPUDeviceDriver"]
-  fn get_gpu_device_driver(device *GPUDevice) c::ConstCString
-
-  @[link_name="SDL_GetGPUShaderFormats"]
-  fn get_gpu_shader_formats(device *GPUDevice) GPUShaderFormat
-
-  @[link_name="SDL_CreateGPUComputePipeline"]
-  fn create_gpu_compute_pipeline(device *GPUDevice, createinfo const *GPUComputePipelineCreateInfo) *GPUComputePipeline
-
-  @[link_name="SDL_CreateGPUGraphicsPipeline"]
-  fn create_gpu_graphics_pipeline(device *GPUDevice, createinfo const *GPUGraphicsPipelineCreateInfo) *GPUGraphicsPipeline
-
-  @[link_name="SDL_CreateGPUSampler"]
-  fn create_gpu_sampler(device *GPUDevice, createinfo const *GPUSamplerCreateInfo) *GPUSampler
-
-  @[link_name="SDL_CreateGPUShader"]
-  fn create_gpu_shader(device *GPUDevice, createinfo const *GPUShaderCreateInfo) *GPUShader
-
-  @[link_name="SDL_CreateGPUTexture"]
-  fn create_gpu_texture(device *GPUDevice, createinfo const *GPUTextureCreateInfo) *GPUTexture
-
-  @[link_name="SDL_CreateGPUBuffer"]
-  fn create_gpu_buffer(device *GPUDevice, createinfo const *GPUBufferCreateInfo) *GPUBuffer
-
-  @[link_name="SDL_CreateGPUTransferBuffer"]
-  fn create_gpu_transfer_buffer(device *GPUDevice, createinfo const *GPUTransferBufferCreateInfo) *GPUTransferBuffer
-
-  @[link_name="SDL_SetGPUBufferName"]
-  fn set_gpu_buffer_name(device *GPUDevice, buffer *GPUBuffer, text c::ConstCString)
-
-  @[link_name="SDL_SetGPUTextureName"]
-  fn set_gpu_texture_name(device *GPUDevice, texture *GPUTexture, text c::ConstCString)
-
-  @[link_name="SDL_InsertGPUDebugLabel"]
-  fn insert_gpu_debug_label(command_buffer *GPUCommandBuffer, text c::ConstCString)
-
-  @[link_name="SDL_PushGPUDebugGroup"]
-  fn push_gpu_debug_group(command_buffer *GPUCommandBuffer, name c::ConstCString)
-
-  @[link_name="SDL_PopGPUDebugGroup"]
-  fn pop_gpu_debug_group(command_buffer *GPUCommandBuffer)
-
-  @[link_name="SDL_ReleaseGPUTexture"]
-  fn release_gpu_texture(device *GPUDevice, texture *GPUTexture)
-
-  @[link_name="SDL_ReleaseGPUSampler"]
-  fn release_gpu_sampler(device *GPUDevice, sampler *GPUSampler)
-
-  @[link_name="SDL_ReleaseGPUBuffer"]
-  fn release_gpu_buffer(device *GPUDevice, buffer *GPUBuffer)
-
-  @[link_name="SDL_ReleaseGPUTransferBuffer"]
-  fn release_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer)
-
-  @[link_name="SDL_ReleaseGPUComputePipeline"]
-  fn release_gpu_compute_pipeline(device *GPUDevice, compute_pipeline *GPUComputePipeline)
-
-  @[link_name="SDL_ReleaseGPUShader"]
-  fn release_gpu_shader(device *GPUDevice, shader *GPUShader)
-
-  @[link_name="SDL_ReleaseGPUGraphicsPipeline"]
-  fn release_gpu_graphics_pipeline(device *GPUDevice, graphics_pipeline *GPUGraphicsPipeline)
-
-  @[link_name="SDL_AcquireGPUCommandBuffer"]
-  fn acquire_gpu_command_buffer(device *GPUDevice) *GPUCommandBuffer
-
-  @[link_name="SDL_PushGPUVertexUniformData"]
-  fn push_gpu_vertex_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32)
-
-  @[link_name="SDL_PushGPUFragmentUniformData"]
-  fn push_gpu_fragment_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32)
-
-  @[link_name="SDL_PushGPUComputeUniformData"]
-  fn push_gpu_compute_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32)
-
-  @[link_name="SDL_BeginGPURenderPass"]
-  fn begin_gpu_render_pass(command_buffer *GPUCommandBuffer, color_target_infos const *GPUColorTargetInfo, num_color_targets u32, depth_stencil_target_info const *GPUDepthStencilTargetInfo) *GPURenderPass
-
-  @[link_name="SDL_BindGPUGraphicsPipeline"]
-  fn bind_gpu_graphics_pipeline(render_pass *GPURenderPass, graphics_pipeline *GPUGraphicsPipeline)
-
-  @[link_name="SDL_SetGPUViewport"]
-  fn set_gpu_viewport(render_pass *GPURenderPass, viewport const *GPUViewport)
-
-  @[link_name="SDL_SetGPUScissor"]
-  fn set_gpu_scissor(render_pass *GPURenderPass, scissor const *Rect)
-
-  @[link_name="SDL_SetGPUBlendConstants"]
-  fn set_gpu_blend_constants(render_pass *GPURenderPass, blend_constants FColor)
-
-  @[link_name="SDL_SetGPUStencilReference"]
-  fn set_gpu_stencil_reference(render_pass *GPURenderPass, reference u8)
-
-  @[link_name="SDL_BindGPUVertexBuffers"]
-  fn bind_gpu_vertex_buffers(render_pass *GPURenderPass, first_slot u32, bindings const *GPUBufferBinding, num_bindings u32)
-
-  @[link_name="SDL_BindGPUIndexBuffer"]
-  fn bind_gpu_index_buffer(render_pass *GPURenderPass, binding const *GPUBufferBinding, index_element_size GPUIndexElementSize)
-
-  @[link_name="SDL_BindGPUVertexSamplers"]
-  fn bind_gpu_vertex_samplers(render_pass *GPURenderPass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32)
-
-  @[link_name="SDL_BindGPUVertexStorageTextures"]
-  fn bind_gpu_vertex_storage_textures(render_pass *GPURenderPass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32)
-
-  @[link_name="SDL_BindGPUVertexStorageBuffers"]
-  fn bind_gpu_vertex_storage_buffers(render_pass *GPURenderPass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32)
-
-  @[link_name="SDL_BindGPUFragmentSamplers"]
-  fn bind_gpu_fragment_samplers(render_pass *GPURenderPass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32)
-
-  @[link_name="SDL_BindGPUFragmentStorageTextures"]
-  fn bind_gpu_fragment_storage_textures(render_pass *GPURenderPass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32)
-
-  @[link_name="SDL_BindGPUFragmentStorageBuffers"]
-  fn bind_gpu_fragment_storage_buffers(render_pass *GPURenderPass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32)
-
-  @[link_name="SDL_DrawGPUIndexedPrimitives"]
-  fn draw_gpu_indexed_primitives(render_pass *GPURenderPass, num_indices u32, num_instances u32, first_index u32, vertex_offset i32, first_instance u32)
-
-  @[link_name="SDL_DrawGPUPrimitives"]
-  fn draw_gpu_primitives(render_pass *GPURenderPass, num_vertices u32, num_instances u32, first_vertex u32, first_instance u32)
-
-  @[link_name="SDL_DrawGPUPrimitivesIndirect"]
-  fn draw_gpu_primitives_indirect(render_pass *GPURenderPass, buffer *GPUBuffer, offset u32, draw_count u32)
-
-  @[link_name="SDL_DrawGPUIndexedPrimitivesIndirect"]
-  fn draw_gpu_indexed_primitives_indirect(render_pass *GPURenderPass, buffer *GPUBuffer, offset u32, draw_count u32)
-
-  @[link_name="SDL_EndGPURenderPass"]
-  fn end_gpu_render_pass(render_pass *GPURenderPass)
-
-  @[link_name="SDL_BeginGPUComputePass"]
-  fn begin_gpu_compute_pass(command_buffer *GPUCommandBuffer, storage_texture_bindings const *GPUStorageTextureReadWriteBinding, num_storage_texture_bindings u32, storage_buffer_bindings const *GPUStorageBufferReadWriteBinding, num_storage_buffer_bindings u32) *GPUComputePass
-
-  @[link_name="SDL_BindGPUComputePipeline"]
-  fn bind_gpu_compute_pipeline(compute_pass *GPUComputePass, compute_pipeline *GPUComputePipeline)
-
-  @[link_name="SDL_BindGPUComputeSamplers"]
-  fn bind_gpu_compute_samplers(compute_pass *GPUComputePass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32)
-
-  @[link_name="SDL_BindGPUComputeStorageTextures"]
-  fn bind_gpu_compute_storage_textures(compute_pass *GPUComputePass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32)
-
-  @[link_name="SDL_BindGPUComputeStorageBuffers"]
-  fn bind_gpu_compute_storage_buffers(compute_pass *GPUComputePass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32)
-
-  @[link_name="SDL_DispatchGPUCompute"]
-  fn dispatch_gpu_compute(compute_pass *GPUComputePass, groupcount_x u32, groupcount_y u32, groupcount_z u32)
-
-  @[link_name="SDL_DispatchGPUComputeIndirect"]
-  fn dispatch_gpu_compute_indirect(compute_pass *GPUComputePass, buffer *GPUBuffer, offset u32)
-
-  @[link_name="SDL_EndGPUComputePass"]
-  fn end_gpu_compute_pass(compute_pass *GPUComputePass)
-
-  @[link_name="SDL_MapGPUTransferBuffer"]
-  fn map_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer, cycle bool) rawptr
-
-  @[link_name="SDL_UnmapGPUTransferBuffer"]
-  fn unmap_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer)
-
-  @[link_name="SDL_BeginGPUCopyPass"]
-  fn begin_gpu_copy_pass(command_buffer *GPUCommandBuffer) *GPUCopyPass
-
-  @[link_name="SDL_UploadToGPUTexture"]
-  fn upload_to_gpu_texture(copy_pass *GPUCopyPass, source const *GPUTextureTransferInfo, destination const *GPUTextureRegion, cycle bool)
-
-  @[link_name="SDL_UploadToGPUBuffer"]
-  fn upload_to_gpu_buffer(copy_pass *GPUCopyPass, source const *GPUTransferBufferLocation, destination const *GPUBufferRegion, cycle bool)
-
-  @[link_name="SDL_CopyGPUTextureToTexture"]
-  fn copy_gpu_texture_to_texture(copy_pass *GPUCopyPass, source const *GPUTextureLocation, destination const *GPUTextureLocation, w u32, h u32, d u32, cycle bool)
-
-  @[link_name="SDL_CopyGPUBufferToBuffer"]
-  fn copy_gpu_buffer_to_buffer(copy_pass *GPUCopyPass, source const *GPUBufferLocation, destination const *GPUBufferLocation, size u32, cycle bool)
-
-  @[link_name="SDL_DownloadFromGPUTexture"]
-  fn download_from_gpu_texture(copy_pass *GPUCopyPass, source const *GPUTextureRegion, destination const *GPUTextureTransferInfo)
-
-  @[link_name="SDL_DownloadFromGPUBuffer"]
-  fn download_from_gpu_buffer(copy_pass *GPUCopyPass, source const *GPUBufferRegion, destination const *GPUTransferBufferLocation)
-
-  @[link_name="SDL_EndGPUCopyPass"]
-  fn end_gpu_copy_pass(copy_pass *GPUCopyPass)
-
-  @[link_name="SDL_GenerateMipmapsForGPUTexture"]
-  fn generate_mipmaps_for_gpu_texture(command_buffer *GPUCommandBuffer, texture *GPUTexture)
-
-  @[link_name="SDL_BlitGPUTexture"]
-  fn blit_gpu_texture(command_buffer *GPUCommandBuffer, info const *GPUBlitInfo)
-
-  @[link_name="SDL_WindowSupportsGPUSwapchainComposition"]
-  fn window_supports_gpu_swapchain_composition(device *GPUDevice, window *Window, swapchain_composition GPUSwapchainComposition) bool
-
-  @[link_name="SDL_WindowSupportsGPUPresentMode"]
-  fn window_supports_gpu_present_mode(device *GPUDevice, window *Window, present_mode GPUPresentMode) bool
-
-  @[link_name="SDL_ClaimWindowForGPUDevice"]
-  fn claim_window_for_gpu_device(device *GPUDevice, window *Window) bool
-
-  @[link_name="SDL_ReleaseWindowFromGPUDevice"]
-  fn release_window_from_gpu_device(device *GPUDevice, window *Window)
-
-  @[link_name="SDL_SetGPUSwapchainParameters"]
-  fn set_gpu_swapchain_parameters(device *GPUDevice, window *Window, swapchain_composition GPUSwapchainComposition, present_mode GPUPresentMode) bool
-
-  @[link_name="SDL_SetGPUAllowedFramesInFlight"]
-  fn set_gpu_allowed_frames_in_flight(device *GPUDevice, allowed_frames_in_flight u32) bool
-
-  @[link_name="SDL_GetGPUSwapchainTextureFormat"]
-  fn get_gpu_swapchain_texture_format(device *GPUDevice, window *Window) GPUTextureFormat
-
-  @[link_name="SDL_AcquireGPUSwapchainTexture"]
-  fn acquire_gpu_swapchain_texture(command_buffer *GPUCommandBuffer, window *Window, swapchain_texture **GPUTexture, swapchain_texture_width *u32, swapchain_texture_height *u32) bool
-
-  @[link_name="SDL_WaitForGPUSwapchain"]
-  fn wait_for_gpu_swapchain(device *GPUDevice, window *Window) bool
-
-  @[link_name="SDL_WaitAndAcquireGPUSwapchainTexture"]
-  fn wait_and_acquire_gpu_swapchain_texture(command_buffer *GPUCommandBuffer, window *Window, swapchain_texture **GPUTexture, swapchain_texture_width *u32, swapchain_texture_height *u32) bool
-
-  @[link_name="SDL_SubmitGPUCommandBuffer"]
-  fn submit_gpu_command_buffer(command_buffer *GPUCommandBuffer) bool
-
-  @[link_name="SDL_SubmitGPUCommandBufferAndAcquireFence"]
-  fn submit_gpu_command_buffer_and_acquire_fence(command_buffer *GPUCommandBuffer) *GPUFence
-
-  @[link_name="SDL_CancelGPUCommandBuffer"]
-  fn cancel_gpu_command_buffer(command_buffer *GPUCommandBuffer) bool
-
-  @[link_name="SDL_WaitForGPUIdle"]
-  fn wait_for_gpu_idle(device *GPUDevice) bool
-
-  @[link_name="SDL_WaitForGPUFences"]
-  fn wait_for_gpu_fences(device *GPUDevice, wait_all bool, fences const **GPUFence, num_fences u32) bool
-
-  @[link_name="SDL_QueryGPUFence"]
-  fn query_gpu_fence(device *GPUDevice, fence *GPUFence) bool
-
-  @[link_name="SDL_ReleaseGPUFence"]
-  fn release_gpu_fence(device *GPUDevice, fence *GPUFence)
-
-  @[link_name="SDL_GPUTextureFormatTexelBlockSize"]
-  fn gpu_texture_format_texel_block_size(format GPUTextureFormat) u32
-
-  @[link_name="SDL_GPUTextureSupportsFormat"]
-  fn gpu_texture_supports_format(device *GPUDevice, format GPUTextureFormat, type_ GPUTextureType, usage GPUTextureUsageFlags) bool
-
-  @[link_name="SDL_GPUTextureSupportsSampleCount"]
-  fn gpu_texture_supports_sample_count(device *GPUDevice, format GPUTextureFormat, sample_count GPUSampleCount) bool
-
-  @[link_name="SDL_CalculateGPUTextureFormatSize"]
-  fn calculate_gpu_texture_format_size(format GPUTextureFormat, width u32, height u32, depth_or_layer_count u32) u32
-
-  @[link_name="SDL_GetHaptics"]
-  fn get_haptics(count *c::c_int) *HapticID
-
-  @[link_name="SDL_GetHapticNameForID"]
-  fn get_haptic_name_for_id(instance_id HapticID) c::ConstCString
-
-  @[link_name="SDL_OpenHaptic"]
-  fn open_haptic(instance_id HapticID) *Haptic
-
-  @[link_name="SDL_GetHapticFromID"]
-  fn get_haptic_from_id(instance_id HapticID) *Haptic
-
-  @[link_name="SDL_GetHapticID"]
-  fn get_haptic_id(haptic *Haptic) HapticID
-
-  @[link_name="SDL_GetHapticName"]
-  fn get_haptic_name(haptic *Haptic) c::ConstCString
-
-  @[link_name="SDL_IsMouseHaptic"]
-  fn is_mouse_haptic() bool
-
-  @[link_name="SDL_OpenHapticFromMouse"]
-  fn open_haptic_from_mouse() *Haptic
-
-  @[link_name="SDL_IsJoystickHaptic"]
-  fn is_joystick_haptic(joystick *Joystick) bool
-
-  @[link_name="SDL_OpenHapticFromJoystick"]
-  fn open_haptic_from_joystick(joystick *Joystick) *Haptic
-
-  @[link_name="SDL_CloseHaptic"]
-  fn close_haptic(haptic *Haptic)
-
-  @[link_name="SDL_GetMaxHapticEffects"]
-  fn get_max_haptic_effects(haptic *Haptic) c::c_int
-
-  @[link_name="SDL_GetMaxHapticEffectsPlaying"]
-  fn get_max_haptic_effects_playing(haptic *Haptic) c::c_int
-
-  @[link_name="SDL_GetHapticFeatures"]
-  fn get_haptic_features(haptic *Haptic) u32
-
-  @[link_name="SDL_GetNumHapticAxes"]
-  fn get_num_haptic_axes(haptic *Haptic) c::c_int
-
-  @[link_name="SDL_HapticEffectSupported"]
-  fn haptic_effect_supported(haptic *Haptic, effect const *HapticEffect) bool
-
-  @[link_name="SDL_CreateHapticEffect"]
-  fn create_haptic_effect(haptic *Haptic, effect const *HapticEffect) c::c_int
-
-  @[link_name="SDL_UpdateHapticEffect"]
-  fn update_haptic_effect(haptic *Haptic, effect c::c_int, data const *HapticEffect) bool
-
-  @[link_name="SDL_RunHapticEffect"]
-  fn run_haptic_effect(haptic *Haptic, effect c::c_int, iterations u32) bool
-
-  @[link_name="SDL_StopHapticEffect"]
-  fn stop_haptic_effect(haptic *Haptic, effect c::c_int) bool
-
-  @[link_name="SDL_DestroyHapticEffect"]
-  fn destroy_haptic_effect(haptic *Haptic, effect c::c_int)
-
-  @[link_name="SDL_GetHapticEffectStatus"]
-  fn get_haptic_effect_status(haptic *Haptic, effect c::c_int) bool
-
-  @[link_name="SDL_SetHapticGain"]
-  fn set_haptic_gain(haptic *Haptic, gain c::c_int) bool
-
-  @[link_name="SDL_SetHapticAutocenter"]
-  fn set_haptic_autocenter(haptic *Haptic, autocenter c::c_int) bool
-
-  @[link_name="SDL_PauseHaptic"]
-  fn pause_haptic(haptic *Haptic) bool
-
-  @[link_name="SDL_ResumeHaptic"]
-  fn resume_haptic(haptic *Haptic) bool
-
-  @[link_name="SDL_StopHapticEffects"]
-  fn stop_haptic_effects(haptic *Haptic) bool
-
-  @[link_name="SDL_HapticRumbleSupported"]
-  fn haptic_rumble_supported(haptic *Haptic) bool
-
-  @[link_name="SDL_InitHapticRumble"]
-  fn init_haptic_rumble(haptic *Haptic) bool
-
-  @[link_name="SDL_PlayHapticRumble"]
-  fn play_haptic_rumble(haptic *Haptic, strength c::c_float, length u32) bool
-
-  @[link_name="SDL_StopHapticRumble"]
-  fn stop_haptic_rumble(haptic *Haptic) bool
-
-  @[link_name="SDL_hid_init"]
-  fn hid_init() c::c_int
-
-  @[link_name="SDL_hid_exit"]
-  fn hid_exit() c::c_int
-
-  @[link_name="SDL_hid_device_change_count"]
-  fn hid_device_change_count() u32
-
-  @[link_name="SDL_hid_enumerate"]
-  fn hid_enumerate(vendor_id c::c_ushort, product_id c::c_ushort) *hid_device_info
-
-  @[link_name="SDL_hid_free_enumeration"]
-  fn hid_free_enumeration(devs *hid_device_info)
-
-  @[link_name="SDL_hid_open"]
-  fn hid_open(vendor_id c::c_ushort, product_id c::c_ushort, serial_number const *c::c_wchar_t) *hid_device
-
-  @[link_name="SDL_hid_open_path"]
-  fn hid_open_path(path c::ConstCString) *hid_device
-
-  @[link_name="SDL_hid_write"]
-  fn hid_write(dev *hid_device, data const *c::c_uchar, length c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_read_timeout"]
-  fn hid_read_timeout(dev *hid_device, data *c::c_uchar, length c::c_size_t, milliseconds c::c_int) c::c_int
-
-  @[link_name="SDL_hid_read"]
-  fn hid_read(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_set_nonblocking"]
-  fn hid_set_nonblocking(dev *hid_device, nonblock c::c_int) c::c_int
-
-  @[link_name="SDL_hid_send_feature_report"]
-  fn hid_send_feature_report(dev *hid_device, data const *c::c_uchar, length c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_feature_report"]
-  fn hid_get_feature_report(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_input_report"]
-  fn hid_get_input_report(dev *hid_device, data *c::c_uchar, length c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_close"]
-  fn hid_close(dev *hid_device) c::c_int
-
-  @[link_name="SDL_hid_get_manufacturer_string"]
-  fn hid_get_manufacturer_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_product_string"]
-  fn hid_get_product_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_serial_number_string"]
-  fn hid_get_serial_number_string(dev *hid_device, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_indexed_string"]
-  fn hid_get_indexed_string(dev *hid_device, string_index c::c_int, string_ *c::c_wchar_t, maxlen c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_get_device_info"]
-  fn hid_get_device_info(dev *hid_device) *hid_device_info
-
-  @[link_name="SDL_hid_get_report_descriptor"]
-  fn hid_get_report_descriptor(dev *hid_device, buf *c::c_uchar, buf_size c::c_size_t) c::c_int
-
-  @[link_name="SDL_hid_ble_scan"]
-  fn hid_ble_scan(active bool)
-
-  @[link_name="SDL_SetHintWithPriority"]
-  fn set_hint_with_priority(name c::ConstCString, value c::ConstCString, priority HintPriority) bool
-
-  @[link_name="SDL_SetHint"]
-  fn set_hint(name c::ConstCString, value c::ConstCString) bool
-
-  @[link_name="SDL_ResetHint"]
-  fn reset_hint(name c::ConstCString) bool
-
-  @[link_name="SDL_ResetHints"]
-  fn reset_hints()
-
-  @[link_name="SDL_GetHint"]
-  fn get_hint(name c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_GetHintBoolean"]
-  fn get_hint_boolean(name c::ConstCString, default_value bool) bool
-
-  @[link_name="SDL_AddHintCallback"]
-  fn add_hint_callback(name c::ConstCString, callback HintCallback, userdata rawptr) bool
-
-  @[link_name="SDL_RemoveHintCallback"]
-  fn remove_hint_callback(name c::ConstCString, callback HintCallback, userdata rawptr)
-
-  @[link_name="SDL_Init"]
-  fn init(flags InitFlags) bool
-
-  @[link_name="SDL_InitSubSystem"]
-  fn init_sub_system(flags InitFlags) bool
-
-  @[link_name="SDL_QuitSubSystem"]
-  fn quit_sub_system(flags InitFlags)
-
-  @[link_name="SDL_WasInit"]
-  fn was_init(flags InitFlags) InitFlags
-
-  @[link_name="SDL_Quit"]
-  fn quit()
-
-  @[link_name="SDL_IsMainThread"]
-  fn is_main_thread() bool
-
-  @[link_name="SDL_RunOnMainThread"]
-  fn run_on_main_thread(callback MainThreadCallback, userdata rawptr, wait_complete bool) bool
-
-  @[link_name="SDL_SetAppMetadata"]
-  fn set_app_metadata(appname c::ConstCString, appversion c::ConstCString, appidentifier c::ConstCString) bool
-
-  @[link_name="SDL_SetAppMetadataProperty"]
-  fn set_app_metadata_property(name c::ConstCString, value c::ConstCString) bool
-
-  @[link_name="SDL_GetAppMetadataProperty"]
-  fn get_app_metadata_property(name c::ConstCString) c::ConstCString
-
-  @[link_name="SDL_LoadObject"]
-  fn load_object(sofile c::ConstCString) *SharedObject
-
-  @[link_name="SDL_LoadFunction"]
-  fn load_function(handle *SharedObject, name c::ConstCString) FunctionPointer
-
-  @[link_name="SDL_UnloadObject"]
-  fn unload_object(handle *SharedObject)
-
-  @[link_name="SDL_GetPreferredLocales"]
-  fn get_preferred_locales(count *c::c_int) **Locale
-
-  @[link_name="SDL_SetLogPriorities"]
-  fn set_log_priorities(priority LogPriority)
-
-  @[link_name="SDL_SetLogPriority"]
-  fn set_log_priority(category c::c_int, priority LogPriority)
-
-  @[link_name="SDL_GetLogPriority"]
-  fn get_log_priority(category c::c_int) LogPriority
-
-  @[link_name="SDL_ResetLogPriorities"]
-  fn reset_log_priorities()
-
-  @[link_name="SDL_SetLogPriorityPrefix"]
-  fn set_log_priority_prefix(priority LogPriority, prefix c::ConstCString) bool
-
-  @[link_name="SDL_Log"]
-  fn log(fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogTrace"]
-  fn log_trace(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogVerbose"]
-  fn log_verbose(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogDebug"]
-  fn log_debug(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogInfo"]
-  fn log_info(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogWarn"]
-  fn log_warn(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogError"]
-  fn log_error(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogCritical"]
-  fn log_critical(category c::c_int, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogMessage"]
-  fn log_message(category c::c_int, priority LogPriority, fmt c::ConstCString, args @c ...)
-
-  @[link_name="SDL_LogMessageV"]
-  fn log_message_v(category c::c_int, priority LogPriority, fmt c::ConstCString, ap c::c_va_list)
-
-  @[link_name="SDL_GetDefaultLogOutputFunction"]
-  fn get_default_log_output_function() LogOutputFunction
-
-  @[link_name="SDL_GetLogOutputFunction"]
-  fn get_log_output_function(callback *LogOutputFunction, userdata *rawptr)
-
-  @[link_name="SDL_SetLogOutputFunction"]
-  fn set_log_output_function(callback LogOutputFunction, userdata rawptr)
-
-  @[link_name="SDL_ShowMessageBox"]
-  fn show_message_box(messageboxdata const *MessageBoxData, buttonid *c::c_int) bool
-
-  @[link_name="SDL_ShowSimpleMessageBox"]
-  fn show_simple_message_box(flags MessageBoxFlags, title c::ConstCString, message c::ConstCString, window *Window) bool
-
-  @[link_name="SDL_Metal_CreateView"]
-  fn metal_create_view(window *Window) MetalView
-
-  @[link_name="SDL_Metal_DestroyView"]
-  fn metal_destroy_view(view MetalView)
-
-  @[link_name="SDL_Metal_GetLayer"]
-  fn metal_get_layer(view MetalView) rawptr
-
-  @[link_name="SDL_OpenURL"]
-  fn open_url(url c::ConstCString) bool
-
-  @[link_name="SDL_GetPlatform"]
-  fn get_platform() c::ConstCString
-
-  @[link_name="SDL_CreateProcess"]
-  fn create_process(args const *c::ConstCString, pipe_stdio bool) *Process
-
-  @[link_name="SDL_CreateProcessWithProperties"]
-  fn create_process_with_properties(props PropertiesID) *Process
-
-  @[link_name="SDL_GetProcessProperties"]
-  fn get_process_properties(process *Process) PropertiesID
-
-  @[link_name="SDL_ReadProcess"]
-  fn read_process(process *Process, datasize *c::c_size_t, exitcode *c::c_int) rawptr
-
-  @[link_name="SDL_GetProcessInput"]
-  fn get_process_input(process *Process) *IOStream
-
-  @[link_name="SDL_GetProcessOutput"]
-  fn get_process_output(process *Process) *IOStream
-
-  @[link_name="SDL_KillProcess"]
-  fn kill_process(process *Process, force bool) bool
-
-  @[link_name="SDL_WaitProcess"]
-  fn wait_process(process *Process, block bool, exitcode *c::c_int) bool
-
-  @[link_name="SDL_DestroyProcess"]
-  fn destroy_process(process *Process)
-
-  @[link_name="SDL_GetNumRenderDrivers"]
-  fn get_num_render_drivers() c::c_int
-
-  @[link_name="SDL_GetRenderDriver"]
-  fn get_render_driver(index c::c_int) c::ConstCString
-
-  @[link_name="SDL_CreateWindowAndRenderer"]
-  fn create_window_and_renderer(title c::ConstCString, width c::c_int, height c::c_int, window_flags WindowFlags, window **Window, renderer **Renderer) bool
-
-  @[link_name="SDL_CreateRenderer"]
-  fn create_renderer(window *Window, name c::ConstCString) *Renderer
-
-  @[link_name="SDL_CreateRendererWithProperties"]
-  fn create_renderer_with_properties(props PropertiesID) *Renderer
-
-  @[link_name="SDL_CreateSoftwareRenderer"]
-  fn create_software_renderer(surface *Surface) *Renderer
-
-  @[link_name="SDL_GetRenderer"]
-  fn get_renderer(window *Window) *Renderer
-
-  @[link_name="SDL_GetRenderWindow"]
-  fn get_render_window(renderer *Renderer) *Window
-
-  @[link_name="SDL_GetRendererName"]
-  fn get_renderer_name(renderer *Renderer) c::ConstCString
-
-  @[link_name="SDL_GetRendererProperties"]
-  fn get_renderer_properties(renderer *Renderer) PropertiesID
-
-  @[link_name="SDL_GetRenderOutputSize"]
-  fn get_render_output_size(renderer *Renderer, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_GetCurrentRenderOutputSize"]
-  fn get_current_render_output_size(renderer *Renderer, w *c::c_int, h *c::c_int) bool
-
-  @[link_name="SDL_CreateTexture"]
-  fn create_texture(renderer *Renderer, format PixelFormat, access TextureAccess, w c::c_int, h c::c_int) *Texture
-
-  @[link_name="SDL_CreateTextureFromSurface"]
-  fn create_texture_from_surface(renderer *Renderer, surface *Surface) *Texture
-
-  @[link_name="SDL_CreateTextureWithProperties"]
-  fn create_texture_with_properties(renderer *Renderer, props PropertiesID) *Texture
-
-  @[link_name="SDL_GetTextureProperties"]
-  fn get_texture_properties(texture *Texture) PropertiesID
-
-  @[link_name="SDL_GetRendererFromTexture"]
-  fn get_renderer_from_texture(texture *Texture) *Renderer
-
-  @[link_name="SDL_GetTextureSize"]
-  fn get_texture_size(texture *Texture, w *c::c_float, h *c::c_float) bool
-
-  @[link_name="SDL_SetTextureColorMod"]
-  fn set_texture_color_mod(texture *Texture, r u8, g u8, b u8) bool
-
-  @[link_name="SDL_SetTextureColorModFloat"]
-  fn set_texture_color_mod_float(texture *Texture, r c::c_float, g c::c_float, b c::c_float) bool
-
-  @[link_name="SDL_GetTextureColorMod"]
-  fn get_texture_color_mod(texture *Texture, r *u8, g *u8, b *u8) bool
-
-  @[link_name="SDL_GetTextureColorModFloat"]
-  fn get_texture_color_mod_float(texture *Texture, r *c::c_float, g *c::c_float, b *c::c_float) bool
-
-  @[link_name="SDL_SetTextureAlphaMod"]
-  fn set_texture_alpha_mod(texture *Texture, alpha u8) bool
-
-  @[link_name="SDL_SetTextureAlphaModFloat"]
-  fn set_texture_alpha_mod_float(texture *Texture, alpha c::c_float) bool
-
-  @[link_name="SDL_GetTextureAlphaMod"]
-  fn get_texture_alpha_mod(texture *Texture, alpha *u8) bool
-
-  @[link_name="SDL_GetTextureAlphaModFloat"]
-  fn get_texture_alpha_mod_float(texture *Texture, alpha *c::c_float) bool
-
-  @[link_name="SDL_SetTextureBlendMode"]
-  fn set_texture_blend_mode(texture *Texture, blendMode BlendMode) bool
-
-  @[link_name="SDL_GetTextureBlendMode"]
-  fn get_texture_blend_mode(texture *Texture, blendMode *BlendMode) bool
-
-  @[link_name="SDL_SetTextureScaleMode"]
-  fn set_texture_scale_mode(texture *Texture, scaleMode ScaleMode) bool
-
-  @[link_name="SDL_GetTextureScaleMode"]
-  fn get_texture_scale_mode(texture *Texture, scaleMode *ScaleMode) bool
-
-  @[link_name="SDL_UpdateTexture"]
-  fn update_texture(texture *Texture, rect const *Rect, pixels const *Void, pitch c::c_int) bool
-
-  @[link_name="SDL_UpdateYUVTexture"]
-  fn update_yuv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch c::c_int, Uplane const *u8, Upitch c::c_int, Vplane const *u8, Vpitch c::c_int) bool
-
-  @[link_name="SDL_UpdateNVTexture"]
-  fn update_nv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch c::c_int, UVplane const *u8, UVpitch c::c_int) bool
-
-  @[link_name="SDL_LockTexture"]
-  fn lock_texture(texture *Texture, rect const *Rect, pixels *rawptr, pitch *c::c_int) bool
-
-  @[link_name="SDL_LockTextureToSurface"]
-  fn lock_texture_to_surface(texture *Texture, rect const *Rect, surface **Surface) bool
-
-  @[link_name="SDL_UnlockTexture"]
-  fn unlock_texture(texture *Texture)
-
-  @[link_name="SDL_SetRenderTarget"]
-  fn set_render_target(renderer *Renderer, texture *Texture) bool
-
-  @[link_name="SDL_GetRenderTarget"]
-  fn get_render_target(renderer *Renderer) *Texture
-
-  @[link_name="SDL_SetRenderLogicalPresentation"]
-  fn set_render_logical_presentation(renderer *Renderer, w c::c_int, h c::c_int, mode RendererLogicalPresentation) bool
-
-  @[link_name="SDL_GetRenderLogicalPresentation"]
-  fn get_render_logical_presentation(renderer *Renderer, w *c::c_int, h *c::c_int, mode *RendererLogicalPresentation) bool
-
-  @[link_name="SDL_GetRenderLogicalPresentationRect"]
-  fn get_render_logical_presentation_rect(renderer *Renderer, rect *FRect) bool
-
-  @[link_name="SDL_RenderCoordinatesFromWindow"]
-  fn render_coordinates_from_window(renderer *Renderer, window_x c::c_float, window_y c::c_float, x *c::c_float, y *c::c_float) bool
-
-  @[link_name="SDL_RenderCoordinatesToWindow"]
-  fn render_coordinates_to_window(renderer *Renderer, x c::c_float, y c::c_float, window_x *c::c_float, window_y *c::c_float) bool
-
-  @[link_name="SDL_ConvertEventToRenderCoordinates"]
-  fn convert_event_to_render_coordinates(renderer *Renderer, event *Event) bool
-
-  @[link_name="SDL_SetRenderViewport"]
-  fn set_render_viewport(renderer *Renderer, rect const *Rect) bool
-
-  @[link_name="SDL_GetRenderViewport"]
-  fn get_render_viewport(renderer *Renderer, rect *Rect) bool
-
-  @[link_name="SDL_RenderViewportSet"]
-  fn render_viewport_set(renderer *Renderer) bool
-
-  @[link_name="SDL_GetRenderSafeArea"]
-  fn get_render_safe_area(renderer *Renderer, rect *Rect) bool
-
-  @[link_name="SDL_SetRenderClipRect"]
-  fn set_render_clip_rect(renderer *Renderer, rect const *Rect) bool
-
-  @[link_name="SDL_GetRenderClipRect"]
-  fn get_render_clip_rect(renderer *Renderer, rect *Rect) bool
-
-  @[link_name="SDL_RenderClipEnabled"]
-  fn render_clip_enabled(renderer *Renderer) bool
-
-  @[link_name="SDL_SetRenderScale"]
-  fn set_render_scale(renderer *Renderer, scaleX c::c_float, scaleY c::c_float) bool
-
-  @[link_name="SDL_GetRenderScale"]
-  fn get_render_scale(renderer *Renderer, scaleX *c::c_float, scaleY *c::c_float) bool
-
-  @[link_name="SDL_SetRenderDrawColor"]
-  fn set_render_draw_color(renderer *Renderer, r u8, g u8, b u8, a u8) bool
-
-  @[link_name="SDL_SetRenderDrawColorFloat"]
-  fn set_render_draw_color_float(renderer *Renderer, r c::c_float, g c::c_float, b c::c_float, a c::c_float) bool
-
-  @[link_name="SDL_GetRenderDrawColor"]
-  fn get_render_draw_color(renderer *Renderer, r *u8, g *u8, b *u8, a *u8) bool
-
-  @[link_name="SDL_GetRenderDrawColorFloat"]
-  fn get_render_draw_color_float(renderer *Renderer, r *c::c_float, g *c::c_float, b *c::c_float, a *c::c_float) bool
-
-  @[link_name="SDL_SetRenderColorScale"]
-  fn set_render_color_scale(renderer *Renderer, scale c::c_float) bool
-
-  @[link_name="SDL_GetRenderColorScale"]
-  fn get_render_color_scale(renderer *Renderer, scale *c::c_float) bool
-
-  @[link_name="SDL_SetRenderDrawBlendMode"]
-  fn set_render_draw_blend_mode(renderer *Renderer, blendMode BlendMode) bool
-
-  @[link_name="SDL_GetRenderDrawBlendMode"]
-  fn get_render_draw_blend_mode(renderer *Renderer, blendMode *BlendMode) bool
-
-  @[link_name="SDL_RenderClear"]
-  fn render_clear(renderer *Renderer) bool
-
-  @[link_name="SDL_RenderPoint"]
-  fn render_point(renderer *Renderer, x c::c_float, y c::c_float) bool
-
-  @[link_name="SDL_RenderPoints"]
-  fn render_points(renderer *Renderer, points const *FPoint, count c::c_int) bool
-
-  @[link_name="SDL_RenderLine"]
-  fn render_line(renderer *Renderer, x1 c::c_float, y1 c::c_float, x2 c::c_float, y2 c::c_float) bool
-
-  @[link_name="SDL_RenderLines"]
-  fn render_lines(renderer *Renderer, points const *FPoint, count c::c_int) bool
-
-  @[link_name="SDL_RenderRect"]
-  fn render_rect(renderer *Renderer, rect const *FRect) bool
-
-  @[link_name="SDL_RenderRects"]
-  fn render_rects(renderer *Renderer, rects const *FRect, count c::c_int) bool
-
-  @[link_name="SDL_RenderFillRect"]
-  fn render_fill_rect(renderer *Renderer, rect const *FRect) bool
-
-  @[link_name="SDL_RenderFillRects"]
-  fn render_fill_rects(renderer *Renderer, rects const *FRect, count c::c_int) bool
-
-  @[link_name="SDL_RenderTexture"]
-  fn render_texture(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect) bool
-
-  @[link_name="SDL_RenderTextureRotated"]
-  fn render_texture_rotated(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect, angle c::c_double, center const *FPoint, flip FlipMode) bool
-
-  @[link_name="SDL_RenderTextureAffine"]
-  fn render_texture_affine(renderer *Renderer, texture *Texture, srcrect const *FRect, origin const *FPoint, right const *FPoint, down const *FPoint) bool
-
-  @[link_name="SDL_RenderTextureTiled"]
-  fn render_texture_tiled(renderer *Renderer, texture *Texture, srcrect const *FRect, scale c::c_float, dstrect const *FRect) bool
-
-  @[link_name="SDL_RenderTexture9Grid"]
-  fn render_texture9_grid(renderer *Renderer, texture *Texture, srcrect const *FRect, left_width c::c_float, right_width c::c_float, top_height c::c_float, bottom_height c::c_float, scale c::c_float, dstrect const *FRect) bool
-
-  @[link_name="SDL_RenderGeometry"]
-  fn render_geometry(renderer *Renderer, texture *Texture, vertices const *Vertex, num_vertices c::c_int, indices const *c::c_int, num_indices c::c_int) bool
-
-  @[link_name="SDL_RenderGeometryRaw"]
-  fn render_geometry_raw(renderer *Renderer, texture *Texture, xy const *c::c_float, xy_stride c::c_int, color const *FColor, color_stride c::c_int, uv const *c::c_float, uv_stride c::c_int, num_vertices c::c_int, indices const *Void, num_indices c::c_int, size_indices c::c_int) bool
-
-  @[link_name="SDL_RenderReadPixels"]
-  fn render_read_pixels(renderer *Renderer, rect const *Rect) *Surface
-
-  @[link_name="SDL_RenderPresent"]
-  fn render_present(renderer *Renderer) bool
-
-  @[link_name="SDL_DestroyTexture"]
-  fn destroy_texture(texture *Texture)
-
-  @[link_name="SDL_DestroyRenderer"]
-  fn destroy_renderer(renderer *Renderer)
-
-  @[link_name="SDL_FlushRenderer"]
-  fn flush_renderer(renderer *Renderer) bool
-
-  @[link_name="SDL_GetRenderMetalLayer"]
-  fn get_render_metal_layer(renderer *Renderer) rawptr
-
-  @[link_name="SDL_GetRenderMetalCommandEncoder"]
-  fn get_render_metal_command_encoder(renderer *Renderer) rawptr
-
-  @[link_name="SDL_AddVulkanRenderSemaphores"]
-  fn add_vulkan_render_semaphores(renderer *Renderer, wait_stage_mask u32, wait_semaphore i64, signal_semaphore i64) bool
-
-  @[link_name="SDL_SetRenderVSync"]
-  fn set_render_v_sync(renderer *Renderer, vsync c::c_int) bool
-
-  @[link_name="SDL_GetRenderVSync"]
-  fn get_render_v_sync(renderer *Renderer, vsync *c::c_int) bool
-
-  @[link_name="SDL_RenderDebugText"]
-  fn render_debug_text(renderer *Renderer, x c::c_float, y c::c_float, str c::ConstCString) bool
-
-  @[link_name="SDL_RenderDebugTextFormat"]
-  fn render_debug_text_format(renderer *Renderer, x c::c_float, y c::c_float, fmt c::ConstCString, args @c ...) bool
-
-  @[link_name="SDL_OpenTitleStorage"]
-  fn open_title_storage(override c::ConstCString, props PropertiesID) *Storage
-
-  @[link_name="SDL_OpenUserStorage"]
-  fn open_user_storage(org c::ConstCString, app c::ConstCString, props PropertiesID) *Storage
-
-  @[link_name="SDL_OpenFileStorage"]
-  fn open_file_storage(path c::ConstCString) *Storage
-
-  @[link_name="SDL_OpenStorage"]
-  fn open_storage(iface const *StorageInterface, userdata rawptr) *Storage
-
-  @[link_name="SDL_CloseStorage"]
-  fn close_storage(storage *Storage) bool
-
-  @[link_name="SDL_StorageReady"]
-  fn storage_ready(storage *Storage) bool
-
-  @[link_name="SDL_GetStorageFileSize"]
-  fn get_storage_file_size(storage *Storage, path c::ConstCString, length *u64) bool
-
-  @[link_name="SDL_ReadStorageFile"]
-  fn read_storage_file(storage *Storage, path c::ConstCString, destination rawptr, length u64) bool
-
-  @[link_name="SDL_WriteStorageFile"]
-  fn write_storage_file(storage *Storage, path c::ConstCString, source const *Void, length u64) bool
-
-  @[link_name="SDL_CreateStorageDirectory"]
-  fn create_storage_directory(storage *Storage, path c::ConstCString) bool
-
-  @[link_name="SDL_EnumerateStorageDirectory"]
-  fn enumerate_storage_directory(storage *Storage, path c::ConstCString, callback EnumerateDirectoryCallback, userdata rawptr) bool
-
-  @[link_name="SDL_RemoveStoragePath"]
-  fn remove_storage_path(storage *Storage, path c::ConstCString) bool
-
-  @[link_name="SDL_RenameStoragePath"]
-  fn rename_storage_path(storage *Storage, oldpath c::ConstCString, newpath c::ConstCString) bool
-
-  @[link_name="SDL_CopyStorageFile"]
-  fn copy_storage_file(storage *Storage, oldpath c::ConstCString, newpath c::ConstCString) bool
-
-  @[link_name="SDL_GetStoragePathInfo"]
-  fn get_storage_path_info(storage *Storage, path c::ConstCString, info *PathInfo) bool
-
-  @[link_name="SDL_GetStorageSpaceRemaining"]
-  fn get_storage_space_remaining(storage *Storage) u64
-
-  @[link_name="SDL_GlobStorageDirectory"]
-  fn glob_storage_directory(storage *Storage, path c::ConstCString, pattern c::ConstCString, flags GlobFlags, count *c::c_int) *c::CString
-
-  @[link_name="SDL_SetX11EventHook"]
-  fn set_x11_event_hook(callback X11EventHook, userdata rawptr)
-
-  @[link_name="SDL_IsTablet"]
-  fn is_tablet() bool
-
-  @[link_name="SDL_IsTV"]
-  fn is_tv() bool
-
-  @[link_name="SDL_GetSandbox"]
-  fn get_sandbox() Sandbox
-
-  @[link_name="SDL_OnApplicationWillTerminate"]
-  fn on_application_will_terminate()
-
-  @[link_name="SDL_OnApplicationDidReceiveMemoryWarning"]
-  fn on_application_did_receive_memory_warning()
-
-  @[link_name="SDL_OnApplicationWillEnterBackground"]
-  fn on_application_will_enter_background()
-
-  @[link_name="SDL_OnApplicationDidEnterBackground"]
-  fn on_application_did_enter_background()
-
-  @[link_name="SDL_OnApplicationWillEnterForeground"]
-  fn on_application_will_enter_foreground()
-
-  @[link_name="SDL_OnApplicationDidEnterForeground"]
-  fn on_application_did_enter_foreground()
-
-  @[link_name="SDL_GetDateTimeLocalePreferences"]
-  fn get_date_time_locale_preferences(dateFormat *DateFormat, timeFormat *TimeFormat) bool
-
-  @[link_name="SDL_GetCurrentTime"]
-  fn get_current_time(ticks *Time) bool
-
-  @[link_name="SDL_TimeToDateTime"]
-  fn time_to_date_time(ticks Time, dt *DateTime, localTime bool) bool
-
-  @[link_name="SDL_DateTimeToTime"]
-  fn date_time_to_time(dt const *DateTime, ticks *Time) bool
-
-  @[link_name="SDL_TimeToWindows"]
-  fn time_to_windows(ticks Time, dwLowDateTime *u32, dwHighDateTime *u32)
-
-  @[link_name="SDL_TimeFromWindows"]
-  fn time_from_windows(dwLowDateTime u32, dwHighDateTime u32) Time
-
-  @[link_name="SDL_GetDaysInMonth"]
-  fn get_days_in_month(year c::c_int, month c::c_int) c::c_int
-
-  @[link_name="SDL_GetDayOfYear"]
-  fn get_day_of_year(year c::c_int, month c::c_int, day c::c_int) c::c_int
-
-  @[link_name="SDL_GetDayOfWeek"]
-  fn get_day_of_week(year c::c_int, month c::c_int, day c::c_int) c::c_int
-
-  @[link_name="SDL_GetTicks"]
-  fn get_ticks() u64
-
-  @[link_name="SDL_GetTicksNS"]
-  fn get_ticks_ns() u64
-
-  @[link_name="SDL_GetPerformanceCounter"]
-  fn get_performance_counter() u64
-
-  @[link_name="SDL_GetPerformanceFrequency"]
-  fn get_performance_frequency() u64
-
-  @[link_name="SDL_Delay"]
-  fn delay(ms u32)
-
-  @[link_name="SDL_DelayNS"]
-  fn delay_ns(ns u64)
-
-  @[link_name="SDL_DelayPrecise"]
-  fn delay_precise(ns u64)
-
-  @[link_name="SDL_AddTimer"]
-  fn add_timer(interval u32, callback TimerCallback, userdata rawptr) TimerID
-
-  @[link_name="SDL_AddTimerNS"]
-  fn add_timer_ns(interval u64, callback NSTimerCallback, userdata rawptr) TimerID
-
-  @[link_name="SDL_RemoveTimer"]
-  fn remove_timer(id TimerID) bool
-
-  @[link_name="SDL_CreateTray"]
-  fn create_tray(icon *Surface, tooltip c::ConstCString) *Tray
-
-  @[link_name="SDL_SetTrayIcon"]
-  fn set_tray_icon(tray *Tray, icon *Surface)
-
-  @[link_name="SDL_SetTrayTooltip"]
-  fn set_tray_tooltip(tray *Tray, tooltip c::ConstCString)
-
-  @[link_name="SDL_CreateTrayMenu"]
-  fn create_tray_menu(tray *Tray) *TrayMenu
-
-  @[link_name="SDL_CreateTraySubmenu"]
-  fn create_tray_submenu(entry *TrayEntry) *TrayMenu
-
-  @[link_name="SDL_GetTrayMenu"]
-  fn get_tray_menu(tray *Tray) *TrayMenu
-
-  @[link_name="SDL_GetTraySubmenu"]
-  fn get_tray_submenu(entry *TrayEntry) *TrayMenu
-
-  @[link_name="SDL_GetTrayEntries"]
-  fn get_tray_entries(menu *TrayMenu, count *c::c_int) *const *TrayEntry
-
-  @[link_name="SDL_RemoveTrayEntry"]
-  fn remove_tray_entry(entry *TrayEntry)
-
-  @[link_name="SDL_InsertTrayEntryAt"]
-  fn insert_tray_entry_at(menu *TrayMenu, pos c::c_int, label c::ConstCString, flags TrayEntryFlags) *TrayEntry
-
-  @[link_name="SDL_SetTrayEntryLabel"]
-  fn set_tray_entry_label(entry *TrayEntry, label c::ConstCString)
-
-  @[link_name="SDL_GetTrayEntryLabel"]
-  fn get_tray_entry_label(entry *TrayEntry) c::ConstCString
-
-  @[link_name="SDL_SetTrayEntryChecked"]
-  fn set_tray_entry_checked(entry *TrayEntry, checked bool)
-
-  @[link_name="SDL_GetTrayEntryChecked"]
-  fn get_tray_entry_checked(entry *TrayEntry) bool
-
-  @[link_name="SDL_SetTrayEntryEnabled"]
-  fn set_tray_entry_enabled(entry *TrayEntry, enabled bool)
-
-  @[link_name="SDL_GetTrayEntryEnabled"]
-  fn get_tray_entry_enabled(entry *TrayEntry) bool
-
-  @[link_name="SDL_SetTrayEntryCallback"]
-  fn set_tray_entry_callback(entry *TrayEntry, callback TrayCallback, userdata rawptr)
-
-  @[link_name="SDL_ClickTrayEntry"]
-  fn click_tray_entry(entry *TrayEntry)
-
-  @[link_name="SDL_DestroyTray"]
-  fn destroy_tray(tray *Tray)
-
-  @[link_name="SDL_GetTrayEntryParent"]
-  fn get_tray_entry_parent(entry *TrayEntry) *TrayMenu
-
-  @[link_name="SDL_GetTrayMenuParentEntry"]
-  fn get_tray_menu_parent_entry(menu *TrayMenu) *TrayEntry
-
-  @[link_name="SDL_GetTrayMenuParentTray"]
-  fn get_tray_menu_parent_tray(menu *TrayMenu) *Tray
-
-  @[link_name="SDL_UpdateTrays"]
-  fn update_trays()
-
-  @[link_name="SDL_GetVersion"]
-  fn get_version() c::c_int
-
-  @[link_name="SDL_GetRevision"]
-  fn get_revision() c::ConstCString
-
-  @[link_name="SDL_main"]
-  fn main(argc c::c_int, argv *c::CString) c::c_int
-
-  @[link_name="SDL_SetMainReady"]
-  fn set_main_ready()
-
-  @[link_name="SDL_RunApp"]
-  fn run_app(argc c::c_int, argv *c::CString, mainFunction main_func, reserved rawptr) c::c_int
-
-  @[link_name="SDL_EnterAppMainCallbacks"]
-  fn enter_app_main_callbacks(argc c::c_int, argv *c::CString, appinit AppInit_func, appiter AppIterate_func, appevent AppEvent_func, appquit AppQuit_func) c::c_int
-
-  @[link_name="SDL_GDKSuspendComplete"]
-  fn gdk_suspend_complete()
-
-  @[link_name="SDL_Vulkan_LoadLibrary"]
-  fn vulkan_load_library(path c::ConstCString) bool
-
-  @[link_name="SDL_Vulkan_GetVkGetInstanceProcAddr"]
-  fn vulkan_get_vk_get_instance_proc_addr() FunctionPointer
-
-  @[link_name="SDL_Vulkan_UnloadLibrary"]
-  fn vulkan_unload_library()
-
-  @[link_name="SDL_Vulkan_GetInstanceExtensions"]
-  fn vulkan_get_instance_extensions(count *u32) const *c::ConstCString
-
-  @[link_name="SDL_Vulkan_CreateSurface"]
-  fn vulkan_create_surface(window *Window, instance VkInstance, allocator const *VkAllocationCallbacks, surface *VkSurfaceKHR) bool
-
-  @[link_name="SDL_Vulkan_DestroySurface"]
-  fn vulkan_destroy_surface(instance VkInstance, surface VkSurfaceKHR, allocator const *VkAllocationCallbacks)
-
-  @[link_name="SDL_Vulkan_GetPresentationSupport"]
-  fn vulkan_get_presentation_support(instance VkInstance, physicalDevice VkPhysicalDevice, queueFamilyIndex u32) bool
-
-  @[link_name="SDL_CreateThread"]
-  fn create_thread(entry ThreadFunction, name c::ConstCString, data rawptr) *Thread
-
-  @[link_name="SDL_CreateThreadWithProperties"]
-  fn create_thread_with_properties(props PropertiesID) *Thread
+}
+
+const HINT_ALLOW_ALT_TAB_WHILE_GRABBED string = "SDL_ALLOW_ALT_TAB_WHILE_GRABBED"
+const HINT_ANDROID_ALLOW_RECREATE_ACTIVITY string = "SDL_ANDROID_ALLOW_RECREATE_ACTIVITY"
+const HINT_ANDROID_BLOCK_ON_PAUSE string = "SDL_ANDROID_BLOCK_ON_PAUSE"
+const HINT_ANDROID_LOW_LATENCY_AUDIO string = "SDL_ANDROID_LOW_LATENCY_AUDIO"
+const HINT_ANDROID_TRAP_BACK_BUTTON string = "SDL_ANDROID_TRAP_BACK_BUTTON"
+const HINT_APPLE_TV_CONTROLLER_UI_EVENTS string = "SDL_APPLE_TV_CONTROLLER_UI_EVENTS"
+const HINT_APPLE_TV_REMOTE_ALLOW_ROTATION string = "SDL_APPLE_TV_REMOTE_ALLOW_ROTATION"
+const HINT_APP_ID string = "SDL_APP_ID"
+const HINT_APP_NAME string = "SDL_APP_NAME"
+const HINT_ASSERT string = "SDL_ASSERT"
+const HINT_AUDIO_ALSA_DEFAULT_DEVICE string = "SDL_AUDIO_ALSA_DEFAULT_DEVICE"
+const HINT_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE string = "SDL_AUDIO_ALSA_DEFAULT_PLAYBACK_DEVICE"
+const HINT_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE string = "SDL_AUDIO_ALSA_DEFAULT_RECORDING_DEVICE"
+const HINT_AUDIO_CATEGORY string = "SDL_AUDIO_CATEGORY"
+const HINT_AUDIO_CHANNELS string = "SDL_AUDIO_CHANNELS"
+const HINT_AUDIO_DEVICE_APP_ICON_NAME string = "SDL_AUDIO_DEVICE_APP_ICON_NAME"
+const HINT_AUDIO_DEVICE_SAMPLE_FRAMES string = "SDL_AUDIO_DEVICE_SAMPLE_FRAMES"
+const HINT_AUDIO_DEVICE_STREAM_NAME string = "SDL_AUDIO_DEVICE_STREAM_NAME"
+const HINT_AUDIO_DEVICE_STREAM_ROLE string = "SDL_AUDIO_DEVICE_STREAM_ROLE"
+const HINT_AUDIO_DISK_INPUT_FILE string = "SDL_AUDIO_DISK_INPUT_FILE"
+const HINT_AUDIO_DISK_OUTPUT_FILE string = "SDL_AUDIO_DISK_OUTPUT_FILE"
+const HINT_AUDIO_DISK_TIMESCALE string = "SDL_AUDIO_DISK_TIMESCALE"
+const HINT_AUDIO_DRIVER string = "SDL_AUDIO_DRIVER"
+const HINT_AUDIO_DUMMY_TIMESCALE string = "SDL_AUDIO_DUMMY_TIMESCALE"
+const HINT_AUDIO_FORMAT string = "SDL_AUDIO_FORMAT"
+const HINT_AUDIO_FREQUENCY string = "SDL_AUDIO_FREQUENCY"
+const HINT_AUDIO_INCLUDE_MONITORS string = "SDL_AUDIO_INCLUDE_MONITORS"
+const HINT_AUTO_UPDATE_JOYSTICKS string = "SDL_AUTO_UPDATE_JOYSTICKS"
+const HINT_AUTO_UPDATE_SENSORS string = "SDL_AUTO_UPDATE_SENSORS"
+const HINT_BMP_SAVE_LEGACY_FORMAT string = "SDL_BMP_SAVE_LEGACY_FORMAT"
+const HINT_CAMERA_DRIVER string = "SDL_CAMERA_DRIVER"
+const HINT_CPU_FEATURE_MASK string = "SDL_CPU_FEATURE_MASK"
+const HINT_DISPLAY_USABLE_BOUNDS string = "SDL_DISPLAY_USABLE_BOUNDS"
+const HINT_EGL_LIBRARY string = "SDL_EGL_LIBRARY"
+const HINT_EMSCRIPTEN_ASYNCIFY string = "SDL_EMSCRIPTEN_ASYNCIFY"
+const HINT_EMSCRIPTEN_CANVAS_SELECTOR string = "SDL_EMSCRIPTEN_CANVAS_SELECTOR"
+const HINT_EMSCRIPTEN_KEYBOARD_ELEMENT string = "SDL_EMSCRIPTEN_KEYBOARD_ELEMENT"
+const HINT_ENABLE_SCREEN_KEYBOARD string = "SDL_ENABLE_SCREEN_KEYBOARD"
+const HINT_EVDEV_DEVICES string = "SDL_EVDEV_DEVICES"
+const HINT_EVENT_LOGGING string = "SDL_EVENT_LOGGING"
+const HINT_FILE_DIALOG_DRIVER string = "SDL_FILE_DIALOG_DRIVER"
+const HINT_FORCE_RAISEWINDOW string = "SDL_FORCE_RAISEWINDOW"
+const HINT_FRAMEBUFFER_ACCELERATION string = "SDL_FRAMEBUFFER_ACCELERATION"
+const HINT_GAMECONTROLLERCONFIG string = "SDL_GAMECONTROLLERCONFIG"
+const HINT_GAMECONTROLLERCONFIG_FILE string = "SDL_GAMECONTROLLERCONFIG_FILE"
+const HINT_GAMECONTROLLERTYPE string = "SDL_GAMECONTROLLERTYPE"
+const HINT_GAMECONTROLLER_IGNORE_DEVICES string = "SDL_GAMECONTROLLER_IGNORE_DEVICES"
+const HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT string = "SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT"
+const HINT_GAMECONTROLLER_SENSOR_FUSION string = "SDL_GAMECONTROLLER_SENSOR_FUSION"
+const HINT_GDK_TEXTINPUT_DEFAULT_TEXT string = "SDL_GDK_TEXTINPUT_DEFAULT_TEXT"
+const HINT_GDK_TEXTINPUT_DESCRIPTION string = "SDL_GDK_TEXTINPUT_DESCRIPTION"
+const HINT_GDK_TEXTINPUT_MAX_LENGTH string = "SDL_GDK_TEXTINPUT_MAX_LENGTH"
+const HINT_GDK_TEXTINPUT_SCOPE string = "SDL_GDK_TEXTINPUT_SCOPE"
+const HINT_GDK_TEXTINPUT_TITLE string = "SDL_GDK_TEXTINPUT_TITLE"
+const HINT_GPU_DRIVER string = "SDL_GPU_DRIVER"
+const HINT_HIDAPI_ENUMERATE_ONLY_CONTROLLERS string = "SDL_HIDAPI_ENUMERATE_ONLY_CONTROLLERS"
+const HINT_HIDAPI_IGNORE_DEVICES string = "SDL_HIDAPI_IGNORE_DEVICES"
+const HINT_HIDAPI_LIBUSB string = "SDL_HIDAPI_LIBUSB"
+const HINT_HIDAPI_LIBUSB_WHITELIST string = "SDL_HIDAPI_LIBUSB_WHITELIST"
+const HINT_HIDAPI_UDEV string = "SDL_HIDAPI_UDEV"
+const HINT_IME_IMPLEMENTED_UI string = "SDL_IME_IMPLEMENTED_UI"
+const HINT_IOS_HIDE_HOME_INDICATOR string = "SDL_IOS_HIDE_HOME_INDICATOR"
+const HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS string = "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS"
+const HINT_JOYSTICK_ARCADESTICK_DEVICES string = "SDL_JOYSTICK_ARCADESTICK_DEVICES"
+const HINT_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED string = "SDL_JOYSTICK_ARCADESTICK_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_BLACKLIST_DEVICES string = "SDL_JOYSTICK_BLACKLIST_DEVICES"
+const HINT_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED string = "SDL_JOYSTICK_BLACKLIST_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_DEVICE string = "SDL_JOYSTICK_DEVICE"
+const HINT_JOYSTICK_DIRECTINPUT string = "SDL_JOYSTICK_DIRECTINPUT"
+const HINT_JOYSTICK_ENHANCED_REPORTS string = "SDL_JOYSTICK_ENHANCED_REPORTS"
+const HINT_JOYSTICK_FLIGHTSTICK_DEVICES string = "SDL_JOYSTICK_FLIGHTSTICK_DEVICES"
+const HINT_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED string = "SDL_JOYSTICK_FLIGHTSTICK_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_GAMECUBE_DEVICES string = "SDL_JOYSTICK_GAMECUBE_DEVICES"
+const HINT_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED string = "SDL_JOYSTICK_GAMECUBE_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_GAMEINPUT string = "SDL_JOYSTICK_GAMEINPUT"
+const HINT_JOYSTICK_HAPTIC_AXES string = "SDL_JOYSTICK_HAPTIC_AXES"
+const HINT_JOYSTICK_HIDAPI string = "SDL_JOYSTICK_HIDAPI"
+const HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS string = "SDL_JOYSTICK_HIDAPI_COMBINE_JOY_CONS"
+const HINT_JOYSTICK_HIDAPI_GAMECUBE string = "SDL_JOYSTICK_HIDAPI_GAMECUBE"
+const HINT_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE string = "SDL_JOYSTICK_HIDAPI_GAMECUBE_RUMBLE_BRAKE"
+const HINT_JOYSTICK_HIDAPI_JOYCON_HOME_LED string = "SDL_JOYSTICK_HIDAPI_JOYCON_HOME_LED"
+const HINT_JOYSTICK_HIDAPI_JOY_CONS string = "SDL_JOYSTICK_HIDAPI_JOY_CONS"
+const HINT_JOYSTICK_HIDAPI_LUNA string = "SDL_JOYSTICK_HIDAPI_LUNA"
+const HINT_JOYSTICK_HIDAPI_NINTENDO_CLASSIC string = "SDL_JOYSTICK_HIDAPI_NINTENDO_CLASSIC"
+const HINT_JOYSTICK_HIDAPI_PS3 string = "SDL_JOYSTICK_HIDAPI_PS3"
+const HINT_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER string = "SDL_JOYSTICK_HIDAPI_PS3_SIXAXIS_DRIVER"
+const HINT_JOYSTICK_HIDAPI_PS4 string = "SDL_JOYSTICK_HIDAPI_PS4"
+const HINT_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL string = "SDL_JOYSTICK_HIDAPI_PS4_REPORT_INTERVAL"
+const HINT_JOYSTICK_HIDAPI_PS5 string = "SDL_JOYSTICK_HIDAPI_PS5"
+const HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED string = "SDL_JOYSTICK_HIDAPI_PS5_PLAYER_LED"
+const HINT_JOYSTICK_HIDAPI_SHIELD string = "SDL_JOYSTICK_HIDAPI_SHIELD"
+const HINT_JOYSTICK_HIDAPI_STADIA string = "SDL_JOYSTICK_HIDAPI_STADIA"
+const HINT_JOYSTICK_HIDAPI_STEAM string = "SDL_JOYSTICK_HIDAPI_STEAM"
+const HINT_JOYSTICK_HIDAPI_STEAMDECK string = "SDL_JOYSTICK_HIDAPI_STEAMDECK"
+const HINT_JOYSTICK_HIDAPI_STEAM_HOME_LED string = "SDL_JOYSTICK_HIDAPI_STEAM_HOME_LED"
+const HINT_JOYSTICK_HIDAPI_STEAM_HORI string = "SDL_JOYSTICK_HIDAPI_STEAM_HORI"
+const HINT_JOYSTICK_HIDAPI_SWITCH string = "SDL_JOYSTICK_HIDAPI_SWITCH"
+const HINT_JOYSTICK_HIDAPI_SWITCH_HOME_LED string = "SDL_JOYSTICK_HIDAPI_SWITCH_HOME_LED"
+const HINT_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED string = "SDL_JOYSTICK_HIDAPI_SWITCH_PLAYER_LED"
+const HINT_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS string = "SDL_JOYSTICK_HIDAPI_VERTICAL_JOY_CONS"
+const HINT_JOYSTICK_HIDAPI_WII string = "SDL_JOYSTICK_HIDAPI_WII"
+const HINT_JOYSTICK_HIDAPI_WII_PLAYER_LED string = "SDL_JOYSTICK_HIDAPI_WII_PLAYER_LED"
+const HINT_JOYSTICK_HIDAPI_XBOX string = "SDL_JOYSTICK_HIDAPI_XBOX"
+const HINT_JOYSTICK_HIDAPI_XBOX_360 string = "SDL_JOYSTICK_HIDAPI_XBOX_360"
+const HINT_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED string = "SDL_JOYSTICK_HIDAPI_XBOX_360_PLAYER_LED"
+const HINT_JOYSTICK_HIDAPI_XBOX_360_WIRELESS string = "SDL_JOYSTICK_HIDAPI_XBOX_360_WIRELESS"
+const HINT_JOYSTICK_HIDAPI_XBOX_ONE string = "SDL_JOYSTICK_HIDAPI_XBOX_ONE"
+const HINT_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED string = "SDL_JOYSTICK_HIDAPI_XBOX_ONE_HOME_LED"
+const HINT_JOYSTICK_IOKIT string = "SDL_JOYSTICK_IOKIT"
+const HINT_JOYSTICK_LINUX_CLASSIC string = "SDL_JOYSTICK_LINUX_CLASSIC"
+const HINT_JOYSTICK_LINUX_DEADZONES string = "SDL_JOYSTICK_LINUX_DEADZONES"
+const HINT_JOYSTICK_LINUX_DIGITAL_HATS string = "SDL_JOYSTICK_LINUX_DIGITAL_HATS"
+const HINT_JOYSTICK_LINUX_HAT_DEADZONES string = "SDL_JOYSTICK_LINUX_HAT_DEADZONES"
+const HINT_JOYSTICK_MFI string = "SDL_JOYSTICK_MFI"
+const HINT_JOYSTICK_RAWINPUT string = "SDL_JOYSTICK_RAWINPUT"
+const HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT string = "SDL_JOYSTICK_RAWINPUT_CORRELATE_XINPUT"
+const HINT_JOYSTICK_ROG_CHAKRAM string = "SDL_JOYSTICK_ROG_CHAKRAM"
+const HINT_JOYSTICK_THREAD string = "SDL_JOYSTICK_THREAD"
+const HINT_JOYSTICK_THROTTLE_DEVICES string = "SDL_JOYSTICK_THROTTLE_DEVICES"
+const HINT_JOYSTICK_THROTTLE_DEVICES_EXCLUDED string = "SDL_JOYSTICK_THROTTLE_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_WGI string = "SDL_JOYSTICK_WGI"
+const HINT_JOYSTICK_WHEEL_DEVICES string = "SDL_JOYSTICK_WHEEL_DEVICES"
+const HINT_JOYSTICK_WHEEL_DEVICES_EXCLUDED string = "SDL_JOYSTICK_WHEEL_DEVICES_EXCLUDED"
+const HINT_JOYSTICK_ZERO_CENTERED_DEVICES string = "SDL_JOYSTICK_ZERO_CENTERED_DEVICES"
+const HINT_KEYCODE_OPTIONS string = "SDL_KEYCODE_OPTIONS"
+const HINT_KMSDRM_DEVICE_INDEX string = "SDL_KMSDRM_DEVICE_INDEX"
+const HINT_KMSDRM_REQUIRE_DRM_MASTER string = "SDL_KMSDRM_REQUIRE_DRM_MASTER"
+const HINT_LOGGING string = "SDL_LOGGING"
+const HINT_MAC_BACKGROUND_APP string = "SDL_MAC_BACKGROUND_APP"
+const HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK string = "SDL_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK"
+const HINT_MAC_OPENGL_ASYNC_DISPATCH string = "SDL_MAC_OPENGL_ASYNC_DISPATCH"
+const HINT_MAC_OPTION_AS_ALT string = "SDL_MAC_OPTION_AS_ALT"
+const HINT_MAC_SCROLL_MOMENTUM string = "SDL_MAC_SCROLL_MOMENTUM"
+const HINT_MAIN_CALLBACK_RATE string = "SDL_MAIN_CALLBACK_RATE"
+const HINT_MOUSE_AUTO_CAPTURE string = "SDL_MOUSE_AUTO_CAPTURE"
+const HINT_MOUSE_DEFAULT_SYSTEM_CURSOR string = "SDL_MOUSE_DEFAULT_SYSTEM_CURSOR"
+const HINT_MOUSE_DOUBLE_CLICK_RADIUS string = "SDL_MOUSE_DOUBLE_CLICK_RADIUS"
+const HINT_MOUSE_DOUBLE_CLICK_TIME string = "SDL_MOUSE_DOUBLE_CLICK_TIME"
+const HINT_MOUSE_EMULATE_WARP_WITH_RELATIVE string = "SDL_MOUSE_EMULATE_WARP_WITH_RELATIVE"
+const HINT_MOUSE_FOCUS_CLICKTHROUGH string = "SDL_MOUSE_FOCUS_CLICKTHROUGH"
+const HINT_MOUSE_NORMAL_SPEED_SCALE string = "SDL_MOUSE_NORMAL_SPEED_SCALE"
+const HINT_MOUSE_RELATIVE_CURSOR_VISIBLE string = "SDL_MOUSE_RELATIVE_CURSOR_VISIBLE"
+const HINT_MOUSE_RELATIVE_MODE_CENTER string = "SDL_MOUSE_RELATIVE_MODE_CENTER"
+const HINT_MOUSE_RELATIVE_SPEED_SCALE string = "SDL_MOUSE_RELATIVE_SPEED_SCALE"
+const HINT_MOUSE_RELATIVE_SYSTEM_SCALE string = "SDL_MOUSE_RELATIVE_SYSTEM_SCALE"
+const HINT_MOUSE_RELATIVE_WARP_MOTION string = "SDL_MOUSE_RELATIVE_WARP_MOTION"
+const HINT_MOUSE_TOUCH_EVENTS string = "SDL_MOUSE_TOUCH_EVENTS"
+const HINT_MUTE_CONSOLE_KEYBOARD string = "SDL_MUTE_CONSOLE_KEYBOARD"
+const HINT_NO_SIGNAL_HANDLERS string = "SDL_NO_SIGNAL_HANDLERS"
+const HINT_OPENGL_ES_DRIVER string = "SDL_OPENGL_ES_DRIVER"
+const HINT_OPENGL_LIBRARY string = "SDL_OPENGL_LIBRARY"
+const HINT_OPENVR_LIBRARY string = "SDL_OPENVR_LIBRARY"
+const HINT_ORIENTATIONS string = "SDL_ORIENTATIONS"
+const HINT_PEN_MOUSE_EVENTS string = "SDL_PEN_MOUSE_EVENTS"
+const HINT_PEN_TOUCH_EVENTS string = "SDL_PEN_TOUCH_EVENTS"
+const HINT_POLL_SENTINEL string = "SDL_POLL_SENTINEL"
+const HINT_PREFERRED_LOCALES string = "SDL_PREFERRED_LOCALES"
+const HINT_QUIT_ON_LAST_WINDOW_CLOSE string = "SDL_QUIT_ON_LAST_WINDOW_CLOSE"
+const HINT_RENDER_DIRECT3D11_DEBUG string = "SDL_RENDER_DIRECT3D11_DEBUG"
+const HINT_RENDER_DIRECT3D_THREADSAFE string = "SDL_RENDER_DIRECT3D_THREADSAFE"
+const HINT_RENDER_DRIVER string = "SDL_RENDER_DRIVER"
+const HINT_RENDER_GPU_DEBUG string = "SDL_RENDER_GPU_DEBUG"
+const HINT_RENDER_GPU_LOW_POWER string = "SDL_RENDER_GPU_LOW_POWER"
+const HINT_RENDER_LINE_METHOD string = "SDL_RENDER_LINE_METHOD"
+const HINT_RENDER_METAL_PREFER_LOW_POWER_DEVICE string = "SDL_RENDER_METAL_PREFER_LOW_POWER_DEVICE"
+const HINT_RENDER_VSYNC string = "SDL_RENDER_VSYNC"
+const HINT_RENDER_VULKAN_DEBUG string = "SDL_RENDER_VULKAN_DEBUG"
+const HINT_RETURN_KEY_HIDES_IME string = "SDL_RETURN_KEY_HIDES_IME"
+const HINT_ROG_GAMEPAD_MICE string = "SDL_ROG_GAMEPAD_MICE"
+const HINT_ROG_GAMEPAD_MICE_EXCLUDED string = "SDL_ROG_GAMEPAD_MICE_EXCLUDED"
+const HINT_RPI_VIDEO_LAYER string = "SDL_RPI_VIDEO_LAYER"
+const HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME string = "SDL_SCREENSAVER_INHIBIT_ACTIVITY_NAME"
+const HINT_SHUTDOWN_DBUS_ON_QUIT string = "SDL_SHUTDOWN_DBUS_ON_QUIT"
+const HINT_STORAGE_TITLE_DRIVER string = "SDL_STORAGE_TITLE_DRIVER"
+const HINT_STORAGE_USER_DRIVER string = "SDL_STORAGE_USER_DRIVER"
+const HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL string = "SDL_THREAD_FORCE_REALTIME_TIME_CRITICAL"
+const HINT_THREAD_PRIORITY_POLICY string = "SDL_THREAD_PRIORITY_POLICY"
+const HINT_TIMER_RESOLUTION string = "SDL_TIMER_RESOLUTION"
+const HINT_TOUCH_MOUSE_EVENTS string = "SDL_TOUCH_MOUSE_EVENTS"
+const HINT_TRACKPAD_IS_TOUCH_ONLY string = "SDL_TRACKPAD_IS_TOUCH_ONLY"
+const HINT_TV_REMOTE_AS_JOYSTICK string = "SDL_TV_REMOTE_AS_JOYSTICK"
+const HINT_VIDEO_ALLOW_SCREENSAVER string = "SDL_VIDEO_ALLOW_SCREENSAVER"
+const HINT_VIDEO_DISPLAY_PRIORITY string = "SDL_VIDEO_DISPLAY_PRIORITY"
+const HINT_VIDEO_DOUBLE_BUFFER string = "SDL_VIDEO_DOUBLE_BUFFER"
+const HINT_VIDEO_DRIVER string = "SDL_VIDEO_DRIVER"
+const HINT_VIDEO_DUMMY_SAVE_FRAMES string = "SDL_VIDEO_DUMMY_SAVE_FRAMES"
+const HINT_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK string = "SDL_VIDEO_EGL_ALLOW_GETDISPLAY_FALLBACK"
+const HINT_VIDEO_FORCE_EGL string = "SDL_VIDEO_FORCE_EGL"
+const HINT_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY string = "SDL_VIDEO_MAC_FULLSCREEN_MENU_VISIBILITY"
+const HINT_VIDEO_MAC_FULLSCREEN_SPACES string = "SDL_VIDEO_MAC_FULLSCREEN_SPACES"
+const HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS string = "SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS"
+const HINT_VIDEO_OFFSCREEN_SAVE_FRAMES string = "SDL_VIDEO_OFFSCREEN_SAVE_FRAMES"
+const HINT_VIDEO_SYNC_WINDOW_OPERATIONS string = "SDL_VIDEO_SYNC_WINDOW_OPERATIONS"
+const HINT_VIDEO_WAYLAND_ALLOW_LIBDECOR string = "SDL_VIDEO_WAYLAND_ALLOW_LIBDECOR"
+const HINT_VIDEO_WAYLAND_MODE_EMULATION string = "SDL_VIDEO_WAYLAND_MODE_EMULATION"
+const HINT_VIDEO_WAYLAND_MODE_SCALING string = "SDL_VIDEO_WAYLAND_MODE_SCALING"
+const HINT_VIDEO_WAYLAND_PREFER_LIBDECOR string = "SDL_VIDEO_WAYLAND_PREFER_LIBDECOR"
+const HINT_VIDEO_WAYLAND_SCALE_TO_DISPLAY string = "SDL_VIDEO_WAYLAND_SCALE_TO_DISPLAY"
+const HINT_VIDEO_WIN_D3DCOMPILER string = "SDL_VIDEO_WIN_D3DCOMPILER"
+const HINT_VIDEO_X11_EXTERNAL_WINDOW_INPUT string = "SDL_VIDEO_X11_EXTERNAL_WINDOW_INPUT"
+const HINT_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR string = "SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR"
+const HINT_VIDEO_X11_NET_WM_PING string = "SDL_VIDEO_X11_NET_WM_PING"
+const HINT_VIDEO_X11_NODIRECTCOLOR string = "SDL_VIDEO_X11_NODIRECTCOLOR"
+const HINT_VIDEO_X11_SCALING_FACTOR string = "SDL_VIDEO_X11_SCALING_FACTOR"
+const HINT_VIDEO_X11_VISUALID string = "SDL_VIDEO_X11_VISUALID"
+const HINT_VIDEO_X11_WINDOW_VISUALID string = "SDL_VIDEO_X11_WINDOW_VISUALID"
+const HINT_VIDEO_X11_XRANDR string = "SDL_VIDEO_X11_XRANDR"
+const HINT_VITA_ENABLE_BACK_TOUCH string = "SDL_VITA_ENABLE_BACK_TOUCH"
+const HINT_VITA_ENABLE_FRONT_TOUCH string = "SDL_VITA_ENABLE_FRONT_TOUCH"
+const HINT_VITA_MODULE_PATH string = "SDL_VITA_MODULE_PATH"
+const HINT_VITA_PVR_INIT string = "SDL_VITA_PVR_INIT"
+const HINT_VITA_PVR_OPENGL string = "SDL_VITA_PVR_OPENGL"
+const HINT_VITA_RESOLUTION string = "SDL_VITA_RESOLUTION"
+const HINT_VITA_TOUCH_MOUSE_DEVICE string = "SDL_VITA_TOUCH_MOUSE_DEVICE"
+const HINT_VULKAN_DISPLAY string = "SDL_VULKAN_DISPLAY"
+const HINT_VULKAN_LIBRARY string = "SDL_VULKAN_LIBRARY"
+const HINT_WAVE_CHUNK_LIMIT string = "SDL_WAVE_CHUNK_LIMIT"
+const HINT_WAVE_FACT_CHUNK string = "SDL_WAVE_FACT_CHUNK"
+const HINT_WAVE_RIFF_CHUNK_SIZE string = "SDL_WAVE_RIFF_CHUNK_SIZE"
+const HINT_WAVE_TRUNCATION string = "SDL_WAVE_TRUNCATION"
+const HINT_WINDOWS_CLOSE_ON_ALT_F4 string = "SDL_WINDOWS_CLOSE_ON_ALT_F4"
+const HINT_WINDOWS_ENABLE_MENU_MNEMONICS string = "SDL_WINDOWS_ENABLE_MENU_MNEMONICS"
+const HINT_WINDOWS_ENABLE_MESSAGELOOP string = "SDL_WINDOWS_ENABLE_MESSAGELOOP"
+const HINT_WINDOWS_ERASE_BACKGROUND_MODE string = "SDL_WINDOWS_ERASE_BACKGROUND_MODE"
+const HINT_WINDOWS_FORCE_SEMAPHORE_KERNEL string = "SDL_WINDOWS_FORCE_SEMAPHORE_KERNEL"
+const HINT_WINDOWS_GAMEINPUT string = "SDL_WINDOWS_GAMEINPUT"
+const HINT_WINDOWS_INTRESOURCE_ICON string = "SDL_WINDOWS_INTRESOURCE_ICON"
+const HINT_WINDOWS_INTRESOURCE_ICON_SMALL string = "SDL_WINDOWS_INTRESOURCE_ICON_SMALL"
+const HINT_WINDOWS_RAW_KEYBOARD string = "SDL_WINDOWS_RAW_KEYBOARD"
+const HINT_WINDOWS_USE_D3D9EX string = "SDL_WINDOWS_USE_D3D9EX"
+const HINT_WINDOW_ACTIVATE_WHEN_RAISED string = "SDL_WINDOW_ACTIVATE_WHEN_RAISED"
+const HINT_WINDOW_ACTIVATE_WHEN_SHOWN string = "SDL_WINDOW_ACTIVATE_WHEN_SHOWN"
+const HINT_WINDOW_ALLOW_TOPMOST string = "SDL_WINDOW_ALLOW_TOPMOST"
+const HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN string = "SDL_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN"
+const HINT_X11_FORCE_OVERRIDE_REDIRECT string = "SDL_X11_FORCE_OVERRIDE_REDIRECT"
+const HINT_X11_WINDOW_TYPE string = "SDL_X11_WINDOW_TYPE"
+const HINT_X11_XCB_LIBRARY string = "SDL_X11_XCB_LIBRARY"
+const HINT_XINPUT_ENABLED string = "SDL_XINPUT_ENABLED"
+const PROP_APP_METADATA_COPYRIGHT_STRING string = "SDL.app.metadata.copyright"
+const PROP_APP_METADATA_CREATOR_STRING string = "SDL.app.metadata.creator"
+const PROP_APP_METADATA_IDENTIFIER_STRING string = "SDL.app.metadata.identifier"
+const PROP_APP_METADATA_NAME_STRING string = "SDL.app.metadata.name"
+const PROP_APP_METADATA_TYPE_STRING string = "SDL.app.metadata.type"
+const PROP_APP_METADATA_URL_STRING string = "SDL.app.metadata.url"
+const PROP_APP_METADATA_VERSION_STRING string = "SDL.app.metadata.version"
+const PROP_DISPLAY_HDR_ENABLED_BOOLEAN string = "SDL.display.HDR_enabled"
+const PROP_DISPLAY_KMSDRM_PANEL_ORIENTATION_NUMBER string = "SDL.display.KMSDRM.panel_orientation"
+const PROP_FILE_DIALOG_ACCEPT_STRING string = "SDL.filedialog.accept"
+const PROP_FILE_DIALOG_CANCEL_STRING string = "SDL.filedialog.cancel"
+const PROP_FILE_DIALOG_FILTERS_POINTER string = "SDL.filedialog.filters"
+const PROP_FILE_DIALOG_LOCATION_STRING string = "SDL.filedialog.location"
+const PROP_FILE_DIALOG_MANY_BOOLEAN string = "SDL.filedialog.many"
+const PROP_FILE_DIALOG_NFILTERS_NUMBER string = "SDL.filedialog.nfilters"
+const PROP_FILE_DIALOG_TITLE_STRING string = "SDL.filedialog.title"
+const PROP_FILE_DIALOG_WINDOW_POINTER string = "SDL.filedialog.window"
+const PROP_GAMEPAD_CAP_MONO_LED_BOOLEAN string = "SDL.joystick.cap.mono_led"
+const PROP_GAMEPAD_CAP_PLAYER_LED_BOOLEAN string = "SDL.joystick.cap.player_led"
+const PROP_GAMEPAD_CAP_RGB_LED_BOOLEAN string = "SDL.joystick.cap.rgb_led"
+const PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN string = "SDL.joystick.cap.rumble"
+const PROP_GAMEPAD_CAP_TRIGGER_RUMBLE_BOOLEAN string = "SDL.joystick.cap.trigger_rumble"
+const PROP_GLOBAL_VIDEO_WAYLAND_WL_DISPLAY_POINTER string = "SDL.video.wayland.wl_display"
+const PROP_GPU_BUFFER_CREATE_NAME_STRING string = "SDL.gpu.buffer.create.name"
+const PROP_GPU_COMPUTEPIPELINE_CREATE_NAME_STRING string = "SDL.gpu.computepipeline.create.name"
+const PROP_GPU_DEVICE_CREATE_D3D12_SEMANTIC_NAME_STRING string = "SDL.gpu.device.create.d3d12.semantic"
+const PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN string = "SDL.gpu.device.create.debugmode"
+const PROP_GPU_DEVICE_CREATE_NAME_STRING string = "SDL.gpu.device.create.name"
+const PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN string = "SDL.gpu.device.create.preferlowpower"
+const PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN string = "SDL.gpu.device.create.shaders.dxbc"
+const PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN string = "SDL.gpu.device.create.shaders.dxil"
+const PROP_GPU_DEVICE_CREATE_SHADERS_METALLIB_BOOLEAN string = "SDL.gpu.device.create.shaders.metallib"
+const PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN string = "SDL.gpu.device.create.shaders.msl"
+const PROP_GPU_DEVICE_CREATE_SHADERS_PRIVATE_BOOLEAN string = "SDL.gpu.device.create.shaders.private"
+const PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN string = "SDL.gpu.device.create.shaders.spirv"
+const PROP_GPU_GRAPHICSPIPELINE_CREATE_NAME_STRING string = "SDL.gpu.graphicspipeline.create.name"
+const PROP_GPU_SAMPLER_CREATE_NAME_STRING string = "SDL.gpu.sampler.create.name"
+const PROP_GPU_SHADER_CREATE_NAME_STRING string = "SDL.gpu.shader.create.name"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_A_FLOAT string = "SDL.gpu.texture.create.d3d12.clear.a"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_B_FLOAT string = "SDL.gpu.texture.create.d3d12.clear.b"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_DEPTH_FLOAT string = "SDL.gpu.texture.create.d3d12.clear.depth"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_G_FLOAT string = "SDL.gpu.texture.create.d3d12.clear.g"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_R_FLOAT string = "SDL.gpu.texture.create.d3d12.clear.r"
+const PROP_GPU_TEXTURE_CREATE_D3D12_CLEAR_STENCIL_NUMBER string = "SDL.gpu.texture.create.d3d12.clear.stencil"
+const PROP_GPU_TEXTURE_CREATE_NAME_STRING string = "SDL.gpu.texture.create.name"
+const PROP_GPU_TRANSFERBUFFER_CREATE_NAME_STRING string = "SDL.gpu.transferbuffer.create.name"
+const PROP_IOSTREAM_ANDROID_AASSET_POINTER string = "SDL.iostream.android.aasset"
+const PROP_IOSTREAM_DYNAMIC_CHUNKSIZE_NUMBER string = "SDL.iostream.dynamic.chunksize"
+const PROP_IOSTREAM_DYNAMIC_MEMORY_POINTER string = "SDL.iostream.dynamic.memory"
+const PROP_IOSTREAM_FILE_DESCRIPTOR_NUMBER string = "SDL.iostream.file_descriptor"
+const PROP_IOSTREAM_MEMORY_POINTER string = "SDL.iostream.memory.base"
+const PROP_IOSTREAM_MEMORY_SIZE_NUMBER string = "SDL.iostream.memory.size"
+const PROP_IOSTREAM_STDIO_FILE_POINTER string = "SDL.iostream.stdio.file"
+const PROP_IOSTREAM_WINDOWS_HANDLE_POINTER string = "SDL.iostream.windows.handle"
+const PROP_JOYSTICK_CAP_MONO_LED_BOOLEAN string = "SDL.joystick.cap.mono_led"
+const PROP_JOYSTICK_CAP_PLAYER_LED_BOOLEAN string = "SDL.joystick.cap.player_led"
+const PROP_JOYSTICK_CAP_RGB_LED_BOOLEAN string = "SDL.joystick.cap.rgb_led"
+const PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN string = "SDL.joystick.cap.rumble"
+const PROP_JOYSTICK_CAP_TRIGGER_RUMBLE_BOOLEAN string = "SDL.joystick.cap.trigger_rumble"
+const PROP_PROCESS_BACKGROUND_BOOLEAN string = "SDL.process.background"
+const PROP_PROCESS_CREATE_ARGS_POINTER string = "SDL.process.create.args"
+const PROP_PROCESS_CREATE_BACKGROUND_BOOLEAN string = "SDL.process.create.background"
+const PROP_PROCESS_CREATE_ENVIRONMENT_POINTER string = "SDL.process.create.environment"
+const PROP_PROCESS_CREATE_STDERR_NUMBER string = "SDL.process.create.stderr_option"
+const PROP_PROCESS_CREATE_STDERR_POINTER string = "SDL.process.create.stderr_source"
+const PROP_PROCESS_CREATE_STDERR_TO_STDOUT_BOOLEAN string = "SDL.process.create.stderr_to_stdout"
+const PROP_PROCESS_CREATE_STDIN_NUMBER string = "SDL.process.create.stdin_option"
+const PROP_PROCESS_CREATE_STDIN_POINTER string = "SDL.process.create.stdin_source"
+const PROP_PROCESS_CREATE_STDOUT_NUMBER string = "SDL.process.create.stdout_option"
+const PROP_PROCESS_CREATE_STDOUT_POINTER string = "SDL.process.create.stdout_source"
+const PROP_PROCESS_PID_NUMBER string = "SDL.process.pid"
+const PROP_PROCESS_STDERR_POINTER string = "SDL.process.stderr"
+const PROP_PROCESS_STDIN_POINTER string = "SDL.process.stdin"
+const PROP_PROCESS_STDOUT_POINTER string = "SDL.process.stdout"
+const PROP_RENDERER_CREATE_NAME_STRING string = "SDL.renderer.create.name"
+const PROP_RENDERER_CREATE_OUTPUT_COLORSPACE_NUMBER string = "SDL.renderer.create.output_colorspace"
+const PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER string = "SDL.renderer.create.present_vsync"
+const PROP_RENDERER_CREATE_SURFACE_POINTER string = "SDL.renderer.create.surface"
+const PROP_RENDERER_CREATE_VULKAN_DEVICE_POINTER string = "SDL.renderer.create.vulkan.device"
+const PROP_RENDERER_CREATE_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER string = "SDL.renderer.create.vulkan.graphics_queue_family_index"
+const PROP_RENDERER_CREATE_VULKAN_INSTANCE_POINTER string = "SDL.renderer.create.vulkan.instance"
+const PROP_RENDERER_CREATE_VULKAN_PHYSICAL_DEVICE_POINTER string = "SDL.renderer.create.vulkan.physical_device"
+const PROP_RENDERER_CREATE_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER string = "SDL.renderer.create.vulkan.present_queue_family_index"
+const PROP_RENDERER_CREATE_VULKAN_SURFACE_NUMBER string = "SDL.renderer.create.vulkan.surface"
+const PROP_RENDERER_CREATE_WINDOW_POINTER string = "SDL.renderer.create.window"
+const PROP_RENDERER_D3D11_DEVICE_POINTER string = "SDL.renderer.d3d11.device"
+const PROP_RENDERER_D3D11_SWAPCHAIN_POINTER string = "SDL.renderer.d3d11.swap_chain"
+const PROP_RENDERER_D3D12_COMMAND_QUEUE_POINTER string = "SDL.renderer.d3d12.command_queue"
+const PROP_RENDERER_D3D12_DEVICE_POINTER string = "SDL.renderer.d3d12.device"
+const PROP_RENDERER_D3D12_SWAPCHAIN_POINTER string = "SDL.renderer.d3d12.swap_chain"
+const PROP_RENDERER_D3D9_DEVICE_POINTER string = "SDL.renderer.d3d9.device"
+const PROP_RENDERER_GPU_DEVICE_POINTER string = "SDL.renderer.gpu.device"
+const PROP_RENDERER_HDR_ENABLED_BOOLEAN string = "SDL.renderer.HDR_enabled"
+const PROP_RENDERER_HDR_HEADROOM_FLOAT string = "SDL.renderer.HDR_headroom"
+const PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER string = "SDL.renderer.max_texture_size"
+const PROP_RENDERER_NAME_STRING string = "SDL.renderer.name"
+const PROP_RENDERER_OUTPUT_COLORSPACE_NUMBER string = "SDL.renderer.output_colorspace"
+const PROP_RENDERER_SDR_WHITE_POINT_FLOAT string = "SDL.renderer.SDR_white_point"
+const PROP_RENDERER_SURFACE_POINTER string = "SDL.renderer.surface"
+const PROP_RENDERER_TEXTURE_FORMATS_POINTER string = "SDL.renderer.texture_formats"
+const PROP_RENDERER_VSYNC_NUMBER string = "SDL.renderer.vsync"
+const PROP_RENDERER_VULKAN_DEVICE_POINTER string = "SDL.renderer.vulkan.device"
+const PROP_RENDERER_VULKAN_GRAPHICS_QUEUE_FAMILY_INDEX_NUMBER string = "SDL.renderer.vulkan.graphics_queue_family_index"
+const PROP_RENDERER_VULKAN_INSTANCE_POINTER string = "SDL.renderer.vulkan.instance"
+const PROP_RENDERER_VULKAN_PHYSICAL_DEVICE_POINTER string = "SDL.renderer.vulkan.physical_device"
+const PROP_RENDERER_VULKAN_PRESENT_QUEUE_FAMILY_INDEX_NUMBER string = "SDL.renderer.vulkan.present_queue_family_index"
+const PROP_RENDERER_VULKAN_SURFACE_NUMBER string = "SDL.renderer.vulkan.surface"
+const PROP_RENDERER_VULKAN_SWAPCHAIN_IMAGE_COUNT_NUMBER string = "SDL.renderer.vulkan.swapchain_image_count"
+const PROP_RENDERER_WINDOW_POINTER string = "SDL.renderer.window"
+const PROP_SURFACE_HDR_HEADROOM_FLOAT string = "SDL.surface.HDR_headroom"
+const PROP_SURFACE_HOTSPOT_X_NUMBER string = "SDL.surface.hotspot.x"
+const PROP_SURFACE_HOTSPOT_Y_NUMBER string = "SDL.surface.hotspot.y"
+const PROP_SURFACE_SDR_WHITE_POINT_FLOAT string = "SDL.surface.SDR_white_point"
+const PROP_SURFACE_TONEMAP_OPERATOR_STRING string = "SDL.surface.tonemap"
+const PROP_TEXTINPUT_ANDROID_INPUTTYPE_NUMBER string = "SDL.textinput.android.inputtype"
+const PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN string = "SDL.textinput.autocorrect"
+const PROP_TEXTINPUT_CAPITALIZATION_NUMBER string = "SDL.textinput.capitalization"
+const PROP_TEXTINPUT_MULTILINE_BOOLEAN string = "SDL.textinput.multiline"
+const PROP_TEXTINPUT_TYPE_NUMBER string = "SDL.textinput.type"
+const PROP_TEXTURE_ACCESS_NUMBER string = "SDL.texture.access"
+const PROP_TEXTURE_COLORSPACE_NUMBER string = "SDL.texture.colorspace"
+const PROP_TEXTURE_CREATE_ACCESS_NUMBER string = "SDL.texture.create.access"
+const PROP_TEXTURE_CREATE_COLORSPACE_NUMBER string = "SDL.texture.create.colorspace"
+const PROP_TEXTURE_CREATE_D3D11_TEXTURE_POINTER string = "SDL.texture.create.d3d11.texture"
+const PROP_TEXTURE_CREATE_D3D11_TEXTURE_U_POINTER string = "SDL.texture.create.d3d11.texture_u"
+const PROP_TEXTURE_CREATE_D3D11_TEXTURE_V_POINTER string = "SDL.texture.create.d3d11.texture_v"
+const PROP_TEXTURE_CREATE_D3D12_TEXTURE_POINTER string = "SDL.texture.create.d3d12.texture"
+const PROP_TEXTURE_CREATE_D3D12_TEXTURE_U_POINTER string = "SDL.texture.create.d3d12.texture_u"
+const PROP_TEXTURE_CREATE_D3D12_TEXTURE_V_POINTER string = "SDL.texture.create.d3d12.texture_v"
+const PROP_TEXTURE_CREATE_FORMAT_NUMBER string = "SDL.texture.create.format"
+const PROP_TEXTURE_CREATE_HDR_HEADROOM_FLOAT string = "SDL.texture.create.HDR_headroom"
+const PROP_TEXTURE_CREATE_HEIGHT_NUMBER string = "SDL.texture.create.height"
+const PROP_TEXTURE_CREATE_METAL_PIXELBUFFER_POINTER string = "SDL.texture.create.metal.pixelbuffer"
+const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_NUMBER string = "SDL.texture.create.opengles2.texture"
+const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_UV_NUMBER string = "SDL.texture.create.opengles2.texture_uv"
+const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_U_NUMBER string = "SDL.texture.create.opengles2.texture_u"
+const PROP_TEXTURE_CREATE_OPENGLES2_TEXTURE_V_NUMBER string = "SDL.texture.create.opengles2.texture_v"
+const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_NUMBER string = "SDL.texture.create.opengl.texture"
+const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_UV_NUMBER string = "SDL.texture.create.opengl.texture_uv"
+const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_U_NUMBER string = "SDL.texture.create.opengl.texture_u"
+const PROP_TEXTURE_CREATE_OPENGL_TEXTURE_V_NUMBER string = "SDL.texture.create.opengl.texture_v"
+const PROP_TEXTURE_CREATE_SDR_WHITE_POINT_FLOAT string = "SDL.texture.create.SDR_white_point"
+const PROP_TEXTURE_CREATE_VULKAN_TEXTURE_NUMBER string = "SDL.texture.create.vulkan.texture"
+const PROP_TEXTURE_CREATE_WIDTH_NUMBER string = "SDL.texture.create.width"
+const PROP_TEXTURE_D3D11_TEXTURE_POINTER string = "SDL.texture.d3d11.texture"
+const PROP_TEXTURE_D3D11_TEXTURE_U_POINTER string = "SDL.texture.d3d11.texture_u"
+const PROP_TEXTURE_D3D11_TEXTURE_V_POINTER string = "SDL.texture.d3d11.texture_v"
+const PROP_TEXTURE_D3D12_TEXTURE_POINTER string = "SDL.texture.d3d12.texture"
+const PROP_TEXTURE_D3D12_TEXTURE_U_POINTER string = "SDL.texture.d3d12.texture_u"
+const PROP_TEXTURE_D3D12_TEXTURE_V_POINTER string = "SDL.texture.d3d12.texture_v"
+const PROP_TEXTURE_FORMAT_NUMBER string = "SDL.texture.format"
+const PROP_TEXTURE_HDR_HEADROOM_FLOAT string = "SDL.texture.HDR_headroom"
+const PROP_TEXTURE_HEIGHT_NUMBER string = "SDL.texture.height"
+const PROP_TEXTURE_OPENGLES2_TEXTURE_NUMBER string = "SDL.texture.opengles2.texture"
+const PROP_TEXTURE_OPENGLES2_TEXTURE_TARGET_NUMBER string = "SDL.texture.opengles2.target"
+const PROP_TEXTURE_OPENGLES2_TEXTURE_UV_NUMBER string = "SDL.texture.opengles2.texture_uv"
+const PROP_TEXTURE_OPENGLES2_TEXTURE_U_NUMBER string = "SDL.texture.opengles2.texture_u"
+const PROP_TEXTURE_OPENGLES2_TEXTURE_V_NUMBER string = "SDL.texture.opengles2.texture_v"
+const PROP_TEXTURE_OPENGL_TEXTURE_NUMBER string = "SDL.texture.opengl.texture"
+const PROP_TEXTURE_OPENGL_TEXTURE_TARGET_NUMBER string = "SDL.texture.opengl.target"
+const PROP_TEXTURE_OPENGL_TEXTURE_UV_NUMBER string = "SDL.texture.opengl.texture_uv"
+const PROP_TEXTURE_OPENGL_TEXTURE_U_NUMBER string = "SDL.texture.opengl.texture_u"
+const PROP_TEXTURE_OPENGL_TEXTURE_V_NUMBER string = "SDL.texture.opengl.texture_v"
+const PROP_TEXTURE_OPENGL_TEX_H_FLOAT string = "SDL.texture.opengl.tex_h"
+const PROP_TEXTURE_OPENGL_TEX_W_FLOAT string = "SDL.texture.opengl.tex_w"
+const PROP_TEXTURE_SDR_WHITE_POINT_FLOAT string = "SDL.texture.SDR_white_point"
+const PROP_TEXTURE_VULKAN_TEXTURE_NUMBER string = "SDL.texture.vulkan.texture"
+const PROP_TEXTURE_WIDTH_NUMBER string = "SDL.texture.width"
+const PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER string = "SDL.thread.create.entry_function"
+const PROP_THREAD_CREATE_NAME_STRING string = "SDL.thread.create.name"
+const PROP_THREAD_CREATE_STACKSIZE_NUMBER string = "SDL.thread.create.stacksize"
+const PROP_THREAD_CREATE_USERDATA_POINTER string = "SDL.thread.create.userdata"
+const PROP_WINDOW_ANDROID_SURFACE_POINTER string = "SDL.window.android.surface"
+const PROP_WINDOW_ANDROID_WINDOW_POINTER string = "SDL.window.android.window"
+const PROP_WINDOW_COCOA_METAL_VIEW_TAG_NUMBER string = "SDL.window.cocoa.metal_view_tag"
+const PROP_WINDOW_COCOA_WINDOW_POINTER string = "SDL.window.cocoa.window"
+const PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN string = "SDL.window.create.always_on_top"
+const PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN string = "SDL.window.create.borderless"
+const PROP_WINDOW_CREATE_COCOA_VIEW_POINTER string = "SDL.window.create.cocoa.view"
+const PROP_WINDOW_CREATE_COCOA_WINDOW_POINTER string = "SDL.window.create.cocoa.window"
+const PROP_WINDOW_CREATE_CONSTRAIN_POPUP_BOOLEAN string = "SDL.window.create.constrain_popup"
+const PROP_WINDOW_CREATE_EXTERNAL_GRAPHICS_CONTEXT_BOOLEAN string = "SDL.window.create.external_graphics_context"
+const PROP_WINDOW_CREATE_FLAGS_NUMBER string = "SDL.window.create.flags"
+const PROP_WINDOW_CREATE_FOCUSABLE_BOOLEAN string = "SDL.window.create.focusable"
+const PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN string = "SDL.window.create.fullscreen"
+const PROP_WINDOW_CREATE_HEIGHT_NUMBER string = "SDL.window.create.height"
+const PROP_WINDOW_CREATE_HIDDEN_BOOLEAN string = "SDL.window.create.hidden"
+const PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN string = "SDL.window.create.high_pixel_density"
+const PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN string = "SDL.window.create.maximized"
+const PROP_WINDOW_CREATE_MENU_BOOLEAN string = "SDL.window.create.menu"
+const PROP_WINDOW_CREATE_METAL_BOOLEAN string = "SDL.window.create.metal"
+const PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN string = "SDL.window.create.minimized"
+const PROP_WINDOW_CREATE_MODAL_BOOLEAN string = "SDL.window.create.modal"
+const PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN string = "SDL.window.create.mouse_grabbed"
+const PROP_WINDOW_CREATE_OPENGL_BOOLEAN string = "SDL.window.create.opengl"
+const PROP_WINDOW_CREATE_PARENT_POINTER string = "SDL.window.create.parent"
+const PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN string = "SDL.window.create.resizable"
+const PROP_WINDOW_CREATE_TITLE_STRING string = "SDL.window.create.title"
+const PROP_WINDOW_CREATE_TOOLTIP_BOOLEAN string = "SDL.window.create.tooltip"
+const PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN string = "SDL.window.create.transparent"
+const PROP_WINDOW_CREATE_UTILITY_BOOLEAN string = "SDL.window.create.utility"
+const PROP_WINDOW_CREATE_VULKAN_BOOLEAN string = "SDL.window.create.vulkan"
+const PROP_WINDOW_CREATE_WAYLAND_CREATE_EGL_WINDOW_BOOLEAN string = "SDL.window.create.wayland.create_egl_window"
+const PROP_WINDOW_CREATE_WAYLAND_SURFACE_ROLE_CUSTOM_BOOLEAN string = "SDL.window.create.wayland.surface_role_custom"
+const PROP_WINDOW_CREATE_WAYLAND_WL_SURFACE_POINTER string = "SDL.window.create.wayland.wl_surface"
+const PROP_WINDOW_CREATE_WIDTH_NUMBER string = "SDL.window.create.width"
+const PROP_WINDOW_CREATE_WIN32_HWND_POINTER string = "SDL.window.create.win32.hwnd"
+const PROP_WINDOW_CREATE_WIN32_PIXEL_FORMAT_HWND_POINTER string = "SDL.window.create.win32.pixel_format_hwnd"
+const PROP_WINDOW_CREATE_X11_WINDOW_NUMBER string = "SDL.window.create.x11.window"
+const PROP_WINDOW_CREATE_X_NUMBER string = "SDL.window.create.x"
+const PROP_WINDOW_CREATE_Y_NUMBER string = "SDL.window.create.y"
+const PROP_WINDOW_HDR_ENABLED_BOOLEAN string = "SDL.window.HDR_enabled"
+const PROP_WINDOW_HDR_HEADROOM_FLOAT string = "SDL.window.HDR_headroom"
+const PROP_WINDOW_KMSDRM_DEVICE_INDEX_NUMBER string = "SDL.window.kmsdrm.dev_index"
+const PROP_WINDOW_KMSDRM_DRM_FD_NUMBER string = "SDL.window.kmsdrm.drm_fd"
+const PROP_WINDOW_KMSDRM_GBM_DEVICE_POINTER string = "SDL.window.kmsdrm.gbm_dev"
+const PROP_WINDOW_OPENVR_OVERLAY_ID string = "SDL.window.openvr.overlay_id"
+const PROP_WINDOW_SDR_WHITE_LEVEL_FLOAT string = "SDL.window.SDR_white_level"
+const PROP_WINDOW_SHAPE_POINTER string = "SDL.window.shape"
+const PROP_WINDOW_UIKIT_METAL_VIEW_TAG_NUMBER string = "SDL.window.uikit.metal_view_tag"
+const PROP_WINDOW_UIKIT_OPENGL_FRAMEBUFFER_NUMBER string = "SDL.window.uikit.opengl.framebuffer"
+const PROP_WINDOW_UIKIT_OPENGL_RENDERBUFFER_NUMBER string = "SDL.window.uikit.opengl.renderbuffer"
+const PROP_WINDOW_UIKIT_OPENGL_RESOLVE_FRAMEBUFFER_NUMBER string = "SDL.window.uikit.opengl.resolve_framebuffer"
+const PROP_WINDOW_UIKIT_WINDOW_POINTER string = "SDL.window.uikit.window"
+const PROP_WINDOW_VIVANTE_DISPLAY_POINTER string = "SDL.window.vivante.display"
+const PROP_WINDOW_VIVANTE_SURFACE_POINTER string = "SDL.window.vivante.surface"
+const PROP_WINDOW_VIVANTE_WINDOW_POINTER string = "SDL.window.vivante.window"
+const PROP_WINDOW_WAYLAND_DISPLAY_POINTER string = "SDL.window.wayland.display"
+const PROP_WINDOW_WAYLAND_EGL_WINDOW_POINTER string = "SDL.window.wayland.egl_window"
+const PROP_WINDOW_WAYLAND_SURFACE_POINTER string = "SDL.window.wayland.surface"
+const PROP_WINDOW_WAYLAND_VIEWPORT_POINTER string = "SDL.window.wayland.viewport"
+const PROP_WINDOW_WAYLAND_XDG_POPUP_POINTER string = "SDL.window.wayland.xdg_popup"
+const PROP_WINDOW_WAYLAND_XDG_POSITIONER_POINTER string = "SDL.window.wayland.xdg_positioner"
+const PROP_WINDOW_WAYLAND_XDG_SURFACE_POINTER string = "SDL.window.wayland.xdg_surface"
+const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_EXPORT_HANDLE_STRING string = "SDL.window.wayland.xdg_toplevel_export_handle"
+const PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER string = "SDL.window.wayland.xdg_toplevel"
+const PROP_WINDOW_WIN32_HDC_POINTER string = "SDL.window.win32.hdc"
+const PROP_WINDOW_WIN32_HWND_POINTER string = "SDL.window.win32.hwnd"
+const PROP_WINDOW_WIN32_INSTANCE_POINTER string = "SDL.window.win32.instance"
+const PROP_WINDOW_X11_DISPLAY_POINTER string = "SDL.window.x11.display"
+const PROP_WINDOW_X11_SCREEN_NUMBER string = "SDL.window.x11.screen"
+const PROP_WINDOW_X11_WINDOW_NUMBER string = "SDL.window.x11.window"
+
+fn malloc(size u64) rawptr {
+  return raw::malloc(size)
+}
+
+fn calloc(nmemb u64, size u64) rawptr {
+  return raw::calloc(nmemb, size)
+}
+
+fn realloc(mem rawptr, size u64) rawptr {
+  return raw::realloc(mem, size)
+}
+
+fn free(mem rawptr) {
+  raw::free(mem)
+}
+
+fn aligned_alloc(alignment u64, size u64) rawptr {
+  return raw::aligned_alloc(alignment, size)
+}
+
+fn aligned_free(mem rawptr) {
+  raw::aligned_free(mem)
+}
+
+fn get_num_allocations() i32 {
+  return raw::get_num_allocations()
+}
+
+fn get_environment() *Environment {
+  return raw::get_environment()
+}
+
+fn create_environment(populated bool) *Environment {
+  return raw::create_environment(populated)
+}
+
+fn destroy_environment(env *Environment) {
+  raw::destroy_environment(env)
+}
+
+fn abs(x i32) i32 {
+  return raw::abs(x)
+}
+
+fn isalpha(x i32) i32 {
+  return raw::isalpha(x)
+}
+
+fn isalnum(x i32) i32 {
+  return raw::isalnum(x)
+}
+
+fn isblank(x i32) i32 {
+  return raw::isblank(x)
+}
+
+fn iscntrl(x i32) i32 {
+  return raw::iscntrl(x)
+}
+
+fn isdigit(x i32) i32 {
+  return raw::isdigit(x)
+}
+
+fn isxdigit(x i32) i32 {
+  return raw::isxdigit(x)
+}
+
+fn ispunct(x i32) i32 {
+  return raw::ispunct(x)
+}
+
+fn isspace(x i32) i32 {
+  return raw::isspace(x)
+}
+
+fn isupper(x i32) i32 {
+  return raw::isupper(x)
+}
+
+fn islower(x i32) i32 {
+  return raw::islower(x)
+}
+
+fn isprint(x i32) i32 {
+  return raw::isprint(x)
+}
+
+fn isgraph(x i32) i32 {
+  return raw::isgraph(x)
+}
+
+fn toupper(x i32) i32 {
+  return raw::toupper(x)
+}
+
+fn tolower(x i32) i32 {
+  return raw::tolower(x)
+}
+
+fn crc16(crc u16, data const *Void, len u64) u16 {
+  return raw::crc16(crc, data, len)
+}
+
+fn crc32(crc u32, data const *Void, len u64) u32 {
+  return raw::crc32(crc, data, len)
+}
+
+fn murmur3_32(data const *Void, len u64, seed u32) u32 {
+  return raw::murmur3_32(data, len, seed)
+}
+
+fn memcpy(dst rawptr, src const *Void, len u64) rawptr {
+  return raw::memcpy(dst, src, len)
+}
+
+fn memmove(dst rawptr, src const *Void, len u64) rawptr {
+  return raw::memmove(dst, src, len)
+}
+
+fn memset(dst rawptr, c i32, len u64) rawptr {
+  return raw::memset(dst, c, len)
+}
+
+fn memset4(dst rawptr, val u32, dwords u64) rawptr {
+  return raw::memset4(dst, val, dwords)
+}
+
+fn memcmp(s1 const *Void, s2 const *Void, len u64) i32 {
+  return raw::memcmp(s1, s2, len)
+}
+
+fn srand(seed u64) {
+  raw::srand(seed)
+}
+
+fn rand(n i32) i32 {
+  return raw::rand(n)
+}
+
+fn randf() f32 {
+  return raw::randf()
+}
+
+fn rand_bits() u32 {
+  return raw::rand_bits()
+}
+
+fn rand_r(state *u64, n i32) i32 {
+  return raw::rand_r(state, n)
+}
+
+fn randf_r(state *u64) f32 {
+  return raw::randf_r(state)
+}
+
+fn rand_bits_r(state *u64) u32 {
+  return raw::rand_bits_r(state)
+}
+
+fn acos(x f64) f64 {
+  return raw::acos(x)
+}
+
+fn acosf(x f32) f32 {
+  return raw::acosf(x)
+}
+
+fn asin(x f64) f64 {
+  return raw::asin(x)
+}
+
+fn asinf(x f32) f32 {
+  return raw::asinf(x)
+}
+
+fn atan(x f64) f64 {
+  return raw::atan(x)
+}
+
+fn atanf(x f32) f32 {
+  return raw::atanf(x)
+}
+
+fn atan2(y f64, x f64) f64 {
+  return raw::atan2(y, x)
+}
+
+fn atan2f(y f32, x f32) f32 {
+  return raw::atan2f(y, x)
+}
+
+fn ceil(x f64) f64 {
+  return raw::ceil(x)
+}
+
+fn ceilf(x f32) f32 {
+  return raw::ceilf(x)
+}
+
+fn copysign(x f64, y f64) f64 {
+  return raw::copysign(x, y)
+}
+
+fn copysignf(x f32, y f32) f32 {
+  return raw::copysignf(x, y)
+}
+
+fn cos(x f64) f64 {
+  return raw::cos(x)
+}
+
+fn cosf(x f32) f32 {
+  return raw::cosf(x)
+}
+
+fn exp(x f64) f64 {
+  return raw::exp(x)
+}
+
+fn expf(x f32) f32 {
+  return raw::expf(x)
+}
+
+fn fabs(x f64) f64 {
+  return raw::fabs(x)
+}
+
+fn fabsf(x f32) f32 {
+  return raw::fabsf(x)
+}
+
+fn floor(x f64) f64 {
+  return raw::floor(x)
+}
+
+fn floorf(x f32) f32 {
+  return raw::floorf(x)
+}
+
+fn trunc(x f64) f64 {
+  return raw::trunc(x)
+}
+
+fn truncf(x f32) f32 {
+  return raw::truncf(x)
+}
+
+fn fmod(x f64, y f64) f64 {
+  return raw::fmod(x, y)
+}
+
+fn fmodf(x f32, y f32) f32 {
+  return raw::fmodf(x, y)
+}
+
+fn isinf(x f64) i32 {
+  return raw::isinf(x)
+}
+
+fn isinff(x f32) i32 {
+  return raw::isinff(x)
+}
+
+fn isnan(x f64) i32 {
+  return raw::isnan(x)
+}
+
+fn isnanf(x f32) i32 {
+  return raw::isnanf(x)
+}
+
+fn log_f64(x f64) f64 {
+  return raw::log_f64(x)
+}
+
+fn logf(x f32) f32 {
+  return raw::logf(x)
+}
+
+fn log10(x f64) f64 {
+  return raw::log10(x)
+}
+
+fn log10f(x f32) f32 {
+  return raw::log10f(x)
+}
+
+fn pow(x f64, y f64) f64 {
+  return raw::pow(x, y)
+}
+
+fn powf(x f32, y f32) f32 {
+  return raw::powf(x, y)
+}
+
+fn round(x f64) f64 {
+  return raw::round(x)
+}
+
+fn roundf(x f32) f32 {
+  return raw::roundf(x)
+}
+
+fn scalbn(x f64, n i32) f64 {
+  return raw::scalbn(x, n)
+}
+
+fn scalbnf(x f32, n i32) f32 {
+  return raw::scalbnf(x, n)
+}
+
+fn sin(x f64) f64 {
+  return raw::sin(x)
+}
+
+fn sinf(x f32) f32 {
+  return raw::sinf(x)
+}
+
+fn sqrt(x f64) f64 {
+  return raw::sqrt(x)
+}
+
+fn sqrtf(x f32) f32 {
+  return raw::sqrtf(x)
+}
+
+fn tan(x f64) f64 {
+  return raw::tan(x)
+}
+
+fn tanf(x f32) f32 {
+  return raw::tanf(x)
+}
+
+fn iconv_close(cd iconv_t) i32 {
+  return raw::iconv_close(cd)
+}
+
+fn get_default_assertion_handler() AssertionHandler {
+  return raw::get_default_assertion_handler()
+}
+
+fn get_assertion_handler(puserdata *rawptr) AssertionHandler {
+  return raw::get_assertion_handler(puserdata)
+}
+
+fn get_assertion_report() const *AssertData {
+  return raw::get_assertion_report()
+}
+
+fn reset_assertion_report() {
+  raw::reset_assertion_report()
+}
+
+fn get_async_io_size(asyncio *AsyncIO) i64 {
+  return raw::get_async_io_size(asyncio)
+}
+
+fn read_async_io(asyncio *AsyncIO, ptr rawptr, offset u64, size u64, queue *AsyncIOQueue, userdata rawptr) bool {
+  return raw::read_async_io(asyncio, ptr, offset, size, queue, userdata)
+}
+
+fn write_async_io(asyncio *AsyncIO, ptr rawptr, offset u64, size u64, queue *AsyncIOQueue, userdata rawptr) bool {
+  return raw::write_async_io(asyncio, ptr, offset, size, queue, userdata)
+}
+
+fn close_async_io(asyncio *AsyncIO, flush bool, queue *AsyncIOQueue, userdata rawptr) bool {
+  return raw::close_async_io(asyncio, flush, queue, userdata)
+}
+
+fn create_async_io_queue() *AsyncIOQueue {
+  return raw::create_async_io_queue()
+}
+
+fn destroy_async_io_queue(queue *AsyncIOQueue) {
+  raw::destroy_async_io_queue(queue)
+}
+
+fn get_async_io_result(queue *AsyncIOQueue, outcome *AsyncIOOutcome) bool {
+  return raw::get_async_io_result(queue, outcome)
+}
+
+fn wait_async_io_result(queue *AsyncIOQueue, outcome *AsyncIOOutcome, timeoutMS i32) bool {
+  return raw::wait_async_io_result(queue, outcome, timeoutMS)
+}
+
+fn signal_async_io_queue(queue *AsyncIOQueue) {
+  raw::signal_async_io_queue(queue)
+}
+
+fn try_lock_spinlock(lock *SpinLock) bool {
+  return raw::try_lock_spinlock(lock)
+}
+
+fn lock_spinlock(lock *SpinLock) {
+  raw::lock_spinlock(lock)
+}
+
+fn unlock_spinlock(lock *SpinLock) {
+  raw::unlock_spinlock(lock)
+}
+
+fn memory_barrier_release_function() {
+  raw::memory_barrier_release_function()
+}
+
+fn memory_barrier_acquire_function() {
+  raw::memory_barrier_acquire_function()
+}
+
+fn compare_and_swap_atomic_int(a *AtomicInt, oldval i32, newval i32) bool {
+  return raw::compare_and_swap_atomic_int(a, oldval, newval)
+}
+
+fn set_atomic_int(a *AtomicInt, v i32) i32 {
+  return raw::set_atomic_int(a, v)
+}
+
+fn get_atomic_int(a *AtomicInt) i32 {
+  return raw::get_atomic_int(a)
+}
+
+fn add_atomic_int(a *AtomicInt, v i32) i32 {
+  return raw::add_atomic_int(a, v)
+}
+
+fn compare_and_swap_atomic_u32(a *AtomicU32, oldval u32, newval u32) bool {
+  return raw::compare_and_swap_atomic_u32(a, oldval, newval)
+}
+
+fn set_atomic_u32(a *AtomicU32, v u32) u32 {
+  return raw::set_atomic_u32(a, v)
+}
+
+fn get_atomic_u32(a *AtomicU32) u32 {
+  return raw::get_atomic_u32(a)
+}
+
+fn compare_and_swap_atomic_pointer(a *rawptr, oldval rawptr, newval rawptr) bool {
+  return raw::compare_and_swap_atomic_pointer(a, oldval, newval)
+}
+
+fn set_atomic_pointer(a *rawptr, v rawptr) rawptr {
+  return raw::set_atomic_pointer(a, v)
+}
+
+fn get_atomic_pointer(a *rawptr) rawptr {
+  return raw::get_atomic_pointer(a)
+}
+
+fn swap_float(x f32) f32 {
+  return raw::swap_float(x)
+}
+
+fn out_of_memory() bool {
+  return raw::out_of_memory()
+}
+
+fn get_error() string {
+  result := raw::get_error()
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn clear_error() bool {
+  return raw::clear_error()
+}
+
+fn get_global_properties() PropertiesID {
+  return raw::get_global_properties()
+}
+
+fn create_properties() PropertiesID {
+  return raw::create_properties()
+}
+
+fn copy_properties(src PropertiesID, dst PropertiesID) bool {
+  return raw::copy_properties(src, dst)
+}
+
+fn lock_properties(props PropertiesID) bool {
+  return raw::lock_properties(props)
+}
+
+fn unlock_properties(props PropertiesID) {
+  raw::unlock_properties(props)
+}
+
+fn destroy_properties(props PropertiesID) {
+  raw::destroy_properties(props)
+}
+
+fn get_thread_name(thread *Thread) OptionalString {
+  result := raw::get_thread_name(thread)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_current_thread_id() ThreadID {
+  return raw::get_current_thread_id()
+}
+
+fn get_thread_id(thread *Thread) ThreadID {
+  return raw::get_thread_id(thread)
+}
+
+fn set_current_thread_priority(priority ThreadPriority) bool {
+  return raw::set_current_thread_priority(priority)
+}
+
+fn get_thread_state(thread *Thread) ThreadState {
+  return raw::get_thread_state(thread)
+}
+
+fn detach_thread(thread *Thread) {
+  raw::detach_thread(thread)
+}
+
+fn get_tls(id *TLSID) rawptr {
+  return raw::get_tls(id)
+}
+
+fn cleanup_tls() {
+  raw::cleanup_tls()
+}
+
+fn create_mutex() *Mutex {
+  return raw::create_mutex()
+}
+
+fn lock_mutex(mutex *Mutex) {
+  raw::lock_mutex(mutex)
+}
+
+fn try_lock_mutex(mutex *Mutex) bool {
+  return raw::try_lock_mutex(mutex)
+}
+
+fn unlock_mutex(mutex *Mutex) {
+  raw::unlock_mutex(mutex)
+}
+
+fn destroy_mutex(mutex *Mutex) {
+  raw::destroy_mutex(mutex)
+}
+
+fn create_rw_lock() *RWLock {
+  return raw::create_rw_lock()
+}
+
+fn lock_rw_lock_for_reading(rwlock *RWLock) {
+  raw::lock_rw_lock_for_reading(rwlock)
+}
+
+fn lock_rw_lock_for_writing(rwlock *RWLock) {
+  raw::lock_rw_lock_for_writing(rwlock)
+}
+
+fn try_lock_rw_lock_for_reading(rwlock *RWLock) bool {
+  return raw::try_lock_rw_lock_for_reading(rwlock)
+}
+
+fn try_lock_rw_lock_for_writing(rwlock *RWLock) bool {
+  return raw::try_lock_rw_lock_for_writing(rwlock)
+}
+
+fn unlock_rw_lock(rwlock *RWLock) {
+  raw::unlock_rw_lock(rwlock)
+}
+
+fn destroy_rw_lock(rwlock *RWLock) {
+  raw::destroy_rw_lock(rwlock)
+}
+
+fn create_semaphore(initial_value u32) *Semaphore {
+  return raw::create_semaphore(initial_value)
+}
+
+fn destroy_semaphore(sem *Semaphore) {
+  raw::destroy_semaphore(sem)
+}
+
+fn wait_semaphore(sem *Semaphore) {
+  raw::wait_semaphore(sem)
+}
+
+fn try_wait_semaphore(sem *Semaphore) bool {
+  return raw::try_wait_semaphore(sem)
+}
+
+fn wait_semaphore_timeout(sem *Semaphore, timeoutMS i32) bool {
+  return raw::wait_semaphore_timeout(sem, timeoutMS)
+}
+
+fn signal_semaphore(sem *Semaphore) {
+  raw::signal_semaphore(sem)
+}
+
+fn get_semaphore_value(sem *Semaphore) u32 {
+  return raw::get_semaphore_value(sem)
+}
+
+fn create_condition() *Condition {
+  return raw::create_condition()
+}
+
+fn destroy_condition(cond *Condition) {
+  raw::destroy_condition(cond)
+}
+
+fn signal_condition(cond *Condition) {
+  raw::signal_condition(cond)
+}
+
+fn broadcast_condition(cond *Condition) {
+  raw::broadcast_condition(cond)
+}
+
+fn wait_condition(cond *Condition, mutex *Mutex) {
+  raw::wait_condition(cond, mutex)
+}
+
+fn wait_condition_timeout(cond *Condition, mutex *Mutex, timeoutMS i32) bool {
+  return raw::wait_condition_timeout(cond, mutex, timeoutMS)
+}
+
+fn should_init(state *InitState) bool {
+  return raw::should_init(state)
+}
+
+fn should_quit(state *InitState) bool {
+  return raw::should_quit(state)
+}
+
+fn set_initialized(state *InitState, initialized bool) {
+  raw::set_initialized(state, initialized)
+}
+
+fn io_from_const_mem(mem const *Void, size u64) *IOStream {
+  return raw::io_from_const_mem(mem, size)
+}
+
+fn io_from_dynamic_mem() *IOStream {
+  return raw::io_from_dynamic_mem()
+}
+
+fn open_io(iface const *IOStreamInterface, userdata rawptr) *IOStream {
+  return raw::open_io(iface, userdata)
+}
+
+fn close_io(context *IOStream) bool {
+  return raw::close_io(context)
+}
+
+fn get_io_properties(context *IOStream) PropertiesID {
+  return raw::get_io_properties(context)
+}
+
+fn get_io_status(context *IOStream) IOStatus {
+  return raw::get_io_status(context)
+}
+
+fn get_io_size(context *IOStream) i64 {
+  return raw::get_io_size(context)
+}
+
+fn seek_io(context *IOStream, offset i64, whence IOWhence) i64 {
+  return raw::seek_io(context, offset, whence)
+}
+
+fn tell_io(context *IOStream) i64 {
+  return raw::tell_io(context)
+}
+
+fn write_io(context *IOStream, ptr const *Void, size u64) u64 {
+  return raw::write_io(context, ptr, size)
+}
+
+fn flush_io(context *IOStream) bool {
+  return raw::flush_io(context)
+}
+
+fn save_file_io(src *IOStream, data const *Void, datasize u64, closeio bool) bool {
+  return raw::save_file_io(src, data, datasize, closeio)
+}
+
+fn read_u8(src *IOStream, value *u8) bool {
+  return raw::read_u8(src, value)
+}
+
+fn read_s8(src *IOStream, value *i8) bool {
+  return raw::read_s8(src, value)
+}
+
+fn read_u16_le(src *IOStream, value *u16) bool {
+  return raw::read_u16_le(src, value)
+}
+
+fn read_s16_le(src *IOStream, value *i16) bool {
+  return raw::read_s16_le(src, value)
+}
+
+fn read_u16_be(src *IOStream, value *u16) bool {
+  return raw::read_u16_be(src, value)
+}
+
+fn read_s16_be(src *IOStream, value *i16) bool {
+  return raw::read_s16_be(src, value)
+}
+
+fn read_u32_le(src *IOStream, value *u32) bool {
+  return raw::read_u32_le(src, value)
+}
+
+fn read_s32_le(src *IOStream, value *i32) bool {
+  return raw::read_s32_le(src, value)
+}
+
+fn read_u32_be(src *IOStream, value *u32) bool {
+  return raw::read_u32_be(src, value)
+}
+
+fn read_s32_be(src *IOStream, value *i32) bool {
+  return raw::read_s32_be(src, value)
+}
+
+fn read_u64_le(src *IOStream, value *u64) bool {
+  return raw::read_u64_le(src, value)
+}
+
+fn read_s64_le(src *IOStream, value *i64) bool {
+  return raw::read_s64_le(src, value)
+}
+
+fn read_u64_be(src *IOStream, value *u64) bool {
+  return raw::read_u64_be(src, value)
+}
+
+fn read_s64_be(src *IOStream, value *i64) bool {
+  return raw::read_s64_be(src, value)
+}
+
+fn write_u8(dst *IOStream, value u8) bool {
+  return raw::write_u8(dst, value)
+}
+
+fn write_s8(dst *IOStream, value i8) bool {
+  return raw::write_s8(dst, value)
+}
+
+fn write_u16_le(dst *IOStream, value u16) bool {
+  return raw::write_u16_le(dst, value)
+}
+
+fn write_s16_le(dst *IOStream, value i16) bool {
+  return raw::write_s16_le(dst, value)
+}
+
+fn write_u16_be(dst *IOStream, value u16) bool {
+  return raw::write_u16_be(dst, value)
+}
+
+fn write_s16_be(dst *IOStream, value i16) bool {
+  return raw::write_s16_be(dst, value)
+}
+
+fn write_u32_le(dst *IOStream, value u32) bool {
+  return raw::write_u32_le(dst, value)
+}
+
+fn write_s32_le(dst *IOStream, value i32) bool {
+  return raw::write_s32_le(dst, value)
+}
+
+fn write_u32_be(dst *IOStream, value u32) bool {
+  return raw::write_u32_be(dst, value)
+}
+
+fn write_s32_be(dst *IOStream, value i32) bool {
+  return raw::write_s32_be(dst, value)
+}
+
+fn write_u64_le(dst *IOStream, value u64) bool {
+  return raw::write_u64_le(dst, value)
+}
+
+fn write_s64_le(dst *IOStream, value i64) bool {
+  return raw::write_s64_le(dst, value)
+}
+
+fn write_u64_be(dst *IOStream, value u64) bool {
+  return raw::write_u64_be(dst, value)
+}
+
+fn write_s64_be(dst *IOStream, value i64) bool {
+  return raw::write_s64_be(dst, value)
+}
+
+fn get_num_audio_drivers() i32 {
+  return raw::get_num_audio_drivers()
+}
+
+fn get_audio_driver(index i32) OptionalString {
+  result := raw::get_audio_driver(index)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_current_audio_driver() OptionalString {
+  result := raw::get_current_audio_driver()
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_audio_device_name(devid AudioDeviceID) OptionalString {
+  result := raw::get_audio_device_name(devid)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn open_audio_device(devid AudioDeviceID, spec const *AudioSpec) AudioDeviceID {
+  return raw::open_audio_device(devid, spec)
+}
+
+fn is_audio_device_physical(devid AudioDeviceID) bool {
+  return raw::is_audio_device_physical(devid)
+}
+
+fn is_audio_device_playback(devid AudioDeviceID) bool {
+  return raw::is_audio_device_playback(devid)
+}
+
+fn pause_audio_device(devid AudioDeviceID) bool {
+  return raw::pause_audio_device(devid)
+}
+
+fn resume_audio_device(devid AudioDeviceID) bool {
+  return raw::resume_audio_device(devid)
+}
+
+fn audio_device_paused(devid AudioDeviceID) bool {
+  return raw::audio_device_paused(devid)
+}
+
+fn get_audio_device_gain(devid AudioDeviceID) f32 {
+  return raw::get_audio_device_gain(devid)
+}
+
+fn set_audio_device_gain(devid AudioDeviceID, gain f32) bool {
+  return raw::set_audio_device_gain(devid, gain)
+}
+
+fn close_audio_device(devid AudioDeviceID) {
+  raw::close_audio_device(devid)
+}
+
+fn bind_audio_streams(devid AudioDeviceID, streams const **AudioStream, num_streams i32) bool {
+  return raw::bind_audio_streams(devid, streams, num_streams)
+}
+
+fn bind_audio_stream(devid AudioDeviceID, stream *AudioStream) bool {
+  return raw::bind_audio_stream(devid, stream)
+}
+
+fn unbind_audio_streams(streams const **AudioStream, num_streams i32) {
+  raw::unbind_audio_streams(streams, num_streams)
+}
+
+fn unbind_audio_stream(stream *AudioStream) {
+  raw::unbind_audio_stream(stream)
+}
+
+fn get_audio_stream_device(stream *AudioStream) AudioDeviceID {
+  return raw::get_audio_stream_device(stream)
+}
+
+fn create_audio_stream(src_spec const *AudioSpec, dst_spec const *AudioSpec) *AudioStream {
+  return raw::create_audio_stream(src_spec, dst_spec)
+}
+
+fn get_audio_stream_properties(stream *AudioStream) PropertiesID {
+  return raw::get_audio_stream_properties(stream)
+}
+
+fn get_audio_stream_format(stream *AudioStream, src_spec *AudioSpec, dst_spec *AudioSpec) bool {
+  return raw::get_audio_stream_format(stream, src_spec, dst_spec)
+}
+
+fn set_audio_stream_format(stream *AudioStream, src_spec const *AudioSpec, dst_spec const *AudioSpec) bool {
+  return raw::set_audio_stream_format(stream, src_spec, dst_spec)
+}
+
+fn get_audio_stream_frequency_ratio(stream *AudioStream) f32 {
+  return raw::get_audio_stream_frequency_ratio(stream)
+}
+
+fn set_audio_stream_frequency_ratio(stream *AudioStream, ratio f32) bool {
+  return raw::set_audio_stream_frequency_ratio(stream, ratio)
+}
+
+fn get_audio_stream_gain(stream *AudioStream) f32 {
+  return raw::get_audio_stream_gain(stream)
+}
+
+fn set_audio_stream_gain(stream *AudioStream, gain f32) bool {
+  return raw::set_audio_stream_gain(stream, gain)
+}
+
+fn put_audio_stream_data(stream *AudioStream, buf const *Void, len i32) bool {
+  return raw::put_audio_stream_data(stream, buf, len)
+}
+
+fn get_audio_stream_data(stream *AudioStream, buf rawptr, len i32) i32 {
+  return raw::get_audio_stream_data(stream, buf, len)
+}
+
+fn get_audio_stream_available(stream *AudioStream) i32 {
+  return raw::get_audio_stream_available(stream)
+}
+
+fn get_audio_stream_queued(stream *AudioStream) i32 {
+  return raw::get_audio_stream_queued(stream)
+}
+
+fn flush_audio_stream(stream *AudioStream) bool {
+  return raw::flush_audio_stream(stream)
+}
+
+fn clear_audio_stream(stream *AudioStream) bool {
+  return raw::clear_audio_stream(stream)
+}
+
+fn pause_audio_stream_device(stream *AudioStream) bool {
+  return raw::pause_audio_stream_device(stream)
+}
+
+fn resume_audio_stream_device(stream *AudioStream) bool {
+  return raw::resume_audio_stream_device(stream)
+}
+
+fn audio_stream_device_paused(stream *AudioStream) bool {
+  return raw::audio_stream_device_paused(stream)
+}
+
+fn lock_audio_stream(stream *AudioStream) bool {
+  return raw::lock_audio_stream(stream)
+}
+
+fn unlock_audio_stream(stream *AudioStream) bool {
+  return raw::unlock_audio_stream(stream)
+}
+
+fn destroy_audio_stream(stream *AudioStream) {
+  raw::destroy_audio_stream(stream)
+}
+
+fn load_wav_io(src *IOStream, closeio bool, spec *AudioSpec, audio_buf **u8, audio_len *u32) bool {
+  return raw::load_wav_io(src, closeio, spec, audio_buf, audio_len)
+}
+
+fn mix_audio(dst *u8, src const *u8, format AudioFormat, len u32, volume f32) bool {
+  return raw::mix_audio(dst, src, format, len, volume)
+}
+
+fn get_audio_format_name(format AudioFormat) string {
+  result := raw::get_audio_format_name(format)
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn get_silence_value_for_format(format AudioFormat) i32 {
+  return raw::get_silence_value_for_format(format)
+}
+
+fn most_significant_bit_index32(x u32) i32 {
+  return raw::most_significant_bit_index32(x)
+}
+
+fn has_exactly_one_bit_set32(x u32) bool {
+  return raw::has_exactly_one_bit_set32(x)
+}
+
+fn compose_custom_blend_mode(srcColorFactor BlendFactor, dstColorFactor BlendFactor, colorOperation BlendOperation, srcAlphaFactor BlendFactor, dstAlphaFactor BlendFactor, alphaOperation BlendOperation) BlendMode {
+  return raw::compose_custom_blend_mode(srcColorFactor, dstColorFactor, colorOperation, srcAlphaFactor, dstAlphaFactor, alphaOperation)
+}
+
+fn get_pixel_format_name(format PixelFormat) string {
+  result := raw::get_pixel_format_name(format)
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn get_pixel_format_for_masks(bpp i32, Rmask u32, Gmask u32, Bmask u32, Amask u32) PixelFormat {
+  return raw::get_pixel_format_for_masks(bpp, Rmask, Gmask, Bmask, Amask)
+}
+
+fn get_pixel_format_details(format PixelFormat) const *PixelFormatDetails {
+  return raw::get_pixel_format_details(format)
+}
+
+fn create_palette(ncolors i32) *Palette {
+  return raw::create_palette(ncolors)
+}
+
+fn set_palette_colors(palette *Palette, colors const *Color, firstcolor i32, ncolors i32) bool {
+  return raw::set_palette_colors(palette, colors, firstcolor, ncolors)
+}
+
+fn destroy_palette(palette *Palette) {
+  raw::destroy_palette(palette)
+}
+
+fn map_rgb(format const *PixelFormatDetails, palette const *Palette, r u8, g u8, b u8) u32 {
+  return raw::map_rgb(format, palette, r, g, b)
+}
+
+fn map_rgba(format const *PixelFormatDetails, palette const *Palette, r u8, g u8, b u8, a u8) u32 {
+  return raw::map_rgba(format, palette, r, g, b, a)
+}
+
+fn get_rgb(pixel u32, format const *PixelFormatDetails, palette const *Palette, r *u8, g *u8, b *u8) {
+  raw::get_rgb(pixel, format, palette, r, g, b)
+}
+
+fn get_rgba(pixel u32, format const *PixelFormatDetails, palette const *Palette, r *u8, g *u8, b *u8, a *u8) {
+  raw::get_rgba(pixel, format, palette, r, g, b, a)
+}
+
+fn rect_to_f_rect(rect const *Rect, frect *FRect) {
+  raw::rect_to_f_rect(rect, frect)
+}
+
+fn point_in_rect(p const *Point, r const *Rect) bool {
+  return raw::point_in_rect(p, r)
+}
+
+fn rect_empty(r const *Rect) bool {
+  return raw::rect_empty(r)
+}
+
+fn rects_equal(a const *Rect, b const *Rect) bool {
+  return raw::rects_equal(a, b)
+}
+
+fn has_rect_intersection(A const *Rect, B const *Rect) bool {
+  return raw::has_rect_intersection(A, B)
+}
+
+fn get_rect_intersection(A const *Rect, B const *Rect, result *Rect) bool {
+  return raw::get_rect_intersection(A, B, result)
+}
+
+fn get_rect_union(A const *Rect, B const *Rect, result *Rect) bool {
+  return raw::get_rect_union(A, B, result)
+}
+
+fn get_rect_enclosing_points(points const *Point, count i32, clip const *Rect, result *Rect) bool {
+  return raw::get_rect_enclosing_points(points, count, clip, result)
+}
+
+fn point_in_rect_float(p const *FPoint, r const *FRect) bool {
+  return raw::point_in_rect_float(p, r)
+}
+
+fn rect_empty_float(r const *FRect) bool {
+  return raw::rect_empty_float(r)
+}
+
+fn rects_equal_epsilon(a const *FRect, b const *FRect, epsilon f32) bool {
+  return raw::rects_equal_epsilon(a, b, epsilon)
+}
+
+fn rects_equal_float(a const *FRect, b const *FRect) bool {
+  return raw::rects_equal_float(a, b)
+}
+
+fn has_rect_intersection_float(A const *FRect, B const *FRect) bool {
+  return raw::has_rect_intersection_float(A, B)
+}
+
+fn get_rect_intersection_float(A const *FRect, B const *FRect, result *FRect) bool {
+  return raw::get_rect_intersection_float(A, B, result)
+}
+
+fn get_rect_union_float(A const *FRect, B const *FRect, result *FRect) bool {
+  return raw::get_rect_union_float(A, B, result)
+}
+
+fn get_rect_enclosing_points_float(points const *FPoint, count i32, clip const *FRect, result *FRect) bool {
+  return raw::get_rect_enclosing_points_float(points, count, clip, result)
+}
+
+fn create_surface(width i32, height i32, format PixelFormat) *Surface {
+  return raw::create_surface(width, height, format)
+}
+
+fn create_surface_from(width i32, height i32, format PixelFormat, pixels rawptr, pitch i32) *Surface {
+  return raw::create_surface_from(width, height, format, pixels, pitch)
+}
+
+fn destroy_surface(surface *Surface) {
+  raw::destroy_surface(surface)
+}
+
+fn get_surface_properties(surface *Surface) PropertiesID {
+  return raw::get_surface_properties(surface)
+}
+
+fn set_surface_colorspace(surface *Surface, colorspace Colorspace) bool {
+  return raw::set_surface_colorspace(surface, colorspace)
+}
+
+fn get_surface_colorspace(surface *Surface) Colorspace {
+  return raw::get_surface_colorspace(surface)
+}
+
+fn create_surface_palette(surface *Surface) *Palette {
+  return raw::create_surface_palette(surface)
+}
+
+fn set_surface_palette(surface *Surface, palette *Palette) bool {
+  return raw::set_surface_palette(surface, palette)
+}
+
+fn get_surface_palette(surface *Surface) *Palette {
+  return raw::get_surface_palette(surface)
+}
+
+fn add_surface_alternate_image(surface *Surface, image *Surface) bool {
+  return raw::add_surface_alternate_image(surface, image)
+}
+
+fn surface_has_alternate_images(surface *Surface) bool {
+  return raw::surface_has_alternate_images(surface)
+}
+
+fn remove_surface_alternate_images(surface *Surface) {
+  raw::remove_surface_alternate_images(surface)
+}
+
+fn lock_surface(surface *Surface) bool {
+  return raw::lock_surface(surface)
+}
+
+fn unlock_surface(surface *Surface) {
+  raw::unlock_surface(surface)
+}
+
+fn load_bmp_io(src *IOStream, closeio bool) *Surface {
+  return raw::load_bmp_io(src, closeio)
+}
+
+fn load_bmp(file string) (*Surface, error) {
+  file_c, file_err := strings::to_c(file)
+  if file_err != nil {
+    return nil, file_err
+  }
+  defer strings::free_c(&file_c)
+  result := raw::load_bmp(strings::c_view(&file_c))
+  if result == nil {
+    return nil, error("SDL load_bmp failed")
+  }
+  return result, nil
+}
+
+fn save_bmp_io(surface *Surface, dst *IOStream, closeio bool) bool {
+  return raw::save_bmp_io(surface, dst, closeio)
+}
+
+fn save_bmp(surface *Surface, file string) error {
+  file_c, file_err := strings::to_c(file)
+  if file_err != nil {
+    return file_err
+  }
+  defer strings::free_c(&file_c)
+  if raw::save_bmp(surface, strings::c_view(&file_c)) == false {
+    return error("SDL save_bmp failed")
+  }
+  return nil
+}
+
+fn set_surface_rle(surface *Surface, enabled bool) bool {
+  return raw::set_surface_rle(surface, enabled)
+}
+
+fn surface_has_rle(surface *Surface) bool {
+  return raw::surface_has_rle(surface)
+}
+
+fn set_surface_color_key(surface *Surface, enabled bool, key u32) bool {
+  return raw::set_surface_color_key(surface, enabled, key)
+}
+
+fn surface_has_color_key(surface *Surface) bool {
+  return raw::surface_has_color_key(surface)
+}
+
+fn get_surface_color_key(surface *Surface, key *u32) bool {
+  return raw::get_surface_color_key(surface, key)
+}
+
+fn set_surface_color_mod(surface *Surface, r u8, g u8, b u8) bool {
+  return raw::set_surface_color_mod(surface, r, g, b)
+}
+
+fn get_surface_color_mod(surface *Surface, r *u8, g *u8, b *u8) bool {
+  return raw::get_surface_color_mod(surface, r, g, b)
+}
+
+fn set_surface_alpha_mod(surface *Surface, alpha u8) bool {
+  return raw::set_surface_alpha_mod(surface, alpha)
+}
+
+fn get_surface_alpha_mod(surface *Surface, alpha *u8) bool {
+  return raw::get_surface_alpha_mod(surface, alpha)
+}
+
+fn set_surface_blend_mode(surface *Surface, blendMode BlendMode) bool {
+  return raw::set_surface_blend_mode(surface, blendMode)
+}
+
+fn get_surface_blend_mode(surface *Surface, blendMode *BlendMode) bool {
+  return raw::get_surface_blend_mode(surface, blendMode)
+}
+
+fn set_surface_clip_rect(surface *Surface, rect const *Rect) bool {
+  return raw::set_surface_clip_rect(surface, rect)
+}
+
+fn get_surface_clip_rect(surface *Surface, rect *Rect) bool {
+  return raw::get_surface_clip_rect(surface, rect)
+}
+
+fn flip_surface(surface *Surface, flip FlipMode) bool {
+  return raw::flip_surface(surface, flip)
+}
+
+fn duplicate_surface(surface *Surface) *Surface {
+  return raw::duplicate_surface(surface)
+}
+
+fn scale_surface(surface *Surface, width i32, height i32, scaleMode ScaleMode) *Surface {
+  return raw::scale_surface(surface, width, height, scaleMode)
+}
+
+fn convert_surface(surface *Surface, format PixelFormat) *Surface {
+  return raw::convert_surface(surface, format)
+}
+
+fn convert_surface_and_colorspace(surface *Surface, format PixelFormat, palette *Palette, colorspace Colorspace, props PropertiesID) *Surface {
+  return raw::convert_surface_and_colorspace(surface, format, palette, colorspace, props)
+}
+
+fn convert_pixels(width i32, height i32, src_format PixelFormat, src const *Void, src_pitch i32, dst_format PixelFormat, dst rawptr, dst_pitch i32) bool {
+  return raw::convert_pixels(width, height, src_format, src, src_pitch, dst_format, dst, dst_pitch)
+}
+
+fn convert_pixels_and_colorspace(width i32, height i32, src_format PixelFormat, src_colorspace Colorspace, src_properties PropertiesID, src const *Void, src_pitch i32, dst_format PixelFormat, dst_colorspace Colorspace, dst_properties PropertiesID, dst rawptr, dst_pitch i32) bool {
+  return raw::convert_pixels_and_colorspace(width, height, src_format, src_colorspace, src_properties, src, src_pitch, dst_format, dst_colorspace, dst_properties, dst, dst_pitch)
+}
+
+fn premultiply_alpha(width i32, height i32, src_format PixelFormat, src const *Void, src_pitch i32, dst_format PixelFormat, dst rawptr, dst_pitch i32, linear bool) bool {
+  return raw::premultiply_alpha(width, height, src_format, src, src_pitch, dst_format, dst, dst_pitch, linear)
+}
+
+fn premultiply_surface_alpha(surface *Surface, linear bool) bool {
+  return raw::premultiply_surface_alpha(surface, linear)
+}
+
+fn clear_surface(surface *Surface, r f32, g f32, b f32, a f32) bool {
+  return raw::clear_surface(surface, r, g, b, a)
+}
+
+fn fill_surface_rect(dst *Surface, rect const *Rect, color u32) bool {
+  return raw::fill_surface_rect(dst, rect, color)
+}
+
+fn fill_surface_rects(dst *Surface, rects const *Rect, count i32, color u32) bool {
+  return raw::fill_surface_rects(dst, rects, count, color)
+}
+
+fn blit_surface(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool {
+  return raw::blit_surface(src, srcrect, dst, dstrect)
+}
+
+fn blit_surface_unchecked(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool {
+  return raw::blit_surface_unchecked(src, srcrect, dst, dstrect)
+}
+
+fn blit_surface_scaled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool {
+  return raw::blit_surface_scaled(src, srcrect, dst, dstrect, scaleMode)
+}
+
+fn blit_surface_unchecked_scaled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool {
+  return raw::blit_surface_unchecked_scaled(src, srcrect, dst, dstrect, scaleMode)
+}
+
+fn stretch_surface(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect, scaleMode ScaleMode) bool {
+  return raw::stretch_surface(src, srcrect, dst, dstrect, scaleMode)
+}
+
+fn blit_surface_tiled(src *Surface, srcrect const *Rect, dst *Surface, dstrect const *Rect) bool {
+  return raw::blit_surface_tiled(src, srcrect, dst, dstrect)
+}
+
+fn blit_surface_tiled_with_scale(src *Surface, srcrect const *Rect, scale f32, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool {
+  return raw::blit_surface_tiled_with_scale(src, srcrect, scale, scaleMode, dst, dstrect)
+}
+
+fn blit_surface9_grid(src *Surface, srcrect const *Rect, left_width i32, right_width i32, top_height i32, bottom_height i32, scale f32, scaleMode ScaleMode, dst *Surface, dstrect const *Rect) bool {
+  return raw::blit_surface9_grid(src, srcrect, left_width, right_width, top_height, bottom_height, scale, scaleMode, dst, dstrect)
+}
+
+fn map_surface_rgb(surface *Surface, r u8, g u8, b u8) u32 {
+  return raw::map_surface_rgb(surface, r, g, b)
+}
+
+fn map_surface_rgba(surface *Surface, r u8, g u8, b u8, a u8) u32 {
+  return raw::map_surface_rgba(surface, r, g, b, a)
+}
+
+fn read_surface_pixel(surface *Surface, x i32, y i32, r *u8, g *u8, b *u8, a *u8) bool {
+  return raw::read_surface_pixel(surface, x, y, r, g, b, a)
+}
+
+fn write_surface_pixel(surface *Surface, x i32, y i32, r u8, g u8, b u8, a u8) bool {
+  return raw::write_surface_pixel(surface, x, y, r, g, b, a)
+}
+
+fn write_surface_pixel_float(surface *Surface, x i32, y i32, r f32, g f32, b f32, a f32) bool {
+  return raw::write_surface_pixel_float(surface, x, y, r, g, b, a)
+}
+
+fn get_num_camera_drivers() i32 {
+  return raw::get_num_camera_drivers()
+}
+
+fn get_camera_driver(index i32) OptionalString {
+  result := raw::get_camera_driver(index)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_current_camera_driver() OptionalString {
+  result := raw::get_current_camera_driver()
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_camera_name(instance_id CameraID) OptionalString {
+  result := raw::get_camera_name(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_camera_position(instance_id CameraID) CameraPosition {
+  return raw::get_camera_position(instance_id)
+}
+
+fn open_camera(instance_id CameraID, spec const *CameraSpec) *Camera {
+  return raw::open_camera(instance_id, spec)
+}
+
+fn get_camera_permission_state(camera *Camera) i32 {
+  return raw::get_camera_permission_state(camera)
+}
+
+fn get_camera_id(camera *Camera) CameraID {
+  return raw::get_camera_id(camera)
+}
+
+fn get_camera_properties(camera *Camera) PropertiesID {
+  return raw::get_camera_properties(camera)
+}
+
+fn get_camera_format(camera *Camera, spec *CameraSpec) bool {
+  return raw::get_camera_format(camera, spec)
+}
+
+fn acquire_camera_frame(camera *Camera, timestampNS *u64) *Surface {
+  return raw::acquire_camera_frame(camera, timestampNS)
+}
+
+fn release_camera_frame(camera *Camera, frame *Surface) {
+  raw::release_camera_frame(camera, frame)
+}
+
+fn close_camera(camera *Camera) {
+  raw::close_camera(camera)
+}
+
+fn set_clipboard_text(text string) error {
+  text_c, text_err := strings::to_c(text)
+  if text_err != nil {
+    return text_err
+  }
+  defer strings::free_c(&text_c)
+  if raw::set_clipboard_text(strings::c_view(&text_c)) == false {
+    return error("SDL set_clipboard_text failed")
+  }
+  return nil
+}
+
+fn get_clipboard_text() (strings::Owned, error) {
+  result := raw::get_clipboard_text()
+  if result == nil {
+    return strings::Owned{text: ""}, error("SDL get_clipboard_text failed")
+  }
+  defer raw::free_text(result)
+  return strings::clone(strings::from_c(result))
+}
+
+fn has_clipboard_text() bool {
+  return raw::has_clipboard_text()
+}
+
+fn set_primary_selection_text(text string) error {
+  text_c, text_err := strings::to_c(text)
+  if text_err != nil {
+    return text_err
+  }
+  defer strings::free_c(&text_c)
+  if raw::set_primary_selection_text(strings::c_view(&text_c)) == false {
+    return error("SDL set_primary_selection_text failed")
+  }
+  return nil
+}
+
+fn get_primary_selection_text() (strings::Owned, error) {
+  result := raw::get_primary_selection_text()
+  if result == nil {
+    return strings::Owned{text: ""}, error("SDL get_primary_selection_text failed")
+  }
+  defer raw::free_text(result)
+  return strings::clone(strings::from_c(result))
+}
+
+fn has_primary_selection_text() bool {
+  return raw::has_primary_selection_text()
+}
+
+fn clear_clipboard_data() bool {
+  return raw::clear_clipboard_data()
+}
+
+fn get_num_logical_cpu_cores() i32 {
+  return raw::get_num_logical_cpu_cores()
+}
+
+fn get_cpu_cache_line_size() i32 {
+  return raw::get_cpu_cache_line_size()
+}
+
+fn has_alti_vec() bool {
+  return raw::has_alti_vec()
+}
+
+fn has_mmx() bool {
+  return raw::has_mmx()
+}
+
+fn has_sse() bool {
+  return raw::has_sse()
+}
+
+fn has_sse2() bool {
+  return raw::has_sse2()
+}
+
+fn has_sse3() bool {
+  return raw::has_sse3()
+}
+
+fn has_sse41() bool {
+  return raw::has_sse41()
+}
+
+fn has_sse42() bool {
+  return raw::has_sse42()
+}
+
+fn has_avx() bool {
+  return raw::has_avx()
+}
+
+fn has_avx2() bool {
+  return raw::has_avx2()
+}
+
+fn has_avx512_f() bool {
+  return raw::has_avx512_f()
+}
+
+fn has_armsimd() bool {
+  return raw::has_armsimd()
+}
+
+fn has_neon() bool {
+  return raw::has_neon()
+}
+
+fn has_lsx() bool {
+  return raw::has_lsx()
+}
+
+fn has_lasx() bool {
+  return raw::has_lasx()
+}
+
+fn get_system_ram() i32 {
+  return raw::get_system_ram()
+}
+
+fn get_simd_alignment() u64 {
+  return raw::get_simd_alignment()
+}
+
+fn get_num_video_drivers() i32 {
+  return raw::get_num_video_drivers()
+}
+
+fn get_video_driver(index i32) OptionalString {
+  result := raw::get_video_driver(index)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_current_video_driver() OptionalString {
+  result := raw::get_current_video_driver()
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_system_theme() SystemTheme {
+  return raw::get_system_theme()
+}
+
+fn get_primary_display() DisplayID {
+  return raw::get_primary_display()
+}
+
+fn get_display_properties(displayID DisplayID) PropertiesID {
+  return raw::get_display_properties(displayID)
+}
+
+fn get_display_name(displayID DisplayID) OptionalString {
+  result := raw::get_display_name(displayID)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_display_bounds(displayID DisplayID, rect *Rect) bool {
+  return raw::get_display_bounds(displayID, rect)
+}
+
+fn get_display_usable_bounds(displayID DisplayID, rect *Rect) bool {
+  return raw::get_display_usable_bounds(displayID, rect)
+}
+
+fn get_natural_display_orientation(displayID DisplayID) DisplayOrientation {
+  return raw::get_natural_display_orientation(displayID)
+}
+
+fn get_current_display_orientation(displayID DisplayID) DisplayOrientation {
+  return raw::get_current_display_orientation(displayID)
+}
+
+fn get_display_content_scale(displayID DisplayID) f32 {
+  return raw::get_display_content_scale(displayID)
+}
+
+fn get_closest_fullscreen_display_mode(displayID DisplayID, w i32, h i32, refresh_rate f32, include_high_density_modes bool, closest *DisplayMode) bool {
+  return raw::get_closest_fullscreen_display_mode(displayID, w, h, refresh_rate, include_high_density_modes, closest)
+}
+
+fn get_desktop_display_mode(displayID DisplayID) const *DisplayMode {
+  return raw::get_desktop_display_mode(displayID)
+}
+
+fn get_current_display_mode(displayID DisplayID) const *DisplayMode {
+  return raw::get_current_display_mode(displayID)
+}
+
+fn get_display_for_point(point const *Point) DisplayID {
+  return raw::get_display_for_point(point)
+}
+
+fn get_display_for_rect(rect const *Rect) DisplayID {
+  return raw::get_display_for_rect(rect)
+}
+
+fn get_display_for_window(window *Window) DisplayID {
+  return raw::get_display_for_window(window)
+}
+
+fn get_window_pixel_density(window *Window) f32 {
+  return raw::get_window_pixel_density(window)
+}
+
+fn get_window_display_scale(window *Window) f32 {
+  return raw::get_window_display_scale(window)
+}
+
+fn set_window_fullscreen_mode(window *Window, mode const *DisplayMode) bool {
+  return raw::set_window_fullscreen_mode(window, mode)
+}
+
+fn get_window_fullscreen_mode(window *Window) const *DisplayMode {
+  return raw::get_window_fullscreen_mode(window)
+}
+
+fn get_window_pixel_format(window *Window) PixelFormat {
+  return raw::get_window_pixel_format(window)
+}
+
+fn create_window(title string, w i32, h i32, flags WindowFlags) (*Window, error) {
+  title_c, title_err := strings::to_c(title)
+  if title_err != nil {
+    return nil, title_err
+  }
+  defer strings::free_c(&title_c)
+  result := raw::create_window(strings::c_view(&title_c), w, h, flags)
+  if result == nil {
+    return nil, error("SDL create_window failed")
+  }
+  return result, nil
+}
+
+fn create_popup_window(parent *Window, offset_x i32, offset_y i32, w i32, h i32, flags WindowFlags) *Window {
+  return raw::create_popup_window(parent, offset_x, offset_y, w, h, flags)
+}
+
+fn create_window_with_properties(props PropertiesID) *Window {
+  return raw::create_window_with_properties(props)
+}
+
+fn get_window_id(window *Window) WindowID {
+  return raw::get_window_id(window)
+}
+
+fn get_window_from_id(id WindowID) *Window {
+  return raw::get_window_from_id(id)
+}
+
+fn get_window_parent(window *Window) *Window {
+  return raw::get_window_parent(window)
+}
+
+fn get_window_properties(window *Window) PropertiesID {
+  return raw::get_window_properties(window)
+}
+
+fn get_window_flags(window *Window) WindowFlags {
+  return raw::get_window_flags(window)
+}
+
+fn set_window_title(window *Window, title string) error {
+  title_c, title_err := strings::to_c(title)
+  if title_err != nil {
+    return title_err
+  }
+  defer strings::free_c(&title_c)
+  if raw::set_window_title(window, strings::c_view(&title_c)) == false {
+    return error("SDL set_window_title failed")
+  }
+  return nil
+}
+
+fn get_window_title(window *Window) string {
+  result := raw::get_window_title(window)
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn set_window_icon(window *Window, icon *Surface) bool {
+  return raw::set_window_icon(window, icon)
+}
+
+fn set_window_position(window *Window, x i32, y i32) bool {
+  return raw::set_window_position(window, x, y)
+}
+
+fn set_window_size(window *Window, w i32, h i32) bool {
+  return raw::set_window_size(window, w, h)
+}
+
+fn get_window_safe_area(window *Window, rect *Rect) bool {
+  return raw::get_window_safe_area(window, rect)
+}
+
+fn set_window_aspect_ratio(window *Window, min_aspect f32, max_aspect f32) bool {
+  return raw::set_window_aspect_ratio(window, min_aspect, max_aspect)
+}
+
+fn set_window_minimum_size(window *Window, min_w i32, min_h i32) bool {
+  return raw::set_window_minimum_size(window, min_w, min_h)
+}
+
+fn set_window_maximum_size(window *Window, max_w i32, max_h i32) bool {
+  return raw::set_window_maximum_size(window, max_w, max_h)
+}
+
+fn set_window_bordered(window *Window, bordered bool) bool {
+  return raw::set_window_bordered(window, bordered)
+}
+
+fn set_window_resizable(window *Window, resizable bool) bool {
+  return raw::set_window_resizable(window, resizable)
+}
+
+fn set_window_always_on_top(window *Window, on_top bool) bool {
+  return raw::set_window_always_on_top(window, on_top)
+}
+
+fn show_window(window *Window) bool {
+  return raw::show_window(window)
+}
+
+fn hide_window(window *Window) bool {
+  return raw::hide_window(window)
+}
+
+fn raise_window(window *Window) bool {
+  return raw::raise_window(window)
+}
+
+fn maximize_window(window *Window) bool {
+  return raw::maximize_window(window)
+}
+
+fn minimize_window(window *Window) bool {
+  return raw::minimize_window(window)
+}
+
+fn restore_window(window *Window) bool {
+  return raw::restore_window(window)
+}
+
+fn set_window_fullscreen(window *Window, fullscreen bool) bool {
+  return raw::set_window_fullscreen(window, fullscreen)
+}
+
+fn sync_window(window *Window) bool {
+  return raw::sync_window(window)
+}
+
+fn window_has_surface(window *Window) bool {
+  return raw::window_has_surface(window)
+}
+
+fn get_window_surface(window *Window) *Surface {
+  return raw::get_window_surface(window)
+}
+
+fn set_window_surface_v_sync(window *Window, vsync i32) bool {
+  return raw::set_window_surface_v_sync(window, vsync)
+}
+
+fn update_window_surface(window *Window) bool {
+  return raw::update_window_surface(window)
+}
+
+fn update_window_surface_rects(window *Window, rects const *Rect, numrects i32) bool {
+  return raw::update_window_surface_rects(window, rects, numrects)
+}
+
+fn destroy_window_surface(window *Window) bool {
+  return raw::destroy_window_surface(window)
+}
+
+fn set_window_keyboard_grab(window *Window, grabbed bool) bool {
+  return raw::set_window_keyboard_grab(window, grabbed)
+}
+
+fn set_window_mouse_grab(window *Window, grabbed bool) bool {
+  return raw::set_window_mouse_grab(window, grabbed)
+}
+
+fn get_window_keyboard_grab(window *Window) bool {
+  return raw::get_window_keyboard_grab(window)
+}
+
+fn get_window_mouse_grab(window *Window) bool {
+  return raw::get_window_mouse_grab(window)
+}
+
+fn get_grabbed_window() *Window {
+  return raw::get_grabbed_window()
+}
+
+fn set_window_mouse_rect(window *Window, rect const *Rect) bool {
+  return raw::set_window_mouse_rect(window, rect)
+}
+
+fn get_window_mouse_rect(window *Window) const *Rect {
+  return raw::get_window_mouse_rect(window)
+}
+
+fn set_window_opacity(window *Window, opacity f32) bool {
+  return raw::set_window_opacity(window, opacity)
+}
+
+fn get_window_opacity(window *Window) f32 {
+  return raw::get_window_opacity(window)
+}
+
+fn set_window_parent(window *Window, parent *Window) bool {
+  return raw::set_window_parent(window, parent)
+}
+
+fn set_window_modal(window *Window, modal bool) bool {
+  return raw::set_window_modal(window, modal)
+}
+
+fn set_window_focusable(window *Window, focusable bool) bool {
+  return raw::set_window_focusable(window, focusable)
+}
+
+fn show_window_system_menu(window *Window, x i32, y i32) bool {
+  return raw::show_window_system_menu(window, x, y)
+}
+
+fn set_window_shape(window *Window, shape *Surface) bool {
+  return raw::set_window_shape(window, shape)
+}
+
+fn flash_window(window *Window, operation FlashOperation) bool {
+  return raw::flash_window(window, operation)
+}
+
+fn destroy_window(window *Window) {
+  raw::destroy_window(window)
+}
+
+fn screen_saver_enabled() bool {
+  return raw::screen_saver_enabled()
+}
+
+fn enable_screen_saver() bool {
+  return raw::enable_screen_saver()
+}
+
+fn disable_screen_saver() bool {
+  return raw::disable_screen_saver()
+}
+
+fn gl_unload_library() {
+  raw::gl_unload_library()
+}
+
+fn gl_reset_attributes() {
+  raw::gl_reset_attributes()
+}
+
+fn gl_set_attribute(attr GLAttr, value i32) bool {
+  return raw::gl_set_attribute(attr, value)
+}
+
+fn gl_create_context(window *Window) GLContext {
+  return raw::gl_create_context(window)
+}
+
+fn gl_make_current(window *Window, context GLContext) bool {
+  return raw::gl_make_current(window, context)
+}
+
+fn gl_get_current_window() *Window {
+  return raw::gl_get_current_window()
+}
+
+fn gl_get_current_context() GLContext {
+  return raw::gl_get_current_context()
+}
+
+fn egl_get_current_display() EGLDisplay {
+  return raw::egl_get_current_display()
+}
+
+fn egl_get_current_config() EGLConfig {
+  return raw::egl_get_current_config()
+}
+
+fn egl_get_window_surface(window *Window) EGLSurface {
+  return raw::egl_get_window_surface(window)
+}
+
+fn gl_set_swap_interval(interval i32) bool {
+  return raw::gl_set_swap_interval(interval)
+}
+
+fn gl_swap_window(window *Window) bool {
+  return raw::gl_swap_window(window)
+}
+
+fn gl_destroy_context(context GLContext) bool {
+  return raw::gl_destroy_context(context)
+}
+
+fn get_sensor_name_for_id(instance_id SensorID) OptionalString {
+  result := raw::get_sensor_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_sensor_type_for_id(instance_id SensorID) SensorType {
+  return raw::get_sensor_type_for_id(instance_id)
+}
+
+fn get_sensor_non_portable_type_for_id(instance_id SensorID) i32 {
+  return raw::get_sensor_non_portable_type_for_id(instance_id)
+}
+
+fn open_sensor(instance_id SensorID) *Sensor {
+  return raw::open_sensor(instance_id)
+}
+
+fn get_sensor_from_id(instance_id SensorID) *Sensor {
+  return raw::get_sensor_from_id(instance_id)
+}
+
+fn get_sensor_properties(sensor *Sensor) PropertiesID {
+  return raw::get_sensor_properties(sensor)
+}
+
+fn get_sensor_name(sensor *Sensor) OptionalString {
+  result := raw::get_sensor_name(sensor)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_sensor_type(sensor *Sensor) SensorType {
+  return raw::get_sensor_type(sensor)
+}
+
+fn get_sensor_non_portable_type(sensor *Sensor) i32 {
+  return raw::get_sensor_non_portable_type(sensor)
+}
+
+fn get_sensor_id(sensor *Sensor) SensorID {
+  return raw::get_sensor_id(sensor)
+}
+
+fn close_sensor(sensor *Sensor) {
+  raw::close_sensor(sensor)
+}
+
+fn update_sensors() {
+  raw::update_sensors()
+}
+
+fn lock_joysticks() {
+  raw::lock_joysticks()
+}
+
+fn unlock_joysticks() {
+  raw::unlock_joysticks()
+}
+
+fn has_joystick() bool {
+  return raw::has_joystick()
+}
+
+fn get_joystick_name_for_id(instance_id JoystickID) OptionalString {
+  result := raw::get_joystick_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_joystick_path_for_id(instance_id JoystickID) OptionalString {
+  result := raw::get_joystick_path_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_joystick_player_index_for_id(instance_id JoystickID) i32 {
+  return raw::get_joystick_player_index_for_id(instance_id)
+}
+
+fn get_joystick_guid_for_id(instance_id JoystickID) GUID {
+  return raw::get_joystick_guid_for_id(instance_id)
+}
+
+fn get_joystick_vendor_for_id(instance_id JoystickID) u16 {
+  return raw::get_joystick_vendor_for_id(instance_id)
+}
+
+fn get_joystick_product_for_id(instance_id JoystickID) u16 {
+  return raw::get_joystick_product_for_id(instance_id)
+}
+
+fn get_joystick_product_version_for_id(instance_id JoystickID) u16 {
+  return raw::get_joystick_product_version_for_id(instance_id)
+}
+
+fn get_joystick_type_for_id(instance_id JoystickID) JoystickType {
+  return raw::get_joystick_type_for_id(instance_id)
+}
+
+fn open_joystick(instance_id JoystickID) *Joystick {
+  return raw::open_joystick(instance_id)
+}
+
+fn get_joystick_from_id(instance_id JoystickID) *Joystick {
+  return raw::get_joystick_from_id(instance_id)
+}
+
+fn get_joystick_from_player_index(player_index i32) *Joystick {
+  return raw::get_joystick_from_player_index(player_index)
+}
+
+fn attach_virtual_joystick(desc const *VirtualJoystickDesc) JoystickID {
+  return raw::attach_virtual_joystick(desc)
+}
+
+fn detach_virtual_joystick(instance_id JoystickID) bool {
+  return raw::detach_virtual_joystick(instance_id)
+}
+
+fn is_joystick_virtual(instance_id JoystickID) bool {
+  return raw::is_joystick_virtual(instance_id)
+}
+
+fn set_joystick_virtual_axis(joystick *Joystick, axis i32, value i16) bool {
+  return raw::set_joystick_virtual_axis(joystick, axis, value)
+}
+
+fn set_joystick_virtual_ball(joystick *Joystick, ball i32, xrel i16, yrel i16) bool {
+  return raw::set_joystick_virtual_ball(joystick, ball, xrel, yrel)
+}
+
+fn set_joystick_virtual_button(joystick *Joystick, button i32, down bool) bool {
+  return raw::set_joystick_virtual_button(joystick, button, down)
+}
+
+fn set_joystick_virtual_hat(joystick *Joystick, hat i32, value u8) bool {
+  return raw::set_joystick_virtual_hat(joystick, hat, value)
+}
+
+fn set_joystick_virtual_touchpad(joystick *Joystick, touchpad i32, finger i32, down bool, x f32, y f32, pressure f32) bool {
+  return raw::set_joystick_virtual_touchpad(joystick, touchpad, finger, down, x, y, pressure)
+}
+
+fn get_joystick_properties(joystick *Joystick) PropertiesID {
+  return raw::get_joystick_properties(joystick)
+}
+
+fn get_joystick_name(joystick *Joystick) OptionalString {
+  result := raw::get_joystick_name(joystick)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_joystick_path(joystick *Joystick) OptionalString {
+  result := raw::get_joystick_path(joystick)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_joystick_player_index(joystick *Joystick) i32 {
+  return raw::get_joystick_player_index(joystick)
+}
+
+fn set_joystick_player_index(joystick *Joystick, player_index i32) bool {
+  return raw::set_joystick_player_index(joystick, player_index)
+}
+
+fn get_joystick_guid(joystick *Joystick) GUID {
+  return raw::get_joystick_guid(joystick)
+}
+
+fn get_joystick_vendor(joystick *Joystick) u16 {
+  return raw::get_joystick_vendor(joystick)
+}
+
+fn get_joystick_product(joystick *Joystick) u16 {
+  return raw::get_joystick_product(joystick)
+}
+
+fn get_joystick_product_version(joystick *Joystick) u16 {
+  return raw::get_joystick_product_version(joystick)
+}
+
+fn get_joystick_firmware_version(joystick *Joystick) u16 {
+  return raw::get_joystick_firmware_version(joystick)
+}
+
+fn get_joystick_serial(joystick *Joystick) OptionalString {
+  result := raw::get_joystick_serial(joystick)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_joystick_type(joystick *Joystick) JoystickType {
+  return raw::get_joystick_type(joystick)
+}
+
+fn get_joystick_guid_info(guid GUID, vendor *u16, product *u16, version *u16, crc16 *u16) {
+  raw::get_joystick_guid_info(guid, vendor, product, version, crc16)
+}
+
+fn joystick_connected(joystick *Joystick) bool {
+  return raw::joystick_connected(joystick)
+}
+
+fn get_joystick_id(joystick *Joystick) JoystickID {
+  return raw::get_joystick_id(joystick)
+}
+
+fn get_num_joystick_axes(joystick *Joystick) i32 {
+  return raw::get_num_joystick_axes(joystick)
+}
+
+fn get_num_joystick_balls(joystick *Joystick) i32 {
+  return raw::get_num_joystick_balls(joystick)
+}
+
+fn get_num_joystick_hats(joystick *Joystick) i32 {
+  return raw::get_num_joystick_hats(joystick)
+}
+
+fn get_num_joystick_buttons(joystick *Joystick) i32 {
+  return raw::get_num_joystick_buttons(joystick)
+}
+
+fn set_joystick_events_enabled(enabled bool) {
+  raw::set_joystick_events_enabled(enabled)
+}
+
+fn joystick_events_enabled() bool {
+  return raw::joystick_events_enabled()
+}
+
+fn update_joysticks() {
+  raw::update_joysticks()
+}
+
+fn get_joystick_axis(joystick *Joystick, axis i32) i16 {
+  return raw::get_joystick_axis(joystick, axis)
+}
+
+fn get_joystick_axis_initial_state(joystick *Joystick, axis i32, state *i16) bool {
+  return raw::get_joystick_axis_initial_state(joystick, axis, state)
+}
+
+fn get_joystick_hat(joystick *Joystick, hat i32) u8 {
+  return raw::get_joystick_hat(joystick, hat)
+}
+
+fn get_joystick_button(joystick *Joystick, button i32) bool {
+  return raw::get_joystick_button(joystick, button)
+}
+
+fn rumble_joystick(joystick *Joystick, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool {
+  return raw::rumble_joystick(joystick, low_frequency_rumble, high_frequency_rumble, duration_ms)
+}
+
+fn rumble_joystick_triggers(joystick *Joystick, left_rumble u16, right_rumble u16, duration_ms u32) bool {
+  return raw::rumble_joystick_triggers(joystick, left_rumble, right_rumble, duration_ms)
+}
+
+fn set_joystick_led(joystick *Joystick, red u8, green u8, blue u8) bool {
+  return raw::set_joystick_led(joystick, red, green, blue)
+}
+
+fn send_joystick_effect(joystick *Joystick, data const *Void, size i32) bool {
+  return raw::send_joystick_effect(joystick, data, size)
+}
+
+fn close_joystick(joystick *Joystick) {
+  raw::close_joystick(joystick)
+}
+
+fn get_joystick_connection_state(joystick *Joystick) JoystickConnectionState {
+  return raw::get_joystick_connection_state(joystick)
+}
+
+fn add_gamepad_mappings_from_io(src *IOStream, closeio bool) i32 {
+  return raw::add_gamepad_mappings_from_io(src, closeio)
+}
+
+fn reload_gamepad_mappings() bool {
+  return raw::reload_gamepad_mappings()
+}
+
+fn has_gamepad() bool {
+  return raw::has_gamepad()
+}
+
+fn is_gamepad(instance_id JoystickID) bool {
+  return raw::is_gamepad(instance_id)
+}
+
+fn get_gamepad_name_for_id(instance_id JoystickID) OptionalString {
+  result := raw::get_gamepad_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_path_for_id(instance_id JoystickID) OptionalString {
+  result := raw::get_gamepad_path_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_player_index_for_id(instance_id JoystickID) i32 {
+  return raw::get_gamepad_player_index_for_id(instance_id)
+}
+
+fn get_gamepad_guid_for_id(instance_id JoystickID) GUID {
+  return raw::get_gamepad_guid_for_id(instance_id)
+}
+
+fn get_gamepad_vendor_for_id(instance_id JoystickID) u16 {
+  return raw::get_gamepad_vendor_for_id(instance_id)
+}
+
+fn get_gamepad_product_for_id(instance_id JoystickID) u16 {
+  return raw::get_gamepad_product_for_id(instance_id)
+}
+
+fn get_gamepad_product_version_for_id(instance_id JoystickID) u16 {
+  return raw::get_gamepad_product_version_for_id(instance_id)
+}
+
+fn get_gamepad_type_for_id(instance_id JoystickID) GamepadType {
+  return raw::get_gamepad_type_for_id(instance_id)
+}
+
+fn get_real_gamepad_type_for_id(instance_id JoystickID) GamepadType {
+  return raw::get_real_gamepad_type_for_id(instance_id)
+}
+
+fn open_gamepad(instance_id JoystickID) *Gamepad {
+  return raw::open_gamepad(instance_id)
+}
+
+fn get_gamepad_from_id(instance_id JoystickID) *Gamepad {
+  return raw::get_gamepad_from_id(instance_id)
+}
+
+fn get_gamepad_from_player_index(player_index i32) *Gamepad {
+  return raw::get_gamepad_from_player_index(player_index)
+}
+
+fn get_gamepad_properties(gamepad *Gamepad) PropertiesID {
+  return raw::get_gamepad_properties(gamepad)
+}
+
+fn get_gamepad_id(gamepad *Gamepad) JoystickID {
+  return raw::get_gamepad_id(gamepad)
+}
+
+fn get_gamepad_name(gamepad *Gamepad) OptionalString {
+  result := raw::get_gamepad_name(gamepad)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_path(gamepad *Gamepad) OptionalString {
+  result := raw::get_gamepad_path(gamepad)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_type(gamepad *Gamepad) GamepadType {
+  return raw::get_gamepad_type(gamepad)
+}
+
+fn get_real_gamepad_type(gamepad *Gamepad) GamepadType {
+  return raw::get_real_gamepad_type(gamepad)
+}
+
+fn get_gamepad_player_index(gamepad *Gamepad) i32 {
+  return raw::get_gamepad_player_index(gamepad)
+}
+
+fn set_gamepad_player_index(gamepad *Gamepad, player_index i32) bool {
+  return raw::set_gamepad_player_index(gamepad, player_index)
+}
+
+fn get_gamepad_vendor(gamepad *Gamepad) u16 {
+  return raw::get_gamepad_vendor(gamepad)
+}
+
+fn get_gamepad_product(gamepad *Gamepad) u16 {
+  return raw::get_gamepad_product(gamepad)
+}
+
+fn get_gamepad_product_version(gamepad *Gamepad) u16 {
+  return raw::get_gamepad_product_version(gamepad)
+}
+
+fn get_gamepad_firmware_version(gamepad *Gamepad) u16 {
+  return raw::get_gamepad_firmware_version(gamepad)
+}
+
+fn get_gamepad_serial(gamepad *Gamepad) OptionalString {
+  result := raw::get_gamepad_serial(gamepad)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_steam_handle(gamepad *Gamepad) u64 {
+  return raw::get_gamepad_steam_handle(gamepad)
+}
+
+fn get_gamepad_connection_state(gamepad *Gamepad) JoystickConnectionState {
+  return raw::get_gamepad_connection_state(gamepad)
+}
+
+fn gamepad_connected(gamepad *Gamepad) bool {
+  return raw::gamepad_connected(gamepad)
+}
+
+fn get_gamepad_joystick(gamepad *Gamepad) *Joystick {
+  return raw::get_gamepad_joystick(gamepad)
+}
+
+fn set_gamepad_events_enabled(enabled bool) {
+  raw::set_gamepad_events_enabled(enabled)
+}
+
+fn gamepad_events_enabled() bool {
+  return raw::gamepad_events_enabled()
+}
+
+fn update_gamepads() {
+  raw::update_gamepads()
+}
+
+fn get_gamepad_string_for_type(type_ GamepadType) OptionalString {
+  result := raw::get_gamepad_string_for_type(type_)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_string_for_axis(axis GamepadAxis) OptionalString {
+  result := raw::get_gamepad_string_for_axis(axis)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn gamepad_has_axis(gamepad *Gamepad, axis GamepadAxis) bool {
+  return raw::gamepad_has_axis(gamepad, axis)
+}
+
+fn get_gamepad_axis(gamepad *Gamepad, axis GamepadAxis) i16 {
+  return raw::get_gamepad_axis(gamepad, axis)
+}
+
+fn get_gamepad_string_for_button(button GamepadButton) OptionalString {
+  result := raw::get_gamepad_string_for_button(button)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn gamepad_has_button(gamepad *Gamepad, button GamepadButton) bool {
+  return raw::gamepad_has_button(gamepad, button)
+}
+
+fn get_gamepad_button(gamepad *Gamepad, button GamepadButton) bool {
+  return raw::get_gamepad_button(gamepad, button)
+}
+
+fn get_gamepad_button_label_for_type(type_ GamepadType, button GamepadButton) GamepadButtonLabel {
+  return raw::get_gamepad_button_label_for_type(type_, button)
+}
+
+fn get_gamepad_button_label(gamepad *Gamepad, button GamepadButton) GamepadButtonLabel {
+  return raw::get_gamepad_button_label(gamepad, button)
+}
+
+fn get_num_gamepad_touchpads(gamepad *Gamepad) i32 {
+  return raw::get_num_gamepad_touchpads(gamepad)
+}
+
+fn get_num_gamepad_touchpad_fingers(gamepad *Gamepad, touchpad i32) i32 {
+  return raw::get_num_gamepad_touchpad_fingers(gamepad, touchpad)
+}
+
+fn gamepad_has_sensor(gamepad *Gamepad, type_ SensorType) bool {
+  return raw::gamepad_has_sensor(gamepad, type_)
+}
+
+fn set_gamepad_sensor_enabled(gamepad *Gamepad, type_ SensorType, enabled bool) bool {
+  return raw::set_gamepad_sensor_enabled(gamepad, type_, enabled)
+}
+
+fn gamepad_sensor_enabled(gamepad *Gamepad, type_ SensorType) bool {
+  return raw::gamepad_sensor_enabled(gamepad, type_)
+}
+
+fn get_gamepad_sensor_data_rate(gamepad *Gamepad, type_ SensorType) f32 {
+  return raw::get_gamepad_sensor_data_rate(gamepad, type_)
+}
+
+fn rumble_gamepad(gamepad *Gamepad, low_frequency_rumble u16, high_frequency_rumble u16, duration_ms u32) bool {
+  return raw::rumble_gamepad(gamepad, low_frequency_rumble, high_frequency_rumble, duration_ms)
+}
+
+fn rumble_gamepad_triggers(gamepad *Gamepad, left_rumble u16, right_rumble u16, duration_ms u32) bool {
+  return raw::rumble_gamepad_triggers(gamepad, left_rumble, right_rumble, duration_ms)
+}
+
+fn set_gamepad_led(gamepad *Gamepad, red u8, green u8, blue u8) bool {
+  return raw::set_gamepad_led(gamepad, red, green, blue)
+}
+
+fn send_gamepad_effect(gamepad *Gamepad, data const *Void, size i32) bool {
+  return raw::send_gamepad_effect(gamepad, data, size)
+}
+
+fn close_gamepad(gamepad *Gamepad) {
+  raw::close_gamepad(gamepad)
+}
+
+fn get_gamepad_apple_sf_symbols_name_for_button(gamepad *Gamepad, button GamepadButton) OptionalString {
+  result := raw::get_gamepad_apple_sf_symbols_name_for_button(gamepad, button)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gamepad_apple_sf_symbols_name_for_axis(gamepad *Gamepad, axis GamepadAxis) OptionalString {
+  result := raw::get_gamepad_apple_sf_symbols_name_for_axis(gamepad, axis)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn has_keyboard() bool {
+  return raw::has_keyboard()
+}
+
+fn get_keyboard_name_for_id(instance_id KeyboardID) OptionalString {
+  result := raw::get_keyboard_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_keyboard_focus() *Window {
+  return raw::get_keyboard_focus()
+}
+
+fn reset_keyboard() {
+  raw::reset_keyboard()
+}
+
+fn get_mod_state() Keymod {
+  return raw::get_mod_state()
+}
+
+fn set_mod_state(modstate Keymod) {
+  raw::set_mod_state(modstate)
+}
+
+fn get_key_from_scancode(scancode Scancode, modstate Keymod, key_event bool) Keycode {
+  return raw::get_key_from_scancode(scancode, modstate, key_event)
+}
+
+fn get_scancode_from_key(key Keycode, modstate *Keymod) Scancode {
+  return raw::get_scancode_from_key(key, modstate)
+}
+
+fn get_scancode_name(scancode Scancode) string {
+  result := raw::get_scancode_name(scancode)
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn get_key_name(key Keycode) string {
+  result := raw::get_key_name(key)
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn start_text_input(window *Window) bool {
+  return raw::start_text_input(window)
+}
+
+fn start_text_input_with_properties(window *Window, props PropertiesID) bool {
+  return raw::start_text_input_with_properties(window, props)
+}
+
+fn text_input_active(window *Window) bool {
+  return raw::text_input_active(window)
+}
+
+fn stop_text_input(window *Window) bool {
+  return raw::stop_text_input(window)
+}
+
+fn clear_composition(window *Window) bool {
+  return raw::clear_composition(window)
+}
+
+fn set_text_input_area(window *Window, rect const *Rect, cursor i32) bool {
+  return raw::set_text_input_area(window, rect, cursor)
+}
+
+fn has_screen_keyboard_support() bool {
+  return raw::has_screen_keyboard_support()
+}
+
+fn screen_keyboard_shown(window *Window) bool {
+  return raw::screen_keyboard_shown(window)
+}
+
+fn has_mouse() bool {
+  return raw::has_mouse()
+}
+
+fn get_mouse_name_for_id(instance_id MouseID) OptionalString {
+  result := raw::get_mouse_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_mouse_focus() *Window {
+  return raw::get_mouse_focus()
+}
+
+fn warp_mouse_in_window(window *Window, x f32, y f32) {
+  raw::warp_mouse_in_window(window, x, y)
+}
+
+fn warp_mouse_global(x f32, y f32) bool {
+  return raw::warp_mouse_global(x, y)
+}
+
+fn set_window_relative_mouse_mode(window *Window, enabled bool) bool {
+  return raw::set_window_relative_mouse_mode(window, enabled)
+}
+
+fn get_window_relative_mouse_mode(window *Window) bool {
+  return raw::get_window_relative_mouse_mode(window)
+}
+
+fn capture_mouse(enabled bool) bool {
+  return raw::capture_mouse(enabled)
+}
+
+fn create_cursor(data const *u8, mask const *u8, w i32, h i32, hot_x i32, hot_y i32) *Cursor {
+  return raw::create_cursor(data, mask, w, h, hot_x, hot_y)
+}
+
+fn create_color_cursor(surface *Surface, hot_x i32, hot_y i32) *Cursor {
+  return raw::create_color_cursor(surface, hot_x, hot_y)
+}
+
+fn create_system_cursor(id SystemCursor) *Cursor {
+  return raw::create_system_cursor(id)
+}
+
+fn set_cursor(cursor *Cursor) bool {
+  return raw::set_cursor(cursor)
+}
+
+fn get_cursor() *Cursor {
+  return raw::get_cursor()
+}
+
+fn get_default_cursor() *Cursor {
+  return raw::get_default_cursor()
+}
+
+fn destroy_cursor(cursor *Cursor) {
+  raw::destroy_cursor(cursor)
+}
+
+fn show_cursor() bool {
+  return raw::show_cursor()
+}
+
+fn hide_cursor() bool {
+  return raw::hide_cursor()
+}
+
+fn cursor_visible() bool {
+  return raw::cursor_visible()
+}
+
+fn get_touch_device_name(touchID TouchID) OptionalString {
+  result := raw::get_touch_device_name(touchID)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_touch_device_type(touchID TouchID) TouchDeviceType {
+  return raw::get_touch_device_type(touchID)
+}
+
+fn pump_events() {
+  raw::pump_events()
+}
+
+fn peep_events(events *Event, numevents i32, action EventAction, minType u32, maxType u32) i32 {
+  return raw::peep_events(events, numevents, action, minType, maxType)
+}
+
+fn has_event(type_ u32) bool {
+  return raw::has_event(type_)
+}
+
+fn has_events(minType u32, maxType u32) bool {
+  return raw::has_events(minType, maxType)
+}
+
+fn flush_event(type_ u32) {
+  raw::flush_event(type_)
+}
+
+fn flush_events(minType u32, maxType u32) {
+  raw::flush_events(minType, maxType)
+}
+
+fn poll_event(event *Event) bool {
+  return raw::poll_event(event)
+}
+
+fn wait_event(event *Event) bool {
+  return raw::wait_event(event)
+}
+
+fn wait_event_timeout(event *Event, timeoutMS i32) bool {
+  return raw::wait_event_timeout(event, timeoutMS)
+}
+
+fn push_event(event *Event) bool {
+  return raw::push_event(event)
+}
+
+fn set_event_enabled(type_ u32, enabled bool) {
+  raw::set_event_enabled(type_, enabled)
+}
+
+fn event_enabled(type_ u32) bool {
+  return raw::event_enabled(type_)
+}
+
+fn register_events(numevents i32) u32 {
+  return raw::register_events(numevents)
+}
+
+fn get_window_from_event(event const *Event) *Window {
+  return raw::get_window_from_event(event)
+}
+
+fn get_base_path() OptionalString {
+  result := raw::get_base_path()
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_user_folder(folder Folder) OptionalString {
+  result := raw::get_user_folder(folder)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn gpu_supports_properties(props PropertiesID) bool {
+  return raw::gpu_supports_properties(props)
+}
+
+fn create_gpu_device_with_properties(props PropertiesID) *GPUDevice {
+  return raw::create_gpu_device_with_properties(props)
+}
+
+fn destroy_gpu_device(device *GPUDevice) {
+  raw::destroy_gpu_device(device)
+}
+
+fn get_num_gpu_drivers() i32 {
+  return raw::get_num_gpu_drivers()
+}
+
+fn get_gpu_driver(index i32) OptionalString {
+  result := raw::get_gpu_driver(index)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gpu_device_driver(device *GPUDevice) OptionalString {
+  result := raw::get_gpu_device_driver(device)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_gpu_shader_formats(device *GPUDevice) GPUShaderFormat {
+  return raw::get_gpu_shader_formats(device)
+}
+
+fn create_gpu_compute_pipeline(device *GPUDevice, createinfo const *GPUComputePipelineCreateInfo) *GPUComputePipeline {
+  return raw::create_gpu_compute_pipeline(device, createinfo)
+}
+
+fn create_gpu_graphics_pipeline(device *GPUDevice, createinfo const *GPUGraphicsPipelineCreateInfo) *GPUGraphicsPipeline {
+  return raw::create_gpu_graphics_pipeline(device, createinfo)
+}
+
+fn create_gpu_sampler(device *GPUDevice, createinfo const *GPUSamplerCreateInfo) *GPUSampler {
+  return raw::create_gpu_sampler(device, createinfo)
+}
+
+fn create_gpu_shader(device *GPUDevice, createinfo const *GPUShaderCreateInfo) *GPUShader {
+  return raw::create_gpu_shader(device, createinfo)
+}
+
+fn create_gpu_texture(device *GPUDevice, createinfo const *GPUTextureCreateInfo) *GPUTexture {
+  return raw::create_gpu_texture(device, createinfo)
+}
+
+fn create_gpu_buffer(device *GPUDevice, createinfo const *GPUBufferCreateInfo) *GPUBuffer {
+  return raw::create_gpu_buffer(device, createinfo)
+}
+
+fn create_gpu_transfer_buffer(device *GPUDevice, createinfo const *GPUTransferBufferCreateInfo) *GPUTransferBuffer {
+  return raw::create_gpu_transfer_buffer(device, createinfo)
+}
+
+fn pop_gpu_debug_group(command_buffer *GPUCommandBuffer) {
+  raw::pop_gpu_debug_group(command_buffer)
+}
+
+fn release_gpu_texture(device *GPUDevice, texture *GPUTexture) {
+  raw::release_gpu_texture(device, texture)
+}
+
+fn release_gpu_sampler(device *GPUDevice, sampler *GPUSampler) {
+  raw::release_gpu_sampler(device, sampler)
+}
+
+fn release_gpu_buffer(device *GPUDevice, buffer *GPUBuffer) {
+  raw::release_gpu_buffer(device, buffer)
+}
+
+fn release_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer) {
+  raw::release_gpu_transfer_buffer(device, transfer_buffer)
+}
+
+fn release_gpu_compute_pipeline(device *GPUDevice, compute_pipeline *GPUComputePipeline) {
+  raw::release_gpu_compute_pipeline(device, compute_pipeline)
+}
+
+fn release_gpu_shader(device *GPUDevice, shader *GPUShader) {
+  raw::release_gpu_shader(device, shader)
+}
+
+fn release_gpu_graphics_pipeline(device *GPUDevice, graphics_pipeline *GPUGraphicsPipeline) {
+  raw::release_gpu_graphics_pipeline(device, graphics_pipeline)
+}
+
+fn acquire_gpu_command_buffer(device *GPUDevice) *GPUCommandBuffer {
+  return raw::acquire_gpu_command_buffer(device)
+}
+
+fn push_gpu_vertex_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32) {
+  raw::push_gpu_vertex_uniform_data(command_buffer, slot_index, data, length)
+}
+
+fn push_gpu_fragment_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32) {
+  raw::push_gpu_fragment_uniform_data(command_buffer, slot_index, data, length)
+}
+
+fn push_gpu_compute_uniform_data(command_buffer *GPUCommandBuffer, slot_index u32, data const *Void, length u32) {
+  raw::push_gpu_compute_uniform_data(command_buffer, slot_index, data, length)
+}
+
+fn begin_gpu_render_pass(command_buffer *GPUCommandBuffer, color_target_infos const *GPUColorTargetInfo, num_color_targets u32, depth_stencil_target_info const *GPUDepthStencilTargetInfo) *GPURenderPass {
+  return raw::begin_gpu_render_pass(command_buffer, color_target_infos, num_color_targets, depth_stencil_target_info)
+}
+
+fn bind_gpu_graphics_pipeline(render_pass *GPURenderPass, graphics_pipeline *GPUGraphicsPipeline) {
+  raw::bind_gpu_graphics_pipeline(render_pass, graphics_pipeline)
+}
+
+fn set_gpu_viewport(render_pass *GPURenderPass, viewport const *GPUViewport) {
+  raw::set_gpu_viewport(render_pass, viewport)
+}
+
+fn set_gpu_scissor(render_pass *GPURenderPass, scissor const *Rect) {
+  raw::set_gpu_scissor(render_pass, scissor)
+}
+
+fn set_gpu_blend_constants(render_pass *GPURenderPass, blend_constants FColor) {
+  raw::set_gpu_blend_constants(render_pass, blend_constants)
+}
+
+fn set_gpu_stencil_reference(render_pass *GPURenderPass, reference u8) {
+  raw::set_gpu_stencil_reference(render_pass, reference)
+}
+
+fn bind_gpu_vertex_buffers(render_pass *GPURenderPass, first_slot u32, bindings const *GPUBufferBinding, num_bindings u32) {
+  raw::bind_gpu_vertex_buffers(render_pass, first_slot, bindings, num_bindings)
+}
+
+fn bind_gpu_index_buffer(render_pass *GPURenderPass, binding const *GPUBufferBinding, index_element_size GPUIndexElementSize) {
+  raw::bind_gpu_index_buffer(render_pass, binding, index_element_size)
+}
+
+fn bind_gpu_vertex_samplers(render_pass *GPURenderPass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32) {
+  raw::bind_gpu_vertex_samplers(render_pass, first_slot, texture_sampler_bindings, num_bindings)
+}
+
+fn bind_gpu_vertex_storage_textures(render_pass *GPURenderPass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32) {
+  raw::bind_gpu_vertex_storage_textures(render_pass, first_slot, storage_textures, num_bindings)
+}
+
+fn bind_gpu_vertex_storage_buffers(render_pass *GPURenderPass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32) {
+  raw::bind_gpu_vertex_storage_buffers(render_pass, first_slot, storage_buffers, num_bindings)
+}
+
+fn bind_gpu_fragment_samplers(render_pass *GPURenderPass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32) {
+  raw::bind_gpu_fragment_samplers(render_pass, first_slot, texture_sampler_bindings, num_bindings)
+}
+
+fn bind_gpu_fragment_storage_textures(render_pass *GPURenderPass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32) {
+  raw::bind_gpu_fragment_storage_textures(render_pass, first_slot, storage_textures, num_bindings)
+}
+
+fn bind_gpu_fragment_storage_buffers(render_pass *GPURenderPass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32) {
+  raw::bind_gpu_fragment_storage_buffers(render_pass, first_slot, storage_buffers, num_bindings)
+}
+
+fn draw_gpu_indexed_primitives(render_pass *GPURenderPass, num_indices u32, num_instances u32, first_index u32, vertex_offset i32, first_instance u32) {
+  raw::draw_gpu_indexed_primitives(render_pass, num_indices, num_instances, first_index, vertex_offset, first_instance)
+}
+
+fn draw_gpu_primitives(render_pass *GPURenderPass, num_vertices u32, num_instances u32, first_vertex u32, first_instance u32) {
+  raw::draw_gpu_primitives(render_pass, num_vertices, num_instances, first_vertex, first_instance)
+}
+
+fn draw_gpu_primitives_indirect(render_pass *GPURenderPass, buffer *GPUBuffer, offset u32, draw_count u32) {
+  raw::draw_gpu_primitives_indirect(render_pass, buffer, offset, draw_count)
+}
+
+fn draw_gpu_indexed_primitives_indirect(render_pass *GPURenderPass, buffer *GPUBuffer, offset u32, draw_count u32) {
+  raw::draw_gpu_indexed_primitives_indirect(render_pass, buffer, offset, draw_count)
+}
+
+fn end_gpu_render_pass(render_pass *GPURenderPass) {
+  raw::end_gpu_render_pass(render_pass)
+}
+
+fn begin_gpu_compute_pass(command_buffer *GPUCommandBuffer, storage_texture_bindings const *GPUStorageTextureReadWriteBinding, num_storage_texture_bindings u32, storage_buffer_bindings const *GPUStorageBufferReadWriteBinding, num_storage_buffer_bindings u32) *GPUComputePass {
+  return raw::begin_gpu_compute_pass(command_buffer, storage_texture_bindings, num_storage_texture_bindings, storage_buffer_bindings, num_storage_buffer_bindings)
+}
+
+fn bind_gpu_compute_pipeline(compute_pass *GPUComputePass, compute_pipeline *GPUComputePipeline) {
+  raw::bind_gpu_compute_pipeline(compute_pass, compute_pipeline)
+}
+
+fn bind_gpu_compute_samplers(compute_pass *GPUComputePass, first_slot u32, texture_sampler_bindings const *GPUTextureSamplerBinding, num_bindings u32) {
+  raw::bind_gpu_compute_samplers(compute_pass, first_slot, texture_sampler_bindings, num_bindings)
+}
+
+fn bind_gpu_compute_storage_textures(compute_pass *GPUComputePass, first_slot u32, storage_textures const **GPUTexture, num_bindings u32) {
+  raw::bind_gpu_compute_storage_textures(compute_pass, first_slot, storage_textures, num_bindings)
+}
+
+fn bind_gpu_compute_storage_buffers(compute_pass *GPUComputePass, first_slot u32, storage_buffers const **GPUBuffer, num_bindings u32) {
+  raw::bind_gpu_compute_storage_buffers(compute_pass, first_slot, storage_buffers, num_bindings)
+}
+
+fn dispatch_gpu_compute(compute_pass *GPUComputePass, groupcount_x u32, groupcount_y u32, groupcount_z u32) {
+  raw::dispatch_gpu_compute(compute_pass, groupcount_x, groupcount_y, groupcount_z)
+}
+
+fn dispatch_gpu_compute_indirect(compute_pass *GPUComputePass, buffer *GPUBuffer, offset u32) {
+  raw::dispatch_gpu_compute_indirect(compute_pass, buffer, offset)
+}
+
+fn end_gpu_compute_pass(compute_pass *GPUComputePass) {
+  raw::end_gpu_compute_pass(compute_pass)
+}
+
+fn map_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer, cycle bool) rawptr {
+  return raw::map_gpu_transfer_buffer(device, transfer_buffer, cycle)
+}
+
+fn unmap_gpu_transfer_buffer(device *GPUDevice, transfer_buffer *GPUTransferBuffer) {
+  raw::unmap_gpu_transfer_buffer(device, transfer_buffer)
+}
+
+fn begin_gpu_copy_pass(command_buffer *GPUCommandBuffer) *GPUCopyPass {
+  return raw::begin_gpu_copy_pass(command_buffer)
+}
+
+fn upload_to_gpu_texture(copy_pass *GPUCopyPass, source const *GPUTextureTransferInfo, destination const *GPUTextureRegion, cycle bool) {
+  raw::upload_to_gpu_texture(copy_pass, source, destination, cycle)
+}
+
+fn upload_to_gpu_buffer(copy_pass *GPUCopyPass, source const *GPUTransferBufferLocation, destination const *GPUBufferRegion, cycle bool) {
+  raw::upload_to_gpu_buffer(copy_pass, source, destination, cycle)
+}
+
+fn copy_gpu_texture_to_texture(copy_pass *GPUCopyPass, source const *GPUTextureLocation, destination const *GPUTextureLocation, w u32, h u32, d u32, cycle bool) {
+  raw::copy_gpu_texture_to_texture(copy_pass, source, destination, w, h, d, cycle)
+}
+
+fn copy_gpu_buffer_to_buffer(copy_pass *GPUCopyPass, source const *GPUBufferLocation, destination const *GPUBufferLocation, size u32, cycle bool) {
+  raw::copy_gpu_buffer_to_buffer(copy_pass, source, destination, size, cycle)
+}
+
+fn download_from_gpu_texture(copy_pass *GPUCopyPass, source const *GPUTextureRegion, destination const *GPUTextureTransferInfo) {
+  raw::download_from_gpu_texture(copy_pass, source, destination)
+}
+
+fn download_from_gpu_buffer(copy_pass *GPUCopyPass, source const *GPUBufferRegion, destination const *GPUTransferBufferLocation) {
+  raw::download_from_gpu_buffer(copy_pass, source, destination)
+}
+
+fn end_gpu_copy_pass(copy_pass *GPUCopyPass) {
+  raw::end_gpu_copy_pass(copy_pass)
+}
+
+fn generate_mipmaps_for_gpu_texture(command_buffer *GPUCommandBuffer, texture *GPUTexture) {
+  raw::generate_mipmaps_for_gpu_texture(command_buffer, texture)
+}
+
+fn blit_gpu_texture(command_buffer *GPUCommandBuffer, info const *GPUBlitInfo) {
+  raw::blit_gpu_texture(command_buffer, info)
+}
+
+fn window_supports_gpu_swapchain_composition(device *GPUDevice, window *Window, swapchain_composition GPUSwapchainComposition) bool {
+  return raw::window_supports_gpu_swapchain_composition(device, window, swapchain_composition)
+}
+
+fn window_supports_gpu_present_mode(device *GPUDevice, window *Window, present_mode GPUPresentMode) bool {
+  return raw::window_supports_gpu_present_mode(device, window, present_mode)
+}
+
+fn claim_window_for_gpu_device(device *GPUDevice, window *Window) bool {
+  return raw::claim_window_for_gpu_device(device, window)
+}
+
+fn release_window_from_gpu_device(device *GPUDevice, window *Window) {
+  raw::release_window_from_gpu_device(device, window)
+}
+
+fn set_gpu_swapchain_parameters(device *GPUDevice, window *Window, swapchain_composition GPUSwapchainComposition, present_mode GPUPresentMode) bool {
+  return raw::set_gpu_swapchain_parameters(device, window, swapchain_composition, present_mode)
+}
+
+fn set_gpu_allowed_frames_in_flight(device *GPUDevice, allowed_frames_in_flight u32) bool {
+  return raw::set_gpu_allowed_frames_in_flight(device, allowed_frames_in_flight)
+}
+
+fn get_gpu_swapchain_texture_format(device *GPUDevice, window *Window) GPUTextureFormat {
+  return raw::get_gpu_swapchain_texture_format(device, window)
+}
+
+fn acquire_gpu_swapchain_texture(command_buffer *GPUCommandBuffer, window *Window, swapchain_texture **GPUTexture, swapchain_texture_width *u32, swapchain_texture_height *u32) bool {
+  return raw::acquire_gpu_swapchain_texture(command_buffer, window, swapchain_texture, swapchain_texture_width, swapchain_texture_height)
+}
+
+fn wait_for_gpu_swapchain(device *GPUDevice, window *Window) bool {
+  return raw::wait_for_gpu_swapchain(device, window)
+}
+
+fn wait_and_acquire_gpu_swapchain_texture(command_buffer *GPUCommandBuffer, window *Window, swapchain_texture **GPUTexture, swapchain_texture_width *u32, swapchain_texture_height *u32) bool {
+  return raw::wait_and_acquire_gpu_swapchain_texture(command_buffer, window, swapchain_texture, swapchain_texture_width, swapchain_texture_height)
+}
+
+fn submit_gpu_command_buffer(command_buffer *GPUCommandBuffer) bool {
+  return raw::submit_gpu_command_buffer(command_buffer)
+}
+
+fn submit_gpu_command_buffer_and_acquire_fence(command_buffer *GPUCommandBuffer) *GPUFence {
+  return raw::submit_gpu_command_buffer_and_acquire_fence(command_buffer)
+}
+
+fn cancel_gpu_command_buffer(command_buffer *GPUCommandBuffer) bool {
+  return raw::cancel_gpu_command_buffer(command_buffer)
+}
+
+fn wait_for_gpu_idle(device *GPUDevice) bool {
+  return raw::wait_for_gpu_idle(device)
+}
+
+fn wait_for_gpu_fences(device *GPUDevice, wait_all bool, fences const **GPUFence, num_fences u32) bool {
+  return raw::wait_for_gpu_fences(device, wait_all, fences, num_fences)
+}
+
+fn query_gpu_fence(device *GPUDevice, fence *GPUFence) bool {
+  return raw::query_gpu_fence(device, fence)
+}
+
+fn release_gpu_fence(device *GPUDevice, fence *GPUFence) {
+  raw::release_gpu_fence(device, fence)
+}
+
+fn gpu_texture_format_texel_block_size(format GPUTextureFormat) u32 {
+  return raw::gpu_texture_format_texel_block_size(format)
+}
+
+fn gpu_texture_supports_format(device *GPUDevice, format GPUTextureFormat, type_ GPUTextureType, usage GPUTextureUsageFlags) bool {
+  return raw::gpu_texture_supports_format(device, format, type_, usage)
+}
+
+fn gpu_texture_supports_sample_count(device *GPUDevice, format GPUTextureFormat, sample_count GPUSampleCount) bool {
+  return raw::gpu_texture_supports_sample_count(device, format, sample_count)
+}
+
+fn calculate_gpu_texture_format_size(format GPUTextureFormat, width u32, height u32, depth_or_layer_count u32) u32 {
+  return raw::calculate_gpu_texture_format_size(format, width, height, depth_or_layer_count)
+}
+
+fn get_haptic_name_for_id(instance_id HapticID) OptionalString {
+  result := raw::get_haptic_name_for_id(instance_id)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn open_haptic(instance_id HapticID) *Haptic {
+  return raw::open_haptic(instance_id)
+}
+
+fn get_haptic_from_id(instance_id HapticID) *Haptic {
+  return raw::get_haptic_from_id(instance_id)
+}
+
+fn get_haptic_id(haptic *Haptic) HapticID {
+  return raw::get_haptic_id(haptic)
+}
+
+fn get_haptic_name(haptic *Haptic) OptionalString {
+  result := raw::get_haptic_name(haptic)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn is_mouse_haptic() bool {
+  return raw::is_mouse_haptic()
+}
+
+fn open_haptic_from_mouse() *Haptic {
+  return raw::open_haptic_from_mouse()
+}
+
+fn is_joystick_haptic(joystick *Joystick) bool {
+  return raw::is_joystick_haptic(joystick)
+}
+
+fn open_haptic_from_joystick(joystick *Joystick) *Haptic {
+  return raw::open_haptic_from_joystick(joystick)
+}
+
+fn close_haptic(haptic *Haptic) {
+  raw::close_haptic(haptic)
+}
+
+fn get_max_haptic_effects(haptic *Haptic) i32 {
+  return raw::get_max_haptic_effects(haptic)
+}
+
+fn get_max_haptic_effects_playing(haptic *Haptic) i32 {
+  return raw::get_max_haptic_effects_playing(haptic)
+}
+
+fn get_haptic_features(haptic *Haptic) u32 {
+  return raw::get_haptic_features(haptic)
+}
+
+fn get_num_haptic_axes(haptic *Haptic) i32 {
+  return raw::get_num_haptic_axes(haptic)
+}
+
+fn haptic_effect_supported(haptic *Haptic, effect const *HapticEffect) bool {
+  return raw::haptic_effect_supported(haptic, effect)
+}
+
+fn create_haptic_effect(haptic *Haptic, effect const *HapticEffect) i32 {
+  return raw::create_haptic_effect(haptic, effect)
+}
+
+fn update_haptic_effect(haptic *Haptic, effect i32, data const *HapticEffect) bool {
+  return raw::update_haptic_effect(haptic, effect, data)
+}
+
+fn run_haptic_effect(haptic *Haptic, effect i32, iterations u32) bool {
+  return raw::run_haptic_effect(haptic, effect, iterations)
+}
+
+fn stop_haptic_effect(haptic *Haptic, effect i32) bool {
+  return raw::stop_haptic_effect(haptic, effect)
+}
+
+fn destroy_haptic_effect(haptic *Haptic, effect i32) {
+  raw::destroy_haptic_effect(haptic, effect)
+}
+
+fn get_haptic_effect_status(haptic *Haptic, effect i32) bool {
+  return raw::get_haptic_effect_status(haptic, effect)
+}
+
+fn set_haptic_gain(haptic *Haptic, gain i32) bool {
+  return raw::set_haptic_gain(haptic, gain)
+}
+
+fn set_haptic_autocenter(haptic *Haptic, autocenter i32) bool {
+  return raw::set_haptic_autocenter(haptic, autocenter)
+}
+
+fn pause_haptic(haptic *Haptic) bool {
+  return raw::pause_haptic(haptic)
+}
+
+fn resume_haptic(haptic *Haptic) bool {
+  return raw::resume_haptic(haptic)
+}
+
+fn stop_haptic_effects(haptic *Haptic) bool {
+  return raw::stop_haptic_effects(haptic)
+}
+
+fn haptic_rumble_supported(haptic *Haptic) bool {
+  return raw::haptic_rumble_supported(haptic)
+}
+
+fn init_haptic_rumble(haptic *Haptic) bool {
+  return raw::init_haptic_rumble(haptic)
+}
+
+fn play_haptic_rumble(haptic *Haptic, strength f32, length u32) bool {
+  return raw::play_haptic_rumble(haptic, strength, length)
+}
+
+fn stop_haptic_rumble(haptic *Haptic) bool {
+  return raw::stop_haptic_rumble(haptic)
+}
+
+fn hid_init() i32 {
+  return raw::hid_init()
+}
+
+fn hid_exit() i32 {
+  return raw::hid_exit()
+}
+
+fn hid_device_change_count() u32 {
+  return raw::hid_device_change_count()
+}
+
+fn hid_enumerate(vendor_id u16, product_id u16) *hid_device_info {
+  return raw::hid_enumerate(vendor_id, product_id)
+}
+
+fn hid_free_enumeration(devs *hid_device_info) {
+  raw::hid_free_enumeration(devs)
+}
+
+fn hid_set_nonblocking(dev *hid_device, nonblock i32) i32 {
+  return raw::hid_set_nonblocking(dev, nonblock)
+}
+
+fn hid_close(dev *hid_device) i32 {
+  return raw::hid_close(dev)
+}
+
+fn hid_get_device_info(dev *hid_device) *hid_device_info {
+  return raw::hid_get_device_info(dev)
+}
+
+fn hid_ble_scan(active bool) {
+  raw::hid_ble_scan(active)
+}
+
+fn set_hint_with_priority(name string, value string, priority HintPriority) error {
+  name_c, name_err := strings::to_c(name)
+  if name_err != nil {
+    return name_err
+  }
+  defer strings::free_c(&name_c)
+  value_c, value_err := strings::to_c(value)
+  if value_err != nil {
+    return value_err
+  }
+  defer strings::free_c(&value_c)
+  if raw::set_hint_with_priority(strings::c_view(&name_c), strings::c_view(&value_c), priority) == false {
+    return error("SDL set_hint_with_priority failed")
+  }
+  return nil
+}
+
+fn set_hint(name string, value string) error {
+  name_c, name_err := strings::to_c(name)
+  if name_err != nil {
+    return name_err
+  }
+  defer strings::free_c(&name_c)
+  value_c, value_err := strings::to_c(value)
+  if value_err != nil {
+    return value_err
+  }
+  defer strings::free_c(&value_c)
+  if raw::set_hint(strings::c_view(&name_c), strings::c_view(&value_c)) == false {
+    return error("SDL set_hint failed")
+  }
+  return nil
+}
+
+fn reset_hint(name string) error {
+  name_c, name_err := strings::to_c(name)
+  if name_err != nil {
+    return name_err
+  }
+  defer strings::free_c(&name_c)
+  if raw::reset_hint(strings::c_view(&name_c)) == false {
+    return error("SDL reset_hint failed")
+  }
+  return nil
+}
+
+fn reset_hints() {
+  raw::reset_hints()
+}
+
+fn get_hint(name string) (OptionalString, error) {
+  name_c, name_err := strings::to_c(name)
+  if name_err != nil {
+    return OptionalString{value: "", present: false}, name_err
+  }
+  defer strings::free_c(&name_c)
+  result := raw::get_hint(strings::c_view(&name_c))
+  if result == nil {
+    return OptionalString{value: "", present: false}, nil
+  }
+  return OptionalString{value: strings::from_c(result), present: true}, nil
+}
+
+fn init(flags InitFlags) bool {
+  return raw::init(flags)
+}
+
+fn init_sub_system(flags InitFlags) bool {
+  return raw::init_sub_system(flags)
+}
+
+fn quit_sub_system(flags InitFlags) {
+  raw::quit_sub_system(flags)
+}
+
+fn was_init(flags InitFlags) InitFlags {
+  return raw::was_init(flags)
+}
+
+fn quit() {
+  raw::quit()
+}
+
+fn is_main_thread() bool {
+  return raw::is_main_thread()
+}
+
+fn unload_object(handle *SharedObject) {
+  raw::unload_object(handle)
+}
+
+fn set_log_priorities(priority LogPriority) {
+  raw::set_log_priorities(priority)
+}
+
+fn set_log_priority(category i32, priority LogPriority) {
+  raw::set_log_priority(category, priority)
+}
+
+fn get_log_priority(category i32) LogPriority {
+  return raw::get_log_priority(category)
+}
+
+fn reset_log_priorities() {
+  raw::reset_log_priorities()
+}
+
+fn get_default_log_output_function() LogOutputFunction {
+  return raw::get_default_log_output_function()
+}
+
+fn metal_create_view(window *Window) MetalView {
+  return raw::metal_create_view(window)
+}
+
+fn metal_destroy_view(view MetalView) {
+  raw::metal_destroy_view(view)
+}
+
+fn metal_get_layer(view MetalView) rawptr {
+  return raw::metal_get_layer(view)
+}
+
+fn open_url(url string) error {
+  url_c, url_err := strings::to_c(url)
+  if url_err != nil {
+    return url_err
+  }
+  defer strings::free_c(&url_c)
+  if raw::open_url(strings::c_view(&url_c)) == false {
+    return error("SDL open_url failed")
+  }
+  return nil
+}
+
+fn get_platform() string {
+  result := raw::get_platform()
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn create_process_with_properties(props PropertiesID) *Process {
+  return raw::create_process_with_properties(props)
+}
+
+fn get_process_properties(process *Process) PropertiesID {
+  return raw::get_process_properties(process)
+}
+
+fn get_process_input(process *Process) *IOStream {
+  return raw::get_process_input(process)
+}
+
+fn get_process_output(process *Process) *IOStream {
+  return raw::get_process_output(process)
+}
+
+fn kill_process(process *Process, force bool) bool {
+  return raw::kill_process(process, force)
+}
+
+fn destroy_process(process *Process) {
+  raw::destroy_process(process)
+}
+
+fn get_num_render_drivers() i32 {
+  return raw::get_num_render_drivers()
+}
+
+fn get_render_driver(index i32) OptionalString {
+  result := raw::get_render_driver(index)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn create_renderer_with_properties(props PropertiesID) *Renderer {
+  return raw::create_renderer_with_properties(props)
+}
+
+fn create_software_renderer(surface *Surface) *Renderer {
+  return raw::create_software_renderer(surface)
+}
+
+fn get_renderer(window *Window) *Renderer {
+  return raw::get_renderer(window)
+}
+
+fn get_render_window(renderer *Renderer) *Window {
+  return raw::get_render_window(renderer)
+}
+
+fn get_renderer_name(renderer *Renderer) OptionalString {
+  result := raw::get_renderer_name(renderer)
+  if result == nil {
+    return OptionalString{value: "", present: false}
+  }
+  return OptionalString{value: strings::from_c(result), present: true}
+}
+
+fn get_renderer_properties(renderer *Renderer) PropertiesID {
+  return raw::get_renderer_properties(renderer)
+}
+
+fn create_texture(renderer *Renderer, format PixelFormat, access TextureAccess, w i32, h i32) *Texture {
+  return raw::create_texture(renderer, format, access, w, h)
+}
+
+fn create_texture_from_surface(renderer *Renderer, surface *Surface) *Texture {
+  return raw::create_texture_from_surface(renderer, surface)
+}
+
+fn create_texture_with_properties(renderer *Renderer, props PropertiesID) *Texture {
+  return raw::create_texture_with_properties(renderer, props)
+}
+
+fn get_texture_properties(texture *Texture) PropertiesID {
+  return raw::get_texture_properties(texture)
+}
+
+fn get_renderer_from_texture(texture *Texture) *Renderer {
+  return raw::get_renderer_from_texture(texture)
+}
+
+fn set_texture_color_mod(texture *Texture, r u8, g u8, b u8) bool {
+  return raw::set_texture_color_mod(texture, r, g, b)
+}
+
+fn set_texture_color_mod_float(texture *Texture, r f32, g f32, b f32) bool {
+  return raw::set_texture_color_mod_float(texture, r, g, b)
+}
+
+fn get_texture_color_mod(texture *Texture, r *u8, g *u8, b *u8) bool {
+  return raw::get_texture_color_mod(texture, r, g, b)
+}
+
+fn set_texture_alpha_mod(texture *Texture, alpha u8) bool {
+  return raw::set_texture_alpha_mod(texture, alpha)
+}
+
+fn set_texture_alpha_mod_float(texture *Texture, alpha f32) bool {
+  return raw::set_texture_alpha_mod_float(texture, alpha)
+}
+
+fn get_texture_alpha_mod(texture *Texture, alpha *u8) bool {
+  return raw::get_texture_alpha_mod(texture, alpha)
+}
+
+fn set_texture_blend_mode(texture *Texture, blendMode BlendMode) bool {
+  return raw::set_texture_blend_mode(texture, blendMode)
+}
+
+fn get_texture_blend_mode(texture *Texture, blendMode *BlendMode) bool {
+  return raw::get_texture_blend_mode(texture, blendMode)
+}
+
+fn set_texture_scale_mode(texture *Texture, scaleMode ScaleMode) bool {
+  return raw::set_texture_scale_mode(texture, scaleMode)
+}
+
+fn get_texture_scale_mode(texture *Texture, scaleMode *ScaleMode) bool {
+  return raw::get_texture_scale_mode(texture, scaleMode)
+}
+
+fn update_texture(texture *Texture, rect const *Rect, pixels const *Void, pitch i32) bool {
+  return raw::update_texture(texture, rect, pixels, pitch)
+}
+
+fn update_yuv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch i32, Uplane const *u8, Upitch i32, Vplane const *u8, Vpitch i32) bool {
+  return raw::update_yuv_texture(texture, rect, Yplane, Ypitch, Uplane, Upitch, Vplane, Vpitch)
+}
+
+fn update_nv_texture(texture *Texture, rect const *Rect, Yplane const *u8, Ypitch i32, UVplane const *u8, UVpitch i32) bool {
+  return raw::update_nv_texture(texture, rect, Yplane, Ypitch, UVplane, UVpitch)
+}
+
+fn lock_texture_to_surface(texture *Texture, rect const *Rect, surface **Surface) bool {
+  return raw::lock_texture_to_surface(texture, rect, surface)
+}
+
+fn unlock_texture(texture *Texture) {
+  raw::unlock_texture(texture)
+}
+
+fn set_render_target(renderer *Renderer, texture *Texture) bool {
+  return raw::set_render_target(renderer, texture)
+}
+
+fn get_render_target(renderer *Renderer) *Texture {
+  return raw::get_render_target(renderer)
+}
+
+fn set_render_logical_presentation(renderer *Renderer, w i32, h i32, mode RendererLogicalPresentation) bool {
+  return raw::set_render_logical_presentation(renderer, w, h, mode)
+}
+
+fn get_render_logical_presentation_rect(renderer *Renderer, rect *FRect) bool {
+  return raw::get_render_logical_presentation_rect(renderer, rect)
+}
+
+fn convert_event_to_render_coordinates(renderer *Renderer, event *Event) bool {
+  return raw::convert_event_to_render_coordinates(renderer, event)
+}
+
+fn set_render_viewport(renderer *Renderer, rect const *Rect) bool {
+  return raw::set_render_viewport(renderer, rect)
+}
+
+fn get_render_viewport(renderer *Renderer, rect *Rect) bool {
+  return raw::get_render_viewport(renderer, rect)
+}
+
+fn render_viewport_set(renderer *Renderer) bool {
+  return raw::render_viewport_set(renderer)
+}
+
+fn get_render_safe_area(renderer *Renderer, rect *Rect) bool {
+  return raw::get_render_safe_area(renderer, rect)
+}
+
+fn set_render_clip_rect(renderer *Renderer, rect const *Rect) bool {
+  return raw::set_render_clip_rect(renderer, rect)
+}
+
+fn get_render_clip_rect(renderer *Renderer, rect *Rect) bool {
+  return raw::get_render_clip_rect(renderer, rect)
+}
+
+fn render_clip_enabled(renderer *Renderer) bool {
+  return raw::render_clip_enabled(renderer)
+}
+
+fn set_render_scale(renderer *Renderer, scaleX f32, scaleY f32) bool {
+  return raw::set_render_scale(renderer, scaleX, scaleY)
+}
+
+fn set_render_draw_color(renderer *Renderer, r u8, g u8, b u8, a u8) bool {
+  return raw::set_render_draw_color(renderer, r, g, b, a)
+}
+
+fn set_render_draw_color_float(renderer *Renderer, r f32, g f32, b f32, a f32) bool {
+  return raw::set_render_draw_color_float(renderer, r, g, b, a)
+}
+
+fn get_render_draw_color(renderer *Renderer, r *u8, g *u8, b *u8, a *u8) bool {
+  return raw::get_render_draw_color(renderer, r, g, b, a)
+}
+
+fn set_render_color_scale(renderer *Renderer, scale f32) bool {
+  return raw::set_render_color_scale(renderer, scale)
+}
+
+fn set_render_draw_blend_mode(renderer *Renderer, blendMode BlendMode) bool {
+  return raw::set_render_draw_blend_mode(renderer, blendMode)
+}
+
+fn get_render_draw_blend_mode(renderer *Renderer, blendMode *BlendMode) bool {
+  return raw::get_render_draw_blend_mode(renderer, blendMode)
+}
+
+fn render_clear(renderer *Renderer) bool {
+  return raw::render_clear(renderer)
+}
+
+fn render_point(renderer *Renderer, x f32, y f32) bool {
+  return raw::render_point(renderer, x, y)
+}
+
+fn render_points(renderer *Renderer, points const *FPoint, count i32) bool {
+  return raw::render_points(renderer, points, count)
+}
+
+fn render_line(renderer *Renderer, x1 f32, y1 f32, x2 f32, y2 f32) bool {
+  return raw::render_line(renderer, x1, y1, x2, y2)
+}
+
+fn render_lines(renderer *Renderer, points const *FPoint, count i32) bool {
+  return raw::render_lines(renderer, points, count)
+}
+
+fn render_rect(renderer *Renderer, rect const *FRect) bool {
+  return raw::render_rect(renderer, rect)
+}
+
+fn render_rects(renderer *Renderer, rects const *FRect, count i32) bool {
+  return raw::render_rects(renderer, rects, count)
+}
+
+fn render_fill_rect(renderer *Renderer, rect const *FRect) bool {
+  return raw::render_fill_rect(renderer, rect)
+}
+
+fn render_fill_rects(renderer *Renderer, rects const *FRect, count i32) bool {
+  return raw::render_fill_rects(renderer, rects, count)
+}
+
+fn render_texture(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect) bool {
+  return raw::render_texture(renderer, texture, srcrect, dstrect)
+}
+
+fn render_texture_rotated(renderer *Renderer, texture *Texture, srcrect const *FRect, dstrect const *FRect, angle f64, center const *FPoint, flip FlipMode) bool {
+  return raw::render_texture_rotated(renderer, texture, srcrect, dstrect, angle, center, flip)
+}
+
+fn render_texture_affine(renderer *Renderer, texture *Texture, srcrect const *FRect, origin const *FPoint, right const *FPoint, down const *FPoint) bool {
+  return raw::render_texture_affine(renderer, texture, srcrect, origin, right, down)
+}
+
+fn render_texture_tiled(renderer *Renderer, texture *Texture, srcrect const *FRect, scale f32, dstrect const *FRect) bool {
+  return raw::render_texture_tiled(renderer, texture, srcrect, scale, dstrect)
+}
+
+fn render_texture9_grid(renderer *Renderer, texture *Texture, srcrect const *FRect, left_width f32, right_width f32, top_height f32, bottom_height f32, scale f32, dstrect const *FRect) bool {
+  return raw::render_texture9_grid(renderer, texture, srcrect, left_width, right_width, top_height, bottom_height, scale, dstrect)
+}
+
+fn render_read_pixels(renderer *Renderer, rect const *Rect) *Surface {
+  return raw::render_read_pixels(renderer, rect)
+}
+
+fn render_present(renderer *Renderer) bool {
+  return raw::render_present(renderer)
+}
+
+fn destroy_texture(texture *Texture) {
+  raw::destroy_texture(texture)
+}
+
+fn destroy_renderer(renderer *Renderer) {
+  raw::destroy_renderer(renderer)
+}
+
+fn flush_renderer(renderer *Renderer) bool {
+  return raw::flush_renderer(renderer)
+}
+
+fn get_render_metal_layer(renderer *Renderer) rawptr {
+  return raw::get_render_metal_layer(renderer)
+}
+
+fn get_render_metal_command_encoder(renderer *Renderer) rawptr {
+  return raw::get_render_metal_command_encoder(renderer)
+}
+
+fn add_vulkan_render_semaphores(renderer *Renderer, wait_stage_mask u32, wait_semaphore i64, signal_semaphore i64) bool {
+  return raw::add_vulkan_render_semaphores(renderer, wait_stage_mask, wait_semaphore, signal_semaphore)
+}
+
+fn set_render_v_sync(renderer *Renderer, vsync i32) bool {
+  return raw::set_render_v_sync(renderer, vsync)
+}
+
+fn render_debug_text(renderer *Renderer, x f32, y f32, str string) error {
+  str_c, str_err := strings::to_c(str)
+  if str_err != nil {
+    return str_err
+  }
+  defer strings::free_c(&str_c)
+  if raw::render_debug_text(renderer, x, y, strings::c_view(&str_c)) == false {
+    return error("SDL render_debug_text failed")
+  }
+  return nil
+}
+
+fn open_storage(iface const *StorageInterface, userdata rawptr) *Storage {
+  return raw::open_storage(iface, userdata)
+}
+
+fn close_storage(storage *Storage) bool {
+  return raw::close_storage(storage)
+}
+
+fn storage_ready(storage *Storage) bool {
+  return raw::storage_ready(storage)
+}
+
+fn get_storage_space_remaining(storage *Storage) u64 {
+  return raw::get_storage_space_remaining(storage)
+}
+
+fn is_tablet() bool {
+  return raw::is_tablet()
+}
+
+fn is_tv() bool {
+  return raw::is_tv()
+}
+
+fn get_sandbox() Sandbox {
+  return raw::get_sandbox()
+}
+
+fn on_application_will_terminate() {
+  raw::on_application_will_terminate()
+}
+
+fn on_application_did_receive_memory_warning() {
+  raw::on_application_did_receive_memory_warning()
+}
+
+fn on_application_will_enter_background() {
+  raw::on_application_will_enter_background()
+}
+
+fn on_application_did_enter_background() {
+  raw::on_application_did_enter_background()
+}
+
+fn on_application_will_enter_foreground() {
+  raw::on_application_will_enter_foreground()
+}
+
+fn on_application_did_enter_foreground() {
+  raw::on_application_did_enter_foreground()
+}
+
+fn get_date_time_locale_preferences(dateFormat *DateFormat, timeFormat *TimeFormat) bool {
+  return raw::get_date_time_locale_preferences(dateFormat, timeFormat)
+}
+
+fn get_current_time(ticks *Time) bool {
+  return raw::get_current_time(ticks)
+}
+
+fn time_to_date_time(ticks Time, dt *DateTime, localTime bool) bool {
+  return raw::time_to_date_time(ticks, dt, localTime)
+}
+
+fn date_time_to_time(dt const *DateTime, ticks *Time) bool {
+  return raw::date_time_to_time(dt, ticks)
+}
+
+fn time_to_windows(ticks Time, dwLowDateTime *u32, dwHighDateTime *u32) {
+  raw::time_to_windows(ticks, dwLowDateTime, dwHighDateTime)
+}
+
+fn time_from_windows(dwLowDateTime u32, dwHighDateTime u32) Time {
+  return raw::time_from_windows(dwLowDateTime, dwHighDateTime)
+}
+
+fn get_days_in_month(year i32, month i32) i32 {
+  return raw::get_days_in_month(year, month)
+}
+
+fn get_day_of_year(year i32, month i32, day i32) i32 {
+  return raw::get_day_of_year(year, month, day)
+}
+
+fn get_day_of_week(year i32, month i32, day i32) i32 {
+  return raw::get_day_of_week(year, month, day)
+}
+
+fn get_ticks() u64 {
+  return raw::get_ticks()
+}
+
+fn get_ticks_ns() u64 {
+  return raw::get_ticks_ns()
+}
+
+fn get_performance_counter() u64 {
+  return raw::get_performance_counter()
+}
+
+fn get_performance_frequency() u64 {
+  return raw::get_performance_frequency()
+}
+
+fn delay(ms u32) {
+  raw::delay(ms)
+}
+
+fn delay_ns(ns u64) {
+  raw::delay_ns(ns)
+}
+
+fn delay_precise(ns u64) {
+  raw::delay_precise(ns)
+}
+
+fn remove_timer(id TimerID) bool {
+  return raw::remove_timer(id)
+}
+
+fn set_tray_icon(tray *Tray, icon *Surface) {
+  raw::set_tray_icon(tray, icon)
+}
+
+fn create_tray_menu(tray *Tray) *TrayMenu {
+  return raw::create_tray_menu(tray)
+}
+
+fn create_tray_submenu(entry *TrayEntry) *TrayMenu {
+  return raw::create_tray_submenu(entry)
+}
+
+fn get_tray_menu(tray *Tray) *TrayMenu {
+  return raw::get_tray_menu(tray)
+}
+
+fn get_tray_submenu(entry *TrayEntry) *TrayMenu {
+  return raw::get_tray_submenu(entry)
+}
+
+fn remove_tray_entry(entry *TrayEntry) {
+  raw::remove_tray_entry(entry)
+}
+
+fn set_tray_entry_checked(entry *TrayEntry, checked bool) {
+  raw::set_tray_entry_checked(entry, checked)
+}
+
+fn get_tray_entry_checked(entry *TrayEntry) bool {
+  return raw::get_tray_entry_checked(entry)
+}
+
+fn set_tray_entry_enabled(entry *TrayEntry, enabled bool) {
+  raw::set_tray_entry_enabled(entry, enabled)
+}
+
+fn get_tray_entry_enabled(entry *TrayEntry) bool {
+  return raw::get_tray_entry_enabled(entry)
+}
+
+fn click_tray_entry(entry *TrayEntry) {
+  raw::click_tray_entry(entry)
+}
+
+fn destroy_tray(tray *Tray) {
+  raw::destroy_tray(tray)
+}
+
+fn get_tray_entry_parent(entry *TrayEntry) *TrayMenu {
+  return raw::get_tray_entry_parent(entry)
+}
+
+fn get_tray_menu_parent_entry(menu *TrayMenu) *TrayEntry {
+  return raw::get_tray_menu_parent_entry(menu)
+}
+
+fn get_tray_menu_parent_tray(menu *TrayMenu) *Tray {
+  return raw::get_tray_menu_parent_tray(menu)
+}
+
+fn update_trays() {
+  raw::update_trays()
+}
+
+fn get_version() i32 {
+  return raw::get_version()
+}
+
+fn get_revision() string {
+  result := raw::get_revision()
+  if result == nil {
+    return ""
+  }
+  return strings::from_c(result)
+}
+
+fn set_main_ready() {
+  raw::set_main_ready()
+}
+
+fn gdk_suspend_complete() {
+  raw::gdk_suspend_complete()
+}
+
+fn vulkan_get_vk_get_instance_proc_addr() FunctionPointer {
+  return raw::vulkan_get_vk_get_instance_proc_addr()
+}
+
+fn vulkan_unload_library() {
+  raw::vulkan_unload_library()
+}
+
+fn vulkan_create_surface(window *Window, instance VkInstance, allocator const *VkAllocationCallbacks, surface *VkSurfaceKHR) bool {
+  return raw::vulkan_create_surface(window, instance, allocator, surface)
+}
+
+fn vulkan_destroy_surface(instance VkInstance, surface VkSurfaceKHR, allocator const *VkAllocationCallbacks) {
+  raw::vulkan_destroy_surface(instance, surface, allocator)
+}
+
+fn vulkan_get_presentation_support(instance VkInstance, physicalDevice VkPhysicalDevice, queueFamilyIndex u32) bool {
+  return raw::vulkan_get_presentation_support(instance, physicalDevice, queueFamilyIndex)
+}
+
+fn create_thread_with_properties(props PropertiesID) *Thread {
+  return raw::create_thread_with_properties(props)
 }

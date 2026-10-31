@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+from sdl_facade import generate as generate_facade, type_inventory
 
 ROOT = Path(__file__).resolve().parent.parent
 SCALARS = {
@@ -223,6 +224,7 @@ def main():
     # Publish enum members as scalar constants too: SDL event payloads and flags
     # often use integer storage rather than the corresponding C enum type.
     constants = []
+    text_constants = {}
     for record in generator.records.values():
         if record["kind"] != "EnumDecl":
             continue
@@ -258,15 +260,28 @@ def main():
         }.get(ty, ty)
         if ty == "c::CString":
             ty = "c::ConstCString"
+        if ty == "c::ConstCString":
+            def literals(node):
+                if node.get("kind") == "StringLiteral":
+                    yield node["value"]
+                for child in node.get("inner", []):
+                    yield from literals(child)
+            values = list(literals(node))
+            if len(values) == 1:
+                text_constants[name.removeprefix("SDL_")] = values[0]
         constants.append('  @[link_name="' + name + '"]\n  const ' + name.removeprefix("SDL_") + ' ' + ty + '\n')
     # SDL_main.h is intentionally included explicitly, with main handling disabled.
-    text = 'package sdl\n\nuse "std::ffi::c"\n\n'
+    text = 'package raw\n\nuse "std::ffi::c"\n\n'
     text += "\n".join(generator.callbacks.values())
     text += '\n@[header="SDL3/SDL.h"]\nextern {\n}\n\n@[header="SDL3/SDL_vulkan.h"]\nextern {\n}\n\n@[header="SDL3/SDL_main.h", default_cc_macro="SDLCALL"]\nextern {\n'
-    text += "\n".join(generator.declarations.values()) + "\n" + "\n".join(constants) + "\n" + "\n".join(functions) + "}\n"
+    text += "\n".join(generator.declarations.values()) + "\n" + "\n".join(constants) + "\n" + "\n".join(functions)
+    text += '}\n\n@[default_cc="c"]\nextern {\n  @[link_name="telia_sdl_free_text"]\n  fn free_text(text c::CString)\n}\n'
     args.output.mkdir(parents=True, exist_ok=True)
-    (args.output / "sdl.t").write_text(text)
-    (args.output / "coverage.json").write_text(json.dumps({"version": "3.2.28", "functions": inventory}, indent=2) + "\n")
+    (args.output / "raw").mkdir(exist_ok=True)
+    (args.output / "raw" / "sdl.t").write_text(text)
+    facade, native_inventory, constant_inventory = generate_facade(generator, nodes, constants, text_constants)
+    (args.output / "sdl.t").write_text(facade)
+    (args.output / "coverage.json").write_text(json.dumps({"version": "3.2.28", "functions": inventory, "native_functions": native_inventory, "native_constants": constant_inventory, "native_types": type_inventory(generator)}, indent=2) + "\n")
     print(str(sum(item["status"] == "bound" for item in inventory)) + "/" + str(len(inventory)) + " functions generated; see coverage.json for gaps")
 
 

@@ -133,6 +133,15 @@ func (p *Parser) addPackage(
 	}
 	if pkgTy == ast.PACKAGE_VENDOR {
 		pkg.NativeManifest = filepath.Join(fullPkgPath, "native.json")
+		// Subpackages share their nearest native package's artifact ownership.
+		// Never search above the top-level vendor package.
+		for dir, depth := fullPkgPath, len(path); depth > 0; dir, depth = filepath.Dir(dir), depth-1 {
+			manifest := filepath.Join(dir, "native.json")
+			if _, err := os.Stat(manifest); err == nil {
+				pkg.NativeManifest = manifest
+				break
+			}
+		}
 	}
 
 	p.imports[fullPkgPath] = pkg

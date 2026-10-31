@@ -2407,6 +2407,7 @@ func (s *sema) inferBinaryExprType(
 	}
 
 	if s.isErrorNilComparison(lhs, rhs) {
+		binary.OperandType = ast.NewBasicType(token.ERROR_TYPE)
 		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
 	}
 	if lhs.Kind == ast.EXPR_TYPE_POINTER &&
@@ -3376,6 +3377,20 @@ func (sema *sema) checkNamespaceAccess(
 	namespaceAccess.Left.N = left
 	if left.Invalid {
 		return nil, diagnostics.COMPILER_ERROR_FOUND
+	}
+	if alias, ok := left.Node.(*ast.TypeAlias); ok {
+		var resolved *ast.ExprType
+		err := sema.inContext(alias.Owner, alias.File, nil, func() error {
+			var err error
+			resolved, err = sema.resolveTypeAliases(alias.Type, alias.Owner.Scope, map[*ast.TypeAlias]bool{alias: true})
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resolved.Kind == ast.EXPR_TYPE_ENUM && len(namespaceAccess.TypeArgs) == 0 {
+			return sema.checkEnumAccess(namespaceAccess, resolved.T.(*ast.EnumType).Decl, referenceScope)
+		}
 	}
 	if d, ok := left.Node.(*ast.EnumDecl); ok {
 		var err error

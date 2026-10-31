@@ -128,6 +128,63 @@ func TestVendorImportCannotEscapeVendorRoot(t *testing.T) {
 	}
 }
 
+func TestVendorSubpackagesShareTheNearestManifestWithoutDuplicateSources(t *testing.T) {
+	root, pkg := vendorLibraryFixture(t)
+	raw := filepath.Join(pkg, "raw")
+	if err := os.Mkdir(raw, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(raw, "raw.t"), []byte(`package raw
+@[default_cc="c"]
+extern {
+  @[link_name="bridge_answer"]
+  fn value() i32
+}
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("T_VENDOR_PATH", root)
+	for _, imports := range []string{"", "use \"vendor::answer\"\n"} {
+		source := filepath.Join(t.TempDir(), "main.t")
+		text := "package main\n" + imports + "use \"vendor::answer::raw\"\nfn main() i32 {\nreturn raw::value() - 42\n}\n"
+		if err := os.WriteFile(source, []byte(text), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if _, diags := compiler.CompileFile(source); len(diags.Diags) != 0 {
+			t.Fatalf("subpackages must inherit and deduplicate native sources: %v", diags.Diags)
+		}
+	}
+}
+
+func TestVendorManifestInheritanceCannotUseTheVendorRootManifest(t *testing.T) {
+	root := t.TempDir()
+	pkg := filepath.Join(root, "standalone")
+	if err := os.Mkdir(pkg, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "standalone.t"), []byte("package standalone\nfn value() i32 {\nreturn 0\n}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"version":"1","targets":{"` + runtime.GOOS + "-" + runtime.GOARCH + `":{}}}`
+	if err := os.WriteFile(filepath.Join(root, "native.json"), []byte(manifest), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, vendorRoot := range []string{root, root + string(os.PathSeparator)} {
+		t.Setenv("T_VENDOR_PATH", vendorRoot)
+		source := filepath.Join(t.TempDir(), "main.t")
+		if err := os.WriteFile(source, []byte("package main\nuse \"vendor::standalone\"\nfn main() i32 {\nreturn standalone::value()\n}\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		binary, diags := compiler.CompileOnly(source)
+		if binary != "" {
+			t.Cleanup(func() { removeTestBinary(t, binary) })
+		}
+		if len(diags.Diags) == 0 {
+			t.Fatal("an unrelated manifest above the top-level vendor package must not be inherited")
+		}
+	}
+}
+
 func TestVendorRuntimeNameConflictsAreRejected(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"left", "right"} {
@@ -157,6 +214,32 @@ func TestVendorRuntimeNameConflictsAreRejected(t *testing.T) {
 	}
 	if !strings.Contains(fmt.Sprint(diags.Diags), "runtime file name conflict") {
 		t.Fatalf("want runtime name conflict, got %v", diags.Diags)
+	}
+}
+
+func TestVendorSubpackageManifestOverridesItsParent(t *testing.T) {
+	root, pkg := vendorLibraryFixture(t)
+	child := filepath.Join(pkg, "child")
+	if err := os.Mkdir(child, 0755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"child.c":     "int child_answer(void) { return 43; }\n",
+		"child.t":     "package child\n@[default_cc=\"c\"]\nextern {\nfn child_answer() i32\n}\n",
+		"native.json": `{"version":"1","targets":{"` + runtime.GOOS + "-" + runtime.GOARCH + `":{"sources":["child.c"]}}}`,
+	}
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(child, name), []byte(text), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("T_VENDOR_PATH", root)
+	source := filepath.Join(t.TempDir(), "main.t")
+	if err := os.WriteFile(source, []byte("package main\nuse \"vendor::answer::child\"\nfn main() i32 {\nreturn child::child_answer() - 43\n}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, diags := compiler.CompileFile(source); len(diags.Diags) != 0 {
+		t.Fatalf("nearest manifest must own child sources: %v", diags.Diags)
 	}
 }
 
@@ -248,6 +331,29 @@ func TestSDL3ExampleStaysOpenUntilQuitByDefault(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		_ = cmd.Process.Kill()
 		<-done
+	}
+}
+
+func TestSDL3SnakeDrawsThroughTheNativeFacade(t *testing.T) {
+	if os.Getenv("TELIA_TEST_SDL") != "1" {
+		t.Skip("run SDL setup, then set TELIA_TEST_SDL=1")
+	}
+	root, err := filepath.Abs("../../base/vendor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("T_VENDOR_PATH", root)
+	binary, diags := compiler.CompilePackageOnly("../../examples/snake")
+	if len(diags.Diags) != 0 {
+		t.Fatalf("compile Snake: %v", diags.Diags)
+	}
+	t.Cleanup(func() { removeTestBinary(t, binary) })
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary)
+	cmd.Env = append(os.Environ(), "SDL_VIDEO_DRIVER=dummy", "SDL_RENDER_DRIVER=software", "TELIA_SNAKE_FRAMES=3")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("Snake native facade: %v\n%s", err, out)
 	}
 }
 

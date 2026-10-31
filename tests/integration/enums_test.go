@@ -81,8 +81,8 @@ fn identity<T>(value T) T {
 return value
 }
 fn main() i32 {
-event Event := identity<Event>(events::Event::Quit)
-if event != events::Event::Quit {
+event Event := identity<Event>(Event::Quit)
+if event != Event::Quit {
 return 1
 }
 if sizeof<Event>() != 1 {

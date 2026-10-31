@@ -92,20 +92,25 @@ func CompileOnlyWithCFlags(path string, flags ...string) (string, *diagnostics.C
 	return exePath, collector
 }
 
-func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
+// CompilePackageOnly builds a package without executing its entry point.
+func CompilePackageOnly(dirPath string) (string, *diagnostics.Collector) {
 	collector := diagnostics.New()
-
 	loc, err := ast.LocFromPath(dirPath)
 	if err != nil {
-		collector.ReportAndSave(
-			diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)},
-		)
+		collector.ReportAndSave(diagnostics.Diag{Message: fmt.Sprintf("failed to get location: %v", err)})
 		return "", collector
 	}
-
 	exePath, err := compilePackagePipeline(dirPath, loc, config.BUILD_OPT_DEBUG, collector)
 	if err != nil {
 		collector.ReportError(err, source.Span{})
+		return "", collector
+	}
+	return exePath, collector
+}
+
+func CompilePackage(dirPath string) (string, *diagnostics.Collector) {
+	exePath, collector := CompilePackageOnly(dirPath)
+	if collector.HasErrors() {
 		return "", collector
 	}
 	defer func() { _ = os.RemoveAll(filepath.Dir(exePath)) }() // Best-effort temporary cleanup.

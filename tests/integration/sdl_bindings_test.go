@@ -13,6 +13,11 @@ import (
 
 func runSDLSource(t *testing.T, source string) {
 	t.Helper()
+	runSDLSourceWithCFlags(t, source)
+}
+
+func runSDLSourceWithCFlags(t *testing.T, source string, flags ...string) {
+	t.Helper()
 	if os.Getenv("TELIA_TEST_SDL") != "1" {
 		t.Skip("run SDL setup, then set TELIA_TEST_SDL=1")
 	}
@@ -25,7 +30,7 @@ func runSDLSource(t *testing.T, source string) {
 	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	binary, diags := compiler.CompileOnly(path)
+	binary, diags := compiler.CompileOnlyWithCFlags(path, flags...)
 	if len(diags.Diags) != 0 {
 		t.Fatalf("compile SDL program: %v", diags.Diags)
 	}
@@ -81,10 +86,58 @@ fn main() i32 {
 `)
 }
 
+func TestSDL3NativeTextAcceptsSlicedStrings(t *testing.T) {
+	runSDLSource(t, `package main
+use "std::strings"
+use "vendor::sdl"
+fn main() i32 {
+  sdl::set_main_ready()
+  if sdl::init(sdl::INIT_VIDEO) == false {
+    return 1
+  }
+  defer sdl::quit()
+  title := strings::slice("!Native title!", 1, 13) @fail
+  window := sdl::create_window(title, 64, 64, 0) @fail
+  defer sdl::destroy_window(window)
+  if sdl::get_window_title(window) != "Native title" {
+    return 2
+  }
+  sdl::set_window_title(window, "") @fail
+  if sdl::get_window_title(window) != "" {
+    return 3
+  }
+  return 0
+}
+`)
+}
+
+func TestSDL3NativeRendererDrawsTextAndNumbersWithoutCVarargs(t *testing.T) {
+	runSDLSource(t, `package main
+use "vendor::sdl"
+fn main() i32 {
+  sdl::set_main_ready()
+  if sdl::init(sdl::INIT_VIDEO) == false {
+    return 1
+  }
+  defer sdl::quit()
+  window := sdl::create_window("native rendering", 64, 64, 0) @fail
+  defer sdl::destroy_window(window)
+  renderer := sdl::create_renderer(window) @fail
+  defer sdl::destroy_renderer(renderer)
+  sdl::render_debug_text(renderer, 0.0, 0.0, "Hello") @fail
+  sdl::render_debug_i32(renderer, 0.0, 10.0, -2147483648) @fail
+  if sdl::render_present(renderer) == false {
+    return 2
+  }
+  return 0
+}
+`)
+}
+
 func TestSDL3WideTextUsesNativeWcharStorage(t *testing.T) {
 	runSDLSource(t, `package main
 use "std::ffi::c"
-use "vendor::sdl"
+use sdl "vendor::sdl::raw"
 fn main() i32 {
   text c::c_wchar_t[3] := .{65, 66, 0}
   if sdl::wcslen(&text[0]) != 2 {
@@ -105,7 +158,7 @@ fn main() i32 {
 
 func TestSDL3OpaqueTypedefHandlesUseHeaderIdentity(t *testing.T) {
 	runSDLSource(t, `package main
-use "vendor::sdl"
+use sdl "vendor::sdl::raw"
 fn main() i32 {
   context sdl::GLContext := sdl::gl_get_current_context()
   if context != nil {
@@ -127,9 +180,7 @@ fn main() i32 {
   if sdl::WINDOW_RESIZABLE != 32 {
     return 1
   }
-  if sdl::set_hint_with_priority(sdl::HINT_RENDER_DRIVER, "software", sdl::HintPriority::OVERRIDE) == false {
-    return 2
-  }
+  sdl::set_hint_with_priority(sdl::HINT_RENDER_DRIVER, "software", sdl::HintPriority::OVERRIDE) @fail
   if sdl::AUDIO_S16LE != 32784 {
     return 3
   }
@@ -159,7 +210,7 @@ fn main() i32 {
 
 func TestSDL3X11HookAcceptsItsNullableCallback(t *testing.T) {
 	runSDLSource(t, `package main
-use "vendor::sdl"
+use sdl "vendor::sdl::raw"
 fn main() i32 {
   callback sdl::X11EventHook := nil
   sdl::set_x11_event_hook(callback, nil)
@@ -184,7 +235,7 @@ fn main() i32 {
 func TestSDL3ThreadMacroRunsCallbackAndReturnsItsStatus(t *testing.T) {
 	runSDLSource(t, `package main
 use "std::ffi::c"
-use "vendor::sdl"
+use sdl "vendor::sdl::raw"
 @[cc_macro="SDLCALL"]
 fn worker(data rawptr) c::c_int {
   return 42

@@ -1,7 +1,7 @@
 package main
 
 use "std::libc"
-use "std::ffi::c"
+use "std::io"
 use "vendor::sdl"
 use "pkg::game"
 
@@ -13,13 +13,13 @@ fn rectangle(renderer *sdl::Renderer, x f32, y f32, w f32, h f32, r u8, g u8, b 
   return sdl::render_fill_rect(renderer, &rect)
 }
 
-fn label(renderer *sdl::Renderer, x f32, y f32, text c::ConstCString) bool {
+fn label(renderer *sdl::Renderer, x f32, y f32, text string) bool {
   if sdl::set_render_scale(renderer, 2.0, 2.0) == false {
     return false
   }
   drawn := sdl::render_debug_text(renderer, x / 2.0, y / 2.0, text)
   restored := sdl::set_render_scale(renderer, 1.0, 1.0)
-  return drawn and restored
+  return drawn == nil and restored
 }
 
 fn cell_position(cell i32, origin f32) f32 {
@@ -117,7 +117,7 @@ fn draw(renderer *sdl::Renderer, state *game::State, best i32) bool {
   if sdl::set_render_draw_color(renderer, 143, 161, 178, 255) == false {
     return false
   }
-  if sdl::render_debug_text(renderer, 24.0, 60.0, "A LITTLE GAME. A NEW LANGUAGE. SDL3.") == false {
+  if sdl::render_debug_text(renderer, 24.0, 60.0, "A LITTLE GAME. A NEW LANGUAGE. SDL3.") != nil {
     return false
   }
   if label(renderer, 624.0, 112.0, "SCORE") == false {
@@ -129,10 +129,10 @@ fn draw(renderer *sdl::Renderer, state *game::State, best i32) bool {
   if sdl::set_render_scale(renderer, 2.0, 2.0) == false {
     return false
   }
-  score_drawn := sdl::render_debug_text_format(renderer, 312.0, 76.0, "%d", state.score)
-  best_drawn := sdl::render_debug_text_format(renderer, 312.0, 132.0, "%d", best)
+  score_drawn := sdl::render_debug_i32(renderer, 312.0, 76.0, state.score)
+  best_drawn := sdl::render_debug_i32(renderer, 312.0, 132.0, best)
   scale_restored := sdl::set_render_scale(renderer, 1.0, 1.0)
-  if score_drawn == false or best_drawn == false or scale_restored == false {
+  if score_drawn != nil or best_drawn != nil or scale_restored == false {
     return false
   }
   if sdl::set_render_draw_color(renderer, 143, 161, 178, 255) == false {
@@ -141,10 +141,10 @@ fn draw(renderer *sdl::Renderer, state *game::State, best i32) bool {
   if label(renderer, 624.0, 224.0, "SESSION BEST") == false {
     return false
   }
-  if sdl::render_debug_text(renderer, 624.0, 344.0, "ARROWS / WASD\n\nMOVE\n\n\nSPACE\n\nPAUSE\n\n\nR  RESTART\n\nESC  QUIT") == false {
+  if sdl::render_debug_text(renderer, 624.0, 344.0, "ARROWS / WASD\n\nMOVE\n\n\nSPACE\n\nPAUSE\n\n\nR  RESTART\n\nESC  QUIT") != nil {
     return false
   }
-  if sdl::render_debug_text(renderer, 24.0, 592.0, "EAT. GROW. DON'T HIT THE WALLS OR YOURSELF.") == false {
+  if sdl::render_debug_text(renderer, 24.0, 592.0, "EAT. GROW. DON'T HIT THE WALLS OR YOURSELF.") != nil {
     return false
   }
   if state.paused or state.over or state.won {
@@ -168,11 +168,11 @@ fn draw(renderer *sdl::Renderer, state *game::State, best i32) bool {
       }
     }
     if state.paused {
-      if sdl::render_debug_text(renderer, 232.0, 338.0, "SPACE TO CONTINUE") == false {
+      if sdl::render_debug_text(renderer, 232.0, 338.0, "SPACE TO CONTINUE") != nil {
         return false
       }
     } else {
-      if sdl::render_debug_text(renderer, 256.0, 338.0, "R TO RESTART") == false {
+      if sdl::render_debug_text(renderer, 256.0, 338.0, "R TO RESTART") != nil {
         return false
       }
     }
@@ -186,34 +186,32 @@ fn main() i32 {
   if configured != nil {
     frame_limit = libc::atoi(configured)
     if frame_limit <= 0 {
-      libc::println("TELIA_SNAKE_FRAMES must be a positive integer")
+      io::println("TELIA_SNAKE_FRAMES must be a positive integer")
       return 1
     }
   }
   sdl::set_main_ready()
   if sdl::init(sdl::INIT_VIDEO) == false {
-    libc::println(sdl::get_error())
+    io::println(sdl::get_error())
     return 2
   }
   defer sdl::quit()
-  window := sdl::create_window("Telia / Snake", 920, 624, 0)
-  if window == nil {
-    libc::println(sdl::get_error())
+  window := sdl::create_window("Telia / Snake", 920, 624, 0) @catch err {
+    io::println(err.msg)
     return 3
   }
   defer sdl::destroy_window(window)
-  renderer := sdl::create_renderer(window, nil)
-  if renderer == nil {
-    libc::println(sdl::get_error())
+  renderer := sdl::create_renderer(window) @catch err {
+    io::println(err.msg)
     return 4
   }
   defer sdl::destroy_renderer(renderer)
   if sdl::set_render_logical_presentation(renderer, 920, 624, sdl::RendererLogicalPresentation::LETTERBOX) == false {
-    libc::println(sdl::get_error())
+    io::println(sdl::get_error())
     return 5
   }
   if sdl::raise_window(window) == false {
-    libc::println(sdl::get_error())
+    io::println(sdl::get_error())
     return 6
   }
   state := game::create(sdl::rand_bits())
@@ -275,7 +273,7 @@ fn main() i32 {
       best = state.score
     }
     if draw(renderer, &state, best) == false {
-      libc::println(sdl::get_error())
+      io::println(sdl::get_error())
       return 7
     }
     sdl::delay(16)

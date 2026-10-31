@@ -24,7 +24,7 @@ def main():
     entry = manifest["targets"].get(target)
     if entry is None:
         parser.error("unsupported release target: " + target)
-    for path in entry["include_dirs"] + entry["libraries"] + entry["runtime_files"]:
+    for path in entry["include_dirs"] + entry["libraries"] + entry["runtime_files"] + entry.get("sources", []):
         if not (package / path).exists():
             parser.error("missing SDL3 artifact {}; run scripts/setup-sdl.py first".format(path))
     with tempfile.TemporaryDirectory(prefix="telia-release-") as temp:
@@ -37,6 +37,8 @@ def main():
         for path in package.iterdir():
             if path.is_file():
                 shutil.copy2(path, dest / path.name)
+            elif path.name != "artifacts":
+                shutil.copytree(path, dest / path.name)
         shutil.copytree(package / "artifacts" / target, dest / "artifacts" / target)
         shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
         shutil.copy2(ROOT / "docs" / "native-libraries.md", stage / "native-libraries.md")

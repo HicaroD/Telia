@@ -28,6 +28,11 @@ but is not saved to disk.
 `game/game.t` contains deterministic game rules with no SDL dependency. The UI,
 input, and fixed-step clock live in `main.t`.
 
+The game uses the native `vendor::sdl` facade: labels accept Telia `string`,
+conversion buffers are managed inside the library, and scores use
+`render_debug_i32` rather than C varargs. No `std::ffi::c` import is needed.
+The remaining libc calls only read the optional frame-limit environment variable.
+
 For an automated, invisible smoke run:
 
 ```sh

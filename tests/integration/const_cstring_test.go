@@ -2,6 +2,20 @@ package integration
 
 import "testing"
 
+func TestConstCStringCanBeCheckedForNullWithoutDiscardingConst(t *testing.T) {
+	runRecordFixture(t, `package main
+use "std::ffi::c"
+fn main() i32 {
+  missing c::ConstCString := nil
+  text c::ConstCString := "present"
+  if missing != nil or text == nil {
+    return 1
+  }
+  return 0
+}
+`)
+}
+
 func TestConstCStringCanBeExplicitlyViewedAsTeliaText(t *testing.T) {
 	runRecordFixture(t, `package main
 use "std::strings"

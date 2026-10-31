@@ -2,24 +2,28 @@
   "version": "3.2.28",
   "targets": {
     "linux-amd64": {
+      "sources": ["text.c"],
       "include_dirs": ["artifacts/linux-amd64/include"],
       "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/linux-amd64/lib/libSDL3.so.0"],
       "runtime_files": ["artifacts/linux-amd64/lib/libSDL3.so.0"]
     },
     "darwin-amd64": {
+      "sources": ["text.c"],
       "include_dirs": ["artifacts/darwin-amd64/include"],
       "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/darwin-amd64/lib/libSDL3.0.dylib"],
       "runtime_files": ["artifacts/darwin-amd64/lib/libSDL3.0.dylib"]
     },
     "darwin-arm64": {
+      "sources": ["text.c"],
       "include_dirs": ["artifacts/darwin-arm64/include"],
       "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/darwin-arm64/lib/libSDL3.0.dylib"],
       "runtime_files": ["artifacts/darwin-arm64/lib/libSDL3.0.dylib"]
     },
     "windows-amd64": {
+      "sources": ["text.c"],
       "include_dirs": ["artifacts/windows-amd64/include"],
       "compile_flags": ["-DSDL_MAIN_HANDLED"],
       "libraries": ["artifacts/windows-amd64/lib/libSDL3.dll.a"],

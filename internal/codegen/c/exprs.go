@@ -270,6 +270,9 @@ func isErrorNilComparison(bin *ast.BinExpr) bool {
 	if !leftNil && !rightNil {
 		return false
 	}
+	if bin.OperandType != nil && bin.OperandType.IsError() {
+		return true
+	}
 	// Check if the non-nil side is error type (via field access on error, or variable)
 	errorSide := bin.Right
 	if rightNil {

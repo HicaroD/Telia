@@ -12,7 +12,7 @@ func operatorTypeMatches(valid, actual *ast.ExprType) bool {
 		return true
 	}
 	return valid.Kind == ast.EXPR_TYPE_BASIC && actual.Kind == ast.EXPR_TYPE_BASIC &&
-		actual.IsNumeric() &&
+		(actual.IsNumeric() || actual.T.(*ast.BasicType).Kind == token.CSTRING_TYPE) &&
 		valid.T.(*ast.BasicType).Kind == actual.T.(*ast.BasicType).Kind
 }
 

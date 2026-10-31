@@ -351,13 +351,15 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 func nativeRequirements(root *ast.Package) (native.Requirements, error) {
 	var result native.Requirements
 	seen := make(map[*ast.Package]bool)
+	manifests := make(map[string]bool)
 	var visit func(*ast.Package) error
 	visit = func(pkg *ast.Package) error {
 		if pkg == nil || seen[pkg] {
 			return nil
 		}
 		seen[pkg] = true
-		if pkg.NativeManifest != "" {
+		if pkg.NativeManifest != "" && !manifests[pkg.NativeManifest] {
+			manifests[pkg.NativeManifest] = true
 			r, err := native.Resolve(pkg.NativeManifest, runtime.GOOS+"-"+runtime.GOARCH)
 			if err != nil {
 				return err
