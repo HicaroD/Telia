@@ -11,7 +11,14 @@ import (
 func TestReleaseVersionWithoutConfiguration(t *testing.T) {
 	dir := t.TempDir()
 	binary := filepath.Join(dir, "telia.exe")
-	cmd := exec.Command("go", "build", "-ldflags=-X main.Version=v0.1.0 -X main.Commit=abc123", "-o", binary, ".")
+	cmd := exec.Command(
+		"go",
+		"build",
+		"-ldflags=-X main.Version=v0.1.0 -X main.Commit=abc123",
+		"-o",
+		binary,
+		".",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("build compiler: %v\n%s", err, out)
 	}
