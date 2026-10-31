@@ -48,15 +48,15 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return fmt.Sprintf("(%s){.data = {%s}}", emitCType(lit.Type), strings.Join(values, ", "))
 	case ast.KIND_INDEX_EXPR:
 		index := node.Node.(*ast.IndexExpr)
-		if hasVaEffects(node) {
-			if node.IsAddressable() {
-				return "(*" + c.vaExpression(
-					func() string { return "&(" + c.emitIndex(index) + ")" },
-				) + ")"
-			}
-			return c.vaExpression(func() string { return c.emitIndex(index) })
+		// Keep collection capture, index evaluation and bounds checks at the
+		// access site, including inside short-circuit operands and loop tests.
+		// Return a pointer for addressable elements to preserve assignment targets.
+		if node.IsAddressable() {
+			return "(*" + c.vaExpression(
+				func() string { return "&(" + c.emitIndex(index) + ")" },
+			) + ")"
 		}
-		return c.emitIndex(index)
+		return c.vaExpression(func() string { return c.emitIndex(index) })
 	case ast.KIND_LITERAL_EXPR:
 		return c.emitLiteral(node.Node.(*ast.LiteralExpr))
 

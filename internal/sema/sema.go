@@ -896,6 +896,9 @@ func (sema *sema) checkVar(
 
 		// @fail and @catch unwrap the error from the tuple — only non-error elements
 		// are assigned to the variables. The error is checked at runtime.
+		if !variable.IsDecl && fnCall.AtOp != nil && fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			return unsupportedErrorAssignment(variable.Expr.Span)
+		}
 		if fnCall.AtOp != nil &&
 			(fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL || fnCall.AtOp.Kind == ast.AT_OPERATOR_CATCH) &&
 			fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
@@ -3615,6 +3618,7 @@ func (sema *sema) checkForLoop(
 	declScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) error {
+	forLoop.Scope.Parent = referenceScope
 	if forLoop.Range != nil {
 		ty, _, err := sema.inferExprTypeWithoutContext(
 			forLoop.Range,
@@ -3649,7 +3653,7 @@ func (sema *sema) checkForLoop(
 	}
 	err := sema.checkStmt(
 		forLoop.Init,
-		referenceScope,
+		forLoop.Scope,
 		declScope,
 		returnTy,
 		fromImportPackage,
@@ -3659,14 +3663,14 @@ func (sema *sema) checkForLoop(
 		return err
 	}
 
-	err = sema.checkIfExpr(forLoop.Cond, referenceScope, declScope, fromImportPackage)
+	err = sema.checkIfExpr(forLoop.Cond, forLoop.Scope, declScope, fromImportPackage)
 	if err != nil {
 		return err
 	}
 
 	err = sema.checkStmt(
 		forLoop.Update,
-		referenceScope,
+		forLoop.Scope,
 		declScope,
 		returnTy,
 		fromImportPackage,
@@ -3681,7 +3685,7 @@ func (sema *sema) checkForLoop(
 	err = sema.checkBlock(
 		forLoop.Block,
 		returnTy,
-		referenceScope,
+		forLoop.Scope,
 		declScope,
 		fromImportPackage,
 		isArg,
@@ -3696,6 +3700,7 @@ func (sema *sema) checkWhileLoop(
 	returnTy *ast.ExprType,
 	fromImportPackage, isArg bool,
 ) error {
+	whileLoop.Scope.Parent = referenceScope
 	err := sema.checkIfExpr(whileLoop.Cond, referenceScope, declScope, fromImportPackage)
 	if err != nil {
 		return err
@@ -3705,7 +3710,7 @@ func (sema *sema) checkWhileLoop(
 	err = sema.checkBlock(
 		whileLoop.Block,
 		returnTy,
-		referenceScope,
+		whileLoop.Scope,
 		declScope,
 		fromImportPackage,
 		isArg,
@@ -3787,6 +3792,9 @@ func (s *sema) checkAssignment(
 
 	t := 0
 	for _, expr := range assignment.Values {
+		if t >= len(assignment.Targets) {
+			return assignmentArityDiagnostic(expr.Span)
+		}
 		switch expr.Kind {
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
@@ -3803,7 +3811,13 @@ func (s *sema) checkAssignment(
 			}
 
 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+				if fnCall.AtOp != nil {
+					return unsupportedErrorAssignment(expr.Span)
+				}
 				tupleType := fnRetType.T.(*ast.TupleType)
+				if len(tupleType.Types) > len(assignment.Targets)-t {
+					return assignmentArityDiagnostic(expr.Span)
+				}
 				affectedVariables := assignment.Targets[t : t+len(tupleType.Types)]
 				if err := s.checkTupleTypeAssignedToVariable(
 					affectedVariables,
@@ -3836,8 +3850,28 @@ func (s *sema) checkAssignment(
 			t++
 		}
 	}
+	if t != len(assignment.Targets) {
+		return assignmentArityDiagnostic(assignment.Targets[t].Span)
+	}
 
 	return nil
+}
+
+func assignmentArityDiagnostic(span source.Span) diagnostics.Diag {
+	return diagnostics.Diag{
+		Title:   "Assignment arity mismatch",
+		Message: "assignment target count does not match value count",
+		Span:    span,
+	}
+}
+
+func unsupportedErrorAssignment(span source.Span) diagnostics.Diag {
+	return diagnostics.Diag{
+		Title:   "Unsupported assignment",
+		Message: "unsupported assignment of an error-handled call to an existing target",
+		Span:    span,
+		Help:    "Declare a temporary variable with := and assign its value to the target separately.",
+	}
 }
 
 func (s *sema) getBehindDeref(deref *ast.DerefPointerExpr) *ast.Node {

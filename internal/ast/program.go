@@ -35,6 +35,10 @@ type Loc struct {
 }
 
 func LocFromPath(fullPath string) (*Loc, error) {
+	fullPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return nil, err
+	}
 	loc := new(Loc)
 	loc.Path = fullPath
 
