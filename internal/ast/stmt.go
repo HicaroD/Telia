@@ -11,6 +11,7 @@ type BlockStmt struct {
 	// DeferStack holds all deferred statements registered directly inside this
 	// block. Telia's defer is block-scoped: fall-through runs this block's
 	// registered cleanup, while return runs cleanup in all exited scopes.
+	// Break and continue run cleanup through the innermost loop body only.
 	// Cleanup is LIFO within each scope. Codegen registers deferred statements
 	// as it reaches them and evaluates return values before running cleanup.
 	DeferStack  []*DeferStmt

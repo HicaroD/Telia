@@ -19,6 +19,8 @@ const (
 	FOR
 	WHILE
 	RETURN
+	BREAK
+	CONTINUE
 	EXTERN
 	PACKAGE
 	IF
@@ -134,28 +136,30 @@ const (
 )
 
 var KEYWORDS map[string]Kind = map[string]Kind{
-	"fn":      FN,
-	"for":     FOR,
-	"while":   WHILE,
-	"return":  RETURN,
-	"extern":  EXTERN,
-	"package": PACKAGE,
-	"if":      IF,
-	"elif":    ELIF,
-	"else":    ELSE,
-	"not":     NOT,
-	"and":     AND,
-	"or":      OR,
-	"type":    TYPE,
-	"use":     USE,
-	"defer":   DEFER,
-	"struct":  STRUCT,
-	"union":   UNION,
-	"const":   CONST,
-	"enum":    ENUM,
-	"match":   MATCH,
-	"yield":   YIELD,
-	"opaque":  OPAQUE,
+	"fn":       FN,
+	"for":      FOR,
+	"while":    WHILE,
+	"return":   RETURN,
+	"break":    BREAK,
+	"continue": CONTINUE,
+	"extern":   EXTERN,
+	"package":  PACKAGE,
+	"if":       IF,
+	"elif":     ELIF,
+	"else":     ELSE,
+	"not":      NOT,
+	"and":      AND,
+	"or":       OR,
+	"type":     TYPE,
+	"use":      USE,
+	"defer":    DEFER,
+	"struct":   STRUCT,
+	"union":    UNION,
+	"const":    CONST,
+	"enum":     ENUM,
+	"match":    MATCH,
+	"yield":    YIELD,
+	"opaque":   OPAQUE,
 
 	"true":  BOOL_TYPE,
 	"false": BOOL_TYPE,
@@ -289,6 +293,10 @@ func (k Kind) String() string {
 		return "while"
 	case RETURN:
 		return "return"
+	case BREAK:
+		return "break"
+	case CONTINUE:
+		return "continue"
 	case EXTERN:
 		return "extern"
 	case PACKAGE:

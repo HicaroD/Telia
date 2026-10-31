@@ -57,6 +57,8 @@ TupleType      = "(" Type ( "," Type )* ")" ;
 
 Block          = "{" ( Statement )* "}" ;
 Statement      = ReturnStmt
+               | BreakStmt
+               | ContinueStmt
                | YieldStmt
                | ConstDecl
                | VarStmt
@@ -68,6 +70,8 @@ Statement      = ReturnStmt
                ;
 
 ReturnStmt     = "return" [ Expr ] NEWLINE ;
+BreakStmt      = "break" NEWLINE ;
+ContinueStmt   = "continue" NEWLINE ;
 YieldStmt      = "yield" Expr NEWLINE ;
 VarStmt        = ( ID | ( "*" )+ ID ) ( "," ( ID | ( "*" )+ ID ) )* 
                  [ ":" Type ] ( ":=" | "=" ) Expr NEWLINE ;

@@ -303,7 +303,7 @@ func (s *sema) checkMatch(
 					Title:   "Missing match yield",
 					Message: "match arm block can finish without producing a value",
 					Span:    arm.VariantName.Span,
-					Help:    "Use yield expression on every path that does not return from the function.",
+					Help:    "Use yield expression on every path that does not return or jump to an enclosing loop.",
 				}
 			}
 			sites = append(sites, ctx.sites...)
@@ -480,7 +480,7 @@ func (s *sema) checkIntegerPatterns(m *ast.MatchExpr, ty *ast.ExprType, scope *a
 func blockYields(block *ast.BlockStmt) bool {
 	for _, stmt := range block.Statements {
 		switch stmt.Kind {
-		case ast.KIND_YIELD_STMT, ast.KIND_RETURN_STMT:
+		case ast.KIND_YIELD_STMT, ast.KIND_RETURN_STMT, ast.KIND_BREAK_STMT, ast.KIND_CONTINUE_STMT:
 			return true
 		case ast.KIND_BLOCK_STMT:
 			if blockYields(stmt.Node.(*ast.BlockStmt)) {

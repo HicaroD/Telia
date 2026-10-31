@@ -103,6 +103,7 @@ type CCodegen struct {
 	exePath      string
 	outputPath   string
 	deferScopes  [][]*ast.DeferStmt
+	loopScopes   []int // defer depth immediately outside each active loop body
 	matchScopes  []matchScope
 	cFlags       []string
 }

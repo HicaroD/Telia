@@ -81,6 +81,18 @@ pointer and length. Changing the loop variable does not update the element;
 write through indexing instead. Element pointers can be obtained explicitly
 with `&view[index]`.
 
+All loop forms (`while`, three-part `for`, and array/slice iteration) support
+`break` and `continue`. `break` exits the nearest enclosing loop; `continue`
+skips the rest of its body and starts the next iteration. Three-part `for`
+loops run their update step before testing the condition again; range loops
+advance to the next element. Neither statement takes a label or value.
+
+Both statements run registered `defer` cleanup in each exited scope,
+innermost first, without running cleanup in scopes outside the loop body.
+They also work inside match-arm blocks nested in a loop. Using either outside
+a loop is an error. Deferred cleanup cannot jump to a loop outside the cleanup
+itself, but may use `break` and `continue` in its own nested loops.
+
 List iteration uses its ordinary borrowed view, not a special compiler hook:
 
 ```rust

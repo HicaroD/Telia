@@ -79,7 +79,7 @@ func (c *CCodegen) emitRangeLoop(stmt *ast.ForLoop, indent string) {
 	}
 	stmt.Binding.BackendType = variable
 	c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", variable.CType, variable.Name, element))
-	c.emitBlock(stmt.Block, indent+"    ")
+	c.emitLoopBody(stmt.Block, indent+"    ")
 	c.buf.WriteString(indent + "}\n")
 }
 

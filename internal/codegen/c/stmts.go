@@ -6,7 +6,7 @@ import (
 	"github.com/HicaroD/Telia/internal/ast"
 )
 
-// Register defers as their statements are reached. A return exits all active
+// Register defers as their statements are reached. Jumps clean up exited
 // scopes; fall-through exits only this block.
 func (c *CCodegen) emitBlock(block *ast.BlockStmt, indent string) {
 	c.deferScopes = append(c.deferScopes, nil)
@@ -19,7 +19,8 @@ func (c *CCodegen) emitBlock(block *ast.BlockStmt, indent string) {
 		}
 		c.buf.WriteString(indent)
 		c.emitStmtNode(stmt, indent)
-		if stmt.Kind == ast.KIND_RETURN_STMT {
+		if stmt.Kind == ast.KIND_RETURN_STMT || stmt.Kind == ast.KIND_BREAK_STMT ||
+			stmt.Kind == ast.KIND_CONTINUE_STMT {
 			return
 		}
 	}
@@ -41,6 +42,16 @@ func (c *CCodegen) flushDefers(defers []*ast.DeferStmt, indent string) {
 // emitStmtNode dispatches to the correct statement emitter.
 func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 	switch node.Kind {
+	case ast.KIND_BREAK_STMT, ast.KIND_CONTINUE_STMT:
+		depth := c.loopScopes[len(c.loopScopes)-1]
+		for i := len(c.deferScopes) - 1; i >= depth; i-- {
+			c.flushDefers(c.deferScopes[i], indent)
+		}
+		if node.Kind == ast.KIND_BREAK_STMT {
+			c.buf.WriteString("break;\n")
+		} else {
+			c.buf.WriteString("continue;\n")
+		}
 	case ast.KIND_YIELD_STMT:
 		ctx := c.matchScopes[len(c.matchScopes)-1]
 		value := c.emitExpr(node.Node.(*ast.YieldStmt).Value)
@@ -68,7 +79,7 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 	case ast.KIND_WHILE_LOOP_STMT:
 		c.emitWhileLoop(node.Node.(*ast.WhileLoop), indent)
 	case ast.KIND_DEFER_STMT:
-		// Defer statements are emitted before returns; skip here.
+		// emitBlock registers cleanup and emits it when its scope is exited.
 	case ast.KIND_FN_CALL:
 		call := node.Node.(*ast.FnCall)
 		if call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_FAIL {
@@ -396,7 +407,7 @@ func (c *CCodegen) emitForLoop(stmt *ast.ForLoop, indent string) {
 	update := c.emitForUpdate(stmt.Update)
 
 	c.buf.WriteString(fmt.Sprintf("for (%s; %s; %s) {\n", init, cond, update))
-	c.emitBlock(stmt.Block, inner)
+	c.emitLoopBody(stmt.Block, inner)
 	c.buf.WriteString(indent + "}\n")
 	if ownerScope {
 		c.buf.WriteString(indent + "}\n")
@@ -482,8 +493,14 @@ func (c *CCodegen) emitWhileLoop(stmt *ast.WhileLoop, indent string) {
 	inner := indent + "    "
 	cond := c.emitExpr(stmt.Cond)
 	c.buf.WriteString(fmt.Sprintf("while (%s) {\n", cond))
-	c.emitBlock(stmt.Block, inner)
+	c.emitLoopBody(stmt.Block, inner)
 	c.buf.WriteString(indent + "}\n")
+}
+
+func (c *CCodegen) emitLoopBody(block *ast.BlockStmt, indent string) {
+	c.loopScopes = append(c.loopScopes, len(c.deferScopes))
+	defer func() { c.loopScopes = c.loopScopes[:len(c.loopScopes)-1] }()
+	c.emitBlock(block, indent)
 }
 
 // isAtFailTupleCall reports whether stmt is a single-var declaration from a

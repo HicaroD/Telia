@@ -1677,6 +1677,13 @@ func (p *Parser) ParseStmt(
 	switch tok.Kind {
 	case token.CONST:
 		return p.parseConst(parentScope)
+	case token.BREAK, token.CONTINUE:
+		p.lex.Skip()
+		n.Kind = ast.KIND_BREAK_STMT
+		if tok.Kind == token.CONTINUE {
+			n.Kind = ast.KIND_CONTINUE_STMT
+		}
+		endsWithNewLine = true
 	case token.YIELD:
 		p.lex.Skip()
 		value, err := p.ParseSingleExpr(parentScope)

@@ -220,9 +220,11 @@ Use the owning/view APIs above in applications.
 
 `defer` is block-scoped and runs in reverse declaration order. Normal block exit
 runs that block's registered cleanup. A return evaluates and copies its result,
-then runs registered cleanup in each exited scope, innermost first. Deferred
-statements after an executed return are not registered. Deferred expressions
-use their declaring variables at cleanup time; they do not capture argument
+then runs registered cleanup in each exited scope, innermost first. `break`
+and `continue` also run cleanup for exited scopes, stopping at the loop body.
+Deferred statements after an executed return, break, or continue are not
+registered. Deferred expressions use their declaring variables at cleanup time;
+they do not capture argument
 values when registered.
 
 Do not return a view whose owner is freed by deferred cleanup. Copying the

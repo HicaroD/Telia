@@ -24,6 +24,7 @@ type sema struct {
 	program           *ast.Program // set by Check(); used by registerTupleType
 	currentReturnType *ast.ExprType
 	currentYield      *yieldContext
+	loopDepth         int
 	currentFunction   *ast.FnDecl
 	vaInitializer     *ast.FnCall
 	matchHints        map[source.Span]bool
@@ -291,6 +292,9 @@ func (sema *sema) checkFnDecl(
 	defer func() { sema.currentFunction = previousFunction }()
 	previousYield := sema.currentYield
 	sema.currentYield = nil
+	previousLoopDepth := sema.loopDepth
+	sema.loopDepth = 0
+	defer func() { sema.loopDepth = previousLoopDepth }()
 	sema.currentReturnType = function.RetType
 	defer func() { sema.currentReturnType = previousReturnType; sema.currentYield = previousYield }()
 	if token.IsAnyBuiltin(function.Name.Name()) {
@@ -663,6 +667,14 @@ func (sema *sema) checkStmt(
 			isArg,
 		)
 		return err
+	case ast.KIND_BREAK_STMT, ast.KIND_CONTINUE_STMT:
+		if sema.loopDepth == 0 {
+			return diagnostics.Diag{
+				Message: "break or continue requires an enclosing loop",
+				Span:    stmt.Span,
+			}
+		}
+		return nil
 	case ast.KIND_RETURN_STMT:
 		returnStmt := stmt.Node.(*ast.ReturnStmt)
 		_, err := sema.inferExprTypeWithContext(
@@ -709,7 +721,12 @@ func (sema *sema) checkStmt(
 		deferStmt := stmt.Node.(*ast.DeferStmt)
 		previousYield := sema.currentYield
 		sema.currentYield = nil
-		defer func() { sema.currentYield = previousYield }()
+		previousLoopDepth := sema.loopDepth
+		sema.loopDepth = 0
+		defer func() {
+			sema.currentYield = previousYield
+			sema.loopDepth = previousLoopDepth
+		}()
 		err := sema.checkStmt(
 			deferStmt.Stmt,
 			referenceScope,
@@ -3619,6 +3636,8 @@ func (sema *sema) checkForLoop(
 		if err := forLoop.Scope.Insert(forLoop.Binding.Name.Name(), binding); err != nil {
 			return err
 		}
+		sema.loopDepth++
+		defer func() { sema.loopDepth-- }()
 		return sema.checkBlock(
 			forLoop.Block,
 			returnTy,
@@ -3657,6 +3676,8 @@ func (sema *sema) checkForLoop(
 		return err
 	}
 
+	sema.loopDepth++
+	defer func() { sema.loopDepth-- }()
 	err = sema.checkBlock(
 		forLoop.Block,
 		returnTy,
@@ -3679,6 +3700,8 @@ func (sema *sema) checkWhileLoop(
 	if err != nil {
 		return err
 	}
+	sema.loopDepth++
+	defer func() { sema.loopDepth-- }()
 	err = sema.checkBlock(
 		whileLoop.Block,
 		returnTy,
