@@ -51,7 +51,7 @@ customization, upgrades, and release publishing.
 ## Language guides
 
 - [Binary-safe whole-file I/O](docs/files.md)
-- [Owned UTF-8 process arguments](docs/process.md)
+- [Owned UTF-8 process arguments and environment lookup](docs/process.md)
 - [Checked standard-stream byte I/O](docs/standard-io.md)
 - [Unit testing](docs/testing.md)
 - [Collections and composed field access](docs/collections.md)

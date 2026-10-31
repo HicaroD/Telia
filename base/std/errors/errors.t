@@ -21,4 +21,6 @@ enum Error: error {
     StreamModeFailed
     InvalidNumber
     InvalidBoolean
+    InvalidEnvironmentName
+    EnvironmentLookupFailed
 }

@@ -1,6 +1,33 @@
 package process
 
 use "std::unicode::utf8"
+use "std::strings"
+use "std::errors"
+
+fn lookup_env(name string) (strings::Owned, bool, error) {
+    result := strings::Owned{}
+    found := false
+    if strings::len(name) == 0 or strings::contains(name, "=") {
+        return result, false, error(errors::Error::InvalidEnvironmentName, "invalid environment name")
+    }
+    if strings::contains(name, "\0") {
+        return result, false, error(errors::Error::EmbeddedZero, "embedded zero in environment name")
+    }
+    validation_err := utf8::validate(name)
+    if validation_err != nil {
+        return result, false, validation_err
+    }
+    err := lookup_env_into(name, &result.text, &found)
+    if err != nil {
+        return result, false, err
+    }
+    value_err := utf8::validate(strings::view(&result))
+    if value_err != nil {
+        strings::free(&result)
+        return result, false, value_err
+    }
+    return result, found, err
+}
 
 struct Args {
     state rawptr
@@ -45,6 +72,9 @@ fn free(snapshot *Args) {
 
 @[default_cc="c"]
 extern {
+    @[link_name="_telia_lookup_env"]
+    fn lookup_env_into(name string, result *string, found *bool) error
+
     @[link_name="_telia_args_snapshot"]
     fn snapshot_into(result *rawptr) error
     @[link_name="_telia_args_count"]

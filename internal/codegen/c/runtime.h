@@ -129,20 +129,20 @@ static inline void _telia_native_wide_args(int *argc, wchar_t ***argv) {
 #define _TELIA_WIDE_TO_UTF8 WideCharToMultiByte
 #endif
 
-static inline _Error _telia_arg_from_wide(const wchar_t *text, _String *result) {
+static inline _Error _telia_text_from_wide(const wchar_t *text, _String *result) {
     *result = (_String){0};
     size_t len = wcslen(text);
     if (!len) return (_Error){0};
-    if (len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "argument too large");
+    if (len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "native text too large");
     int count = _TELIA_WIDE_TO_UTF8(CP_UTF8, WC_ERR_INVALID_CHARS,
         text, (int)len, NULL, 0, NULL, NULL);
-    if (!count) return _TELIA_ERROR(InvalidUTF8, "invalid native argument text");
+    if (!count) return _TELIA_ERROR(InvalidUTF8, "invalid native text");
     unsigned char *data = _TELIA_MALLOC((size_t)count);
     if (!data) return _TELIA_ERROR(AllocationFailed, "allocation failed");
     if (_TELIA_WIDE_TO_UTF8(CP_UTF8, WC_ERR_INVALID_CHARS,
             text, (int)len, (char *)data, count, NULL, NULL) != count) {
         _TELIA_FREE(data);
-        return _TELIA_ERROR(InvalidUTF8, "invalid native argument text");
+        return _TELIA_ERROR(InvalidUTF8, "invalid native text");
     }
     *result = (_String){data, (size_t)count};
     return (_Error){0};
@@ -186,7 +186,7 @@ static inline _Error _telia_args_snapshot(void **result) {
     *result = args;
     for (size_t i = 0; i < count; ++i) {
 #ifdef _WIN32
-        _Error err = _telia_arg_from_wide(argv[i + 1], &args->values[i]);
+        _Error err = _telia_text_from_wide(argv[i + 1], &args->values[i]);
 #else
         _Error err = _telia_string_clone(_telia_string_from_c(_telia_argv[i + 1]), &args->values[i]);
 #endif
@@ -197,6 +197,74 @@ static inline _Error _telia_args_snapshot(void **result) {
         ++args->count;
     }
     return (_Error){0};
+}
+
+#ifdef _WIN32
+#ifndef _TELIA_GET_ENVIRONMENT
+#define _TELIA_GET_ENVIRONMENT GetEnvironmentVariableW
+#endif
+#ifndef _TELIA_ENV_NAME_TO_WIDE
+#define _TELIA_ENV_NAME_TO_WIDE MultiByteToWideChar
+#endif
+#endif
+
+static inline _Error _telia_lookup_env(_String name, _String *result, bool *found) {
+    *result = (_String){0};
+    *found = false;
+#ifdef _WIN32
+    if (name.len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "environment name too large");
+    int count = _TELIA_ENV_NAME_TO_WIDE(CP_UTF8, MB_ERR_INVALID_CHARS,
+        (const char *)name.data, (int)name.len, NULL, 0);
+    if (!count) return _TELIA_ERROR(InvalidUTF8, "invalid UTF-8 environment name");
+    if ((size_t)count > SIZE_MAX / sizeof(wchar_t) - 1)
+        return _TELIA_ERROR(SizeOverflow, "environment name too large");
+    wchar_t *native = _TELIA_MALLOC(((size_t)count + 1) * sizeof(wchar_t));
+    if (!native) return _TELIA_ERROR(AllocationFailed, "allocation failed");
+    if (!_TELIA_ENV_NAME_TO_WIDE(CP_UTF8, MB_ERR_INVALID_CHARS,
+            (const char *)name.data, (int)name.len, native, count)) {
+        _TELIA_FREE(native);
+        return _TELIA_ERROR(InvalidUTF8, "invalid UTF-8 environment name");
+    }
+    native[count] = 0;
+    SetLastError(ERROR_SUCCESS);
+    DWORD size = _TELIA_GET_ENVIRONMENT(native, NULL, 0);
+    if (!size) {
+        DWORD status = GetLastError();
+        _TELIA_FREE(native);
+        if (status == ERROR_ENVVAR_NOT_FOUND) return (_Error){0};
+        if (status == ERROR_SUCCESS) { *found = true; return (_Error){0}; }
+        return _TELIA_ERROR(EnvironmentLookupFailed, "environment lookup failed");
+    }
+    if ((size_t)size > SIZE_MAX / sizeof(wchar_t)) {
+        _TELIA_FREE(native);
+        return _TELIA_ERROR(SizeOverflow, "environment value too large");
+    }
+    wchar_t *value = _TELIA_MALLOC((size_t)size * sizeof(wchar_t));
+    if (!value) {
+        _TELIA_FREE(native);
+        return _TELIA_ERROR(AllocationFailed, "allocation failed");
+    }
+    SetLastError(ERROR_SUCCESS);
+    DWORD length = _TELIA_GET_ENVIRONMENT(native, value, size);
+    DWORD status = GetLastError();
+    _TELIA_FREE(native);
+    if (length >= size || (!length && status != ERROR_SUCCESS)) {
+        _TELIA_FREE(value);
+        return _TELIA_ERROR(EnvironmentLookupFailed, "environment changed or lookup failed");
+    }
+    _Error err = _telia_text_from_wide(value, result);
+    _TELIA_FREE(value);
+#else
+    _String native = {0};
+    _Error err = _telia_string_to_c(name, &native);
+    if (err.present) return err;
+    const char *value = getenv((const char *)native.data);
+    _telia_string_free(&native);
+    if (!value) return (_Error){0};
+    err = _telia_string_clone(_telia_string_from_c(value), result);
+#endif
+    if (!err.present) *found = true;
+    return err;
 }
 
 // Private OS boundary overrides are used only by native failure fixtures.

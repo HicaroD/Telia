@@ -82,7 +82,7 @@ jobs:
         env:
           TELIA_TEST_SANITIZERS: address,undefined
         run: go test ./tests/integration -run '^TestIO' -count=1 -timeout=10m
-      - name: Process argument snapshot checks
+      - name: Process argument and environment checks
         env:
           TELIA_TEST_SANITIZERS: address,undefined
         run: go test ./tests/integration -run '^TestProcess' -count=1 -timeout=10m

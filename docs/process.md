@@ -1,4 +1,4 @@
-# Process arguments
+# Process arguments and environment
 
 Import `std::process`. No change to a Telia program's `main` signature is needed.
 
@@ -48,6 +48,46 @@ telia build examples/process_args.t
 ./process_args '' 'two words' '世界' '😀'
 ```
 
+## Environment lookup
+
+`lookup_env(name string)` returns `(strings::Owned, bool, error)`:
+
+| Native value | Owner text | Found | Error |
+| --- | --- | --- | --- |
+| Missing | Empty | `false` | `nil` |
+| Present but empty | Empty | `true` | `nil` |
+| Present and nonempty | Independent UTF-8 copy | `true` | `nil` |
+| Invalid text, allocation, or native lookup failure | Empty | `false` | Non-nil |
+
+Release the owner with `strings::free`, including empty results. Its view remains
+valid until cleanup and does not borrow native environment storage. Copies of
+`strings::Owned` are shallow aliases, not independent owners.
+
+Names must be nonempty UTF-8 without `=` or embedded zeros. Empty names and `=`
+produce `InvalidEnvironmentName`; zeros produce `EmbeddedZero`. Malformed names
+or values produce `InvalidUTF8`, never replacement characters. Allocation/size
+failures use `AllocationFailed`/`SizeOverflow`; native Windows lookup failures
+use `EnvironmentLookupFailed`. Partial storage is released before returning.
+
+POSIX lookup uses native `getenv`, validates the value bytes as UTF-8, and is
+case-sensitive. Windows uses `GetEnvironmentVariableW` with strict UTF-8/UTF-16
+conversion, independent of the ANSI code page, and native case-insensitive name
+comparison. No normalization or additional name folding is performed.
+Environment mutation/enumeration is not provided. Native code must not mutate
+the environment concurrently with lookup: POSIX native storage is borrowed
+during copying, and a Windows size/read race can return `EnvironmentLookupFailed`
+rather than a partial value. The existing borrowed `std::libc` binding is unchanged.
+
+[`examples/process_env.t`](../examples/process_env.t) prints an environment
+greeting, using a default only when the variable is missing (not when empty):
+
+```sh
+telia build examples/process_env.t
+TELIA_GREETING='Hello 世界 😀' ./process_env
+TELIA_GREETING='' ./process_env
+```
+
+PowerShell: `$env:TELIA_GREETING = 'Hello 世界 😀'; .\process_env.exe`.
+
 See [strings and memory](strings-and-memory.md) for borrowed views and
-[Unicode](unicode.md) for explicit Unicode processing. Environment lookup is not
-part of this API yet.
+[Unicode](unicode.md) for explicit Unicode processing.
