@@ -10,4 +10,9 @@ enum Error: error {
     EmptySeparator
     InvalidUTF8
     ConversionOutOfRange
+    InvalidPath
+    FileOpenFailed
+    FileReadFailed
+    FileWriteFailed
+    FileCloseFailed
 }

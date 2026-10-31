@@ -89,6 +89,126 @@ static inline void _telia_memory_free(void *ptr) {
     _TELIA_FREE(ptr);
 }
 
+#ifdef _WIN32
+#include <windows.h>
+#include <wchar.h>
+#endif
+
+// Private OS boundary overrides are used only by native failure fixtures.
+#ifndef _TELIA_FS_OPEN
+#ifdef _WIN32
+#define _TELIA_FS_OPEN _wfopen
+#else
+#define _TELIA_FS_OPEN fopen
+#endif
+#endif
+#ifndef _TELIA_FS_READ
+#define _TELIA_FS_READ fread
+#endif
+#ifndef _TELIA_FS_WRITE
+#define _TELIA_FS_WRITE fwrite
+#endif
+#ifndef _TELIA_FS_ERROR
+#define _TELIA_FS_ERROR ferror
+#endif
+#ifndef _TELIA_FS_EOF
+#define _TELIA_FS_EOF feof
+#endif
+#ifndef _TELIA_FS_CLOSE
+#define _TELIA_FS_CLOSE fclose
+#endif
+
+static inline _Error _telia_fs_open(_String path, bool writing, FILE **result) {
+    *result = NULL;
+#ifdef _WIN32
+    if (path.len > INT_MAX) return _TELIA_ERROR(SizeOverflow, "path too large");
+    int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        (const char *)path.data, (int)path.len, NULL, 0);
+    if (!count) return _TELIA_ERROR(InvalidUTF8, "invalid UTF-8 path");
+    if ((size_t)count > SIZE_MAX / sizeof(wchar_t) - 1)
+        return _TELIA_ERROR(SizeOverflow, "path too large");
+    wchar_t *native = _TELIA_MALLOC(((size_t)count + 1) * sizeof(wchar_t));
+    if (!native) return _TELIA_ERROR(AllocationFailed, "allocation failed");
+    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        (const char *)path.data, (int)path.len, native, count)) {
+        _TELIA_FREE(native);
+        return _TELIA_ERROR(InvalidUTF8, "invalid UTF-8 path");
+    }
+    native[count] = 0;
+    *result = _TELIA_FS_OPEN(native, writing ? L"wb" : L"rb");
+    _TELIA_FREE(native);
+#else
+    _String native = {0};
+    _Error err = _telia_string_to_c(path, &native);
+    if (err.present) return err;
+    *result = _TELIA_FS_OPEN((const char *)native.data, writing ? "wb" : "rb");
+    _telia_string_free(&native);
+#endif
+    if (!*result) return _TELIA_ERROR(FileOpenFailed, "file open failed");
+    return (_Error){0};
+}
+
+static inline _Error _telia_fs_read(_String path, _String *result) {
+    *result = (_String){0};
+    FILE *file = NULL;
+    _Error err = _telia_fs_open(path, false, &file);
+    if (err.present) return err;
+    unsigned char *data = NULL;
+    size_t len = 0, capacity = 0;
+    unsigned char chunk[8192];
+    for (;;) {
+        size_t count = _TELIA_FS_READ(chunk, 1, sizeof(chunk), file);
+        if (count) {
+            if (count > SIZE_MAX - len) {
+                err = _TELIA_ERROR(SizeOverflow, "file too large");
+                break;
+            }
+            size_t needed = len + count;
+            if (needed > capacity) {
+                size_t next = capacity ? capacity : sizeof(chunk);
+                while (next < needed) {
+                    if (next > SIZE_MAX / 2) { next = needed; break; }
+                    next *= 2;
+                }
+                unsigned char *grown = _TELIA_MALLOC(next);
+                if (!grown) { err = _TELIA_ERROR(AllocationFailed, "allocation failed"); break; }
+                if (len) memcpy(grown, data, len);
+                _TELIA_FREE(data);
+                data = grown;
+                capacity = next;
+            }
+            memcpy(data + len, chunk, count);
+            len += count;
+        }
+        if (_TELIA_FS_ERROR(file)) { err = _TELIA_ERROR(FileReadFailed, "file read failed"); break; }
+        if (_TELIA_FS_EOF(file)) break;
+        if (!count) { err = _TELIA_ERROR(FileReadFailed, "file read made no progress"); break; }
+    }
+    if (_TELIA_FS_CLOSE(file) != 0 && !err.present)
+        err = _TELIA_ERROR(FileCloseFailed, "file close failed");
+    if (err.present) _TELIA_FREE(data);
+    else *result = (_String){data, len};
+    return err;
+}
+
+static inline _Error _telia_fs_write(_String path, _String data) {
+    FILE *file = NULL;
+    _Error err = _telia_fs_open(path, true, &file);
+    if (err.present) return err;
+    size_t offset = 0;
+    while (offset < data.len) {
+        size_t count = _TELIA_FS_WRITE(data.data + offset, 1, data.len - offset, file);
+        offset += count;
+        if (_TELIA_FS_ERROR(file) || !count) {
+            err = _TELIA_ERROR(FileWriteFailed, "file write failed");
+            break;
+        }
+    }
+    if (_TELIA_FS_CLOSE(file) != 0 && !err.present)
+        err = _TELIA_ERROR(FileCloseFailed, "file close failed");
+    return err;
+}
+
 typedef struct _TeliaArenaBlock {
     struct _TeliaArenaBlock *next;
     size_t capacity;

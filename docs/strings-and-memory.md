@@ -18,6 +18,9 @@ length-aware. `error("")` is an error; it is distinct from `nil`.
 See [errors](errors.md) for classified identities, inline payload storage, and
 borrowed-message lifetime rules.
 
+[Whole-file reads](files.md) return the same `strings::Owned` ownership type;
+their contents are arbitrary bytes until explicitly validated as UTF-8.
+
 Read-only APIs do not enforce memory safety. Low-level pointers, aliases, and C
 code can still modify storage. Keep every borrowed view within its storage's
 lifetime. Returning a borrowed view does not extend that lifetime.

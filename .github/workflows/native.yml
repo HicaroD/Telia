@@ -72,6 +72,8 @@ jobs:
         run: go test ./tests/integration -run 'TestUTF8|TestString|TestExamplesUsePublishedStandardLibraryAPIs' -count=1 -timeout=10m
       - name: Terminal standard library checks
         run: go test ./tests/integration -run '^TestTerminal' -count=1 -timeout=10m
+      - name: Whole-file standard library checks
+        run: go test ./tests/integration -run '^TestFS' -count=1 -timeout=10m
       - name: Foreign ABI regression fixtures
         run: go test ./internal/sema ./tests/integration -run 'Test(HeaderOwned|Foreign|NamedExtern|Const|Callback|Callbacks|LibcScalar|CScalar|CVariadic|GenericCallback|BorrowedVaList|NativeCallback|LegacyRawPointerVa|ImportedBareFunction|Va|GenericVa|DereferencingVaArg)' -count=1
       - name: Archive native artifacts without losing symlinks
