@@ -131,6 +131,13 @@ func (p *Parser) addPackage(
 	if err != nil {
 		return "", "", nil, err
 	}
+	if pkgTy == ast.PACKAGE_STD {
+		// Standard packages may own portable native sources, just like vendors.
+		manifest := filepath.Join(fullPkgPath, "native.json")
+		if _, err := os.Stat(manifest); err == nil {
+			pkg.NativeManifest = manifest
+		}
+	}
 	if pkgTy == ast.PACKAGE_VENDOR {
 		pkg.NativeManifest = filepath.Join(fullPkgPath, "native.json")
 		// Subpackages share their nearest native package's artifact ownership.

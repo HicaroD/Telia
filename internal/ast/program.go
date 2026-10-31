@@ -76,7 +76,7 @@ const (
 )
 
 type Package struct {
-	NativeManifest string // vendor package's native.json; empty for ordinary packages
+	NativeManifest string // package-owned native.json; empty for packages without native inputs
 	Loc            *Loc
 	Files          []*File
 	Scope          *Scope

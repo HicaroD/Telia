@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "targets": {
+    "linux-amd64": {"sources": ["terminal.c"], "include_dirs": ["."], "compile_flags": ["-pthread"], "link_flags": ["-pthread"]},
+    "linux-arm64": {"sources": ["terminal.c"], "include_dirs": ["."], "compile_flags": ["-pthread"], "link_flags": ["-pthread"]},
+    "darwin-amd64": {"sources": ["terminal.c"], "include_dirs": ["."], "compile_flags": ["-pthread"], "link_flags": ["-pthread"]},
+    "darwin-arm64": {"sources": ["terminal.c"], "include_dirs": ["."], "compile_flags": ["-pthread"], "link_flags": ["-pthread"]},
+    "windows-amd64": {"sources": ["terminal.c"], "include_dirs": ["."]}
+  }
+}
