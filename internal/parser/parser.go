@@ -109,7 +109,9 @@ func (p *Parser) addPackage(
 		if pkgTy == ast.PACKAGE_STD || pkgTy == ast.PACKAGE_VENDOR {
 			return "", "", nil, fmt.Errorf(
 				"cannot load library %q from %s: %w; run 'telia env' to inspect paths, check T_STD_PATH/T_VENDOR_PATH overrides, and keep base/ beside the compiler",
-				pkgPath, fullPkgPath, err,
+				pkgPath,
+				fullPkgPath,
+				err,
 			)
 		}
 		return "", "", nil, err

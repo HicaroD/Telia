@@ -56,7 +56,12 @@ strings::free(&owner%d)
 		runFSSource(t, body)
 		actual, err := os.ReadFile(path)
 		if err != nil || string(actual) != data {
-			t.Fatalf("native file bytes differ: got %d bytes, want %d, error %v", len(actual), len(data), err)
+			t.Fatalf(
+				"native file bytes differ: got %d bytes, want %d, error %v",
+				len(actual),
+				len(data),
+				err,
+			)
 		}
 	}
 }
@@ -134,11 +139,23 @@ return 3
 			if err := os.WriteFile(path, []byte(payload), 0600); err != nil {
 				t.Fatal(err)
 			}
-			operation := fmt.Sprintf("owner, err := fs::read_file(%s)\nif strings::view(&owner) != \"\" {\nreturn 8\n}\nstrings::free(&owner)\n", utf8Literal(path))
+			operation := fmt.Sprintf(
+				"owner, err := fs::read_file(%s)\nif strings::view(&owner) != \"\" {\nreturn 8\n}\nstrings::free(&owner)\n",
+				utf8Literal(path),
+			)
 			if tc.write {
-				operation = fmt.Sprintf("err := fs::write_file(%s, %s)\n", utf8Literal(path), utf8Literal(payload))
+				operation = fmt.Sprintf(
+					"err := fs::write_file(%s, %s)\n",
+					utf8Literal(path),
+					utf8Literal(payload),
+				)
 			}
-			body := fmt.Sprintf("_test_fs_mode(%d)\n%s\nif err.kind != errors::Error::%s {\nreturn 1\n}\nif _test_fs_handles() != 0 or _test_live_allocations() != 0 {\nreturn 2\n}\n", tc.mode, operation, tc.kind)
+			body := fmt.Sprintf(
+				"_test_fs_mode(%d)\n%s\nif err.kind != errors::Error::%s {\nreturn 1\n}\nif _test_fs_handles() != 0 or _test_live_allocations() != 0 {\nreturn 2\n}\n",
+				tc.mode,
+				operation,
+				tc.kind,
+			)
 			runFSSource(t, body, flags...)
 			if tc.mode == 3 {
 				data, err := os.ReadFile(path)
@@ -195,7 +212,11 @@ _test_fail_after(-1)
 		runFSSource(t, body, flags...)
 		data, err := os.ReadFile(path)
 		if err != nil || string(data) != payload {
-			t.Fatalf("allocation failure must precede truncation: got %d bytes, error %v", len(data), err)
+			t.Fatalf(
+				"allocation failure must precede truncation: got %d bytes, error %v",
+				len(data),
+				err,
+			)
 		}
 	})
 	t.Run("validation precedes OS calls", func(t *testing.T) {

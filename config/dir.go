@@ -75,7 +75,11 @@ func SetupEnvFile() error {
 	}
 	err = MapEnvToStruct(envs, &parsedEnvs)
 	if err != nil {
-		return fmt.Errorf("library configuration: %w; unset T_STD_PATH or update %s to use the bundled standard library", err, envFile)
+		return fmt.Errorf(
+			"library configuration: %w; unset T_STD_PATH or update %s to use the bundled standard library",
+			err,
+			envFile,
+		)
 	}
 	if parsedEnvs.STD == "" {
 		executable, err := os.Executable()
