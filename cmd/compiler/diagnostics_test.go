@@ -39,7 +39,7 @@ func TestCLIReportsMultipleErrorsToStderrAndFails(t *testing.T) {
 		"-o",
 		executable,
 	)
-	cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
+	cmd.Env = testCompilerEnv(t)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err == nil {
@@ -82,12 +82,11 @@ func TestCLIColorFlagsAndEnvironment(t *testing.T) {
 				path,
 				"--color="+tc.mode,
 			)
-			for _, env := range os.Environ() {
+			for _, env := range testCompilerEnv(t) {
 				if !strings.HasPrefix(env, "NO_COLOR=") {
 					cmd.Env = append(cmd.Env, env)
 				}
 			}
-			cmd.Env = append(cmd.Env, "TELIA_DIAGNOSTIC_TEST=1")
 			if tc.noColor {
 				cmd.Env = append(cmd.Env, "NO_COLOR=1")
 			}
@@ -140,7 +139,7 @@ return 0
 		"-o",
 		executable,
 	)
-	cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
+	cmd.Env = testCompilerEnv(t)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {

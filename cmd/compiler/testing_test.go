@@ -128,12 +128,11 @@ func TestTestResultColorsRespectFlagsAndEnvironment(t *testing.T) {
 				"--color="+tc.mode,
 			)
 			cmd.Dir = dir
-			for _, env := range os.Environ() {
+			for _, env := range testCompilerEnv(t) {
 				if !strings.HasPrefix(env, "NO_COLOR=") {
 					cmd.Env = append(cmd.Env, env)
 				}
 			}
-			cmd.Env = append(cmd.Env, "TELIA_DIAGNOSTIC_TEST=1")
 			if tc.noColor {
 				cmd.Env = append(cmd.Env, "NO_COLOR=1")
 			}
@@ -551,13 +550,42 @@ testing::assert(true)
 	}
 }
 
+func TestTestCommandDoesNotDependOnUserLibraryConfiguration(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("T_STD_PATH", "")
+	dir := writeTestPackage(t, map[string]string{
+		"math_test.t": "package math\nuse \"std::testing\"\ntest \"fresh configuration\" {\ntesting::assert(true)\n}\n",
+	})
+	out, err := runTestCompiler(t, dir, "test", "--color=never")
+	if err != nil || !strings.Contains(out, "PASS fresh configuration") {
+		t.Fatalf("test command depended on user library configuration: %v\n%s", err, out)
+	}
+}
+
+func testCompilerEnv(t *testing.T) []string {
+	t.Helper()
+	std, err := filepath.Abs("../../base/std")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var env []string
+	for _, entry := range os.Environ() {
+		if !strings.HasPrefix(entry, "T_STD_PATH=") &&
+			!strings.HasPrefix(entry, "XDG_CONFIG_HOME=") &&
+			!strings.HasPrefix(entry, "TELIA_DIAGNOSTIC_TEST=") {
+			env = append(env, entry)
+		}
+	}
+	return append(env, "T_STD_PATH="+std, "XDG_CONFIG_HOME="+t.TempDir(), "TELIA_DIAGNOSTIC_TEST=1")
+}
+
 func runTestCompiler(t *testing.T, dir string, args ...string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(
 		os.Args[0],
 		append([]string{"-test.run=^TestCompilerDiagnosticProcess$", "--"}, args...)...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
+	cmd.Env = testCompilerEnv(t)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }

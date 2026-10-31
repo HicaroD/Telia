@@ -25,7 +25,7 @@ func TestBuildDirectoryPathsProduceRunnableDefaultOutput(t *testing.T) {
 			}
 			cmd := exec.Command(os.Args[0], args...)
 			cmd.Dir = dir
-			cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
+			cmd.Env = testCompilerEnv(t)
 			if output, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("build directory: %v: %s", err, output)
 			}
