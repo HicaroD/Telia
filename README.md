@@ -55,5 +55,6 @@ customization, upgrades, and release publishing.
 - [Unit testing](docs/testing.md)
 - [Collections and composed field access](docs/collections.md)
 - [Explicit integer and pointer conversions](docs/conversions.md)
+- [Checked integer and boolean text conversions](docs/string-conversions.md)
 - [Errors and cleanup-safe propagation](docs/errors.md)
 - [Memory ownership and transfer](docs/strings-and-memory.md#ownership-conventions-and-transfer)

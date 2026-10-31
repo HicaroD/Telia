@@ -19,4 +19,6 @@ enum Error: error {
     StreamWriteFailed
     StreamFlushFailed
     StreamModeFailed
+    InvalidNumber
+    InvalidBoolean
 }

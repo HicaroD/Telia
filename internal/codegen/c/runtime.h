@@ -50,6 +50,19 @@ static inline _Error _telia_string_clone(_String text, _String *result) {
     return _telia_string_concat(text, (_String){0}, result);
 }
 
+// Bounded output construction only; parsing and signed magnitude handling live
+// in std::strconv. Twenty decimal digits plus an optional minus sign suffice.
+static inline _Error _telia_format_decimal(uint64_t magnitude, bool negative, _String *result) {
+    unsigned char buffer[21];
+    size_t start = sizeof(buffer);
+    do {
+        buffer[--start] = (unsigned char)('0' + magnitude % 10);
+        magnitude /= 10;
+    } while (magnitude);
+    if (negative) buffer[--start] = '-';
+    return _telia_string_clone((_String){buffer + start, sizeof(buffer) - start}, result);
+}
+
 static inline void _telia_string_free(_String *text) {
     _TELIA_FREE((void *)text->data);
     *text = (_String){0};
