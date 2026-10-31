@@ -87,9 +87,10 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 		m := &ast.MatchExpr{Value: c.node(v.Value, scope)}
 		for _, arm := range v.Arms {
 			armScope := ast.NewScope(scope)
-			a := &ast.MatchArm{PatternType: cloneType(arm.PatternType, c.bindings), VariantName: arm.VariantName, Fallback: arm.Fallback, OmitRest: arm.OmitRest, Scope: armScope, Result: c.node(arm.Result, armScope), Block: c.block(arm.Block, armScope)}
-			for _, f := range arm.Fields {
-				a.Fields = append(a.Fields, &ast.PatternField{Name: f.Name, Binding: &ast.Param{Name: f.Binding.Name, Attributes: &ast.ParamAttributes{}}})
+			a := &ast.MatchArm{MatchPattern: c.matchPattern(&arm.MatchPattern, armScope), Guard: c.node(arm.Guard, armScope), Scope: armScope, Result: c.node(arm.Result, armScope), Block: c.block(arm.Block, armScope)}
+			for _, pattern := range arm.Alternatives {
+				p := c.matchPattern(pattern, armScope)
+				a.Alternatives = append(a.Alternatives, &p)
 			}
 			m.Arms = append(m.Arms, a)
 		}
@@ -174,6 +175,29 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 		copy.Node = &ast.WhileLoop{Scope: inner, Cond: c.node(v.Cond, inner), Block: c.block(v.Block, inner)}
 	default:
 		panic("unhandled syntax node in generic clone: " + n.String())
+	}
+	return copy
+}
+
+func (c syntaxClone) matchPattern(p *ast.MatchPattern, scope *ast.Scope) ast.MatchPattern {
+	copy := ast.MatchPattern{
+		PatternType: cloneType(p.PatternType, c.bindings),
+		Literal:     c.node(p.Literal, scope),
+		VariantName: p.VariantName,
+		Fallback:    p.Fallback,
+		OmitRest:    p.OmitRest,
+	}
+	if p.Binding != nil {
+		copy.Binding = &ast.Param{Name: p.Binding.Name, Attributes: &ast.ParamAttributes{}}
+	}
+	for _, f := range p.Fields {
+		copy.Fields = append(
+			copy.Fields,
+			&ast.PatternField{
+				Name:    f.Name,
+				Binding: &ast.Param{Name: f.Binding.Name, Attributes: &ast.ParamAttributes{}},
+			},
+		)
 	}
 	return copy
 }

@@ -7,6 +7,7 @@ type Severity int
 const (
 	Error Severity = iota
 	Warning
+	Hint
 )
 
 type Related struct {

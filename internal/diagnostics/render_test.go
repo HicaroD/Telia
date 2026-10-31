@@ -51,6 +51,31 @@ func TestColorPolicy(t *testing.T) {
 	}
 }
 
+func TestHintsAreInformationalAndRenderMultilineHelp(t *testing.T) {
+	c := diagnostics.New()
+	c.ReportAndSave(diagnostics.Diag{
+		Severity: diagnostics.Hint,
+		Title:    "Consider using match",
+		Message:  "These branches test code.",
+		Help:     "Suggested rewrite:\n\nreturn match code {\n    _ => 0\n}",
+	})
+	if c.HasErrors() {
+		t.Fatal("a hint must not fail compilation")
+	}
+	if errors, warnings := c.Counts(); errors != 0 || warnings != 0 {
+		t.Fatalf("hints must not count as errors or warnings: %d, %d", errors, warnings)
+	}
+	var out bytes.Buffer
+	if err := (diagnostics.Renderer{}).Render(&out, c); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Hint · Consider using match", "    return match code {\n        _ => 0\n    }", "Compilation succeeded · 0 errors · 1 hint"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("missing %q in:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestColorDoesNotChangeDiagnosticText(t *testing.T) {
 	c := diagnostics.New()
 	f := source.New("main.t", []byte("bad\n"))

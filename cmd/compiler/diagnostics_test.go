@@ -104,3 +104,57 @@ func TestCLIColorFlagsAndEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestCLIMatchHintDoesNotBlockCompilation(t *testing.T) {
+	dir := t.TempDir()
+	path, executable := filepath.Join(dir, "main.t"), filepath.Join(dir, "program")
+	source := `package main
+fn classify(code i32) i32 {
+if code == 1 or code == 2 {
+return 3
+} elif code == 5 {
+return 4
+} elif code > 10 and code < 20 {
+return 6
+} else {
+return 0
+}
+}
+fn main() i32 {
+if classify(2) != 3 or classify(5) != 4 or classify(15) != 6 or classify(99) != 0 {
+return 1
+}
+return 0
+}
+`
+	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(
+		os.Args[0],
+		"-test.run=^TestCompilerDiagnosticProcess$",
+		"--",
+		"build",
+		path,
+		"--color=never",
+		"-o",
+		executable,
+	)
+	cmd.Env = append(os.Environ(), "TELIA_DIAGNOSTIC_TEST=1")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("hint blocked compilation: %v\n%s", err, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("hint leaked to stdout: %q", stdout.String())
+	}
+	for _, want := range []string{"Consider using match", "Suggested rewrite:", "1 | 2 => 3", "_ if code > 10 and code < 20 => 6", "_ => 0", "Compilation succeeded · 0 errors · 1 hint"} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Fatalf("missing %q in stderr:\n%s", want, stderr.String())
+		}
+	}
+	if out, err := exec.Command(executable).CombinedOutput(); err != nil {
+		t.Fatalf("hint changed program execution: %v\n%s", err, out)
+	}
+}

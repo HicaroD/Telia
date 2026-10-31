@@ -46,3 +46,28 @@ func TestDeferredCodeCannotYieldFromTheEnclosingMatch(t *testing.T) {
 		t.Fatalf("want a yield-context diagnostic instead of recursive cleanup, got %v", c.Diags)
 	}
 }
+
+func TestConditionalMatchesRejectInvalidCoverageAndBindings(t *testing.T) {
+	for _, tc := range []struct{ name, body, title string }{
+		{"guard is boolean", "match 1 {\n_ if 1 => 0\n_ => 1\n}", "Invalid match guard"},
+		{"guarded variant is not coverage", "match Event::Quit {\nEvent::Quit if true => 0\nEvent::Resize{..} | Event::Wide{..} => 1\n}", "Non-exhaustive match"},
+		{"guarded fallback is not coverage", "match 1 {\n_ if true => 0\n}", "Non-exhaustive match"},
+		{"integer requires fallback", "match 1 {\n1 | 2 => 0\n}", "Non-exhaustive match"},
+		{"alternative missing binding", "match Event::Quit {\nEvent::Quit | Event::Resize{width: n} => 0\n}", "Incompatible alternative bindings"},
+		{"alternative binding type", "match Event::Quit {\nEvent::Resize{width: n} | Event::Wide{width: n} => n\n_ => 0\n}", "Incompatible alternative bindings"},
+		{"integer alternative missing binding", "match 1 {\n1 | n => 0\n}", "Incompatible alternative bindings"},
+		{"integer duplicate after coverage", "match 1 {\n1 | 2 => 0\n2 if true => 1\n_ => 2\n}", "Duplicate match arm"},
+		{"integer pattern is not an expression", "match 1 {\n-(1 + 2) => 0\n_ => 1\n}", "Invalid match pattern"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := checkDiagnostics(
+				t,
+				"package main\nenum Event {\nQuit\nResize {\nwidth i32\n}\nWide {\nwidth u64\n}\n}\nfn main() {\nvalue := "+tc.body+"\n}\n",
+			)
+			if len(c.Diags) != 1 || c.Diags[0].Title != tc.title || !c.Diags[0].Span.Valid() ||
+				c.Diags[0].Help == "" {
+				t.Fatalf("want structured %s diagnostic, got %v", tc.title, c.Diags)
+			}
+		})
+	}
+}

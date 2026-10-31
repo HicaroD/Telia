@@ -239,8 +239,13 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			return nil, err
 		}
 		for _, arm := range t.Arms {
-			if err := v.typeExpr(arm.PatternType, map[*ast.TypeAlias]bool{}); err != nil {
-				return nil, err
+			for _, pattern := range arm.Patterns() {
+				if err := v.typeExpr(pattern.PatternType, map[*ast.TypeAlias]bool{}); err != nil {
+					return nil, err
+				}
+				if _, err := v.node(pattern.Literal); err != nil {
+					return nil, err
+				}
 			}
 			outer := v.locals
 			v.locals = map[string]*ast.ExprType{}
@@ -249,6 +254,12 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			}
 			for _, f := range arm.Fields {
 				v.locals[f.Binding.Name.Name()] = nil
+			}
+			if arm.Binding != nil {
+				v.locals[arm.Binding.Name.Name()] = nil
+			}
+			if _, err := v.node(arm.Guard); err != nil {
+				return nil, err
 			}
 			var err error
 			if arm.Block != nil {

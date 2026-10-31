@@ -119,6 +119,7 @@ FieldAssign    = ID ":" Expr ;
    restriction applies to the update VarStmt in a three-clause for loop. *)
 HeaderExpr     = Expr ;
 MatchExpr      = "match" HeaderExpr "{" NEWLINE ( MatchArm NEWLINE )* "}" ;
-MatchArm       = ( "_" | IdType "::" ID [ PayloadPattern ] ) "=>" ( Expr | Block ) ;
+MatchArm       = MatchPattern ( "|" MatchPattern )* [ "if" Expr ] "=>" ( Expr | Block ) ;
+MatchPattern   = "_" | ID | [ "-" ] INT | IdType "::" ID [ PayloadPattern ] ;
 PayloadPattern = [ "." ] "{" [ PatternField ( "," PatternField )* [ "," ".." ] | ".." ] "}" ;
 PatternField   = ID [ ":" ID ] ;

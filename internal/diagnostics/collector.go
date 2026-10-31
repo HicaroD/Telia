@@ -137,7 +137,7 @@ func (collector *Collector) Counts() (errors, warnings int) {
 	for _, d := range collector.Diags {
 		if d.Severity == Warning {
 			warnings++
-		} else {
+		} else if d.Severity != Hint {
 			errors++
 		}
 	}

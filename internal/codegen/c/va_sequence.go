@@ -86,7 +86,7 @@ func hasVaEffects(node *ast.Node) bool {
 			return true
 		}
 		for _, arm := range n.Arms {
-			if hasVaEffects(arm.Result) {
+			if hasVaEffects(arm.Guard) || hasVaEffects(arm.Result) {
 				return true
 			}
 			if arm.Block != nil {

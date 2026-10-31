@@ -68,6 +68,38 @@ be a `_` fallback. Duplicate variants, unreachable arms, and omitted fields
 without `..` are rejected. Every completing block path must yield a value.
 All arm results must have compatible types.
 
+Matches also accept integer values. Use `|` for alternatives and `if` for a
+boolean guard, with the usual `and` and `or` operators inside the guard:
+
+```rust
+result := match code {
+    1 | 2 => 3
+    n if n > 10 and n < 20 => 4
+    _ => 0
+}
+```
+
+A bare name binds a copy of the whole matched value; `_` ignores it. Integer
+patterns are integer literals, including negative literals, checked against the
+matched integer type. Integer matches need an unguarded catch-all (`_` or a
+binding). Enum and error patterns can also use alternatives and guards:
+
+```rust
+value := match item {
+    Option<i32>::Some{value} if value > 10 => value
+    Option<i32>::Some{value} => value + 1
+    Option<i32>::None => 0
+}
+```
+
+Arms are tried in source order. The guard runs only after its pattern matches;
+a false guard continues to the next arm. A shared guard runs once even if more
+than one alternative matches. Pattern bindings are available in the guard and
+result, but not outside the arm. Every alternative in an arm must bind the same
+names with the same types. Guarded arms do not count toward exhaustive coverage;
+use unguarded arms to cover every enum variant or add an unguarded catch-all.
+There is no logical `&` pattern; combine conditions in a guard using `and`.
+
 The matched expression is evaluated once, and only the selected arm executes.
 Matching remains at its expression evaluation site, including short-circuit
 operators and loop conditions. Nested matches have independent yield targets.
@@ -92,3 +124,16 @@ Header-owned foreign enums and their required fallback matches are described in
 qualifiers, callbacks, convention macros, C scalars, and native `va_list` lifecycle.
 Integration tests compile and execute generated C on the local macOS arm64
 host; this does not establish compatibility on other targets.
+
+## Readability hints
+
+The compiler may suggest `match` for a chain with at least three explicit cases
+(`if` plus two or more `elif` branches), at least two equality-based cases on
+the same local variable, and a final `else`. The hint includes a complete rewrite
+when every branch simply returns a value. Integer range checks can become guards.
+`else` and individual `or` alternatives do not count toward the case threshold.
+
+Short chains, mostly range-based conditions, mixed variables, calls in conditions,
+and chains without a complete safe rewrite stay silent. A chain is reported once,
+even across generic specializations. Hints are informational, not warnings or
+errors, and never prevent compilation.

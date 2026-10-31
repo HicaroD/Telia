@@ -18,6 +18,8 @@ func (r Renderer) Render(w io.Writer, c *Collector) error {
 		severity := "Error"
 		if d.Severity == Warning {
 			color, severity = "33", "Warning"
+		} else if d.Severity == Hint {
+			color, severity = "36", "Hint"
 		}
 		title := d.Title
 		if title == "" {
@@ -33,7 +35,7 @@ func (r Renderer) Render(w io.Writer, c *Collector) error {
 			fmt.Fprintf(&out, "    %s\n", d.Message)
 		}
 		if d.Help != "" {
-			fmt.Fprintf(&out, "    %s\n", r.paint("36", d.Help))
+			fmt.Fprintf(&out, "    %s\n", r.paint("36", strings.ReplaceAll(d.Help, "\n", "\n    ")))
 		}
 		if d.Help != "" || (d.Message != "" && d.Message != title) {
 			out.WriteByte('\n')
@@ -58,6 +60,15 @@ func (r Renderer) Render(w io.Writer, c *Collector) error {
 	fmt.Fprintf(&out, "%s · %d %s", status, errors, plural(errors, "error"))
 	if warnings > 0 {
 		fmt.Fprintf(&out, " · %d %s", warnings, plural(warnings, "warning"))
+	}
+	hints := 0
+	for _, d := range c.Diags {
+		if d.Severity == Hint {
+			hints++
+		}
+	}
+	if hints > 0 {
+		fmt.Fprintf(&out, " · %d %s", hints, plural(hints, "hint"))
 	}
 	out.WriteByte('\n')
 	_, err := io.WriteString(w, out.String())

@@ -26,6 +26,7 @@ type sema struct {
 	currentYield      *yieldContext
 	currentFunction   *ast.FnDecl
 	vaInitializer     *ast.FnCall
+	matchHints        map[source.Span]bool
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -1541,6 +1542,7 @@ func (sema *sema) checkCondStmt(
 		}
 	}
 
+	sema.suggestMatch(condStmt)
 	return nil
 }
 

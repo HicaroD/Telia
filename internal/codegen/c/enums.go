@@ -77,9 +77,7 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 	label := c.nextTmp()
 	scrutineeType := "_Error"
 	if !m.IsError {
-		scrutineeType = emitCType(
-			&ast.ExprType{Kind: ast.EXPR_TYPE_ENUM, T: &ast.EnumType{Decl: m.Enum}},
-		)
+		scrutineeType = emitCType(m.ValueType)
 	}
 	fmt.Fprintf(
 		c.buf,
@@ -93,41 +91,51 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 	tag := scrutinee
 	if m.IsError {
 		tag += ".kind"
-	} else if m.Enum.HasPayload {
+	} else if m.Enum != nil && m.Enum.HasPayload {
 		tag += ".tag"
 	}
-	for i, arm := range m.Arms {
-		if i != 0 {
-			c.buf.WriteString("else ")
+	for _, arm := range m.Arms {
+		var conditions []string
+		for _, pattern := range arm.Patterns() {
+			conditions = append(conditions, c.matchCondition(m, pattern, tag))
 		}
-		if !arm.Fallback {
-			value := ""
-			if m.IsError {
-				value = errorKind(arm.Enum, arm.Variant)
-			} else if m.Enum.Foreign != nil {
-				value = foreignEnumTag(arm.Variant)
-			} else {
-				value = c.emitConstant(arm.Variant.Value)
-			}
-			fmt.Fprintf(c.buf, "if (%s == %s) ", tag, value)
-		}
-		c.buf.WriteString("{\n")
-		payload := scrutinee
-		if m.IsError && !arm.Fallback {
-			payload += ".payload." + arm.Enum.CName
+		fmt.Fprintf(c.buf, "if (%s) {\n", strings.Join(conditions, " || "))
+		if arm.Binding != nil {
+			name := c.nextTmp()
+			arm.Binding.BackendType = &CVariable{Name: name, CType: emitCType(arm.Binding.Type)}
+			fmt.Fprintf(c.buf, "%s %s = %s;\n", emitCType(arm.Binding.Type), name, scrutinee)
 		}
 		for _, field := range arm.Fields {
 			name := c.nextTmp()
 			field.Binding.BackendType = &CVariable{Name: name, CType: emitCType(field.Binding.Type)}
-			fmt.Fprintf(
-				c.buf,
-				"%s %s = %s.payload.v%d.%s;\n",
-				emitCType(field.Binding.Type),
-				name,
-				payload,
-				arm.Variant.Index,
-				field.Name.Name(),
-			)
+			fmt.Fprintf(c.buf, "%s %s;\n", emitCType(field.Binding.Type), name)
+		}
+		if len(arm.Fields) != 0 {
+			for i, pattern := range arm.Patterns() {
+				if i != 0 {
+					c.buf.WriteString("else ")
+				}
+				fmt.Fprintf(c.buf, "if (%s) {\n", conditions[i])
+				payload := scrutinee
+				if m.IsError {
+					payload += ".payload." + pattern.Enum.CName
+				}
+				for _, field := range pattern.Fields {
+					variable := field.Binding.BackendType.(*CVariable)
+					fmt.Fprintf(
+						c.buf,
+						"%s = %s.payload.v%d.%s;\n",
+						variable.Name,
+						payload,
+						pattern.Variant.Index,
+						field.Name.Name(),
+					)
+				}
+				c.buf.WriteString("}\n")
+			}
+		}
+		if arm.Guard != nil {
+			fmt.Fprintf(c.buf, "if (%s) {\n", c.emitExpr(arm.Guard))
 		}
 		if arm.Block != nil {
 			c.matchScopes = append(
@@ -140,10 +148,31 @@ func (c *CCodegen) emitMatch(m *ast.MatchExpr) string {
 			value := c.emitExpr(arm.Result)
 			fmt.Fprintf(c.buf, "%s = %s;\n", result, value)
 		}
+		fmt.Fprintf(c.buf, "goto %s;\n", label)
+		if arm.Guard != nil {
+			c.buf.WriteString("}\n")
+		}
 		c.buf.WriteString("}\n")
 	}
 	fmt.Fprintf(c.buf, "%s: ;\n%s;\n", label, result)
 	return "({\n" + c.buf.String() + "})"
+}
+
+func (c *CCodegen) matchCondition(m *ast.MatchExpr, p *ast.MatchPattern, tag string) string {
+	if p.Fallback || p.Binding != nil {
+		return "1"
+	}
+	var value string
+	if p.Literal != nil {
+		value = c.emitExpr(p.Literal)
+	} else if m.IsError {
+		value = errorKind(p.Enum, p.Variant)
+	} else if p.Enum.Foreign != nil {
+		value = foreignEnumTag(p.Variant)
+	} else {
+		value = c.emitConstant(p.Variant.Value)
+	}
+	return tag + " == " + value
 }
 
 func foreignEnumTag(v *ast.EnumVariant) string {
