@@ -26,6 +26,9 @@ try {
     $output = & $launcher version
     if ($LASTEXITCODE -ne 0 -or $output -notlike 'telia * (*)') { throw "Launcher did not run compiler: $output" }
     if (-not (Test-Path "$install/v0.0.0-test/base/std")) { throw "Bundled libraries were not installed." }
+    $version = ($output -split ' ')[1]
+    & python (Join-Path $PSScriptRoot "smoke-release.py") --installed-bundle "$install/v0.0.0-test" --launcher $launcher --version $version
+    if ($LASTEXITCODE -ne 0) { throw "Installed bundle smoke test failed." }
     & $installer -Version "v0.0.1-test" -InstallRoot $install
     if (-not (Test-Path "$install/v0.0.0-test/telia.exe")) { throw "Upgrade removed the old version." }
     if ((Get-Content $launcher -Raw) -notmatch 'v0\.0\.1-test') { throw "Upgrade did not update the launcher." }

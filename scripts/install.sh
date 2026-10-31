@@ -85,6 +85,19 @@ fi
 mkdir "$work/bundle"
 tar -xzf "$work/$asset" -C "$work/bundle"
 [ -x "$work/bundle/telia" ] && [ -d "$work/bundle/base/std" ] || fail "Incomplete release bundle"
+[ -s "$work/bundle/BUNDLE_SHA256SUMS" ] && [ -d "$work/bundle/base/vendor" ] || fail "Incomplete release bundle"
+while read -r digest path; do
+    case "$path" in ''|/*|../*|*/../*|*/..|*\\*) fail "Invalid bundle inventory path" ;; esac
+    [ "${#digest}" -eq 64 ] || fail "Invalid bundle inventory checksum"
+    case "$digest" in *[!0-9a-fA-F]*) fail "Invalid bundle inventory checksum" ;; esac
+    [ -f "$work/bundle/$path" ] || fail "Incomplete release bundle: $path"
+    if command -v sha256sum >/dev/null 2>&1; then
+        actual=$(sha256sum "$work/bundle/$path")
+    else
+        actual=$(shasum -a 256 "$work/bundle/$path")
+    fi
+    [ "$digest" = "${actual%% *}" ] || fail "Bundle checksum mismatch: $path"
+done < "$work/bundle/BUNDLE_SHA256SUMS"
 mv "$work/bundle" "$destination"
 ln -sfn "$destination/telia" "$bin/telia"
 echo "Installed in $destination"

@@ -57,6 +57,17 @@ try {
     & tar.exe -xzf (Join-Path $work $asset) -C $bundle
     if ($LASTEXITCODE -ne 0) { throw "Unable to extract release archive." }
     if (-not (Test-Path "$bundle/telia.exe") -or -not (Test-Path "$bundle/base/std")) { throw "Incomplete release bundle." }
+    if (-not (Test-Path "$bundle/base/vendor") -or -not (Test-Path "$bundle/BUNDLE_SHA256SUMS")) { throw "Incomplete release bundle." }
+    $inventory = @(Get-Content "$bundle/BUNDLE_SHA256SUMS")
+    if ($inventory.Count -eq 0) { throw "Empty bundle inventory." }
+    foreach ($entry in $inventory) {
+        if ($entry -notmatch '^([a-fA-F0-9]{64})  (.+)$') { throw "Invalid bundle inventory." }
+        $digest, $relative = $Matches[1], $Matches[2]
+        if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|/)\.\.(/|$)|\\|:') { throw "Invalid bundle inventory path." }
+        $file = Join-Path $bundle $relative
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "Incomplete release bundle: $relative" }
+        if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $digest) { throw "Bundle checksum mismatch: $relative" }
+    }
     Move-Item $bundle $destination
     New-Item -ItemType Directory -Force $bin | Out-Null
     Set-Content -Encoding ASCII $launcher "@rem Telia managed launcher`r`n@echo off`r`n`"$destination\telia.exe`" %*`r`nexit /b %errorlevel%"

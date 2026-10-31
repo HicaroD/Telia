@@ -39,8 +39,8 @@ Maintainers build these archives after the explicit setup step:
 python3 scripts/package-release.py --output telia-<os>-<arch>.tar.gz
 ```
 
-CI produces these archives for all four targets. It does not publish GitHub
-releases automatically.
+CI produces these archives for all four targets. Tested version tags publish GitHub
+releases through the separate [release workflow](installation.md#publishing-a-release).
 
 ## Explicit setup (source builds and release maintainers)
 

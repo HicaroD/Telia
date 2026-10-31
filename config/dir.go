@@ -39,6 +39,8 @@ func (e *Envs) ShowAll() {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
+	fmt.Printf("T_VENDOR_PATH='%s'\n", VendorPath())
+	fmt.Printf("TELIA_ENV_FILE='%s'\n", filepath.Join(TELIA_CONFIG_DIR, "env"))
 
 	for i := range v.NumField() {
 		field := v.Type().Field(i)
@@ -73,7 +75,7 @@ func SetupEnvFile() error {
 	}
 	err = MapEnvToStruct(envs, &parsedEnvs)
 	if err != nil {
-		return err
+		return fmt.Errorf("library configuration: %w; unset T_STD_PATH or update %s to use the bundled standard library", err, envFile)
 	}
 	if parsedEnvs.STD == "" {
 		executable, err := os.Executable()
@@ -224,9 +226,12 @@ func MapEnvToStruct(data map[string]string, result any) error {
 						}
 					}
 
-					_, err := os.Stat(fullPath)
+					info, err := os.Stat(fullPath)
 					if err != nil {
-						return err
+						return fmt.Errorf("%s=%q: %w", envTag, fullPath, err)
+					}
+					if !info.IsDir() {
+						return fmt.Errorf("%s=%q: expected a directory", envTag, fullPath)
 					}
 
 					fieldValue.SetString(fullPath)

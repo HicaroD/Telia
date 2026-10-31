@@ -41,8 +41,12 @@ cp "$FIXTURES/$asset" "$output"
 ''')
         self.archive = self.fixtures / "telia-darwin-arm64.tar.gz"
         with tarfile.open(self.archive, "w:gz") as archive:
-            for name, data, mode in [("telia", b"#!/bin/sh\necho telia-test\n", 0o755),
-                                     ("base/std/io/io.t", b"fixture", 0o644)]:
+            files = [("telia", b"#!/bin/sh\necho telia-test\n", 0o755),
+                     ("base/std/io/io.t", b"fixture", 0o644),
+                     ("base/vendor/example/native.json", b"fixture", 0o644)]
+            inventory = "".join(hashlib.sha256(data).hexdigest() + "  " + name + "\n"
+                                for name, data, _ in files).encode()
+            for name, data, mode in files + [("BUNDLE_SHA256SUMS", inventory, 0o644)]:
                 entry = tarfile.TarInfo(name)
                 entry.size, entry.mode = len(data), mode
                 archive.addfile(entry, io.BytesIO(data))
@@ -91,6 +95,34 @@ cp "$FIXTURES/$asset" "$output"
         result = self.run_installer()
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(binary.read_text(), "user binary")
+
+    def test_missing_vendor_file_is_rejected(self):
+        self.rewrite_bundle("base/vendor/example/native.json", None)
+        result = self.run_installer()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Incomplete release bundle", result.stderr)
+        self.assertFalse((self.root / "install/v0.1.0").exists())
+
+    def test_corrupt_std_file_is_rejected(self):
+        self.rewrite_bundle("base/std/io/io.t", b"corrupt")
+        result = self.run_installer()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Bundle checksum mismatch", result.stderr)
+        self.assertFalse((self.root / "install/v0.1.0").exists())
+
+    def rewrite_bundle(self, name, replacement):
+        with tarfile.open(self.archive) as archive:
+            files = [(member, archive.extractfile(member).read()) for member in archive.getmembers()]
+        with tarfile.open(self.archive, "w:gz") as archive:
+            for member, data in files:
+                if member.name == name:
+                    if replacement is None:
+                        continue
+                    data = replacement
+                    member.size = len(data)
+                archive.addfile(member, io.BytesIO(data))
+        digest = hashlib.sha256(self.archive.read_bytes()).hexdigest()
+        (self.fixtures / "SHA256SUMS").write_text(digest + "  " + self.archive.name + "\n")
 
     def test_unsupported_platform_fails_before_download(self):
         self.tool("uname", '#!/bin/sh\ncase "$1" in -s) echo Linux;; -m) echo aarch64;; esac\n')
