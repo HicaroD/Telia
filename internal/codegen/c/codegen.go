@@ -94,18 +94,22 @@ static inline void _telia_va_scope_end(_TeliaVaList *owner) {
 `
 
 type CCodegen struct {
-	buf          *strings.Builder
-	loc          *ast.Loc
-	program      *ast.Program
-	currentPkg   *ast.Package
-	currentRetTy *ast.ExprType
-	tmpCnt       int
-	exePath      string
-	outputPath   string
-	deferScopes  [][]*ast.DeferStmt
-	loopScopes   []int // defer depth immediately outside each active loop body
-	matchScopes  []matchScope
-	cFlags       []string
+	buf              *strings.Builder
+	loc              *ast.Loc
+	program          *ast.Program
+	currentPkg       *ast.Package
+	currentRetTy     *ast.ExprType
+	tmpCnt           int
+	exePath          string
+	outputPath       string
+	testColor        bool
+	testCleanupLabel string
+	testCleanupDepth int
+	testUnwinding    bool
+	deferScopes      [][]*ast.DeferStmt
+	loopScopes       []int // defer depth immediately outside each active loop body
+	matchScopes      []matchScope
+	cFlags           []string
 }
 
 func NewCG(loc *ast.Loc, program *ast.Program) *CCodegen {
@@ -120,12 +124,26 @@ func (c *CCodegen) SetOutputPath(path string) {
 	c.outputPath = path
 }
 
+func (c *CCodegen) SetTestColor(enabled bool) { c.testColor = enabled }
+
 // SetCFlags configures additional native compiler flags (e.g. sanitizers).
 func (c *CCodegen) SetCFlags(flags ...string) {
 	c.cFlags = append([]string(nil), flags...)
 }
 
 func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
+	if c.program.TestMode {
+		for _, file := range c.program.Root.Files {
+			for _, node := range file.Body {
+				if node.Kind == ast.KIND_FN_DECL {
+					fn := node.Node.(*ast.FnDecl)
+					if fn.Name.Name() == "main" {
+						fn.CName = "_telia_user_main"
+					}
+				}
+			}
+		}
+	}
 	requirements, err := nativeRequirements(c.program.Root)
 	if err != nil {
 		return err
@@ -150,6 +168,7 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	// Emit into buf
 	c.buf.Reset()
 	c.buf.WriteString(preamble)
+	c.buf.WriteString(testingRuntime)
 	c.emitHeaderIncludes(c.program.Root, map[*ast.Package]bool{}, map[string]bool{})
 
 	seenScalars := map[string]bool{}
@@ -259,6 +278,9 @@ func (c *CCodegen) Generate(buildType config.BuildOptimizationType) error {
 	c.generatePackage(c.program.Root)
 	for _, fn := range c.program.Functions {
 		c.emitFnBody(fn)
+	}
+	if c.program.TestMode {
+		c.emitTestRunner()
 	}
 
 	// Write .c file

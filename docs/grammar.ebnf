@@ -9,6 +9,7 @@ Declaration    = UseDecl
                | ConstDecl
                | EnumDecl
                | FnDecl
+               | TestDecl
                ;
 
 UseDecl        = "use" [ ID ] STRING NEWLINE ;
@@ -24,6 +25,7 @@ EnumDecl       = "enum" ID [ TypeParams ] [ Type | ":" "error" ] "{" NEWLINE ( E
 EnumVariant    = [ Attributes ] ID [ "=" Expr ] [ "{" NEWLINE ( FieldDecl NEWLINE )* "}" ] ;
 TypeParams     = "<" ID ( "," ID )* ">" ;
 FnDecl         = [ Attributes ] "fn" ID Parameters [ Type ] Block ;
+TestDecl       = "test" STRING Block ; (* Only in *_test.t files. *)
 
 Attributes     = "@[" Attribute ( "," Attribute )* "]" NEWLINE ;
 Attribute      = ID "=" STRING ;

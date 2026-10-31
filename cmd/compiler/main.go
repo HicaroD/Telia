@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 
 	"github.com/HicaroD/Telia/config"
 	"github.com/HicaroD/Telia/internal/ast"
@@ -28,6 +31,8 @@ Usage:
   telia <command> [arguments]
 
 Available Commands:
+  test [--color=auto|always|never]    Run named tests in the current package
+
   build [path] [-release] [-debug] [-o <path>]   Builds the program
       [path]        Path to the directory or file (defaults to current directory)
       -release      Build in release mode
@@ -57,7 +62,7 @@ func main() {
 	os.Exit(run())
 }
 
-func run() int {
+func run() (status int) {
 	// Version reporting should work without creating user configuration.
 	if len(os.Args) == 2 && (os.Args[1] == "version" || os.Args[1] == "--version") {
 		fmt.Printf("telia %s (%s)\n", Version, Commit)
@@ -83,7 +88,7 @@ func run() int {
 	case COMMAND_ENV:
 		config.ENVS.ShowAll()
 		return 0
-	case COMMAND_BUILD:
+	case COMMAND_BUILD, COMMAND_TEST:
 		collector := diagnostics.New()
 		_, noColor := os.LookupEnv("NO_COLOR")
 		renderer := diagnostics.Renderer{
@@ -111,7 +116,14 @@ func run() int {
 		if args.Loc.IsPackage {
 			buildType = BUILD_TYPE_PACKAGE
 		}
-		program, err := buildAll(args.ArgLoc, args.Loc, collector, buildType)
+		var program *ast.Program
+		if args.Command == COMMAND_TEST {
+			p := parser.New(collector)
+			p.IncludeTests = true
+			program, err = p.ParsePackageAsProgram(args.ArgLoc, args.Loc)
+		} else {
+			program, err = buildAll(args.ArgLoc, args.Loc, collector, buildType)
+		}
 
 		if err != nil || collector.HasErrors() {
 			return finish(err)
@@ -124,6 +136,39 @@ func run() int {
 		}
 
 		codegen := ccodegen.NewCG(args.Loc, program)
+		if args.Command == COMMAND_TEST {
+			codegen.SetTestColor(
+				diagnostics.ColorEnabled(args.Color, term.IsTerminal(int(os.Stdout.Fd())), noColor),
+			)
+			dir, err := os.MkdirTemp("", "telia-test-")
+			if err != nil {
+				return finish(err)
+			}
+			defer func() {
+				if err := os.RemoveAll(dir); err != nil {
+					fmt.Fprintln(os.Stderr, "remove test executable:", err)
+					status = 1
+				}
+			}()
+			name := "tests"
+			if runtime.GOOS == "windows" {
+				name += ".exe"
+			}
+			path := filepath.Join(dir, name)
+			codegen.SetOutputPath(path)
+			if err := codegen.Generate(args.BuildOptType); err != nil {
+				return finish(err)
+			}
+			cmd := exec.Command(path)
+			cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+			if err := cmd.Run(); err != nil {
+				if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() > 0 {
+					return exit.ExitCode()
+				}
+				return finish(fmt.Errorf("test runner: %w", err))
+			}
+			return 0
+		}
 		if args.OutputPath != "" {
 			codegen.SetOutputPath(args.OutputPath)
 		}

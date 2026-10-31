@@ -378,6 +378,24 @@ func (c *CCodegen) emitUnaryExpr(u *ast.UnaryExpr) string {
 
 // emitFnCall emits a function call expression, handling variadic args.
 func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
+	if c.program.TestMode && call.Builtin == "" {
+		return c.emitCheckedTestCall(call)
+	}
+	return c.emitFnCallExpr(call)
+}
+
+func (c *CCodegen) emitFnCallExpr(call *ast.FnCall) string {
+	if c.program.TestMode && call.Proto != nil &&
+		call.Proto.Attributes.LinkName == "_telia_testing_fail" {
+		return c.vaExpression(func() string {
+			c.emitTestFailureHeader(call.Name)
+			c.emitTestFailureExit()
+			return "((void)0)"
+		})
+	}
+	if strings.HasPrefix(call.Builtin, "testing_") {
+		return c.emitTestingAssertion(call)
+	}
 	switch call.Builtin {
 	case "widen", "ptr_cast":
 		return fmt.Sprintf("((%s)(%s))", emitCType(call.BuiltinType), c.emitExpr(call.Args[0]))

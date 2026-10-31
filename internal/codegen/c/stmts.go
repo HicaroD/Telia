@@ -24,18 +24,50 @@ func (c *CCodegen) emitBlock(block *ast.BlockStmt, indent string) {
 			return
 		}
 	}
-	c.flushDefers(c.deferScopes[len(c.deferScopes)-1], indent)
+	c.flushDefers(len(c.deferScopes)-1, indent)
 }
 
 // flushDefers emits registered cleanup in LIFO order.
-func (c *CCodegen) flushDefers(defers []*ast.DeferStmt, indent string) {
+func (c *CCodegen) flushDefers(depth int, indent string) {
+	scopes := c.deferScopes
+	defers := scopes[depth]
+	if len(defers) == 0 {
+		return
+	}
+	before := ""
+	if c.program.TestMode && !c.testUnwinding {
+		before = c.nextTmp()
+		fmt.Fprintf(c.buf, "uint64_t %s = _telia_test_failures;\n", before)
+	}
 	for i := len(defers) - 1; i >= 0; i-- {
 		d := defers[i]
 		if !d.Skip {
+			previousLabel, previousDepth := c.testCleanupLabel, c.testCleanupDepth
+			if c.program.TestMode {
+				// Remove this action and already-exited inner scopes before
+				// emitting it, so an assertion cannot execute cleanup twice.
+				c.deferScopes = append(append([][]*ast.DeferStmt{}, scopes[:depth]...), defers[:i])
+				c.testCleanupLabel, c.testCleanupDepth = c.nextTmp()+"_cleanup_done", len(
+					c.deferScopes,
+				)
+				c.buf.WriteString("{\n")
+			}
 			c.buf.WriteString(indent)
 			c.emitStmtNode(d.Stmt, indent)
 			c.buf.WriteString(";\n")
+			if c.program.TestMode {
+				fmt.Fprintf(c.buf, "}\n%s: ;\n", c.testCleanupLabel)
+				c.testCleanupLabel, c.testCleanupDepth = previousLabel, previousDepth
+				c.deferScopes = scopes
+			}
 		}
+	}
+	if before != "" {
+		fmt.Fprintf(c.buf, "if (_telia_test_failures != %s) {\n", before)
+		c.deferScopes = scopes[:depth]
+		c.emitTestUnwind()
+		c.deferScopes = scopes
+		c.buf.WriteString("}\n")
 	}
 }
 
@@ -45,7 +77,7 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 	case ast.KIND_BREAK_STMT, ast.KIND_CONTINUE_STMT:
 		depth := c.loopScopes[len(c.loopScopes)-1]
 		for i := len(c.deferScopes) - 1; i >= depth; i-- {
-			c.flushDefers(c.deferScopes[i], indent)
+			c.flushDefers(i, indent)
 		}
 		if node.Kind == ast.KIND_BREAK_STMT {
 			c.buf.WriteString("break;\n")
@@ -57,7 +89,7 @@ func (c *CCodegen) emitStmtNode(node *ast.Node, indent string) {
 		value := c.emitExpr(node.Node.(*ast.YieldStmt).Value)
 		fmt.Fprintf(c.buf, "%s = %s;\n", ctx.result, value)
 		for i := len(c.deferScopes) - 1; i >= ctx.deferDepth; i-- {
-			c.flushDefers(c.deferScopes[i], indent)
+			c.flushDefers(i, indent)
 		}
 		fmt.Fprintf(c.buf, "goto %s;\n", ctx.label)
 	case ast.KIND_CONST_DECL:
@@ -116,7 +148,7 @@ func (c *CCodegen) emitReturn(ret *ast.ReturnStmt, indent string) {
 		value = tmp
 	}
 	for i := len(c.deferScopes) - 1; i >= 0; i-- {
-		c.flushDefers(c.deferScopes[i], indent)
+		c.flushDefers(i, indent)
 	}
 	if ret.Value == nil || ret.Value.Kind == ast.KIND_VOID_EXPR {
 		c.buf.WriteString("return;\n")

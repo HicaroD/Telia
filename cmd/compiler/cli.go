@@ -15,6 +15,7 @@ const (
 	COMMAND_BUILD Command = iota
 	COMMAND_HELP
 	COMMAND_ENV
+	COMMAND_TEST
 )
 
 type CliResult struct {
@@ -39,6 +40,24 @@ func cli() (CliResult, error) {
 	switch command {
 	case "env":
 		result.Command = COMMAND_ENV
+	case "test":
+		result.Command = COMMAND_TEST
+		result.BuildOptType = config.BUILD_OPT_DEBUG
+		for _, arg := range args[1:] {
+			if !strings.HasPrefix(arg, "--color=") {
+				return result, fmt.Errorf("unexpected test argument: %s", arg)
+			}
+			result.Color = strings.TrimPrefix(arg, "--color=")
+			if result.Color != "auto" && result.Color != "always" && result.Color != "never" {
+				return result, fmt.Errorf("--color must be auto, always, or never")
+			}
+		}
+		result.ArgLoc = "."
+		var err error
+		result.Loc, err = ast.LocFromPath(".")
+		if err != nil {
+			return result, err
+		}
 	case "build":
 		result.Command = COMMAND_BUILD
 

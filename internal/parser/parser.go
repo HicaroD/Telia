@@ -16,8 +16,11 @@ import (
 )
 
 type Parser struct {
-	lex       *lexer.Lexer
-	collector *diagnostics.Collector
+	IncludeTests     bool // include test files in the root package only
+	testCount        int
+	testDescriptions map[string]*token.Token
+	lex              *lexer.Lexer
+	collector        *diagnostics.Collector
 
 	argLoc     string
 	imports    map[string]*ast.Package
@@ -51,7 +54,7 @@ func (p *Parser) ParsePackageAsProgram(
 		return nil, err
 	}
 
-	return &ast.Program{Root: root}, nil
+	return &ast.Program{Root: root, TestMode: p.IncludeTests}, nil
 }
 
 func (p *Parser) parsePackage(loc *ast.Loc, isRoot bool) (*ast.Package, error) {
@@ -160,6 +163,11 @@ func (p *Parser) ParseFileAsProgram(
 	loc *ast.Loc,
 	collector *diagnostics.Collector,
 ) (*ast.Program, error) {
+	if strings.HasSuffix(loc.Path, "_test.t") {
+		return nil, fmt.Errorf(
+			"test files are excluded from normal builds; run 'telia test' in the package directory",
+		)
+	}
 	p.argLoc = argLoc
 
 	l, err := lexer.NewFromFilePath(loc, collector)
@@ -247,6 +255,10 @@ func (p *Parser) parseFileDecls(file *ast.File) error {
 
 func (p *Parser) buildPackage(pkg *ast.Package) error {
 	return p.processPackageFiles(pkg.Loc.Path, func(entry os.DirEntry, fullPath string) error {
+		if entry.IsDir() ||
+			(strings.HasSuffix(entry.Name(), "_test.t") && !(p.IncludeTests && pkg.IsRoot)) {
+			return nil
+		}
 		if filepath.Ext(entry.Name()) == ".t" {
 			loc, err := ast.LocFromPath(fullPath)
 			if err != nil {
@@ -307,6 +319,12 @@ peekAgain:
 	}
 
 	switch tok.Kind {
+	case token.ID:
+		if tok.Name() == "test" {
+			file.AnyDeclNodeFound = true
+			return p.parseTestBlock()
+		}
+		return nil, false, fmt.Errorf("unexpected identifier %q on global scope", tok.Name())
 	case token.PACKAGE:
 		if !file.IsFirstNode {
 			return nil, eof, fmt.Errorf("expected package declaration as first node")

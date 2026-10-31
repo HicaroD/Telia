@@ -167,7 +167,7 @@ func (s *sema) checkPackageFiles(pkg *ast.Package) error {
 	s.mainPackageFound = s.mainPackageFound || mainPackageFound
 
 	// TODO(errors)
-	if requiresMainMethod && !hasMainMethod {
+	if requiresMainMethod && !hasMainMethod && !(s.program.TestMode && pkg.IsRoot) {
 		return fmt.Errorf("main package requires a 'main' method as entrypoint\n")
 	}
 
@@ -1798,6 +1798,9 @@ func (sema *sema) checkFnCall(
 		retType = proto.RetType
 	} else {
 		fnDecl := symbol.Node.(*ast.FnDecl)
+		if testingAssertion(fnDecl) {
+			return sema.checkTestingAssertion(fnCall, referenceScope)
+		}
 		if len(fnDecl.TypeParams) != 0 {
 			fnDecl, err = sema.instantiateFunction(fnDecl, fnCall.TypeArgs, referenceScope, fnCall.Name)
 			if err != nil {

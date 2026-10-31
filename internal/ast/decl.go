@@ -38,16 +38,17 @@ type StructField struct {
 }
 
 type FnDecl struct {
-	Owner      *Package
-	File       *File
-	CName      string
-	TypeParams []*token.Token
-	Scope      *Scope
-	Attributes Attributes
-	Name       *token.Token
-	Params     *Params
-	RetType    *ExprType
-	Block      *BlockStmt
+	TestDescription *string // non-nil for a named test block, lowered to a void function
+	Owner           *Package
+	File            *File
+	CName           string
+	TypeParams      []*token.Token
+	Scope           *Scope
+	Attributes      Attributes
+	Name            *token.Token
+	Params          *Params
+	RetType         *ExprType
+	Block           *BlockStmt
 }
 
 func (fnDecl *FnDecl) String() string {

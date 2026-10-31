@@ -11,8 +11,9 @@ import (
 // main contains an entrypoint
 
 type Program struct {
-	Root    *Package
-	Runtime *Package
+	TestMode bool
+	Root     *Package
+	Runtime  *Package
 	// TupleTypes holds every unique tuple shape encountered during semantic
 	// analysis, in the order they were first seen. Populated by sema.Check()
 	// so that codegen can emit exactly the right typedef structs upfront

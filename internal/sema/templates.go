@@ -716,6 +716,10 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 	case *ast.FnDecl:
 		params, result = fn.TypeParams, fn.RetType
 		valueParams = fn.Params
+		if testingAssertion(fn) {
+			// Assertion operand types are inferred when this helper is specialized.
+			params = nil
+		}
 	case *ast.Proto:
 		result = fn.RetType
 		valueParams = fn.Params

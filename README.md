@@ -50,6 +50,7 @@ customization, upgrades, and release publishing.
 
 ## Language guides
 
+- [Unit testing](docs/testing.md)
 - [Collections and composed field access](docs/collections.md)
 - [Explicit integer and pointer conversions](docs/conversions.md)
 - [Errors and cleanup-safe propagation](docs/errors.md)
