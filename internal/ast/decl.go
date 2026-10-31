@@ -135,11 +135,13 @@ const (
 	AT_OPERATOR_FAIL AtOperatorKind = iota
 	// @catch <name> {...}
 	AT_OPERATOR_CATCH
+	AT_OPERATOR_TRY
 )
 
 type AtOperator struct {
-	Kind AtOperatorKind
-	Op   any
+	Propagates bool
+	Kind       AtOperatorKind
+	Op         any
 }
 
 type CatchAtOperator struct {

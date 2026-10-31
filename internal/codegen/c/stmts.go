@@ -521,7 +521,7 @@ func isAtCatchTupleCall(stmt *ast.VarStmt) bool {
 		return false
 	}
 	call := stmt.Expr.Node.(*ast.FnCall)
-	return call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_CATCH &&
+	return !call.HandledValue && call.AtOp != nil && call.AtOp.Kind == ast.AT_OPERATOR_CATCH &&
 		getFullFnRetType(call) != nil
 }
 

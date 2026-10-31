@@ -35,6 +35,14 @@ out-of-bounds indexing panics in **both debug and release** builds. Low-level
 raw-storage views still require valid storage; bounds checks are not ownership
 or pointer-validity checks.
 
+Field access, indexing, and calls compose: `items[i].path`,
+`container.items[i].path`, and `get_items()[i].path` need no intermediate local.
+An indexed field can be read, assigned, or addressed (`&items[i].path`) when its
+receiver denotes writable/addressable storage. Fields of temporary record
+values can be read but not assigned or addressed. Indexing still checks bounds
+and evaluates its receiver and index once per access. Use
+[`widen<u64>` or checked `narrow<u64>`](conversions.md) for other index types.
+
 ## Borrowed slices
 
 ```rust
@@ -167,6 +175,12 @@ release their resources explicitly before clearing/freeing the outer list.
 Repeated cleanup of the same emptied list is harmless; cleanup of a stale
 shallow copy can double-free. Lifetimes and ownership remain programmer-managed.
 Do not modify the list representation fields directly.
+
+Transfer a list with `memory::take<lists::List<T>>(&source)` instead of a shallow
+copy followed by manual zeroing. The source becomes an empty heap-mode list,
+safe to free or reuse; the destination retains the original arena association.
+Moving an arena-backed list does not extend the arena's lifetime. See the
+[ownership conventions](strings-and-memory.md#ownership-conventions-and-transfer).
 
 ## Building other data structures in Telia
 

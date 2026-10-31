@@ -97,14 +97,43 @@ falling through would otherwise expose a zero-initialized success value. A
 handler cannot replace that value by merely assigning a local. Error-only and
 statement-only catches may complete normally because no success value is used.
 
+Use `@try` for cleanup-safe propagation:
+
+```rust
+fn run() error {
+    text := strings::clone("Hello") @try
+    defer strings::free(&text)
+    part := strings::slice(strings::view(&text), 0, 5) @try
+    io::println(part)
+    return nil
+}
+```
+
+`@try` also composes inside arguments, array/record literals, assignments,
+conditions, and other expressions. Only an evaluated expression can propagate:
+short-circuited calls do not execute. An error-only call has no success value
+and must be used as a statement.
+
+The call must return `error` or a tuple ending in `error`, and the enclosing
+function must do the same. On success, execution continues and a declaration
+receives the non-error results. On error, `@try` returns the same error from the
+enclosing function, running registered defers exactly like an ordinary return.
+For an enclosing tuple result, preceding fields are zero-initialized. No error
+wrapping, allocation, or fatal termination occurs. Use `@catch` for recovery or
+custom error results. As with explicit propagation, borrowed error messages and
+payloads must outlive cleanup. Deferred cleanup errors are not automatically
+collected. `@try` is rejected inside deferred cleanup because it would return
+while cleanup is already in progress; handle such errors locally without
+returning. Never use `@fail` there when remaining cleanup must run.
+
 `@fail` is a fatal boundary, not error propagation. On error it prints the
 length-aware message and exits with status 1, without running pending defers in
 the current function or its callers. Completed scopes have already run their
 cleanup. On success, execution continues normally. If deferred cleanup itself
 uses `@fail` and fails, remaining cleanup does not run either.
 
-Use `@catch` with `return err` to propagate errors through ordinary returns when
-cleanup must run. Each function exited this way runs its registered defers,
+Use `@try`, or `@catch` with `return err`, when cleanup must run.
+Each function exited this way runs its registered defers,
 innermost scope first and in reverse registration order within each scope.
 Place `@fail` outside resource-owning functions so they can clean up before fatal
 reporting:
@@ -156,6 +185,7 @@ Import `std::errors` and compare with `errors::Error::Variant`:
 | `EmbeddedZero` | C-text conversion would contain an embedded zero byte |
 | `EmptySeparator` | String splitting received an empty separator |
 | `InvalidUTF8` | Invalid/truncated UTF-8, including invalid continuations or code points |
+| `ConversionOutOfRange` | A checked integer conversion cannot represent the source value |
 
 These payload-free identities are shared across runtime helpers and standard
 memory, string, slice, list, and UTF-8 APIs. APIs preserve identities when

@@ -9,4 +9,5 @@ enum Error: error {
     EmbeddedZero
     EmptySeparator
     InvalidUTF8
+    ConversionOutOfRange
 }

@@ -1956,18 +1956,14 @@ func (p *Parser) createDerefExprFromId(idTok *token.Token) *ast.Node {
 
 func (p *Parser) ParseIdStmt(parentScope *ast.Scope) (*ast.Node, error) {
 	if p.genericSuffix() == token.OPEN_PAREN {
-		return p.parseFnCall(parentScope)
+		return p.parseAssignment(parentScope)
 	}
 	aheadId := p.lex.Peek1()
 	switch aheadId.Kind {
 	case token.OPEN_BRACKET:
 		return p.parseAssignment(parentScope)
-	case token.OPEN_PAREN:
-		fnCall, err := p.parseFnCall(parentScope)
-		return fnCall, err
-	case token.COLON_COLON:
-		namespaceAccessing, err := p.parseNamespaceAccess(parentScope)
-		return namespaceAccessing, err
+	case token.OPEN_PAREN, token.COLON_COLON:
+		return p.parseAssignment(parentScope)
 	case token.DOT:
 		return p.parseAssignment(parentScope)
 	default:
@@ -2335,6 +2331,8 @@ func (p *Parser) parseAtOperator(parentScope *ast.Scope) (*ast.AtOperator, error
 	op := new(ast.AtOperator)
 
 	switch name.Name() {
+	case "try":
+		op.Kind = ast.AT_OPERATOR_TRY
 	case "fail":
 		op.Kind = ast.AT_OPERATOR_FAIL
 		op.Op = nil
@@ -2559,7 +2557,34 @@ func (p *Parser) parsePrimary(parentScope *ast.Scope) (result *ast.Node, resultE
 	if err != nil {
 		return nil, err
 	}
-	for p.lex.NextIs(token.OPEN_BRACKET) {
+	for {
+		if p.lex.NextIs(token.DOT) {
+			p.lex.Skip()
+			name, ok := p.expectFieldName()
+			if !ok {
+				return nil, fmt.Errorf("expected field name after .")
+			}
+			n = &ast.Node{Kind: ast.KIND_FIELD_ACCESS, Node: &ast.FieldAccess{
+				Receiver: n,
+				Right:    &ast.Node{Kind: ast.KIND_ID_EXPR, Node: &ast.IdExpr{Name: name}},
+			}}
+			continue
+		}
+		if p.lex.NextIs(token.OPEN_PAREN) {
+			n, err = p.parseCallTail(
+				token.New([]byte("call"), token.ID, p.lex.Peek().Pos),
+				nil,
+				parentScope,
+				n,
+			)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if !p.lex.NextIs(token.OPEN_BRACKET) {
+			break
+		}
 		pos := p.lex.Peek().Pos
 		p.lex.Skip()
 		var index *ast.Node

@@ -70,7 +70,11 @@ func (c *CCodegen) emitExpr(node *ast.Node) string {
 		return c.emitUnaryExpr(node.Node.(*ast.UnaryExpr))
 
 	case ast.KIND_FN_CALL:
-		return c.emitFnCall(node.Node.(*ast.FnCall))
+		call := node.Node.(*ast.FnCall)
+		if call.HandledValue {
+			return c.emitPropagatedValue(call)
+		}
+		return c.emitFnCall(call)
 
 	case ast.KIND_NAMESPACE_ACCESS:
 		return c.emitNamespaceAccess(node.Node.(*ast.NamespaceAccess))
@@ -375,6 +379,10 @@ func (c *CCodegen) emitUnaryExpr(u *ast.UnaryExpr) string {
 // emitFnCall emits a function call expression, handling variadic args.
 func (c *CCodegen) emitFnCall(call *ast.FnCall) string {
 	switch call.Builtin {
+	case "widen", "ptr_cast":
+		return fmt.Sprintf("((%s)(%s))", emitCType(call.BuiltinType), c.emitExpr(call.Args[0]))
+	case "narrow":
+		return c.emitNarrow(call)
 	case "va_end", "va_borrow", "va_arg":
 		return c.emitVaOperation(call)
 	case "sizeof":
@@ -518,7 +526,7 @@ func (c *CCodegen) emitNamespaceAccess(ns *ast.NamespaceAccess) string {
 		return c.emitEnumConstruction(ns)
 	}
 	if ns.Right.Kind == ast.KIND_FN_CALL {
-		return c.emitFnCall(ns.Right.Node.(*ast.FnCall))
+		return c.emitExpr(ns.Right)
 	}
 	// Nested namespace access (e.g. pkg::sub::fn) — recurse.
 	if ns.Right.Kind == ast.KIND_NAMESPACE_ACCESS {
@@ -529,6 +537,14 @@ func (c *CCodegen) emitNamespaceAccess(ns *ast.NamespaceAccess) string {
 
 // emitFieldAccess emits a struct field access expression.
 func (c *CCodegen) emitFieldAccess(fa *ast.FieldAccess) string {
+	if fa.Receiver != nil {
+		recv := c.emitExpr(fa.Receiver)
+		separator := "."
+		if fa.ReceiverType.IsPointer() {
+			separator = "->"
+		}
+		return fieldAccessTail("("+recv+")"+separator+fa.AccessedField.Name.Name(), fa)
+	}
 	var recv string
 	if fa.StructVar != nil {
 		if fa.StructVar.BackendType != nil {

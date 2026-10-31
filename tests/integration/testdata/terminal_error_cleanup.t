@@ -3,15 +3,12 @@ package main
 use "std::terminal"
 
 fn run(input *terminal::Handle, output *terminal::Handle) error {
-    saved := terminal::apply_mode(input, terminal::raw_mode()) @catch err {
-        return err
-    }
+    saved := terminal::apply_mode(input, terminal::raw_mode()) @try
     defer terminal::restore(&saved)
-    terminal::write_text(output, "R") @catch err {
-        return err
-    }
+    terminal::write_text(output, "R") @try
     caps := terminal::Capabilities{}
-    return terminal::send_control(output, terminal::Control{kind: terminal::ControlKind::ClearScreen}, &caps)
+    terminal::send_control(output, terminal::Control{kind: terminal::ControlKind::ClearScreen}, &caps) @try
+    return nil
 }
 
 fn main() i32 {

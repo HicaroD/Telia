@@ -398,6 +398,10 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		return nil, nil
 	case *ast.FieldAccess:
+		if t.Receiver != nil {
+			_, err := v.node(t.Receiver)
+			return nil, err
+		}
 		_, err := v.node(&ast.Node{Kind: ast.KIND_ID_EXPR, Node: t.Left})
 		return nil, err
 	case *ast.StructLiteralExpr:
@@ -613,6 +617,19 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		return nil, nil // Concrete specialization checks dependent callback types.
 	}
 	_, lookupErr := scope.LookupAcrossScopes(call.Name.Name())
+	if isConversionBuiltin(call.Name.Name()) && lookupErr != nil {
+		if len(call.TypeArgs) != 1 || len(call.Args) != 1 {
+			return nil, fmt.Errorf(
+				"%s requires one type argument and one value argument",
+				call.Name.Name(),
+			)
+		}
+		if err := v.typeExpr(call.TypeArgs[0], map[*ast.TypeAlias]bool{}); err != nil {
+			return nil, err
+		}
+		_, err := v.node(call.Args[0])
+		return nil, err
+	}
 	if isMemoryBuiltin(call.Name.Name()) && lookupErr != nil {
 		count := 0
 		if call.Name.Name() == "slice_from_raw" {

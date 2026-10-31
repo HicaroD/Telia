@@ -4,28 +4,18 @@ use "std::terminal"
 use "std::libc"
 
 fn run() error {
-    input := terminal::open_controlling(true) @catch err {
-        return err
-    }
+    input := terminal::open_controlling(true) @try
     defer terminal::close(&input)
-    saved := terminal::apply_mode(&input, terminal::raw_mode()) @catch err {
-        return err
-    }
+    saved := terminal::apply_mode(&input, terminal::raw_mode()) @try
     defer terminal::restore(&saved)
 
     output := terminal::stdout()
-    terminal::write_text(&output, "Input bytes (Ctrl+C exits):\n") @catch err {
-        return err
-    }
+    terminal::write_text(&output, "Input bytes (Ctrl+C exits):\n") @try
     buffer := zero<u8[256]>()
     while true {
-        ready := terminal::wait(&input, terminal::WaitOptions{input: true, timeout_ms: -1}) @catch err {
-            return err
-        }
+        ready := terminal::wait(&input, terminal::WaitOptions{input: true, timeout_ms: -1}) @try
         if ready.input {
-            result := terminal::read(&input, buffer[:]) @catch err {
-                return err
-            }
+            result := terminal::read(&input, buffer[:]) @try
             if result.eof {
                 return nil
             }

@@ -6,6 +6,12 @@ struct Arena {
   state rawptr
 }
 
+fn take<T>(source *T) T {
+  result := *source
+  *source = zero<T>()
+  return result
+}
+
 @[default_cc="c"]
 extern {
   @[link_name="_telia_memory_alloc"]

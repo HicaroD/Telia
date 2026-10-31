@@ -29,7 +29,7 @@ func (c *CCodegen) emitErrorType() {
 		}
 	}
 	c.buf.WriteString("} payload; };\n")
-	for _, name := range []string{"OutOfBounds", "InvalidRange", "SizeOverflow", "AllocationFailed", "InvalidAlignment", "EmbeddedZero", "EmptySeparator", "InvalidUTF8"} {
+	for _, name := range []string{"OutOfBounds", "InvalidRange", "SizeOverflow", "AllocationFailed", "InvalidAlignment", "EmbeddedZero", "EmptySeparator", "InvalidUTF8", "ConversionOutOfRange"} {
 		fmt.Fprintf(c.buf, "static const char _telia_runtime_kind_%s;\n", name)
 	}
 	for _, d := range c.program.Enums {

@@ -129,13 +129,17 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 		}
 		copy.Node = lit
 	case *ast.FieldAccess:
-		copy.Node = &ast.FieldAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope)}
+		field := &ast.FieldAccess{Receiver: c.node(v.Receiver, scope), Right: c.node(v.Right, scope)}
+		if v.Left != nil {
+			field.Left = &ast.IdExpr{Name: v.Left.Name}
+		}
+		copy.Node = field
 	case *ast.NamespaceAccess:
 		copy.Node = &ast.NamespaceAccess{Left: &ast.IdExpr{Name: v.Left.Name}, Right: c.node(v.Right, scope), IsImport: v.IsImport, TypeArgs: cloneTypes(v.TypeArgs, c.bindings)}
 	case *ast.FnCall:
 		call := &ast.FnCall{Name: v.Name, Builtin: v.Builtin, TypeArgs: cloneTypes(v.TypeArgs, c.bindings), Args: c.nodes(v.Args, scope), Variadic: v.Variadic, CalleeExpr: c.node(v.CalleeExpr, scope)}
 		if v.AtOp != nil {
-			call.AtOp = &ast.AtOperator{Kind: v.AtOp.Kind}
+			call.AtOp = &ast.AtOperator{Kind: v.AtOp.Kind, Propagates: v.AtOp.Propagates}
 			if op, ok := v.AtOp.Op.(*ast.CatchAtOperator); ok {
 				call.AtOp.Op = &ast.CatchAtOperator{ErrVarName: op.ErrVarName, Scope: ast.NewScope(scope), Block: c.block(op.Block, scope)}
 			}

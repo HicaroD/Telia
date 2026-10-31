@@ -216,6 +216,47 @@ sources are implementation plumbing for the private C helpers. Their output
 parameters must be empty destinations; they do not clean up an existing value.
 Use the owning/view APIs above in applications.
 
+## Ownership conventions and transfer
+
+APIs use these conventions; they are programmer-managed contracts, not a borrow
+checker or automatic destruction:
+
+- **Owned results:** `strings::Owned`, `strings::COwned`, heap lists, arenas, and
+  non-null `memory::alloc` results have one cleanup owner. Assigning or passing
+  a handle by value is a shallow copy, not a transfer or clone.
+- **Borrowed inputs/views:** `string`, slices, and ordinary pointer parameters
+  borrow storage unless the API explicitly documents consumption. Views do not
+  keep owners alive. Free/reset invalidates views; list growth can also do so.
+- **Consuming cleanup:** `strings::free`, `strings::free_c`, `lists::free`, and
+  `memory::arena_destroy` consume and empty the addressed owner. Raw
+  `memory::free` consumes the allocation but cannot clear the caller's pointer.
+  Terminal close/restore contracts are documented in [terminal APIs](terminal.md).
+- **Transfer:** `memory::take<T>(source *T) T` returns the current value and
+  replaces `*source` with `zero<T>()`, without allocation or cleanup.
+
+```rust
+text := strings::clone("transferred") @try
+defer strings::free(&text)
+destination := memory::take<strings::Owned>(&text)
+defer strings::free(&destination)
+```
+
+Deferred cleanup reads the now-empty source, so both defers are safe. To return
+an owner with a registered defer, return `memory::take<T>(&owner)`, not `owner`.
+The destination must be new or previously cleaned up: overwriting another live
+owner still leaks it. `take` requires a valid non-null mutable pointer and a
+type whose zero value is a valid inert state, including for cleanup. This is
+supported for owning strings, lists, arenas, and raw allocation pointers; it is
+not a promise about arbitrary foreign handles or sentinel-based resources.
+
+Transfer does not modify pre-existing shallow copies or borrowed views. Such
+views remain valid only while the transferred storage remains live. Moving an
+arena does not retarget existing lists' stored pointers to the old arena value;
+do not move an arena while those clients still reference its original address.
+There are currently no new owner-copy warnings/restrictions: custom ownership
+is not inferred from a struct's representation. Use explicit clone operations
+for independent storage and `take` for transfer.
+
 ## Deferred cleanup
 
 `defer` is block-scoped and runs in reverse declaration order. Normal block exit
@@ -231,8 +272,8 @@ Do not return a view whose owner is freed by deferred cleanup. Copying the
 return value preserves only the view, not the allocation. `@fail` terminates
 the process on an error; it does not run pending defers in the current function
 or its callers. A fatal error during cleanup also skips remaining defers.
-Handle errors with `@catch` and ordinary returns when scoped cleanup must run.
-For cleanup-safe propagation, use `return err` in resource-owning functions and
+Handle errors with `@try`, or `@catch` and ordinary returns, when scoped cleanup
+must run. For cleanup-safe propagation, use `@try` in resource-owning functions and
 apply `@fail` only after they return. See the complete example in
 [error handling](errors.md#handling-and-discarding). `defer` guarantees cleanup
 on normal scope exits, not process termination.

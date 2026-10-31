@@ -26,6 +26,7 @@ type sema struct {
 	currentYield      *yieldContext
 	loopDepth         int
 	currentFunction   *ast.FnDecl
+	inDeferredCleanup bool
 	vaInitializer     *ast.FnCall
 	matchHints        map[source.Span]bool
 }
@@ -290,6 +291,9 @@ func (sema *sema) checkFnDecl(
 	previousFunction := sema.currentFunction
 	sema.currentFunction = function
 	defer func() { sema.currentFunction = previousFunction }()
+	previousDeferred := sema.inDeferredCleanup
+	sema.inDeferredCleanup = false
+	defer func() { sema.inDeferredCleanup = previousDeferred }()
 	previousYield := sema.currentYield
 	sema.currentYield = nil
 	previousLoopDepth := sema.loopDepth
@@ -719,11 +723,14 @@ func (sema *sema) checkStmt(
 		return err
 	case ast.KIND_DEFER_STMT:
 		deferStmt := stmt.Node.(*ast.DeferStmt)
+		previousDeferred := sema.inDeferredCleanup
+		sema.inDeferredCleanup = true
 		previousYield := sema.currentYield
 		sema.currentYield = nil
 		previousLoopDepth := sema.loopDepth
 		sema.loopDepth = 0
 		defer func() {
+			sema.inDeferredCleanup = previousDeferred
 			sema.currentYield = previousYield
 			sema.loopDepth = previousLoopDepth
 		}()
@@ -896,6 +903,25 @@ func (sema *sema) checkVar(
 
 		// @fail and @catch unwrap the error from the tuple — only non-error elements
 		// are assigned to the variables. The error is checked at runtime.
+		if variable.IsDecl && fnCall.AtOp != nil && fnCall.AtOp.Propagates &&
+			fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
+			if _, err := sema.propagatedValue(variable.Expr, fnRetType); err != nil {
+				return err
+			}
+		}
+		if !variable.IsDecl && fnCall.AtOp != nil && fnCall.AtOp.Propagates {
+			if len(variable.Names) != 1 {
+				return assignmentArityDiagnostic(variable.Expr.Span)
+			}
+			return sema.checkVarExpr(
+				variable.Names[0],
+				variable.Expr,
+				referenceScope,
+				declScope,
+				fromImportPackage,
+				isArg,
+			)
+		}
 		if !variable.IsDecl && fnCall.AtOp != nil && fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
 			return unsupportedErrorAssignment(variable.Expr.Span)
 		}
@@ -1286,7 +1312,7 @@ func (sema *sema) checkFieldAccessExpr(
 		return nil, diagnostics.Diag{
 			Title:   "Foreign array copy",
 			Message: "C array fields cannot be assigned as whole-array values",
-			Span:    variable.Left.Name.Span,
+			Span:    field.Name.Span,
 			Help:    "Initialize the field in its record literal or assign individual elements.",
 			Related: []diagnostics.Related{
 				{Span: field.Name.Span, Message: "C array field declared here"},
@@ -1296,6 +1322,9 @@ func (sema *sema) checkFieldAccessExpr(
 
 	if sema.readOnlyStorage(&ast.Node{Node: variable}, referenceScope) {
 		return nil, constMutation(expr.Span)
+	}
+	if !(&ast.Node{Kind: ast.KIND_FIELD_ACCESS, Node: variable}).IsAddressable() {
+		return nil, fmt.Errorf("field assignment requires addressable storage")
 	}
 	exprTy, err := sema.inferExprTypeWithContext(
 		expr,
@@ -1324,6 +1353,21 @@ func (sema *sema) getAccessedField(
 	referenceScope *ast.Scope,
 	// fromImportPackage bool,
 ) (*ast.IdExpr, *ast.StructField, error) {
+	if fieldAccess.Receiver != nil {
+		ty, _, err := sema.inferExprTypeWithoutContext(
+			fieldAccess.Receiver,
+			referenceScope,
+			referenceScope,
+			false,
+			false,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		fieldAccess.ReceiverType = ty
+		fieldAccess.ReadOnly = sema.readOnlyStorage(fieldAccess.Receiver, referenceScope)
+		return sema.resolveFieldAccess(fieldAccess, ty, referenceScope)
+	}
 	id := fieldAccess.Left.Name.Name()
 	sym, err := referenceScope.LookupAcrossScopes(id)
 	if err != nil {
@@ -1603,8 +1647,17 @@ func (sema *sema) checkFnCall(
 	var err error
 	_, localBuiltinLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
 	_, declBuiltinLookup := declScope.LookupAcrossScopes(fnCall.Name.Name())
-	if isMemoryBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil &&
+	if isConversionBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil &&
 		declBuiltinLookup != nil {
+		ty, err := sema.checkConversion(fnCall, referenceScope, declScope, fromImportPackage)
+		if err != nil {
+			return nil, err
+		}
+		return sema.checkCallAtOperator(fnCall, ty, referenceScope, fromImportPackage, isArg)
+	}
+	if fnCall.Builtin == "zero" ||
+		(isMemoryBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil &&
+			declBuiltinLookup != nil) {
 		ty, err := sema.checkMemoryBuiltin(fnCall, referenceScope, declScope, fromImportPackage)
 		if err != nil {
 			return nil, err
@@ -1776,6 +1829,57 @@ func (sema *sema) checkCallAtOperator(
 	referenceScope *ast.Scope,
 	fromImportPackage, isArg bool,
 ) (*ast.ExprType, error) {
+	fnCall.ResultType = retType
+	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_TRY {
+		if sema.inDeferredCleanup {
+			return nil, diagnostics.Diag{
+				Title:   "Invalid deferred propagation",
+				Message: "@try cannot propagate from deferred cleanup; handle cleanup errors without returning",
+				Span:    fnCall.Name.Span,
+			}
+		}
+		if !returnsError(retType) || sema.currentReturnType == nil ||
+			!returnsError(sema.currentReturnType) {
+			return nil, diagnostics.Diag{
+				Title:   "Invalid error propagation",
+				Message: "@try requires an error-returning call and an enclosing function returning error or a tuple ending in error",
+				Span:    fnCall.Name.Span,
+			}
+		}
+		// Lower propagation to an ordinary returning catch so all existing return
+		// value capture and block-scoped deferred cleanup rules apply unchanged.
+		name := token.New([]byte("__telia_try_error"), token.ID, fnCall.Name.Pos)
+		value := &ast.Node{Kind: ast.KIND_ID_EXPR, Node: &ast.IdExpr{Name: name}}
+		if sema.currentReturnType.Kind == ast.EXPR_TYPE_TUPLE {
+			types := sema.currentReturnType.T.(*ast.TupleType).Types
+			values := make([]*ast.Node, 0, len(types))
+			for _, ty := range types[:len(types)-1] {
+				values = append(values, &ast.Node{Kind: ast.KIND_FN_CALL, Node: &ast.FnCall{
+					Builtin: "zero",
+					Name: token.New(
+						[]byte("zero"),
+						token.ID,
+						fnCall.Name.Pos,
+					), TypeArgs: []*ast.ExprType{ty},
+				}})
+			}
+			value = &ast.Node{
+				Kind: ast.KIND_TUPLE_LITERAL_EXPR,
+				Node: &ast.TupleExpr{Exprs: append(values, value)},
+			}
+		}
+		fnCall.AtOp.Kind = ast.AT_OPERATOR_CATCH
+		fnCall.AtOp.Propagates = true
+		fnCall.AtOp.Op = &ast.CatchAtOperator{
+			ErrVarName: name,
+			Block: &ast.BlockStmt{Statements: []*ast.Node{
+				{
+					Kind: ast.KIND_RETURN_STMT,
+					Node: &ast.ReturnStmt{Return: fnCall.Name, Value: value},
+				},
+			}},
+		}
+	}
 	if fnCall.AtOp != nil && fnCall.AtOp.Kind == ast.AT_OPERATOR_FAIL {
 		if !returnsError(retType) {
 			pos := fnCall.Name.Pos
@@ -2158,6 +2262,10 @@ func (s *sema) inferExprTypeWithContext(
 			declScope,
 			fromImportPackage,
 		)
+		if err != nil {
+			return nil, err
+		}
+		actual, err = s.propagatedValue(expr, actual)
 		if err != nil {
 			return nil, err
 		}
@@ -2862,7 +2970,10 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 		fromImportPackage,
 		isArg,
 	)
-	return fnRetType, err
+	if err != nil {
+		return nil, err
+	}
+	return sema.propagatedValue(&ast.Node{Node: fnCall}, fnRetType)
 }
 
 func (sema *sema) inferVoidExprTypeWithContext(expectedType *ast.ExprType) (*ast.ExprType, error) {
@@ -3001,7 +3112,7 @@ func (s *sema) inferStructFieldAccessExprWithContext(
 	if !typeAssignable(field.Type, expectedType) {
 		return nil, fmt.Errorf(
 			"%s type mismatch on struct field access, expected %s, got %s\n",
-			fieldAccess.Left.Name.Pos,
+			field.Name.Pos,
 			expectedType.T,
 			field.Type.T,
 		)
@@ -3311,6 +3422,10 @@ func (sema *sema) inferFnCallExprTypeWithoutContext(
 		fromImportPackage,
 		isArg,
 	)
+	if err != nil {
+		return nil, true, err
+	}
+	fnRetType, err = sema.propagatedValue(&ast.Node{Node: fnCall}, fnRetType)
 	return fnRetType, true, err
 }
 
@@ -3328,6 +3443,12 @@ func (sema *sema) inferNamespaceAccessExprTypeWithoutContext(
 	)
 	if err == nil && namespaceAccess.IsImport && namespaceAccess.Right.Kind == ast.KIND_ID_EXPR {
 		return ty, ty.Explicit, nil
+	}
+	if err == nil {
+		ty, err = sema.propagatedValue(
+			&ast.Node{Kind: ast.KIND_NAMESPACE_ACCESS, Node: namespaceAccess},
+			ty,
+		)
 	}
 	return ty, true, err
 }
@@ -3810,6 +3931,13 @@ func (s *sema) checkAssignment(
 				return err
 			}
 
+			if fnCall.AtOp != nil && fnCall.AtOp.Propagates {
+				if err := s.checkVarExpr(assignment.Targets[t], expr, referenceScope, declScope, fromImportPackage, isArg); err != nil {
+					return err
+				}
+				t++
+				continue
+			}
 			if fnRetType.Kind == ast.EXPR_TYPE_TUPLE {
 				if fnCall.AtOp != nil {
 					return unsupportedErrorAssignment(expr.Span)

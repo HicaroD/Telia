@@ -58,7 +58,7 @@ output on the same stream unless you explicitly flush the libc stream.
 
 ```rust
 input := terminal::stdin()
-saved := terminal::apply_mode(&input, terminal::raw_mode()) @fail
+saved := terminal::apply_mode(&input, terminal::raw_mode()) @try
 defer terminal::restore(&saved)
 ```
 
@@ -76,7 +76,7 @@ update bookkeeping flags such as macOS `PENDIN`. Cleanup is explicit, not a
 process-wide exit or signal hook: forced termination cannot guarantee restoration.
 
 Telia's `@fail` terminates without running defers. After acquiring terminal
-state, use `@catch` and return errors so cleanup runs; put the fatal `@fail`
+state, use `@try` in an error-returning function so cleanup runs; put the fatal `@fail`
 boundary outside the owning function, as the interactive examples do. Deferred
 cleanup errors are not automatically propagated: explicitly check `restore` on
 normal shutdown when you need to report restoration failures.
@@ -95,7 +95,7 @@ event := terminal::wait(&input, terminal::WaitOptions{
     input: true,
     resize: true,
     timeout_ms: 100,
-}) @fail
+}) @try
 ```
 
 `WaitResult` contains `input`, `resized`, and `timed_out`. Input and resize may be

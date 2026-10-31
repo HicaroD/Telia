@@ -79,9 +79,11 @@ func (n *NamespaceAccess) String() string {
 }
 
 type FieldAccess struct {
-	ReadOnly bool
-	Left     *IdExpr
-	Right    *Node
+	Receiver     *Node
+	ReceiverType *ExprType
+	ReadOnly     bool
+	Left         *IdExpr
+	Right        *Node
 
 	// Codegen
 	AccessedField *StructField
@@ -93,6 +95,9 @@ type FieldAccess struct {
 }
 
 func (f *FieldAccess) String() string {
+	if f.Receiver != nil {
+		return fmt.Sprintf("%v.%v\n", f.Receiver, f.Right)
+	}
 	return fmt.Sprintf("%v.%v\n", f.Left, f.Right)
 }
 
@@ -183,7 +188,11 @@ func (n *Node) IsAddressable() bool {
 	case KIND_ID_EXPR:
 		id := n.Node.(*IdExpr)
 		return id.N == nil || id.N.Kind != KIND_CONST_DECL
-	case KIND_FIELD_ACCESS, KIND_DEREF_POINTER_EXPR:
+	case KIND_FIELD_ACCESS:
+		f := n.Node.(*FieldAccess)
+		return f.Receiver == nil || (f.ReceiverType != nil && f.ReceiverType.IsPointer()) ||
+			f.Receiver.IsAddressable()
+	case KIND_DEREF_POINTER_EXPR:
 		return true
 	case KIND_INDEX_EXPR:
 		i := n.Node.(*IndexExpr)

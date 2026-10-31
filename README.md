@@ -47,3 +47,10 @@ Add `$env:LOCALAPPDATA\Telia\bin` to your user `PATH` for future terminals.
 
 See the [installation guide](docs/installation.md) for manual installation,
 customization, upgrades, and release publishing.
+
+## Language guides
+
+- [Collections and composed field access](docs/collections.md)
+- [Explicit integer and pointer conversions](docs/conversions.md)
+- [Errors and cleanup-safe propagation](docs/errors.md)
+- [Memory ownership and transfer](docs/strings-and-memory.md#ownership-conventions-and-transfer)

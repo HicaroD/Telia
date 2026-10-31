@@ -92,7 +92,7 @@ ShiftExpr      = Term ( ( "<<" | ">>" ) Term )* ;
 Term           = Factor [ ( "+" | "-" ) Factor ] ;
 Factor         = UnaryExpr [ ( "*" | "/" ) UnaryExpr ] ;
 UnaryExpr      = [ "not" | "~" | "-" | "&" | "*" ] PrimaryExpr ;
-PrimaryExpr    = AtomExpr ( IndexSuffix | SliceSuffix )* ;
+PrimaryExpr    = AtomExpr ( IndexSuffix | SliceSuffix | FieldSuffix | CallSuffix )* ;
 AtomExpr       = Literal
                | ID
                | "(" Expr ")"
@@ -106,12 +106,15 @@ AtomExpr       = Literal
                 ;
 
 IndexSuffix    = "[" Expr "]" ;
-SliceSuffix    = "[" [ Expr ] ":" [ Expr ] "]" [ "@" ID [ Block ] ] ;
+FieldSuffix    = "." ID ;
+CallSuffix     = "(" [ Expr ( "," Expr )* ] ")" [ AtOperator ] ;
+AtOperator     = "@" ( "try" | "fail" | "catch" ID Block ) ;
+SliceSuffix    = "[" [ Expr ] ":" [ Expr ] "]" [ AtOperator ] ;
 ArrayLiteral   = "." "{" [ Expr ( "," Expr )* [ "," ] ] "}" ;
 
 Literal        = INT | FLOAT | STRING | "true" | "false" | "nil" ;
 ErrorConstructor = "error" "(" Expr [ "," Expr ] [ "," ] ")" ;
-FnCall         = ID "(" [ Expr ( "," Expr )* ] ")" [ "@" ID [ Block ] ] ;
+FnCall         = ID [ TypeArgs ] CallSuffix ;
 FieldAccess    = ID ( "." ID )+ ;
 NamespaceAccess= ID ( "::" ID )+ ;
 (* The optional dot in named literals/patterns is legacy compatibility only. *)
