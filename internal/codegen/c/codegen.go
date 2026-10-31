@@ -24,6 +24,10 @@ const preamble = `#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 _Static_assert(sizeof(size_t) == sizeof(uint64_t), "Telia libc bindings require 64-bit size_t");
 
@@ -40,15 +44,40 @@ static inline bool _telia_string_equal(_String a, _String b) {
     return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
 }
 
+// Flush before changing modes so buffered C interop output keeps its text semantics.
+static inline int _telia_begin_byte_output(FILE *stream) {
+#ifdef _WIN32
+    fflush(stream);
+    return _setmode(_fileno(stream), _O_BINARY);
+#else
+    (void)stream;
+    return 0;
+#endif
+}
+
+static inline void _telia_end_byte_output(FILE *stream, int mode) {
+#ifdef _WIN32
+    fflush(stream);
+    if (mode != -1) _setmode(_fileno(stream), mode);
+#else
+    (void)stream;
+    (void)mode;
+#endif
+}
+
 static inline void _telia_println(_String text) {
+    int mode = _telia_begin_byte_output(stdout);
     if (text.len) fwrite(text.data, 1, text.len, stdout);
     fputc('\n', stdout);
+    _telia_end_byte_output(stdout, mode);
 }
 
 static inline void _panic(_String msg) {
+    int mode = _telia_begin_byte_output(stderr);
     fputs("runtime panic: ", stderr);
     if (msg.len) fwrite(msg.data, 1, msg.len, stderr);
     fputc('\n', stderr);
+    _telia_end_byte_output(stderr, mode);
     exit(1);
 }
 

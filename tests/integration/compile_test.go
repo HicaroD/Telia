@@ -90,12 +90,13 @@ func TestCStringConversionOwnsTerminatedStorageAndRejectsZeros(t *testing.T) {
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
-	want := "Olá\nOlá\n[]\nrejected\nstatic\n"
-	// These lines use C stdio, whose Windows text mode translates LF to CRLF.
+	cNewline := "\n"
+	// Only C stdio lines use Windows text-mode newline translation.
 	// Keep captured output untouched so byte-preservation tests remain strict.
 	if runtime.GOOS == "windows" {
-		want = strings.ReplaceAll(want, "\n", "\r\n")
+		cNewline = "\r\n"
 	}
+	want := "Olá" + cNewline + "Olá\n[]" + cNewline + "rejected\nstatic\n"
 	if output != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
@@ -163,6 +164,9 @@ func TestQualifiedFailPanicsOnStringRangeError(t *testing.T) {
 }
 
 func TestStringMemoryWithNativeSanitizers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("MinGW-w64 does not provide the required sanitizer runtime")
+	}
 	sanitizers := os.Getenv("TELIA_TEST_SANITIZERS")
 	if sanitizers == "" {
 		sanitizers = "undefined"
@@ -216,7 +220,7 @@ func TestStringValuesAndEmptyErrors(t *testing.T) {
 	}
 }
 
-func TestPanicPreservesMessageBytes(t *testing.T) {
+func TestStringPanicPreservesMessageBytes(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/string_error_bytes.t")
 	if len(diags.Diags) > 0 {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
@@ -224,6 +228,36 @@ func TestPanicPreservesMessageBytes(t *testing.T) {
 	output, err := compiler.RunBinary(path)
 	if err == nil || output != "runtime panic: A\x00Bé\n" {
 		t.Fatalf("want byte-preserving panic, got %q, %v", output, err)
+	}
+}
+
+func TestStringOutputPreservesLineEndingBytes(t *testing.T) {
+	// Use literal CR bytes because Telia does not have a carriage-return escape.
+	literal := "\"A\\0B\\nLF\r\\nCRLF\r\""
+	for _, panicOutput := range []bool{false, true} {
+		name, body, prefix := "println", "io::println("+literal+")", ""
+		if panicOutput {
+			name, body, prefix = "panic", "fail() @fail", "runtime panic: "
+		}
+		t.Run(name, func(t *testing.T) {
+			source := "package main\nuse \"std::io\"\nfn fail() error {\nreturn error(" + literal + ")\n}\nfn main() i32 {\n" + body + "\nreturn 0\n}\n"
+			fixture := filepath.Join(t.TempDir(), "line_endings.t")
+			if err := os.WriteFile(fixture, []byte(source), 0600); err != nil {
+				t.Fatal(err)
+			}
+			path, diags := compiler.CompileOnly(fixture)
+			if len(diags.Diags) > 0 {
+				t.Fatalf("compile: %v", diags.Diags)
+			}
+			defer removeTestBinary(t, path)
+			output, err := compiler.RunBinary(path)
+			if (err != nil) != panicOutput {
+				t.Fatalf("execution: %v: %q", err, output)
+			}
+			if want := prefix + "A\x00B\nLF\r\nCRLF\r\n"; output != want {
+				t.Fatalf("want %q, got %q", want, output)
+			}
+		})
 	}
 }
 
