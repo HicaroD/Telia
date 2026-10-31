@@ -2,6 +2,16 @@
 
 The CI workflow runs separate build, full test suite, formatting, and lint checks
 on Ubuntu 24.04 for pull requests and pushes to `master`, or by manual dispatch.
+The **Native vendor packages** workflow uses the same triggers for its four
+platforms. Both workflows cancel superseded runs for the same branch or PR.
+The general CI workflow owns the full Go suite; the native matrix runs the
+platform-specific checks rather than repeating the full suite on Linux.
+
+Version tag pushes run **Release** instead of either test workflow. Release
+requires successful `master` push runs for the exact tagged commit and reuses
+their SDL artifacts. Only versioned packaging, extracted-bundle smoke tests, and
+Windows installer checks run again. Missing or expired artifacts block release;
+there is no automatic expensive rebuild. See [publishing a release](installation.md#publishing-a-release).
 
 ## Run locally
 

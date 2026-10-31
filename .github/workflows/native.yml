@@ -2,11 +2,16 @@ name: Native vendor packages
 
 on:
   push:
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   sdl:
@@ -23,6 +28,7 @@ jobs:
           - os: windows-2022
             target: windows-amd64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
@@ -68,61 +74,30 @@ jobs:
         run: go test ./tests/integration -run '^TestTerminal' -count=1 -timeout=10m
       - name: Foreign ABI regression fixtures
         run: go test ./internal/sema ./tests/integration -run 'Test(HeaderOwned|Foreign|NamedExtern|Const|Callback|Callbacks|LibcScalar|CScalar|CVariadic|GenericCallback|BorrowedVaList|NativeCallback|LegacyRawPointerVa|ImportedBareFunction|Va|GenericVa|DereferencingVaArg)' -count=1
-      - name: Full suite on Linux
-        if: runner.os == 'Linux'
-        run: go test ./...
       - name: Archive native artifacts without losing symlinks
         run: tar -czf sdl-${{ matrix.target }}.tar.gz -C base/vendor/sdl artifacts/${{ matrix.target }} LICENSE-SDL.txt
+      - name: Read SDL artifact version
+        id: native
+        run: python3 -c 'import json; print("version=" + json.load(open("base/vendor/sdl/native.json"))["version"])' >> "$GITHUB_OUTPUT"
       - name: Package ready-to-use Telia release
         run: |
-          version=dev
-          if [ "$GITHUB_REF_TYPE" = tag ]; then version="$GITHUB_REF_NAME"; fi
-          python3 scripts/package-release.py --output telia-${{ matrix.target }}.tar.gz --version "$version" --commit "$GITHUB_SHA"
-          python3 scripts/smoke-release.py telia-${{ matrix.target }}.tar.gz --version "$version"
+          python3 scripts/package-release.py --output telia-${{ matrix.target }}.tar.gz --version dev --commit "$GITHUB_SHA"
+          python3 scripts/smoke-release.py telia-${{ matrix.target }}.tar.gz --version dev
       - name: Windows installer checks (offline)
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/test-install.ps1 -Archive telia-windows-amd64.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: sdl-3.2.28-${{ matrix.target }}
+          name: sdl-${{ steps.native.outputs.version }}-${{ matrix.target }}
           path: sdl-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         with:
           name: telia-${{ matrix.target }}
           path: telia-${{ matrix.target }}.tar.gz
-
-  release:
-    name: Publish GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: sdl
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: telia-*
-          merge-multiple: true
-          path: release
-      - name: Include installers and checksums
-        run: |
-          cp scripts/install.sh scripts/install.ps1 release/
-          cd release
-          sha256sum telia-*.tar.gz install.sh install.ps1 > SHA256SUMS
-      - name: Publish tested bundles together
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft > "$RUNNER_TEMP/release-draft"; then
-            test "$(cat "$RUNNER_TEMP/release-draft")" = true || { echo 'Release is already published; refusing to overwrite it.'; exit 1; }
-          else
-            flags=()
-            if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
-            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --generate-notes "${flags[@]}"
-          fi
-          gh release upload "$GITHUB_REF_NAME" release/* --clobber
-          gh release edit "$GITHUB_REF_NAME" --draft=false
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7

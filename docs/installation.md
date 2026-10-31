@@ -46,17 +46,30 @@ symlink/launcher, then remove any `PATH` entry you added.
 
 ## Publishing a release
 
-Push a version tag pointing to the commit you want to ship:
+Push your changes to `master` and wait for both **CI** and **Native vendor
+packages** to succeed for the exact commit you want to ship. Then tag that
+tested commit and push the tag:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.1 TESTED_COMMIT_SHA
+git push origin v0.2.1
 ```
 
-The **Native vendor packages** workflow builds and tests all four platforms,
-extracts each bundle outside the checkout, compiles and runs hello-world, then
-publishes the archives, installers, and `SHA256SUMS` together. Tags containing
-`-` (such as `v0.1.0-rc.1`) are published as prereleases.
+The tag starts the lightweight **Release** workflow, not another full CI/native
+test run. It verifies successful `master` push runs of both workflows for that
+exact commit and downloads the tested SDL artifacts. It then rebuilds the
+compiler with the release version embedded, packages all four platforms, and
+smoke-tests the extracted bundles outside the checkout. Windows also checks its
+installer. Only when all platforms pass are the archives, installers, and
+`SHA256SUMS` published together. Tags containing `-` (such as `v0.2.1-rc.1`) are
+published as prereleases. Published releases cannot be overwritten.
 
-Until the first stable release is published, release-based installers will not
-work. Bundles are also available from successful workflow runs under **Actions**.
+Release stops if either workflow is unfinished or unsuccessful, or if its
+matching native artifacts are missing, expired, or ambiguous. It never silently
+rebuilds SDL or borrows artifacts from another commit, a PR, or a fork. Native
+artifacts are retained for 30 days; rerun the original **Native vendor packages**
+`master` push run for that commit if they expire, then rerun the failed release.
+Fix a failing check and test the new commit before creating a new version tag.
+
+Development bundles are also available for seven days from successful native
+workflow runs under **Actions**.

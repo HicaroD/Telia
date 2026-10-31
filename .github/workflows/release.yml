@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify tested release commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+      sdl_version: ${{ steps.source.outputs.sdl_version }}
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require successful master CI and available native artifacts
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/release-source.py --repository "$GITHUB_REPOSITORY" \
+            --commit "$(git rev-parse HEAD)" --output "$GITHUB_OUTPUT"
+
+  package:
+    name: Package ${{ matrix.target }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-amd64
+          - os: macos-15-intel
+            target: darwin-amd64
+          - os: macos-15
+            target: darwin-arm64
+          - os: windows-2022
+            target: windows-amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: msys2/setup-msys2@v2
+        if: runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Select Windows native toolchain
+        if: runner.os == 'Windows'
+        run: echo 'C:\msys64\ucrt64\bin' >> "$GITHUB_PATH"
+      - name: Configure checkout paths
+        run: |
+          python3 -c 'from pathlib import Path; Path("config/env").write_text("T_STD_PATH=" + str(Path("base/std").resolve()) + "\n")'
+      - name: Download tested native artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.verify.outputs.run_id }}
+          name: sdl-${{ needs.verify.outputs.sdl_version }}-${{ matrix.target }}
+          path: native-input
+      - name: Restore tested SDL files without rebuilding
+        run: tar -xzf native-input/sdl-${{ matrix.target }}.tar.gz -C base/vendor/sdl
+      - name: Build versioned bundle and smoke-test outside checkout
+        env:
+          RELEASE_COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          python3 scripts/package-release.py --output telia-${{ matrix.target }}.tar.gz --version "$GITHUB_REF_NAME" --commit "$RELEASE_COMMIT"
+          python3 scripts/smoke-release.py telia-${{ matrix.target }}.tar.gz --version "$GITHUB_REF_NAME"
+      - name: Windows installer checks (offline)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-install.ps1 -Archive telia-windows-amd64.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telia-${{ matrix.target }}
+          path: telia-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: telia-*
+          merge-multiple: true
+          path: release
+      - name: Include installers and checksums
+        run: |
+          cp scripts/install.sh scripts/install.ps1 release/
+          cd release
+          sha256sum telia-*.tar.gz install.sh install.ps1 > SHA256SUMS
+      - name: Publish tested bundles together
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft > "$RUNNER_TEMP/release-draft"; then
+            test "$(cat "$RUNNER_TEMP/release-draft")" = true || { echo 'Release is already published; refusing to overwrite it.'; exit 1; }
+          else
+            flags=()
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --generate-notes "${flags[@]}"
+          fi
+          gh release upload "$GITHUB_REF_NAME" release/* --clobber
+          gh release edit "$GITHUB_REF_NAME" --draft=false
