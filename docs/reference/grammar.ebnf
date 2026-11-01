@@ -82,7 +82,7 @@ VarClause      = VarTarget ( "," VarTarget )* ( ":=" | "=" ) ExprList ;
 VarTarget      = ( "*" )* ID [ Type ] ; (* Assignment also accepts writable fields/indexes. *)
 ExprList       = Expr ( "," Expr )* ;
 IfStmt         = "if" HeaderExpr Block ( "elif" HeaderExpr Block )* [ "else" Block ] ;
-ForStmt        = "for" ( VarClause ";" Expr ";" VarClause | ID "in" HeaderExpr ) Block ;
+ForStmt        = "for" ( VarClause ";" Expr ";" VarClause | ID { "," ID } "in" HeaderExpr ) Block ;
 WhileStmt      = "while" HeaderExpr Block ;
 DeferStmt      = "defer" Statement ;
 ExprStmt       = Expr NEWLINE ;

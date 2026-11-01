@@ -19,12 +19,7 @@ fn run() error {
     inserted := maps::insert_if_absent(&scores, "alice", 99) @try
     value := maps::get_ptr(&scores, "alice")
     *value = *value + 5
-    iterator := maps::iter(&scores)
-    while true {
-        key, current, found := maps::next(&iterator)
-        if not found {
-            break
-        }
+    for key, current in scores {
         io::println(key)
         libc::printf("%d\n", current)
     }
