@@ -73,8 +73,8 @@ Sets delegate `clone_in`, `reserve`, `clear`, and `release` and initialize
 identity, then `insert_new` only for absent elements. Removal returns the stored
 key and marks its control deleted, without reading/exposing the dummy value.
 Explicit `Iterator<T>` holds `source *Set<T>` and `index u64`; next scans live
-controls and returns `(T, bool)`. Direct-loop lowering remains a later slice;
-it must use the same live-handle borrowing semantics, not copy an owner.
+controls and returns `(T, bool)`. Direct-loop lowering uses those same operations
+on borrowed live storage; it never copies a lifecycle owner.
 
 ## Native test seams and evidence
 

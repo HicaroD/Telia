@@ -10,6 +10,7 @@ use "std::io"
 @[default_cc="c"]
 extern {
     fn _map_nan() f64
+    fn _map_infinity() f64
     fn _map_negative_zero() f64
     fn _map_malformed() c::ConstCString
 }
@@ -108,6 +109,8 @@ fn main() i32 {
     roundtrip<c::c_long>(-7, -7)
     roundtrip<c::c_ulong>(7, 7)
     roundtrip<f64>(0.0, _map_negative_zero())
+    roundtrip<f64>(_map_infinity(), _map_infinity())
+    roundtrip<f64>(-_map_infinity(), -_map_infinity())
     roundtrip<f32>(0.0, -0.0)
     roundtrip<float>(1.5, 1.5)
     roundtrip<string>("", zero<string>())
