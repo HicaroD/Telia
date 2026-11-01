@@ -47,6 +47,11 @@ func (c *CCodegen) equalValues(ty *ast.ExprType, a, b string) string {
 		return conjunction(parts)
 	case ast.EXPR_TYPE_ARRAY:
 		seq := ty.T.(*ast.SequenceType)
+		// Empty arrays have only a dummy byte, not a data member. Their
+		// operands have already been captured by emitEquality in source order.
+		if seq.Length == 0 {
+			return "1"
+		}
 		i, result := c.nextTmp(), c.nextTmp()
 		field := ".data[" + i + "]"
 		return fmt.Sprintf(
