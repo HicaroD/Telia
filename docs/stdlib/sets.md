@@ -45,8 +45,8 @@ exhausted iterators return zero/false, including on repeated calls.
 
 `zero<Set<T>>()` is immediately usable in heap mode. `memory::take(&set)`
 transfers the handle and leaves such a usable zero source. Repeated clear/free
-of the same handle is harmless. Direct `for ... in set` is not supported yet;
-use explicit iteration.
+of the same handle is harmless. Prefer `for element in set` for borrowed
+iteration; explicit iterators remain available.
 
 Signed floating zero is one element; inserting an equal opposite-sign zero
 preserves the sign originally stored. NaN does not equal itself, including
@@ -79,11 +79,19 @@ elements and every NaN, but not capacity, layout, seed, or iteration order.
 `clone` always selects heap; `clone_in` selects its argument, not the source
 allocator. Empty clones require no allocation/seed, even from reserved sources.
 
-Explicit iterators borrow the set handle at its current live address and visit
+Direct loops and explicit iterators borrow the set handle at its current live address and visit
 every live element once in unspecified order. No insertion (even duplicates),
 removal, reservation, clear, free, transfer, or structural mutation is permitted
 during iteration. This is a caller contract, not borrow checking. Assigning to
 a returned element copy does not modify the set.
+
+Direct loops require exactly one binding name and addressable, mutable storage;
+store returned temporary sets in a variable before iterating. The source is
+evaluated once without creating another owner. See
+[collection iteration](../reference/collections.md#maps-and-sets) for lifetime
+requirements and normal loop cleanup/control flow. For manual stepping, use
+`cursor := sets::iter(&set)` followed by fresh `element, found := sets::next(&cursor)`
+bindings inside a `while true` loop, breaking when `not found`.
 
 Construction creates no borrows. Reads, failed operations, no-op reserve, and
 cloning preserve source iterators and backing. Mutating/freeing an independent
@@ -146,12 +154,7 @@ fn run() error {
     copy := sets::clone(&visited) @try
     defer sets::free(&copy)
     sets::clear(&visited)
-    cursor := sets::iter(&copy)
-    while true {
-        position, found := sets::next(&cursor)
-        if not found {
-            break
-        }
+    for position in copy {
         if position.x == 3 and position.y == 7 {
             io::println("3,7")
         }

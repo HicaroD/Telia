@@ -170,7 +170,11 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	case *ast.ForLoop:
 		inner := ast.NewScope(scope)
 		if v.Range != nil {
-			copy.Node = &ast.ForLoop{Scope: inner, Range: c.node(v.Range, inner), Binding: &ast.VarIdStmt{Name: v.Binding.Name}, Block: c.block(v.Block, inner)}
+			loop := &ast.ForLoop{Scope: inner, Range: c.node(v.Range, inner), Block: c.block(v.Block, inner)}
+			for _, binding := range v.Bindings {
+				loop.Bindings = append(loop.Bindings, &ast.VarIdStmt{Name: binding.Name})
+			}
+			copy.Node = loop
 			break
 		}
 		copy.Node = &ast.ForLoop{Scope: inner, Init: c.node(v.Init, inner), Cond: c.node(v.Cond, inner), Update: c.node(v.Update, inner), Block: c.block(v.Block, inner)}

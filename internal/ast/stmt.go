@@ -116,7 +116,9 @@ type ElseCond struct {
 
 type ForLoop struct {
 	Range     *Node
-	Binding   *VarIdStmt
+	Bindings  []*VarIdStmt
+	RangeIter *FnDecl // concrete standard-library iter/next; nil for sequences
+	RangeNext *FnDecl
 	RangeType *ExprType
 	Init      *Node
 	Cond      *Node

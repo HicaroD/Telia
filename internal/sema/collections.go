@@ -16,6 +16,73 @@ func isMemoryBuiltin(name string) bool {
 	return false
 }
 
+// Direct container loops borrow the original handle and use precisely the
+// library iterator specializations, not a name-based user iterator protocol.
+func (s *sema) checkRangeBindings(loop *ast.ForLoop, scope *ast.Scope) error {
+	ty := loop.RangeType
+	var types []*ast.ExprType
+	if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
+		types = []*ast.ExprType{ty.T.(*ast.SequenceType).Element}
+	} else {
+		var container *ast.StructDecl
+		if ty.Kind == ast.EXPR_TYPE_STRUCT {
+			container = ty.T.(*ast.StructType).Decl
+		}
+		if container == nil || container.Template == nil || container.Template.Owner == nil {
+			return fmt.Errorf("iteration requires an array, slice, std::maps::Map or std::sets::Set")
+		}
+		template := container.Template
+		pkg := template.Owner
+		name := template.Name.Name()
+		if !((pkg.StandardPath == "maps" && name == "Map") || (pkg.StandardPath == "sets" && name == "Set")) {
+			return fmt.Errorf("iteration requires an array, slice, std::maps::Map or std::sets::Set")
+		}
+		// Confirm declaration identity in the canonical package, not just spelling.
+		decl, ok := pkg.Scope.Nodes[name]
+		if !ok || decl.Node != template {
+			return fmt.Errorf("iteration requires a standard container declaration")
+		}
+		if !loop.Range.IsAddressable() {
+			return fmt.Errorf("container iteration requires addressable live storage; store temporary containers in a variable first")
+		}
+		if s.readOnlyStorage(loop.Range, scope) {
+			return fmt.Errorf("container iteration requires mutable live storage")
+		}
+		types = container.TypeArgs
+		for i, name := range []string{"iter", "next"} {
+			node, ok := pkg.Scope.Nodes[name]
+			if !ok {
+				return fmt.Errorf("missing standard container %s", name)
+			}
+			fn, err := s.instantiateFunction(node.Node.(*ast.FnDecl), container.TypeArgs, scope, loop.Bindings[0].Name)
+			if err != nil {
+				return err
+			}
+			if i == 0 {
+				loop.RangeIter = fn
+			} else {
+				loop.RangeNext = fn
+			}
+		}
+	}
+	if len(loop.Bindings) != len(types) {
+		return fmt.Errorf(
+			"iteration requires %d binding(s), got %d",
+			len(types),
+			len(loop.Bindings),
+		)
+	}
+	for i, binding := range loop.Bindings {
+		binding.Type = types[i]
+		node := &ast.Node{Kind: ast.KIND_VAR_ID_STMT, Node: binding}
+		binding.N = node
+		if err := loop.Scope.Insert(binding.Name.Name(), node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *sema) inferIndex(
 	index *ast.IndexExpr,
 	scope, decl *ast.Scope,

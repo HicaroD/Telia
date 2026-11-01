@@ -578,7 +578,9 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			if _, err := v.node(t.Range); err != nil {
 				return nil, err
 			}
-			v.locals[t.Binding.Name.Name()] = nil
+			for _, binding := range t.Bindings {
+				v.locals[binding.Name.Name()] = nil
+			}
 			return nil, v.block(t.Block)
 		}
 		for _, n := range []*ast.Node{t.Init, t.Cond, t.Update} {

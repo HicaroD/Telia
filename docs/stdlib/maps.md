@@ -47,8 +47,8 @@ keys, values, displaced values, or unused inputs.
 `zero<Map<K, V>>()` is immediately usable in heap mode.
 `memory::take(&map)` transfers the handle and leaves a usable zero source.
 Repeated `clear`/`free` of the same handle is harmless. See [sets](sets.md) for
-element-only containers. Direct `for ... in map` is not provided yet; use
-explicit iteration below.
+element-only containers. Prefer `for key, value in map` for borrowed iteration;
+explicit iterators remain available.
 
 Clones preserve every live entry, including stored-key identity and NaNs, but
 do not promise the source's capacity, bucket layout, seed, or iteration order.
@@ -118,7 +118,7 @@ all entry pointers. Remove invalidates only the removed entry; it does not
 shift other entries. Clear/free invalidate all entries. Taking a map preserves
 entry storage, but an iterator still borrows its original map handle.
 
-Explicit iterators visit every live entry once, with unspecified order, and
+Direct loops and explicit iterators visit every live entry once, with unspecified order, and
 allocate nothing. The borrowed map handle must remain at the same live address.
 Do not insert (including replacement), remove, reserve, clear, free, transfer,
 or otherwise structurally mutate it during iteration. Updating existing values
@@ -128,6 +128,12 @@ Clear/free invalidate iterators as well as entries. Reads, no-op reserve, failed
 operations, and cloning preserve iterators; the prohibition on structural
 operations during iteration still applies. Transferring the handle leaves entry
 pointers valid but invalidates iterators borrowing the old handle.
+
+Direct loops require exactly two binding names and addressable, mutable storage;
+store returned temporary maps in a variable before iterating. The source is
+evaluated once without creating another owner. See
+[collection iteration](../reference/collections.md#maps-and-sets) for lifetime
+requirements and normal loop cleanup/control flow.
 
 ## Allocation and checked failure
 
@@ -169,12 +175,7 @@ fn run() error {
     previous, updated := maps::insert(&scores, "alice", 20) @try
     value := maps::get_ptr(&scores, "alice")
     *value = *value + 5
-    iterator := maps::iter(&scores)
-    while true {
-        key, score, found := maps::next(&iterator)
-        if not found {
-            break
-        }
+    for key, score in scores {
         io::println(key)
         libc::printf("%d\n", score)
     }
@@ -199,6 +200,19 @@ alice
 
 See also [`examples/maps.t`](../../examples/maps.t) and the
 [engine contract](../contributing/maps-engine.md).
+
+For manual stepping, retain the explicit API:
+
+```rust
+iterator := maps::iter(&scores)
+while true {
+    key, score, found := maps::next(&iterator)
+    if not found {
+        break
+    }
+    // Use key and score; the same borrowing restrictions apply.
+}
+```
 
 ## Shallow ownership and arena clone example
 

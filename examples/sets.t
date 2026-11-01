@@ -27,12 +27,7 @@ fn run() error {
     sets::free(&selected)
     memory::arena_reset(&arena)
     // Independent heap backing survives reset. Its bytes are separately owned.
-    cursor := sets::iter(&heap)
-    while true {
-        name, found := sets::next(&cursor)
-        if not found {
-            break
-        }
+    for name in heap {
         io::println(name)
     }
     stored, removed := sets::remove(&heap, "shared")

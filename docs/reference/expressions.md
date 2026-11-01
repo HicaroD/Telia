@@ -191,8 +191,9 @@ for item in values {
 
 `while` tests before each iteration. Three-clause `for` runs its initializer
 once, tests before each iteration, and runs its update after the body.
-`for item in values` accepts arrays and slices, evaluates its source once, and
-binds a shallow element copy. Lists iterate through their borrowed view; there
+`for item in values` accepts arrays, slices, and standard-library sets; maps use
+`for key, value in scores`. Iteration evaluates its source once and
+binds shallow element or key/value copies. Lists iterate through their borrowed view; there
 is no generic user-defined iteration protocol.
 
 `break` exits the nearest loop; `continue` starts its next iteration (running a

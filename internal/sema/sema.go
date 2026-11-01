@@ -3887,14 +3887,8 @@ func (sema *sema) checkForLoop(
 		if err != nil {
 			return err
 		}
-		if ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
-			return fmt.Errorf("iteration requires an array or slice")
-		}
 		forLoop.RangeType = ty
-		forLoop.Binding.Type = ty.T.(*ast.SequenceType).Element
-		binding := &ast.Node{Kind: ast.KIND_VAR_ID_STMT, Node: forLoop.Binding}
-		forLoop.Binding.N = binding
-		if err := forLoop.Scope.Insert(forLoop.Binding.Name.Name(), binding); err != nil {
+		if err := sema.checkRangeBindings(forLoop, referenceScope); err != nil {
 			return err
 		}
 		sema.loopDepth++
