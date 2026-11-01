@@ -35,6 +35,6 @@ See [raw-storage operations](../reference/memory.md#low-level-storage-operations
 `take` requires a live mutable non-null pointer and a type whose zero state is
 inert and cleanup-safe. It does not free an overwritten destination, repair
 other copies, or move external references to the source's address. In particular,
-do not move an arena while lists still point to the old arena value.
+do not move an arena while lists or maps still point to the old arena value.
 See [transfer contracts and examples](strings-and-memory.md#ownership-conventions-and-transfer)
 and [detailed arena behavior](strings-and-memory.md#arenas).

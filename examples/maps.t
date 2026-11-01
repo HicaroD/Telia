@@ -34,6 +34,15 @@ fn run() error {
     maps::insert(&positions, Position{x: 3, y: 7}, "visited") @try
     label, found := maps::get(&positions, Position{x: 3, y: 7})
     io::println(label)
+    arena := memory::arena_create() @try
+    defer memory::arena_destroy(&arena)
+    selected := maps::clone_in(&positions, &arena) @try
+    defer maps::free(&selected)
+    independent := maps::clone(&selected) @try
+    defer maps::free(&independent)
+    maps::clear(&selected)
+    copied_label, copied_found := maps::get(&independent, Position{x: 3, y: 7})
+    io::println(copied_label)
     destination := memory::take(&scores)
     defer maps::free(&destination)
     return nil

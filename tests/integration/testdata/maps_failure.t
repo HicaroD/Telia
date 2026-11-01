@@ -60,6 +60,28 @@ fn main() i32 {
     kept_capacity := maps::capacity(&map)
     kept_seeds := _map_seed_calls()
     kept_allocations := _test_live_allocations()
+    _map_seed_failure(true)
+    seed_copy, clone_seed_error := maps::clone(&map)
+    testing::assert(clone_seed_error.kind == errors::Error::RandomnessFailed)
+    testing::assert(maps::count(&seed_copy) == 0 and maps::capacity(&seed_copy) == 0)
+    maps::free(&seed_copy)
+    testing::assert(maps::get_ptr(&map, 3) == pointer and *pointer == 13)
+    _map_seed_failure(false)
+    // Both independently allocated clone buffers must be cleaned on failure.
+    clone_attempt i64 := 0
+    while clone_attempt < 2 {
+        _test_fail_after(clone_attempt)
+        failed_copy, clone_error := maps::clone(&map)
+        testing::assert(clone_error.kind == errors::Error::AllocationFailed)
+        testing::assert(maps::count(&failed_copy) == 0 and maps::capacity(&failed_copy) == 0)
+        maps::free(&failed_copy)
+        maps::free(&failed_copy)
+        testing::assert(_test_live_allocations() == kept_allocations)
+        testing::assert(maps::get_ptr(&map, 3) == pointer and *pointer == 13)
+        testing::assert(maps::count(&map) == 7 and maps::capacity(&map) == kept_capacity)
+        clone_attempt = clone_attempt + 1
+    }
+    kept_seeds = _map_seed_calls()
     attempt = 0
     while attempt < 2 {
         _test_fail_after(attempt)

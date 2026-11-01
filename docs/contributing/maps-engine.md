@@ -30,12 +30,12 @@ zero-sized backend representation). There are no public hash callbacks.
 ## Internal operation contract
 
 `Table<K, V>` zero is heap mode. Its fields are private-by-convention. The
-`arena` pointer is an internal allocation-selection boundary prepared for later
-arena constructors; current maps expose only heap creation. `allocate<T>`
+`arena` pointer is the internal allocation-selection boundary used by map
+constructors and clones; null selects heap. `allocate<T>`
 checks byte arithmetic and selects heap or aligned arena allocation. `release`
 frees heap buffers or forgets arena buffers, then zeroes everything **except**
 the allocator pointer. Clear retains allocator, storage, and seed. No element
-destruction occurs. Later arena callers must keep the arena address/lifetime
+destruction occurs. Arena callers must keep the arena address/lifetime
 valid; failed partial arena allocation may consume arena space but must not
 publish a changed logical table.
 
@@ -57,13 +57,20 @@ publish a changed logical table.
   entry. Iterators retain a pointer to the map handle, scanning controls and
   reading live entries lazily; updating values via get_ptr is permitted.
 
-For the next arena/clone slice: initialize the allocator pointer on empty
-handles; preserve it through free. Clone must build an independent table and
-copy live entries **without equality**, clean partial heap buffers on failure,
-and return an empty cleanup-safe destination while preserving the source.
-An independently seeded clone must rehash semantic keys with its own seed;
-copying controls is only valid when the seed and bucket layout are retained.
-No arena/clone/set/direct-loop placeholders are exposed by this implementation.
+`clone_in(source, arena)` initializes an empty destination with the selected
+allocator and reserves for the source's live count. Empty clones need no storage
+or seed. Nonempty clones acquire their own seed, then `copy_live` rehashes semantic
+keys into vacant slots **without equality**. Rebuild shares `copy_live`, avoiding
+any NaN-coalescing or stored-key replacement path. Allocation failure returns an
+empty cleanup-safe destination and preserves the source; partial heap buffers
+are released, partial arena allocations remain arena-owned. Clone capacity is
+not a copy of source reservation. No set/direct-loop placeholders are exposed.
+
+Set handoff: wrap `Table<T, ConcreteEmptyRecord>` and delegate `clone_in`,
+`reserve`, `clear`, and `release`; initialize `.arena` for `create_in`. The record
+must have a verified nonzero C representation. Insert must use `find` first to
+preserve stored-element identity, then `insert_new` only for absent elements.
+Do not clone or rebuild via equality-based public insertion.
 
 ## Native test seams and evidence
 
@@ -74,7 +81,8 @@ fingerprints and final-group starts. `_TELIA_ENTROPY` controls seed failures;
 failures. These are build-time internal seams, never Telia-level callbacks.
 
 `TestMapsNative` runs lifecycle, 3,000-operation reference-model/churn, failure,
-key-matrix/NaN, owning-resource, and checked multi-result error fixtures at
+key-matrix/NaN, heap/arena clone and allocation-failure, alignment/reset/transfer,
+owning-resource, and checked multi-result error fixtures at
 `-O0`/`-O3`, with normal and
 forced-collision hashes, and UBSan. `TestMapsRejectInvalidKeysAtInstantiation`
 checks unsupported-key diagnostics even for unused constructors. The key

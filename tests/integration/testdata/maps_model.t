@@ -3,6 +3,7 @@ package main
 use "std::maps"
 use "std::testing"
 use "std::io"
+use "std::memory"
 
 fn verify(map *maps::Map<u64, u64>, present bool[], model u64[]) {
     expected u64 := 0
@@ -41,8 +42,8 @@ fn verify(map *maps::Map<u64, u64>, present bool[], model u64[]) {
     return
 }
 
-fn main() i32 {
-    map := maps::create<u64, u64>()
+fn run(arena *memory::Arena) {
+    map := maps::create_in<u64, u64>(arena)
     defer maps::free(&map)
     present bool[128] := .{}
     model u64[128] := .{}
@@ -109,6 +110,16 @@ fn main() i32 {
             present = zero<bool[128]>()
             testing::assert(maps::capacity(&map) == kept)
         }
+        if round == 1000 or round == 2000 {
+            copy := maps::clone_in(&map, arena) @fail
+            verify(&copy, present[:], model[:])
+            maps::clear(&copy)
+            verify(&map, present[:], model[:])
+            maps::free(&copy)
+            heap := maps::clone(&map) @fail
+            verify(&heap, present[:], model[:])
+            maps::free(&heap)
+        }
         round = round + 1
     }
     verify(&map, present[:], model[:])
@@ -130,6 +141,14 @@ fn main() i32 {
         testing::assert(maps::capacity(&map) == 7)
         round = round + 1
     }
+    return
+}
+
+fn main() i32 {
+    run(nil)
+    arena := memory::arena_create() @fail
+    defer memory::arena_destroy(&arena)
+    run(&arena)
     io::println("model ok")
     return 0
 }
