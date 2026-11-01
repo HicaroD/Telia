@@ -16,6 +16,13 @@ is `name Type`, not `name: Type`. The right-hand side must provide the same
 number of values as the destinations. Inference fixes a variable's type; it
 does not make it dynamically typed. Use `zero<T>()` for an explicit zero value.
 
+A tuple-returning call can update existing local bindings, for example
+`value, found = maps::get(&scores, key)`. The call is evaluated once, before
+assigning its result fields. For fallible multi-result reassignment, include
+the error binding and check it explicitly; error-handled multi-result
+reassignments (`@try`, `@fail`, `@catch`) currently require fresh `:=` bindings
+instead and are diagnosed on existing targets.
+
 Blocks introduce scope. A local name cannot be declared twice in the same
 scope; nested scopes can shadow enclosing locals. Loop-body declarations and
 loop initializer variables do not escape the loop. Constants have no writable

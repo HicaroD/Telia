@@ -84,6 +84,10 @@ Raw rows preserve actual precision, not measurement certainty.
 [Raw CSV](container-benchmark-baseline.csv): one complete native invocation, all
 108 rows, before concurrent full-suite/Rosetta work. Values below are ns/entry,
 except churn ns/pair; peak is bytes. These are observations, not stable targets.
+An additional `-count=3` invocation passed in 13.618 seconds. All 324 repeated
+checksums and memory peaks matched the baseline exactly. Those repeats ran while
+the uncached suite was active, so their timings are not substituted into this
+baseline or treated as an isolated performance comparison.
 
 | Container | Key | Size | Insert | Lookup | Remove | Iterate | Growth | Churn pair | Peak bytes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -108,7 +112,7 @@ except churn ns/pair; peak is bytes. These are observations, not stable targets.
 
 ## Local environment and verification
 
-Host: Apple M2, macOS Darwin 25.5.0 arm64; Apple Clang 17.0.0
+Host: Apple M2, macOS 26.5.2 (25F84), Darwin 25.5.0 arm64; Apple Clang 17.0.0
 (`clang-1700.6.3.2`), project Go toolchain `go1.22.1`. Host default Go is 1.26.10;
 the required suite uses the project version explicitly. `config/env` is ignored
 and points to this qualification checkout's `base/std`.
@@ -117,6 +121,63 @@ ASan is intentionally **not retried**: prior minimal-C host probes hung. Local
 native sanitizer evidence is UBSan plus deterministic allocation accounting,
 not ASan or general leak-sanitizer coverage. No Linux/Windows native success is
 inferred from adapter simulations or from workflow configuration.
+
+### Completed local checks
+
+Implementation/test source revision: `0c67c3c3384475917e1df2c02717a6b40b90e7dc`
+(later evidence-only documentation commits do not alter that source).
+
+| Command | Actual result |
+| --- | --- |
+| `GOTOOLCHAIN=go1.22.1 make build` | Passed. |
+| `GOTOOLCHAIN=go1.22.1 go test ./... -timeout=30m` | Passed, integration 566.049 seconds. |
+| `GOTOOLCHAIN=go1.22.1 go test ./... -timeout=30m -count=1` | Final uncached committed-source rerun passed, integration 591.683 seconds; every Go package passed. |
+| `GOTOOLCHAIN=go1.22.1 make fmt-check` | Passed with golines v0.12.2 built by Go 1.23.12. |
+| `python3 scripts/check-docs.py` | Passed, 67 Markdown files. |
+| `python3 -m unittest discover -s scripts -p 'test_check_docs.py'` | Passed, 3 tests. |
+| `python3 -m unittest discover -s scripts -p 'test_*.py'` | Passed, 31 tests including packaging/release/CI contract helpers. |
+| `GOTOOLCHAIN=go1.22.1 go test ./tests/integration -run '^TestDocumentationExamples$' -count=1 -timeout=10m` | Passed, including debug/optimized native examples; final post-ledger rerun 17.174 seconds. |
+| `GOTOOLCHAIN=go1.23.12 go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run --config .golangci.yml` | Passed using the pinned v1 tool (not the installed v2). |
+| `GOTOOLCHAIN=go1.22.1 go test ./tests/integration -run '^TestMapsNative/containers_model' -count=10 -timeout=5m` | Passed, 55.391 seconds; 40 native executions across debug/optimized, normal/forced-collision and UBSan, each with three seeds in heap/arena modes. |
+| `TELIA_CONTAINER_BENCH=1 GOTOOLCHAIN=go1.22.1 go test ./tests/integration -run '^TestContainerBenchmarks$' -count=1 -v` | Passed, integration 5.023 seconds, 108 actual measurement rows retained above. |
+
+`ruby -e 'require "yaml"; YAML.load_file(".github/workflows/native.yml")'`
+parsed the changed workflow successfully. This checks YAML syntax, not GitHub
+runner availability or successful execution of the configured matrix.
+
+The exact new CI qualification selection also passed natively on macOS arm64:
+
+```sh
+GOTOOLCHAIN=go1.22.1 go test ./internal/sema ./tests/integration \
+  -run 'TestEquality|TestKeyEligibility|TestStructural|TestMaps|TestSets|TestContainer|TestCollection' \
+  -count=1 -timeout=15m
+```
+
+Result: sema 0.446 seconds, integration 150.233 seconds. This includes ordinary
+and sanitizer key/ownership checks, both wrappers' first/second-buffer allocation
+failures, arena/clone failures, overflow, borrowed iteration and forced collisions.
+
+Rosetta execution also passed for the same implementation source. Create a
+temporary `cc` wrapper containing `exec /usr/bin/clang -arch x86_64 "$@"` and
+prepend its directory to PATH, then run:
+
+```sh
+GOTOOLCHAIN=go1.22.1 go test ./internal/codegen/c ./tests/integration \
+  -run 'TestSipHash13|TestHash|TestSemanticHashing|TestMapsNative|TestSetsNative|TestContainer' \
+  -count=1 -timeout=15m
+```
+
+Final Rosetta rerun: codegen 10.197 seconds, integration 86.285 seconds, both
+passed. This executes x86-64 generated C binaries (including native macOS entropy,
+both optimization levels, collision/failure fixtures and UBSan) under Rosetta on
+the ARM host. The Go compiler/test driver is still arm64; it is **not** the full
+native Intel runner or a Linux/Windows result. The optional benchmark is skipped
+in ordinary suites unless explicitly enabled.
+
+All final local checks completed before handoff; no background suite remains
+pending. The integration tip `901bd23` was verified as an ancestor and merging
+the current integration branch into the qualification branch was already up to
+date. The integration branch itself was not changed.
 
 ## Coordinator handoff / remaining gate
 
