@@ -168,6 +168,16 @@ Generics introduce no runtime type lookup, boxing, or hidden allocation.
 Fields retain their concrete layout and alignment. Assignment and parameter
 passing keep the ordinary copying behavior of the substituted type.
 
+Structural `==` and `!=` use the resolved concrete fields of generic records,
+enums, arrays, and tuples. A generic comparison such as `return left == right`
+is checked when specialized: `T = Pair<string, i32>` can be eligible, while a
+slice-containing specialization is rejected with its unsupported component path.
+Every enum payload alternative participates in eligibility. Automatic key
+eligibility uses the same recursive classification with separate exclusions for
+function values and standard-library owning handles. No traits, annotations,
+custom equality, hashing operation, or map/set API is introduced here. See
+[equality](expressions.md#equality-and-key-eligibility).
+
 In particular, copying `Pair<string, i32>` copies the borrowed string view, not
 its bytes. Storing an owning handle does not clone its storage or arrange its
 cleanup. Lifetimes, resource ownership, and explicit cleanup remain the

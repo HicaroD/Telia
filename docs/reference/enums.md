@@ -127,8 +127,12 @@ to the same pointee; copying does not deep-clone the pointee or transfer its
 ownership. There is no implicit borrow. `yield` cannot escape deferred cleanup
 or a called function into the enclosing match.
 
-Payload-free enums support `==` and `!=`. Payload enums do not have implicit
-equality: inspect them with `match` and explicitly compare relevant fields.
+Payload-free enums support `==` and `!=`. Payload enums also support these
+operators when every field of every variant supports equality. Values compare
+equal only when their variants and active payload fields compare equal; inactive
+union storage is never inspected. `!=` is the complement of `==`. This includes
+concrete error enums, but does not introduce whole-value equality for general
+`error` values. See the complete [equality and key eligibility rules](expressions.md#equality-and-key-eligibility).
 
 The current C backend uses the selected integer representation for payload-free
 values and private tagged unions for payload enums. Match expressions currently

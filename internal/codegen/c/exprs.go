@@ -245,6 +245,9 @@ func (c *CCodegen) emitBinExpr(bin *ast.BinExpr) string {
 	if isErrorNilComparison(bin) {
 		return c.emitErrorNilComparison(bin)
 	}
+	if bin.OperandType != nil && (bin.Op == token.EQUAL_EQUAL || bin.Op == token.BANG_EQUAL) {
+		return c.emitEquality(bin)
+	}
 	if bin.Op != token.AND && bin.Op != token.OR &&
 		(hasVaEffects(bin.Left) || hasVaEffects(bin.Right)) {
 		return c.emitSequencedVaBinary(bin)
