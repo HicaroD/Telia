@@ -13,6 +13,7 @@ restrictions; do not infer those from a signature alone.
 | `std::io` | [Standard streams and printing](standard-io.md) |
 | `std::libc` | [Low-level C library declarations](libc.md) |
 | `std::lists` | [Growable generic lists](lists.md) |
+| `std::maps` | [Heap hash maps and explicit iteration](maps.md) |
 | `std::math` | [Native floating-point math](math.md) |
 | `std::memory` | [Heap allocation, arenas, and transfer](memory.md) |
 | `std::path` | [Path validation and canonicalization](path.md) |
@@ -54,6 +55,13 @@ generated Unicode classifiers, list buffer allocation helpers, parsing internals
 and terminal encoding internals are implementation plumbing unless explicitly
 documented otherwise. `strings::from_c`, `slices::length`, and other explicitly
 listed low-level operations remain application APIs.
+
+`std::internal::swiss` is the shared [table engine](../contributing/maps-engine.md),
+not an application API. Map representation and iterator fields are also internal.
+
+| Internal package | Contributor contract |
+| --- | --- |
+| `std::internal::swiss` | [Shared map/set table engine](../contributing/maps-engine.md) (not an application API) |
 
 The sources linked from each page help audit behavior; they do not replace the
 contracts or authorize calling undocumented helpers. Contributors adding a new

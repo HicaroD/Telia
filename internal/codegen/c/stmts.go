@@ -337,10 +337,27 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 				Kind: ast.EXPR_TYPE_TUPLE,
 				T:    &ast.TupleType{Types: elemTypes},
 			}
+			// Checked calls still return their full native tuple. The consumed
+			// expression type has already had its final error field removed.
+			if isAtFailTupleCall(stmt) || isAtCatchTupleCall(stmt) {
+				tupleType = getFullFnRetType(stmt.Expr.Node.(*ast.FnCall))
+			}
 			tupleName := tupleTypedefName(tupleType)
 			tmp := c.nextTmp()
 			val := c.emitExpr(stmt.Expr)
 			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleName, tmp, val))
+			if isAtFailTupleCall(stmt) {
+				errIdx := len(tupleType.T.(*ast.TupleType).Types) - 1
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.present) { _panic(%s._%d.msg); }\n", tmp, errIdx, tmp, errIdx))
+			} else if isAtCatchTupleCall(stmt) {
+				call := stmt.Expr.Node.(*ast.FnCall)
+				catchOp := call.AtOp.Op.(*ast.CatchAtOperator)
+				errIdx := len(tupleType.T.(*ast.TupleType).Types) - 1
+				c.buf.WriteString(fmt.Sprintf("if (%s._%d.present) {\n", tmp, errIdx))
+				c.buf.WriteString(fmt.Sprintf("%s_Error %s = %s._%d;\n", indent, catchOp.ErrVarName.Name(), tmp, errIdx))
+				c.emitBlock(catchOp.Block, indent+"    ")
+				c.buf.WriteString(indent + "}\n")
+			}
 			for i, nameNode := range stmt.Names {
 				varId := nameNode.Node.(*ast.VarIdStmt)
 				cType := emitCType(varId.Type)

@@ -27,7 +27,7 @@ func (c *CCodegen) emitKeyHash(call *ast.FnCall) string {
 	state := c.nextTmp()
 	fmt.Fprintf(c.buf, "_TeliaSip %s = _telia_sip_init(%s,%s);\n", state, args[1], args[2])
 	c.hashValue(call.BuiltinType, args[0], state)
-	fmt.Fprintf(c.buf, "_telia_sip_finish(%s);\n", state)
+	fmt.Fprintf(c.buf, "_TELIA_KEY_HASH(_telia_sip_finish(%s));\n", state)
 	return "({\n" + c.buf.String() + "})"
 }
 

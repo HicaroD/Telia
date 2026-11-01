@@ -2,8 +2,10 @@
 
 This compiler/library boundary prepares automatic keys for containers. It is
 **not an application API**, customization protocol, randomness package, or
-persistent serialization format. There are no user hash callbacks or containers
-in this slice. Applications should not depend on these reserved internal names.
+persistent serialization format. There are no user hash callbacks. Heap
+[maps](../stdlib/maps.md) consume this boundary through the
+[shared engine](maps-engine.md). Applications should not depend on these reserved
+internal names.
 
 ## Handoff interface
 
@@ -20,7 +22,7 @@ in this slice. Applications should not depend on these reserved internal names.
 - Future containers should acquire and retain their own secret seed lazily,
   before committing first storage; no process-global seed or initialization is
   required. Empty construction/reads need not call this boundary. Container
-  allocation, growth, atomicity and lifetime policies remain subsequent work.
+  allocation, growth, atomicity and lifetime policies are defined by the engine.
 
 Both operations lower directly to private generated C. No new standard-library
 package or public custom hasher is provided. Native overrides are build-time test

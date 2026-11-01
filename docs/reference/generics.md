@@ -175,7 +175,8 @@ slice-containing specialization is rejected with its unsupported component path.
 Every enum payload alternative participates in eligibility. Automatic key
 eligibility uses the same recursive classification with separate exclusions for
 function values and standard-library owning handles. No traits, annotations,
-custom equality, hashing operation, or map/set API is introduced here. See
+custom equality, or public hashing operation is introduced here. Generic
+[maps](../stdlib/maps.md) validate key eligibility at concrete type instantiation. See
 [equality](expressions.md#equality-and-key-eligibility).
 
 In particular, copying `Pair<string, i32>` copies the borrowed string view, not

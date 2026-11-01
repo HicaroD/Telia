@@ -178,7 +178,8 @@ Import `std::errors` and compare with `errors::Error::Variant`:
 | --- | --- |
 | `OutOfBounds` | Invalid string byte, slice/list element, or UTF-8 decode offset |
 | `InvalidRange` | Invalid string or borrowed-slice range |
-| `SizeOverflow` | Allocation-size, list-capacity, or list-length arithmetic overflow |
+| `SizeOverflow` | Allocation-size, collection-capacity, or collection-length arithmetic overflow |
+| `RandomnessFailed` | OS entropy unavailable when a hash map first needs storage |
 | `AllocationFailed` | Heap or arena backing allocation failed |
 | `InvalidAlignment` | Arena alignment is zero or not a supported power of two |
 | `EmbeddedZero` | C-text conversion would contain an embedded zero byte |
