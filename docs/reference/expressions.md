@@ -51,6 +51,14 @@ Every possible component must support equality, even in an empty array or an
 unselected enum alternative. Diagnostics identify the unsupported field,
 tuple position, array element type, or variant payload path.
 
+For eligible payload enums, an undeclared tag has no active payload: equal tags
+compare equal without reading any payload storage, and distinct tags compare
+unequal. This matches payload-free enum tag equality. In particular,
+`zero<Enum>()` still zero-initializes its representation; it does **not** select
+the first declared variant. If all variant tags are nonzero, two such zero
+values compare equal by their undeclared zero tag. Future automatic hashing must
+hash only the tag for an undeclared tag, so equal values have equal hashes.
+
 The compiler also classifies concrete types for automatic **key eligibility**.
 This classification is groundwork, not an implemented map/set API or hashing
 operation. Equality and key eligibility are distinct:

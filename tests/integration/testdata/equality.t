@@ -66,6 +66,17 @@ enum Failure: error {
  }
 }
 
+enum NonzeroPayload u8 {
+ Only = 7 {
+  text string
+  value f64
+ }
+}
+
+enum NonzeroScalar u8 {
+ Only = 7
+}
+
 fn pair(n i32) (i32, string) {
  return n, "pair"
 }
@@ -289,6 +300,45 @@ fn main() i32 {
  padded.big = 0
  if padded != padded_other {
   return 29
+ }
+ // zero<T>() retains zero bytes, not the first declared variant (tag 7).
+ unknown := zero<NonzeroPayload>()
+ unknown_other := zero<NonzeroPayload>()
+ if unknown != unknown_other or not (unknown == unknown_other) {
+  return 44
+ }
+ if zero<NonzeroScalar>() != zero<NonzeroScalar>() {
+  return 45
+ }
+ if zero<NonzeroScalar>() == NonzeroScalar::Only {
+  return 50
+ }
+ unknown_pointer := &unknown
+ unknown_other_pointer := &unknown_other
+ unknown_bytes := slice_from_raw<u8>(unknown_pointer, sizeof<NonzeroPayload>())
+ unknown_other_bytes := slice_from_raw<u8>(unknown_other_pointer, sizeof<NonzeroPayload>())
+ for i u64 := sizeof<u8>(); i < sizeof<NonzeroPayload>(); i = i + 1 {
+  unknown_bytes[i] = 255
+  unknown_other_bytes[i] = 254
+ }
+ if unknown != unknown_other or not (unknown == unknown_other) {
+  return 46
+ }
+ if (Box<NonzeroPayload>{value: unknown} != Box<NonzeroPayload>{value: unknown_other}) {
+  return 51
+ }
+ known := NonzeroPayload::Only{text: "known", value: 0.0}
+ if unknown == known or not (unknown != known) {
+  return 47
+ }
+ unknown_other_bytes[0] = 1
+ if unknown == unknown_other or not (unknown != unknown_other) {
+  return 48
+ }
+ // A second undeclared tag also ignores invalid payload bytes.
+ unknown_bytes[0] = 1
+ if unknown != unknown_other {
+  return 49
  }
  return 0
 }

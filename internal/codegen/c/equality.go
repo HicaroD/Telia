@@ -64,16 +64,25 @@ func (c *CCodegen) equalValues(ty *ast.ExprType, a, b string) string {
 	case ast.EXPR_TYPE_ENUM:
 		d := ty.T.(*ast.EnumType).Decl
 		if d.HasPayload {
-			var variants []string
-			for _, v := range d.Variants {
-				fields := []string{fmt.Sprintf("(%s.tag == %s)", a, c.emitConstant(v.Value))}
+			// An undeclared tag has no active payload. In particular, zero<T>()
+			// can produce tag zero when every declared variant tag is nonzero.
+			payloadEqual := "1"
+			for i := len(d.Variants) - 1; i >= 0; i-- {
+				v := d.Variants[i]
+				var fields []string
 				for _, f := range v.Fields {
 					field := fmt.Sprintf(".payload.v%d.%s", v.Index, f.Name.Name())
 					fields = append(fields, c.equalValues(f.Type, a+field, b+field))
 				}
-				variants = append(variants, conjunction(fields))
+				payloadEqual = fmt.Sprintf(
+					"(%s.tag == %s ? %s : %s)",
+					a,
+					c.emitConstant(v.Value),
+					conjunction(fields),
+					payloadEqual,
+				)
 			}
-			return fmt.Sprintf("((%s.tag == %s.tag) && (%s))", a, b, strings.Join(variants, " || "))
+			return fmt.Sprintf("((%s.tag == %s.tag) && %s)", a, b, payloadEqual)
 		}
 	}
 	return fmt.Sprintf("(%s == %s)", a, b)

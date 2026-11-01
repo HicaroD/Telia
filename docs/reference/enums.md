@@ -134,6 +134,11 @@ union storage is never inspected. `!=` is the complement of `==`. This includes
 concrete error enums, but does not introduce whole-value equality for general
 `error` values. See the complete [equality and key eligibility rules](expressions.md#equality-and-key-eligibility).
 
+For an eligible payload enum with an undeclared tag, equality compares only the
+tag, never payload storage. Equal undeclared tags compare equal and distinct
+tags compare unequal. `zero<Enum>()` retains its zero-initialized representation,
+even when no variant has tag zero; it does not select the first variant.
+
 The current C backend uses the selected integer representation for payload-free
 values and private tagged unions for payload enums. Match expressions currently
 use GCC/Clang statement expressions to preserve their evaluation site. These
