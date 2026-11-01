@@ -3,8 +3,9 @@
 Arrays and slices are language types. Lists are ordinary generic Telia code in
 [`std::lists`](../../base/std/lists/lists.t), not a compiler-recognized collection.
 The same language and memory operations are available to application libraries.
-Heap-backed [maps](../stdlib/maps.md) provide automatic semantic keys and explicit
-iterators. Sets and direct map `for ... in` syntax are not provided yet.
+Heap/arena-backed [maps](../stdlib/maps.md) and [sets](../stdlib/sets.md) provide
+automatic semantic keys/elements and explicit iterators. Direct map/set
+`for ... in` syntax is not provided yet.
 
 Generic functions can infer element types from array and slice arguments, and
 from array-literal elements when the parameter supplies the array shape.

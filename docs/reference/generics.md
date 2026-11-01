@@ -50,6 +50,13 @@ existing numeric literal defaults are applied. Conflicting concrete types are
 errors; inference does not silently widen numbers. `nil` alone cannot determine
 a pointee type.
 
+Library container inference uses the same rules: an expected
+`sets::Set<string>` can supply the type for `sets::create()`, while
+`sets::insert(&names, "alice")` infers from the set and element. Map keys and
+set elements must satisfy [key eligibility](expressions.md#equality-and-key-eligibility)
+at concrete container type instantiation, including unused zero handles; see
+[`std::maps`](../stdlib/maps.md) and [`std::sets`](../stdlib/sets.md).
+
 Constructors use fields, payloads, and expected destination types:
 
 ```rust

@@ -18,6 +18,7 @@ restrictions; do not infer those from a signature alone.
 | `std::memory` | [Heap allocation, arenas, and transfer](memory.md) |
 | `std::path` | [Path validation and canonicalization](path.md) |
 | `std::process` | [Arguments/environment and package navigation](process.md), [children](native-cli-apis.md#subprocesses), [working directory](native-cli-apis.md#paths-and-current-directory) |
+| `std::sets` | [Heap/arena hash sets, shallow clones, and explicit iteration](sets.md) |
 | `std::slices` | [Borrowed-slice helpers](slices.md) |
 | `std::strconv` | [Checked text parsing and formatting](string-conversions.md) |
 | `std::strings` | [Borrowed/owned text and C strings](strings-and-memory.md), [byte copying](native-cli-apis.md#bytes-and-strings) |
@@ -57,7 +58,7 @@ documented otherwise. `strings::from_c`, `slices::length`, and other explicitly
 listed low-level operations remain application APIs.
 
 `std::internal::swiss` is the shared [table engine](../contributing/maps-engine.md),
-not an application API. Map representation and iterator fields are also internal.
+not an application API. Map/set representation and iterator fields are also internal.
 
 | Internal package | Contributor contract |
 | --- | --- |

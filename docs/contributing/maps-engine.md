@@ -2,8 +2,10 @@
 
 [`std::internal::swiss`](../../base/std/internal/swiss/swiss.t) is implementation
 plumbing, not a supported application package. Maps wrap `Table<K, V>`; sets
-can reuse it with a concrete nonzero-sized empty value record (never assume a
-zero-sized backend representation). There are no public hash callbacks.
+wrap `Table<T, sets::Unit>`. `Unit` is a concrete empty record whose C backend
+representation has a dummy byte. `TestSetsLifecycle` and `TestSetsNative` check
+`sizeof<Unit>() > 0` at runtime, alongside empty-element storage tests (never
+assume a zero-sized backend representation). There are no public hash callbacks.
 
 ## Storage and probing invariants
 
@@ -66,11 +68,13 @@ empty cleanup-safe destination and preserves the source; partial heap buffers
 are released, partial arena allocations remain arena-owned. Clone capacity is
 not a copy of source reservation. No set/direct-loop placeholders are exposed.
 
-Set handoff: wrap `Table<T, ConcreteEmptyRecord>` and delegate `clone_in`,
-`reserve`, `clear`, and `release`; initialize `.arena` for `create_in`. The record
-must have a verified nonzero C representation. Insert must use `find` first to
-preserve stored-element identity, then `insert_new` only for absent elements.
-Do not clone or rebuild via equality-based public insertion.
+Sets delegate `clone_in`, `reserve`, `clear`, and `release` and initialize
+`.arena` for `create_in`. Insert uses `find` first to preserve stored-element
+identity, then `insert_new` only for absent elements. Removal returns the stored
+key and marks its control deleted, without reading/exposing the dummy value.
+Explicit `Iterator<T>` holds `source *Set<T>` and `index u64`; next scans live
+controls and returns `(T, bool)`. Direct-loop lowering remains a later slice;
+it must use the same live-handle borrowing semantics, not copy an owner.
 
 ## Native test seams and evidence
 
@@ -88,3 +92,12 @@ forced-collision hashes, and UBSan. `TestMapsRejectInvalidKeysAtInstantiation`
 checks unsupported-key diagnostics even for unused constructors. The key
 classifier recognizes the actual `std::maps::Map` declaration, not unrelated
 user records named Map. Broad target qualification/benchmarks remain separate.
+
+`TestSetsNative` covers set lifecycle, key families/NaNs, explicit owning
+resources and distinct string storage, 3,000-operation heap/arena model/churn,
+failure atomicity and both clone buffers, aligned arena growth/reset/transfer,
+and arena clone failures at `-O0`/`-O3`, normal/forced-collision hashes and UBSan.
+`TestSetsRejectInvalidElementsAtInstantiation` enforces the element contract on
+the actual standard Set declaration, including unused constructors. It does not
+constrain unrelated user types named Set. ASan is an opt-in sanitizer on hosts
+where its runtime is usable; configured checks are not a cross-target result.

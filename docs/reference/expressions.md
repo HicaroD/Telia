@@ -101,8 +101,9 @@ generic instances, are excluded as keys even when their fields are eligible:
 - `std::process::Args`, `std::process::Child` ([process ownership](../stdlib/process.md)).
 - `std::terminal::Handle`, `std::terminal::SavedMode` ([terminal ownership](../stdlib/terminal.md#handles-and-ownership)).
 
-The nominal exclusion also covers `std::maps::Map` and reserves `std::sets::Set`
-for its future implementation.
+The nominal exclusion also covers [`std::maps::Map`](../stdlib/maps.md) and
+[`std::sets::Set`](../stdlib/sets.md). Set elements follow the same eligibility
+rules as map keys.
 It propagates through aggregate components, not through pointer pointees.
 The exclusion also applies to zero values and borrowed instances of these
 declarations, such as a borrowed terminal `Handle`.

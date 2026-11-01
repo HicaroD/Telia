@@ -46,8 +46,9 @@ keys, values, displaced values, or unused inputs.
 
 `zero<Map<K, V>>()` is immediately usable in heap mode.
 `memory::take(&map)` transfers the handle and leaves a usable zero source.
-Repeated `clear`/`free` of the same handle is harmless. Sets and direct
-`for ... in map` are not provided yet; use explicit iteration below.
+Repeated `clear`/`free` of the same handle is harmless. See [sets](sets.md) for
+element-only containers. Direct `for ... in map` is not provided yet; use
+explicit iteration below.
 
 Clones preserve every live entry, including stored-key identity and NaNs, but
 do not promise the source's capacity, bucket layout, seed, or iteration order.
