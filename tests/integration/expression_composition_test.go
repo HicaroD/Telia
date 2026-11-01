@@ -54,7 +54,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("composed field expressions should compile: %v", diags.Diags)
 	}
 	if want := "first\nchanged\nsource\nindex\nfirst\nchanged\n"; output != want {
@@ -109,7 +109,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic/pointer/callback field composition should compile: %v", diags.Diags)
 	}
 	if want := "generic\ncallback\nupdated\n"; output != want {

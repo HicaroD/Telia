@@ -28,7 +28,7 @@ func TestTerminalExamplesCompileAndEchoPreservesBytes(t *testing.T) {
 	for _, example := range []string{"terminal_echo.t", "terminal_raw.t", "terminal_screen.t"} {
 		t.Run(example, func(t *testing.T) {
 			path, diags := compiler.CompileOnly(filepath.Join("..", "..", "examples", example))
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("compile: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, path)
@@ -82,7 +82,7 @@ func TestTerminalWindowsFixtureTypeChecks(t *testing.T) {
 
 func TestTerminalWriteToClosedPipeReturnsAnError(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/terminal_broken_pipe.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -126,7 +126,7 @@ func TestTerminalControlsUseCapabilitiesAndExplicitOverrides(t *testing.T) {
 		t.Skip("python3 is required for the real pseudoterminal harness")
 	}
 	path, diags := compiler.CompileOnly("testdata/terminal_output.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -161,7 +161,7 @@ func TestTerminalWithNativeSanitizers(t *testing.T) {
 
 func TestTerminalWaitDistinguishesTimeoutFromInput(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/terminal_wait.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -299,7 +299,7 @@ func runTerminalPTY(t *testing.T, fixture, mode string) {
 		t.Skip("python3 is required for the real pseudoterminal harness")
 	}
 	path, diags := compiler.CompileOnly("testdata/" + fixture)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -314,7 +314,7 @@ func runTerminalPTY(t *testing.T, fixture, mode string) {
 
 func TestTerminalClosingBorrowedHandlesPreservesNativeStream(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/terminal_ownership.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	if output != "ok" {
@@ -324,7 +324,7 @@ func TestTerminalClosingBorrowedHandlesPreservesNativeStream(t *testing.T) {
 
 func TestTerminalReadsRedirectedInputUntilEOF(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/terminal_read.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -341,7 +341,7 @@ func TestTerminalReadsRedirectedInputUntilEOF(t *testing.T) {
 
 func TestTerminalWritesPreserveRedirectedBytes(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/terminal_write.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	if want := "A\x00B\n\xc3\xa9"; output != want {
@@ -351,7 +351,7 @@ func TestTerminalWritesPreserveRedirectedBytes(t *testing.T) {
 
 func TestTerminalTextWritesPreserveEmbeddedZerosAndUTF8(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/terminal_text.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	if want := "A\x00é\n"; output != want {

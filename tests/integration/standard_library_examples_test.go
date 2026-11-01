@@ -21,7 +21,7 @@ func runStandardLibraryFixture(t *testing.T, fixture string, flags ...string) {
 		t.Run(opt, func(t *testing.T) {
 			cflags := append([]string{opt}, flags...)
 			path, diags := compiler.CompileOnlyWithCFlags(fixture, cflags...)
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("compile: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, path)
@@ -50,7 +50,7 @@ func TestExamplesUsePublishedStandardLibraryAPIs(t *testing.T) {
 	} {
 		t.Run(test.file, func(t *testing.T) {
 			output, diags := compiler.CompileFile(filepath.Join("..", "..", "examples", test.file))
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("compile example: %v", diags.Diags)
 			}
 			want := test.want
@@ -73,7 +73,7 @@ func TestCollectionsExampleRunsWithDeferredCleanup(t *testing.T) {
 		filepath.Join("..", "..", "examples", "collections.t"),
 		"-include", header,
 	)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile example: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)

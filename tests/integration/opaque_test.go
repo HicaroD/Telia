@@ -31,8 +31,11 @@ fn value(window *Window) u32
 @[link_name="fixture_window_destroy"]
 fn destroy(window *Window)
 }
+fn identity<T>(value T) T {
+return value
+}
 fn main() i32 {
-window := create(42)
+window := identity(create(42))
 if value(window) != 42 {
 return 1
 }

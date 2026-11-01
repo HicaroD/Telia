@@ -15,7 +15,7 @@ func runMatchProgram(t *testing.T, source string) {
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("match program: %v", diags.Diags)
 	}
 }

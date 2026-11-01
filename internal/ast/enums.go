@@ -4,6 +4,8 @@ import "github.com/HicaroD/Telia/internal/lexer/token"
 
 // EnumDecl has nominal identity independent of its integer representation.
 type EnumDecl struct {
+	Template   *EnumDecl // non-nil on a concrete generic instance
+	TypeArgs   []*ExprType
 	Foreign    *ExternDecl
 	Attributes Attributes
 	Owner      *Package

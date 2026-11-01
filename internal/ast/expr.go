@@ -52,6 +52,7 @@ func (literal *LiteralExpr) String() string {
 }
 
 type IdExpr struct {
+	TypeArgs []*ExprType
 	Name     *token.Token
 	Constant *LiteralExpr
 

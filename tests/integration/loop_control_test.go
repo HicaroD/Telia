@@ -24,7 +24,7 @@ func loopControlSource(t *testing.T, source string) string {
 func runLoopControl(t *testing.T, path string) string {
 	t.Helper()
 	exe, diags := compiler.CompileOnly(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("loop control program: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, exe)

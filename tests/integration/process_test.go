@@ -32,7 +32,7 @@ func compileProcessSource(t *testing.T, body string, flags ...string) string {
 		t.Fatal(err)
 	}
 	path, diags := compiler.CompileOnlyWithCFlags(file, flags...)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, path) })
@@ -234,7 +234,7 @@ defer io::println("cleanup")
 
 func TestProcessArgumentExample(t *testing.T) {
 	path, diags := compiler.CompileOnly(filepath.Join("..", "..", "examples", "process_args.t"))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile example: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)

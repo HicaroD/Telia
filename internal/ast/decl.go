@@ -7,6 +7,8 @@ import (
 )
 
 type StructDecl struct {
+	Template   *StructDecl // non-nil on a concrete generic instance
+	TypeArgs   []*ExprType
 	Foreign    *ExternDecl
 	IsUnion    bool
 	Owner      *Package

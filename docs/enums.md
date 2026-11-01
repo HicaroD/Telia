@@ -56,6 +56,21 @@ value := match item {
 }
 ```
 
+Arguments can also be inferred from a payload or expected type:
+
+```rust
+number i32 := 42
+item := Option::Some{value: number}
+empty Option<i32> := Option<_>::None
+value := match item {
+    Option::None => 0
+    Option::Some{value} => value
+}
+```
+
+Explicit arguments remain valid. Partial lists use `_` for each inferred
+position; see [generic inference](generics.md#inference-and-partial-arguments).
+
 Payload construction initializes every field exactly once by name. Field
 expressions are evaluated once in source order. Positional payloads are not
 supported. Generic specializations keep independent payload types and layouts;

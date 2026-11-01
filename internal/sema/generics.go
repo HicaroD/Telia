@@ -527,10 +527,12 @@ func (s *sema) instantiateStruct(
 		return nil, err
 	}
 	instance := &ast.StructDecl{
-		Name:  template.Name,
-		Owner: template.Owner,
-		File:  template.File,
-		CName: concreteName("struct", key),
+		Template: template,
+		TypeArgs: boundArguments(template.TypeParams, bindings),
+		Name:     template.Name,
+		Owner:    template.Owner,
+		File:     template.File,
+		CName:    concreteName("struct", key),
 	}
 	for _, field := range template.Fields {
 		copy := *field
@@ -548,6 +550,14 @@ func (s *sema) instantiateStruct(
 		)
 	}
 	return instance, s.endInstance(err)
+}
+
+func boundArguments(params []*token.Token, bindings map[string]*ast.ExprType) []*ast.ExprType {
+	args := make([]*ast.ExprType, len(params))
+	for n, p := range params {
+		args[n] = bindings[p.Name()]
+	}
+	return args
 }
 
 func (s *sema) resolveStruct(d *ast.StructDecl, bindings map[string]*ast.ExprType) error {
@@ -596,14 +606,45 @@ func (s *sema) resolveStruct(d *ast.StructDecl, bindings map[string]*ast.ExprTyp
 	})
 }
 
-func (s *sema) literalType(lit *ast.StructLiteralExpr, scope *ast.Scope) (*ast.ExprType, error) {
+func (s *sema) literalType(
+	lit *ast.StructLiteralExpr,
+	scope *ast.Scope,
+	context ...*ast.ExprType,
+) (*ast.ExprType, error) {
 	if lit.Decl != nil {
 		return &ast.ExprType{Kind: ast.EXPR_TYPE_STRUCT, T: &ast.StructType{Decl: lit.Decl}}, nil
+	}
+	args := lit.TypeArgs
+	if needsInference(args) &&
+		!(lit.Namespace == nil && s.generics.bindings[lit.Name.Name()] != nil) {
+		sym, err := s.typeSymbol(lit.Name, lit.Namespace, scope)
+		if err != nil {
+			return nil, err
+		}
+		if template, ok := sym.Node.(*ast.StructDecl); ok && len(template.TypeParams) != 0 {
+			i, err := s.newInference(template.TypeParams, args, scope)
+			if err != nil {
+				return nil, err
+			}
+			i.scope, i.file = template.Owner.Scope, template.File
+			if len(context) != 0 {
+				if err := i.expectedInstance(template, context[0]); err != nil {
+					return nil, err
+				}
+			}
+			if err := i.fields(template.Fields, lit.Values, scope); err != nil {
+				return nil, err
+			}
+			args, err = i.result()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	ty, err := s.resolveType(
 		&ast.ExprType{
 			Kind: ast.EXPR_TYPE_ID,
-			T:    &ast.IdType{Name: lit.Name, Namespace: lit.Namespace, Args: lit.TypeArgs},
+			T:    &ast.IdType{Name: lit.Name, Namespace: lit.Namespace, Args: args},
 		},
 		scope,
 	)
@@ -617,6 +658,25 @@ func (s *sema) literalType(lit *ast.StructLiteralExpr, scope *ast.Scope) (*ast.E
 		return nil, fmt.Errorf("%s: struct literal requires a struct type", lit.Name.Pos)
 	}
 	lit.Decl = ty.T.(*ast.StructType).Decl
+	if template := lit.Decl.Template; template != nil {
+		s.suggestTypeArguments(
+			lit.Name,
+			lit.TypeArgs,
+			lit.Decl.TypeArgs,
+			template.TypeParams,
+			template.Owner,
+			template.File,
+			scope,
+			func(i *typeInference) error {
+				if len(context) != 0 {
+					if err := i.expectedInstance(template, context[0]); err != nil {
+						return err
+					}
+				}
+				return i.fields(template.Fields, lit.Values, scope)
+			},
+		)
+	}
 	return ty, nil
 }
 

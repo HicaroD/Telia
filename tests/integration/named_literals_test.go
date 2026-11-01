@@ -72,7 +72,7 @@ return 0
 	if err := os.WriteFile(path, []byte(source), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, diags := compiler.CompileFile(path); len(diags.Diags) != 0 {
+	if _, diags := compiler.CompileFile(path); diags.HasErrors() {
 		t.Fatalf("named literals and control-flow bodies: %v", diags.Diags)
 	}
 }

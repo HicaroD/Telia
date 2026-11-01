@@ -189,7 +189,7 @@ func TestProcessEnvironmentExample(t *testing.T) {
 			filepath.Join("..", "..", "examples", "process_env.t"),
 			opt,
 		)
-		if len(diags.Diags) != 0 {
+		if diags.HasErrors() {
 			t.Fatalf("compile example: %v", diags.Diags)
 		}
 		t.Cleanup(func() { removeTestBinary(t, path) })

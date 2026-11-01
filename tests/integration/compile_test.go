@@ -16,7 +16,7 @@ import (
 
 func TestCompileHelloWorld(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/hello_world.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "Hello, world!\n"
@@ -27,7 +27,7 @@ func TestCompileHelloWorld(t *testing.T) {
 
 func TestStringOutputPreservesBytes(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_bytes.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "A\x00B — Olá\n\n"; output != want {
@@ -37,7 +37,7 @@ func TestStringOutputPreservesBytes(t *testing.T) {
 
 func TestStringEqualityComparesBytes(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_equality.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "equal\ndifferent\nempty\nlength\n"; output != want {
@@ -47,7 +47,7 @@ func TestStringEqualityComparesBytes(t *testing.T) {
 
 func TestStringSlicesUseCheckedByteRanges(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_slice.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "\x00B\n\xc3\nempty\nbytes\nreversed\npast end\n"; output != want {
@@ -57,7 +57,7 @@ func TestStringSlicesUseCheckedByteRanges(t *testing.T) {
 
 func TestOwnedStringsCloneIndependentlyAndResetOnFree(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_owned.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "Hello\x00é\nreset\nHello\x00é!\n"; output != want {
@@ -67,7 +67,7 @@ func TestOwnedStringsCloneIndependentlyAndResetOnFree(t *testing.T) {
 
 func TestDeferPreservesReturnValueAndUnwindsEnclosingScopes(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/defer_return_value.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "7\ninner\nouter\n1\n"; output != want {
@@ -77,7 +77,7 @@ func TestDeferPreservesReturnValueAndUnwindsEnclosingScopes(t *testing.T) {
 
 func TestDeferredCleanupUsesItsDeclaringScope(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/defer_shadow.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "2\n1\n"; output != want {
@@ -87,7 +87,7 @@ func TestDeferredCleanupUsesItsDeclaringScope(t *testing.T) {
 
 func TestCStringConversionOwnsTerminatedStorageAndRejectsZeros(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_c_interop.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	cNewline := "\n"
@@ -112,7 +112,7 @@ func TestStringAllocationFailurePreservesExistingOwners(t *testing.T) {
 		"-include",
 		header,
 	)
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	output, err := compiler.RunBinary(path)
@@ -126,7 +126,7 @@ func TestStringAllocationFailurePreservesExistingOwners(t *testing.T) {
 
 func TestArenaStringsSurviveGrowthAndSupportResetAndDestroy(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/string_arena.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	if want := "stable\x00é\nstable\x00é!\nC text\nnew text\nagain\n"; output != want {
@@ -140,7 +140,7 @@ func TestArenaFailurePreservesStorageAndResetReusesIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	path, diags := compiler.CompileOnlyWithCFlags("testdata/arena_failure.t", "-include", header)
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	output, err := compiler.RunBinary(path)
@@ -154,7 +154,7 @@ func TestArenaFailurePreservesStorageAndResetReusesIt(t *testing.T) {
 
 func TestQualifiedFailPanicsOnStringRangeError(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/string_slice_fail.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	output, err := compiler.RunBinary(path)
@@ -185,7 +185,7 @@ func TestStringMemoryWithNativeSanitizers(t *testing.T) {
 				"-include",
 				header,
 			)
-			if len(diags.Diags) > 0 {
+			if diags.HasErrors() {
 				t.Fatalf("sanitized compilation: %v", diags.Diags)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -210,7 +210,7 @@ func TestStringValuesAndEmptyErrors(t *testing.T) {
 	} {
 		t.Run(tc.file, func(t *testing.T) {
 			output, diags := compiler.CompileFile("testdata/" + tc.file)
-			if len(diags.Diags) > 0 {
+			if diags.HasErrors() {
 				t.Fatalf("unexpected errors: %v", diags.Diags)
 			}
 			if output != tc.want {
@@ -222,7 +222,7 @@ func TestStringValuesAndEmptyErrors(t *testing.T) {
 
 func TestStringPanicPreservesMessageBytes(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/string_error_bytes.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	output, err := compiler.RunBinary(path)
@@ -246,7 +246,7 @@ func TestStringOutputPreservesLineEndingBytes(t *testing.T) {
 				t.Fatal(err)
 			}
 			path, diags := compiler.CompileOnly(fixture)
-			if len(diags.Diags) > 0 {
+			if diags.HasErrors() {
 				t.Fatalf("compile: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, path)
@@ -268,7 +268,7 @@ func TestDocumentedStringsExample(t *testing.T) {
 	}
 	path, diags := compiler.CompileOnlyWithCFlags("../../examples/strings.t",
 		"-fsanitize=undefined", "-fno-sanitize-recover=all", "-include", header)
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	output, err := compiler.RunBinary(path)
@@ -282,7 +282,7 @@ func TestDocumentedStringsExample(t *testing.T) {
 
 func TestCompileFibonacci(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/fib.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "55\n"
@@ -293,7 +293,7 @@ func TestCompileFibonacci(t *testing.T) {
 
 func TestCompileCalculator(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/calculator.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "8\n6\n42\n"
@@ -345,7 +345,7 @@ func TestBadSyntax(t *testing.T) {
 
 func TestForLoop(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/for_loop.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "10\n"
@@ -356,7 +356,7 @@ func TestForLoop(t *testing.T) {
 
 func TestWhileLoop(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/while_loop.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "1\n2\n3\n"
@@ -367,7 +367,7 @@ func TestWhileLoop(t *testing.T) {
 
 func TestCondStatement(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/cond.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "-1\n0\n1\n"
@@ -378,7 +378,7 @@ func TestCondStatement(t *testing.T) {
 
 func TestStructLiteralAndFieldAccess(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/struct_field_access.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// pt.x=3, pt.y=7, sum_fields(pt)=10, scale_x(&pt, 2)=6
@@ -390,7 +390,7 @@ func TestStructLiteralAndFieldAccess(t *testing.T) {
 
 func TestDefer(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/defer.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// lifo(): LIFO order — third/second/first
@@ -404,7 +404,7 @@ func TestDefer(t *testing.T) {
 
 func TestMultipleReturnValues(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/multi_ret.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// get(3) → (1, 5); literal tuple (10, 20) with heterogeneous types (i32, i64)
@@ -416,7 +416,7 @@ func TestMultipleReturnValues(t *testing.T) {
 
 func TestFloatArithmetic(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/floats.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// f32/f64 literals, arithmetic (+, -, *, /), and all 6 comparison operators
@@ -428,7 +428,7 @@ func TestFloatArithmetic(t *testing.T) {
 
 func TestPointerArithmetic(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/pointer_arith.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// *p = 100 mutates x; both *p and x print 100
@@ -440,7 +440,7 @@ func TestPointerArithmetic(t *testing.T) {
 
 func TestCompilePackage(t *testing.T) {
 	output, diags := compiler.CompilePackage("testdata/pkg_smoke")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	// greet::hello() prints first, then main's io::println
@@ -452,7 +452,7 @@ func TestCompilePackage(t *testing.T) {
 
 func TestErrorReturn(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_return.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "5\nok\n0\ndivision by zero\n"
@@ -463,7 +463,7 @@ func TestErrorReturn(t *testing.T) {
 
 func TestErrorBasic(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_basic.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "oops\n"
@@ -474,7 +474,7 @@ func TestErrorBasic(t *testing.T) {
 
 func TestErrorFailTuple(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_fail_tuple.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "99\n"
@@ -485,7 +485,7 @@ func TestErrorFailTuple(t *testing.T) {
 
 func TestErrorFailPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/error_fail_panic.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected compile errors: %v", diags.Diags)
 	}
 
@@ -507,7 +507,7 @@ func TestErrorFailPanic(t *testing.T) {
 
 func TestErrorFailVoidPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/error_fail_void.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected compile errors: %v", diags.Diags)
 	}
 
@@ -529,7 +529,7 @@ func TestErrorFailVoidPanic(t *testing.T) {
 
 func TestErrorFailVoidOK(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_fail_void_ok.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "ok\n"
@@ -540,7 +540,7 @@ func TestErrorFailVoidOK(t *testing.T) {
 
 func TestErrorCatchVoid(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/error_catch_void.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected compile errors: %v", diags.Diags)
 	}
 
@@ -571,7 +571,7 @@ func TestErrorCatchVoid(t *testing.T) {
 
 func TestErrorCatchTuple(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_catch_tuple.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "val: 42\n"
@@ -582,7 +582,7 @@ func TestErrorCatchTuple(t *testing.T) {
 
 func TestErrorCatchTupleFail(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/error_catch_tuple_fail.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected compile errors: %v", diags.Diags)
 	}
 
@@ -613,7 +613,7 @@ func TestErrorCatchTupleFail(t *testing.T) {
 
 func TestErrorStructField(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_struct_field.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "field broke\n"
@@ -624,7 +624,7 @@ func TestErrorStructField(t *testing.T) {
 
 func TestErrorParam(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/error_param.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %v", diags.Diags)
 	}
 	expected := "param broke\n"
@@ -635,7 +635,7 @@ func TestErrorParam(t *testing.T) {
 
 func TestNilPointerPanic(t *testing.T) {
 	exePath, diags := compiler.CompileOnly("testdata/nil_ptr_panic.t")
-	if len(diags.Diags) > 0 {
+	if diags.HasErrors() {
 		t.Fatalf("unexpected compile errors: %v", diags.Diags)
 	}
 

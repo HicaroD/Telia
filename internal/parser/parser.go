@@ -2794,6 +2794,15 @@ func (p *Parser) parseIdExpr(parentScope *ast.Scope) (*ast.Node, error) {
 		return p.parseStructLiteralExpr(parentScope)
 	} else if suffix == token.COLON_COLON {
 		return p.parseNamespaceAccess(parentScope)
+	} else if suffix != token.INVALID {
+		p.lex.Skip()
+		args, err := p.parseTypeArgs()
+		if err != nil {
+			return nil, err
+		}
+		idExpr.TypeArgs = args
+		n.Kind, n.Node = ast.KIND_ID_EXPR, idExpr
+		return n, nil
 	}
 	if !p.noNamedLiteral && peeked1.Kind == token.OPEN_CURLY ||
 		peeked1.Kind == token.DOT && peeked2.Kind == token.OPEN_CURLY {

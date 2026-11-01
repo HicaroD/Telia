@@ -119,7 +119,11 @@ func (s *sema) validateTemplates(pkg *ast.Package, seen map[*ast.Package]bool) e
 	return nil
 }
 
-func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlias]bool) error {
+func (v *templateValidator) typeExpr(
+	ty *ast.ExprType,
+	aliases map[*ast.TypeAlias]bool,
+	infer ...bool,
+) error {
 	if ty == nil {
 		return nil
 	}
@@ -179,10 +183,13 @@ func (v *templateValidator) typeExpr(ty *ast.ExprType, aliases map[*ast.TypeAlia
 		default:
 			return fmt.Errorf("%s: '%s' is not a type", t.Name.Pos, t.Name.Name())
 		}
-		if len(t.Args) != want {
+		if len(t.Args) != want && !(len(infer) != 0 && infer[0] && len(t.Args) == 0) {
 			return fmt.Errorf("%s: '%s' requires %d type arguments, got %d", t.Name.Pos, t.Name.Name(), want, len(t.Args))
 		}
 		for _, arg := range t.Args {
+			if len(infer) != 0 && infer[0] && inferenceHole(arg) {
+				continue
+			}
 			if err := v.typeExpr(arg, aliases); err != nil {
 				return err
 			}
@@ -240,7 +247,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		}
 		for _, arm := range t.Arms {
 			for _, pattern := range arm.Patterns() {
-				if err := v.typeExpr(pattern.PatternType, map[*ast.TypeAlias]bool{}); err != nil {
+				if err := v.typeExpr(pattern.PatternType, map[*ast.TypeAlias]bool{}, true); err != nil {
 					return nil, err
 				}
 				if _, err := v.node(pattern.Literal); err != nil {
@@ -309,15 +316,31 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 	case *ast.NullPtrExpr:
 		return t.Type, nil
 	case *ast.IdExpr:
+		for _, arg := range t.TypeArgs {
+			if !inferenceHole(arg) {
+				if err := v.typeExpr(arg, map[*ast.TypeAlias]bool{}); err != nil {
+					return nil, err
+				}
+			}
+		}
 		if ty, ok := v.locals[t.Name.Name()]; ok {
 			return ty, nil
 		}
-		if symbol, err := v.s.pkg.Scope.LookupAcrossScopes(t.Name.Name()); err == nil && symbol.Kind == ast.KIND_CONST_DECL {
-			d := symbol.Node.(*ast.ConstDecl)
-			if err := v.s.checkConstDecl(d); err != nil {
-				return nil, err
+		if symbol, err := v.s.pkg.Scope.LookupAcrossScopes(t.Name.Name()); err == nil {
+			switch d := symbol.Node.(type) {
+			case *ast.FnDecl:
+				if len(t.TypeArgs) != 0 && len(t.TypeArgs) != len(d.TypeParams) {
+					return nil, fmt.Errorf("'%s' requires %d type arguments, got %d", t.Name.Name(), len(d.TypeParams), len(t.TypeArgs))
+				}
+				return nil, nil
+			case *ast.Proto:
+				return nil, nil
+			case *ast.ConstDecl:
+				if err := v.s.checkConstDecl(d); err != nil {
+					return nil, err
+				}
+				return d.Type, nil
 			}
-			return d.Type, nil
 		}
 		return nil, fmt.Errorf("%s: '%s' not defined", t.Name.Pos, t.Name.Name())
 	case *ast.BinExpr:
@@ -406,7 +429,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		return nil, err
 	case *ast.StructLiteralExpr:
 		ty := &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: t.Name, Namespace: t.Namespace, Args: t.TypeArgs}}
-		if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+		if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}, true); err != nil {
 			return nil, err
 		}
 		for _, f := range t.Values {
@@ -430,7 +453,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 				scope = ext.Scope
 			} else if d, ok := sym.Node.(*ast.EnumDecl); ok {
 				ty := &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: t.Left.Name, Args: t.TypeArgs}}
-				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}, true); err != nil {
 					return nil, err
 				}
 				return v.enumVariant(t, d, ty)
@@ -441,6 +464,31 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 		if call, ok := t.Right.Node.(*ast.FnCall); ok {
 			return v.call(call, scope)
 		}
+		if id, ok := t.Right.Node.(*ast.IdExpr); ok {
+			symbol, err := scope.LookupAcrossScopes(id.Name.Name())
+			if err != nil {
+				return nil, err
+			}
+			for _, arg := range id.TypeArgs {
+				if !inferenceHole(arg) {
+					if err := v.typeExpr(arg, map[*ast.TypeAlias]bool{}); err != nil {
+						return nil, err
+					}
+				}
+			}
+			switch d := symbol.Node.(type) {
+			case *ast.FnDecl:
+				if len(id.TypeArgs) != 0 && len(id.TypeArgs) != len(d.TypeParams) {
+					return nil, fmt.Errorf("'%s' requires %d type arguments, got %d", id.Name.Name(), len(d.TypeParams), len(id.TypeArgs))
+				}
+				return nil, nil
+			case *ast.Proto:
+				if len(id.TypeArgs) != 0 {
+					return nil, fmt.Errorf("'%s' does not take type arguments", id.Name.Name())
+				}
+				return nil, nil
+			}
+		}
 		if nested, ok := t.Right.Node.(*ast.NamespaceAccess); ok {
 			symbol, err := scope.LookupAcrossScopes(nested.Left.Name.Name())
 			if err != nil {
@@ -448,7 +496,7 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			}
 			if d, ok := symbol.Node.(*ast.EnumDecl); ok {
 				ty := &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: nested.Left.Name, Namespace: t.Left.Name, Args: nested.TypeArgs}}
-				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}); err != nil {
+				if err := v.typeExpr(ty, map[*ast.TypeAlias]bool{}, true); err != nil {
 					return nil, err
 				}
 				return v.enumVariant(nested, d, ty)
@@ -726,7 +774,7 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 	default:
 		return nil, fmt.Errorf("%s: '%s' is not callable", call.Name.Pos, call.Name.Name())
 	}
-	if len(params) != len(call.TypeArgs) {
+	if len(call.TypeArgs) != 0 && len(params) != len(call.TypeArgs) {
 		return nil, fmt.Errorf(
 			"%s: '%s' requires %d explicit type arguments, got %d",
 			call.Name.Pos,
@@ -747,6 +795,9 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 	}
 	bindings := map[string]*ast.ExprType{}
 	for i, arg := range call.TypeArgs {
+		if inferenceHole(arg) {
+			continue
+		}
 		if err := v.typeExpr(arg, map[*ast.TypeAlias]bool{}); err != nil {
 			return nil, err
 		}

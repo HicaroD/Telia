@@ -39,7 +39,7 @@ func TestFailTerminatesWithoutDeferredCleanup(t *testing.T) {
 				t.Fatal(err)
 			}
 			path, diags := compiler.CompileOnly(file)
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("compile: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, path)
@@ -64,7 +64,7 @@ func TestFailTerminatesWithoutDeferredCleanup(t *testing.T) {
 
 func TestSuccessfulFailRunsCleanupNormally(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/fail_cleanup_success.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	if want := "continued\nworker cleanup\ncaller cleanup\n"; output != want {
@@ -74,7 +74,7 @@ func TestSuccessfulFailRunsCleanupNormally(t *testing.T) {
 
 func TestErrorPropagationRunsCleanupBeforeFatalBoundary(t *testing.T) {
 	path, diags := compiler.CompileOnly("testdata/fail_cleanup_propagation.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)

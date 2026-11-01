@@ -83,6 +83,7 @@ func (p *Parser) genericSuffix() token.Kind {
 			if depth == 0 {
 				next := p.lex.PeekN(i + 1).Kind
 				if next == token.COLON_COLON || next == token.OPEN_PAREN ||
+					next == token.NEWLINE || next == token.EOF || next == token.COMMA || next == token.CLOSE_PAREN || next == token.CLOSE_CURLY ||
 					next == token.OPEN_CURLY && !p.noNamedLiteral ||
 					next == token.DOT && p.lex.PeekN(i+2).Kind == token.OPEN_CURLY {
 					return next

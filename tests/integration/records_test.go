@@ -36,7 +36,7 @@ return 0
 func runRecordFixture(t *testing.T, source string) {
 	t.Helper()
 	exe, diags := compileRecordFixture(t, source)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("header-owned record: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, exe)

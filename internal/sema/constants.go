@@ -283,7 +283,7 @@ func (s *sema) inferImportedValue(
 		if symbol.Invalid {
 			return nil, diagnostics.COMPILER_ERROR_FOUND
 		}
-		ty, err := s.functionValue(id, symbol)
+		ty, err := s.functionValue(id, symbol, expected)
 		if err != nil {
 			return nil, err
 		}

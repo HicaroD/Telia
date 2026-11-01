@@ -31,7 +31,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("pointer conversions should compile and run: %v", diags.Diags)
 	}
 	if output != "pointers\n" {
@@ -123,7 +123,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("checked narrowing should compile and run: %v", diags.Diags)
 	}
 	if output != "checked\n" {
@@ -150,7 +150,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("widening should compile: %v", diags.Diags)
 	}
 	if output != "" {

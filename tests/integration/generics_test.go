@@ -8,7 +8,7 @@ import (
 
 func TestGenericStructsHaveIndependentConcreteLayouts(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_structs.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic structs should compile: %v", diags.Diags)
 	}
 	if want := "42\nhello\n7\n"; output != want {
@@ -18,7 +18,7 @@ func TestGenericStructsHaveIndependentConcreteLayouts(t *testing.T) {
 
 func TestGenericTupleResultsKeepConcreteElementIdentity(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_tuples.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic tuple results should compile: %v", diags.Diags)
 	}
 	if want := "42\nhello\n"; output != want {
@@ -28,7 +28,7 @@ func TestGenericTupleResultsKeepConcreteElementIdentity(t *testing.T) {
 
 func TestGenericBodiesPreservePointersControlFlowAndCleanup(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_control.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic body cloning should preserve behavior: %v", diags.Diags)
 	}
 	if want := "cleanup\ncleanup\n42\nhello\n"; output != want {
@@ -38,7 +38,7 @@ func TestGenericBodiesPreservePointersControlFlowAndCleanup(t *testing.T) {
 
 func TestGenericTypeParametersCanConstructConcreteStructs(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_zero.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("type-parameter literal should specialize: %v", diags.Diags)
 	}
 	if output != "0\n" {
@@ -52,7 +52,7 @@ func TestGenericBodiesWithNativeSanitizers(t *testing.T) {
 		"-fsanitize=undefined",
 		"-fno-sanitize-recover=all",
 	)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("sanitized generic compilation: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
@@ -67,7 +67,7 @@ func TestGenericBodiesWithNativeSanitizers(t *testing.T) {
 
 func TestDocumentedGenericsExample(t *testing.T) {
 	output, diags := compiler.CompileFile("../../examples/generics.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("documented example should compile: %v", diags.Diags)
 	}
 	if output != "count\n42\n" {
@@ -77,7 +77,7 @@ func TestDocumentedGenericsExample(t *testing.T) {
 
 func TestImportedGenericsUseDeclarationContextAndCallerTypeArguments(t *testing.T) {
 	output, diags := compiler.CompilePackage("testdata/generic_imports")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("imported generics should compile: %v", diags.Diags)
 	}
 	if want := "caller\nlibrary\nother\n9\n9\n"; output != want {
@@ -87,7 +87,7 @@ func TestImportedGenericsUseDeclarationContextAndCallerTypeArguments(t *testing.
 
 func TestGenericFunctionsComposeAndReuseRecursiveInstances(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_composition.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic composition should compile: %v", diags.Diags)
 	}
 	if want := "42\nhello\n5\n"; output != want {
@@ -97,7 +97,7 @@ func TestGenericFunctionsComposeAndReuseRecursiveInstances(t *testing.T) {
 
 func TestGenericFunctionsSpecializeWithoutSharingState(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_functions.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic functions should compile: %v", diags.Diags)
 	}
 	if want := "42\nhello\n7\n"; output != want {
@@ -107,7 +107,7 @@ func TestGenericFunctionsSpecializeWithoutSharingState(t *testing.T) {
 
 func TestGenericStructsComposeAndAllowPointerRecursion(t *testing.T) {
 	output, diags := compiler.CompileFile("testdata/generic_layouts.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("nested and recursive generic structs should compile: %v", diags.Diags)
 	}
 	if want := "nested\n9\n"; output != want {

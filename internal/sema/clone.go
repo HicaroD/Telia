@@ -107,7 +107,7 @@ func (c syntaxClone) node(n *ast.Node, scope *ast.Scope) *ast.Node {
 	case *ast.LiteralExpr:
 		copy.Node = &ast.LiteralExpr{Type: cloneType(v.Type, c.bindings), Value: v.Value}
 	case *ast.IdExpr:
-		copy.Node = &ast.IdExpr{Name: v.Name}
+		copy.Node = &ast.IdExpr{Name: v.Name, TypeArgs: cloneTypes(v.TypeArgs, c.bindings)}
 	case *ast.NullPtrExpr:
 		copy.Node = &ast.NullPtrExpr{Type: cloneType(v.Type, c.bindings)}
 	case *ast.UnaryExpr:

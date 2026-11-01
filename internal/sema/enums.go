@@ -67,6 +67,8 @@ func (s *sema) enumInstance(
 		return nil, err
 	}
 	d := &ast.EnumDecl{
+		Template:   template,
+		TypeArgs:   boundArguments(template.TypeParams, bindings),
 		Owner:      template.Owner,
 		File:       template.File,
 		Name:       template.Name,

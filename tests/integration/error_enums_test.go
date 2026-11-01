@@ -54,7 +54,7 @@ io::println(err.msg)
 return 0
 }
 `))
-	if len(diags.Diags) != 0 || output != "dynamic\n" {
+	if diags.HasErrors() || output != "dynamic\n" {
 		t.Fatalf("want borrowed message, got %q, %v", output, diags.Diags)
 	}
 }
@@ -83,7 +83,7 @@ return 2
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want classified error after return and assignment, got %v", diags.Diags)
 	}
 }
@@ -128,7 +128,7 @@ return 0
 return value
 }
 `))
-	if len(diags.Diags) != 0 || output != "file.txt\nread failed\n" {
+	if diags.HasErrors() || output != "file.txt\nread failed\n" {
 		t.Fatalf("want preserved payload through tuple and catch, got %q, %v", output, diags.Diags)
 	}
 }
@@ -166,7 +166,7 @@ return 5
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want payload-independent error identity, got %v", diags.Diags)
 	}
 }
@@ -187,7 +187,7 @@ return 1
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want saved identity, got %v", diags.Diags)
 	}
 	_, diags = compiler.CompileOnly(errorProgram(t, `package main
@@ -282,7 +282,7 @@ return 4
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want single evaluation in source order, got %v", diags.Diags)
 	}
 }
@@ -348,7 +348,7 @@ return 6
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want documented standard-library identities, got %v", diags.Diags)
 	}
 }
@@ -384,7 +384,7 @@ return 0
 return 1
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("nested return must exit catch, got %v", diags.Diags)
 	}
 }
@@ -446,7 +446,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompilePackage(dir)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want nominal identities across packages and specializations, got %v", diags.Diags)
 	}
 }
@@ -469,7 +469,7 @@ return 1
 return 0
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want multiline error construction, got %v", diags.Diags)
 	}
 }
@@ -502,7 +502,7 @@ return 0
 return 3
 }
 `))
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("want fallback and empty-message catch behavior, got %v", diags.Diags)
 	}
 }

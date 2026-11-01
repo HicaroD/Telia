@@ -26,7 +26,7 @@ func compileTextCLI(t *testing.T, flags ...string) string {
 		t.Fatal(err)
 	}
 	path, diags := compiler.CompileOnlyWithCFlags(file, flags...)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, path) })

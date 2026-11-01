@@ -93,9 +93,36 @@ func (s *sema) checkMatch(
 				if arm.PatternType == nil {
 					return nil, diagnostics.Diag{Title: "Invalid enum pattern", Message: "expected an enum variant", Span: arm.VariantName.Span, Help: "Use a variant of the matched enum."}
 				}
-				patternType, err := s.resolveType(arm.PatternType, scope)
+				patternSyntax := arm.PatternType
+				if id, ok := patternSyntax.T.(*ast.IdType); ok && !m.IsError && needsInference(id.Args) {
+					sym, err := s.typeSymbol(id.Name, id.Namespace, scope)
+					if err != nil {
+						return nil, err
+					}
+					if template, ok := sym.Node.(*ast.EnumDecl); ok && len(template.TypeParams) != 0 {
+						i, err := s.newInference(template.TypeParams, id.Args, scope)
+						if err != nil {
+							return nil, err
+						}
+						if err := i.expectedInstance(template, ty); err != nil {
+							return nil, err
+						}
+						args, err := i.result()
+						if err != nil {
+							return nil, err
+						}
+						patternSyntax = &ast.ExprType{Kind: ast.EXPR_TYPE_ID, T: &ast.IdType{Name: id.Name, Namespace: id.Namespace, Args: args}}
+					}
+				}
+				patternType, err := s.resolveType(patternSyntax, scope)
 				if err != nil {
 					return nil, err
+				}
+				if id, ok := arm.PatternType.T.(*ast.IdType); ok && !m.IsError && patternType.Kind == ast.EXPR_TYPE_ENUM {
+					instance := patternType.T.(*ast.EnumType).Decl
+					if template := instance.Template; template != nil {
+						s.suggestTypeArguments(id.Name, id.Args, instance.TypeArgs, template.TypeParams, template.Owner, template.File, scope, func(i *typeInference) error { return i.expectedInstance(template, ty) })
+					}
 				}
 				if m.IsError {
 					if patternType.Kind != ast.EXPR_TYPE_ENUM ||

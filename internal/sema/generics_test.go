@@ -20,13 +20,13 @@ fn main() {
 value := double<string>("bad")
 }
 `, "instantiated double<string>"},
-		{"explicit arguments", `fn identity<T>(value T) T {
-return value
+		{"undetermined arguments", `fn identity<T>() T {
+return T{}
 }
 fn main() {
-value := identity(1)
+value := identity()
 }
-`, "requires 1 explicit type arguments, got 0"},
+`, "cannot infer type parameter 'T'"},
 		{"wrong struct arity", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<i32, string>{}\n}\n", "requires 1 type arguments, got 2"},
 		{"unapplied type", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<Box>{}\n}\n", "requires 1 type arguments, got 0"},
 		{"literal argument", "struct Box<T> {\nvalue T\n}\nfn main() {\nx := Box<42>{}\n}\n", "invalid generic type argument"},
@@ -112,6 +112,9 @@ fn main() {
 a := box<i32>(1)
 b := box<Number>(2)
 c := box<string>("hello")
+number i32 := 3
+d := box(number)
+e := box<_>(number)
 }
 `
 	collector := diagnostics.New()
@@ -149,6 +152,11 @@ c := box<string>("hello")
 	first := main.Block.Statements[0].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
 	second := main.Block.Statements[1].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
 	third := main.Block.Statements[2].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
+	inferred := main.Block.Statements[4].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
+	partial := main.Block.Statements[5].Node.(*ast.VarStmt).Expr.Node.(*ast.FnCall).Decl
+	if inferred != first || partial != first {
+		t.Fatal("explicit, inferred, and partial applications must reuse one specialization")
+	}
 	if first != second || first == third {
 		t.Fatal(
 			"canonical aliases must reuse an instance while different arguments stay independent",

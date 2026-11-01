@@ -38,7 +38,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("fixed-width shift constants: %v", diags.Diags)
 	}
 }
@@ -82,7 +82,7 @@ return 0
 		"-fsanitize=undefined",
 		"-fno-sanitize-recover=undefined",
 	)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("runtime shift lowering: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, exe)
@@ -108,7 +108,7 @@ func TestInvalidDynamicShiftCountsPanic(t *testing.T) {
 				"-fsanitize=undefined",
 				"-fno-sanitize-recover=undefined",
 			)
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("dynamic shift: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, exe)

@@ -28,7 +28,7 @@ func runIOSource(t *testing.T, body, input string, flags ...string) (string, str
 func runIOFile(t *testing.T, file, input string, flags ...string) (string, string) {
 	t.Helper()
 	path, diags := compiler.CompileOnlyWithCFlags(file, flags...)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)

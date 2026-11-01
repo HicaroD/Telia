@@ -29,7 +29,7 @@ return 0
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("successful @try should compile: %v", diags.Diags)
 	}
 	if want := "continued\ncleanup\n"; output != want {
@@ -83,7 +83,7 @@ return 1
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("@try should compile: %v", diags.Diags)
 	}
 	if want := "inner\nworker second\nworker first\ncaller\nfailure\n"; output != want {
@@ -133,7 +133,7 @@ return 1
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("composed @try should compile: %v", diags.Diags)
 	}
 	if want := "called\ncalled\ncalled\ncalled\ncleanup\nfailure\n"; output != want {
@@ -171,7 +171,7 @@ return 1
 }
 `)
 	output, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("multi-result @try should compile: %v", diags.Diags)
 	}
 	if want := "pair\ncleanup\npair failed\n"; output != want {

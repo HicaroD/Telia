@@ -19,16 +19,20 @@ type sema struct {
 	mainPackageFound bool
 	collector        *diagnostics.Collector
 
-	pkg               *ast.Package
-	file              *ast.File
-	program           *ast.Program // set by Check(); used by registerTupleType
-	currentReturnType *ast.ExprType
-	currentYield      *yieldContext
-	loopDepth         int
-	currentFunction   *ast.FnDecl
-	inDeferredCleanup bool
-	vaInitializer     *ast.FnCall
-	matchHints        map[source.Span]bool
+	pkg                       *ast.Package
+	file                      *ast.File
+	program                   *ast.Program // set by Check(); used by registerTupleType
+	currentReturnType         *ast.ExprType
+	currentYield              *yieldContext
+	loopDepth                 int
+	currentFunction           *ast.FnDecl
+	inDeferredCleanup         bool
+	vaInitializer             *ast.FnCall
+	matchHints                map[source.Span]bool
+	inferenceHints            map[source.Span]bool
+	inferenceHintRanges       []source.Span
+	inferenceProbeDepth       int
+	inferenceDependentContext int
 }
 
 func New(collector *diagnostics.Collector) *sema {
@@ -646,7 +650,7 @@ func (sema *sema) checkStmt(
 			stmt.Node.(*ast.FnCall),
 			referenceScope,
 			declScope,
-			returnTy,
+			nil,
 			fromImportPackage,
 			false,
 		)
@@ -810,6 +814,10 @@ func (sema *sema) checkVar(
 
 	// Resolve qualified calls before applying tuple/error assignment rules.
 	// The backend uses the resolved declaration, so the namespace is no longer needed.
+	expectedAssignment, err := sema.assignmentContext(variable.Names, referenceScope)
+	if err != nil {
+		return err
+	}
 	var qualifiedRetType *ast.ExprType
 	if variable.Expr.Kind == ast.KIND_NAMESPACE_ACCESS {
 		ns := variable.Expr.Node.(*ast.NamespaceAccess)
@@ -824,6 +832,7 @@ func (sema *sema) checkVar(
 				referenceScope,
 				declScope,
 				fromImportPackage,
+				expectedAssignment,
 			)
 			if err != nil {
 				return err
@@ -860,7 +869,7 @@ func (sema *sema) checkVar(
 				fnCall,
 				referenceScope,
 				declScope,
-				returnTy,
+				expectedAssignment,
 				fromImportPackage,
 				false,
 			)
@@ -1802,10 +1811,34 @@ func (sema *sema) checkFnCall(
 			return sema.checkTestingAssertion(fnCall, referenceScope)
 		}
 		if len(fnDecl.TypeParams) != 0 {
-			fnDecl, err = sema.instantiateFunction(fnDecl, fnCall.TypeArgs, referenceScope, fnCall.Name)
+			template := fnDecl
+			args := fnCall.TypeArgs
+			if needsInference(args) {
+				args, err = sema.inferCallArguments(fnDecl, fnCall, returnTy, referenceScope)
+				if err != nil {
+					return nil, err
+				}
+			}
+			fnDecl, err = sema.instantiateFunction(fnDecl, args, referenceScope, fnCall.Name)
 			if err != nil {
 				return nil, err
 			}
+			bindings, _, err := sema.concreteArguments(template.TypeParams, args, referenceScope, map[*ast.TypeAlias]bool{})
+			if err != nil {
+				return nil, err
+			}
+			sema.suggestTypeArguments(fnCall.Name, fnCall.TypeArgs, boundArguments(template.TypeParams, bindings), template.TypeParams, template.Owner, template.File, referenceScope, func(i *typeInference) error {
+				if returnTy != nil {
+					if err := i.match(inferenceCallResult(template.RetType, fnCall, returnTy), returnTy); err != nil {
+						return err
+					}
+				}
+				var patterns []*ast.ExprType
+				for _, p := range template.Params.Fields {
+					patterns = append(patterns, p.Type)
+				}
+				return i.arguments(patterns, fnCall.Args, referenceScope)
+			})
 		} else {
 			if len(fnCall.TypeArgs) != 0 {
 				return nil, fmt.Errorf("%s: '%s' does not take type arguments", fnCall.Name.Pos, fnCall.Name.Name())
@@ -1815,7 +1848,9 @@ func (sema *sema) checkFnCall(
 			}
 		}
 		fnCall.Decl = fnDecl
-		err = sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		err = sema.withInferenceDependency(needsInference(fnCall.TypeArgs) && len(symbol.Node.(*ast.FnDecl).TypeParams) != 0, func() error {
+			return sema.checkFnCallArgs(fnCall, fnDecl.Params, referenceScope, declScope, fromImportPackage)
+		})
 		retType = fnDecl.RetType
 	}
 
@@ -2186,6 +2221,7 @@ func (s *sema) inferExprTypeWithContext(
 	case ast.KIND_FN_CALL:
 		actual, err := s.inferFnCallExprTypeWithContext(
 			expr.Node.(*ast.FnCall),
+			expectedType,
 			referenceScope,
 			declScope,
 			fromImportPackage,
@@ -2264,6 +2300,7 @@ func (s *sema) inferExprTypeWithContext(
 			referenceScope,
 			declScope,
 			fromImportPackage,
+			expectedType,
 		)
 		if err != nil {
 			return nil, err
@@ -2353,7 +2390,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 	case ast.KIND_VA_INTRINSIC:
 		return nil, vaIntrinsicValueDiagnostic(id.Name.Span)
 	case ast.KIND_FN_DECL, ast.KIND_PROTO:
-		actual, err := sema.functionValue(id, symbol)
+		actual, err := sema.functionValue(id, symbol, expectedType)
 		if err != nil {
 			return nil, err
 		}
@@ -2960,6 +2997,7 @@ func (sema *sema) inferUnaryExprType(
 
 func (sema *sema) inferFnCallExprTypeWithContext(
 	fnCall *ast.FnCall,
+	expectedType *ast.ExprType,
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
@@ -2969,7 +3007,7 @@ func (sema *sema) inferFnCallExprTypeWithContext(
 		fnCall,
 		referenceScope,
 		declScope,
-		nil,
+		expectedType,
 		fromImportPackage,
 		isArg,
 	)
@@ -3043,7 +3081,7 @@ func (sema *sema) inferStructLiteralExprWithContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, error) {
-	actual, err := sema.literalType(stLit, referenceScope)
+	actual, err := sema.literalType(stLit, referenceScope, expectedType)
 	if err != nil {
 		return nil, err
 	}
@@ -3055,6 +3093,10 @@ func (sema *sema) inferStructLiteralExprWithContext(
 		)
 	}
 	st := actual.T.(*ast.StructType)
+	if st.Decl.Template != nil && needsInference(stLit.TypeArgs) {
+		sema.inferenceDependentContext++
+		defer func() { sema.inferenceDependentContext-- }()
+	}
 	if st.Decl.IsUnion && len(stLit.Values) != 1 {
 		return nil, diagnostics.Diag{
 			Title:   "Union member selection",
@@ -3462,7 +3504,7 @@ func (sema *sema) inferStructLiteralExprWithoutContext(
 	declScope *ast.Scope,
 	fromImportPackage bool,
 ) (*ast.ExprType, bool, error) {
-	ty, err := sema.literalType(stLit, declScope)
+	ty, err := sema.literalType(stLit, referenceScope)
 	if err != nil {
 		return nil, false, err
 	}
@@ -3533,6 +3575,7 @@ func (sema *sema) checkNamespaceAccess(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
+	context ...*ast.ExprType,
 ) (*ast.ExprType, error) {
 	if namespaceAccess.IsImport {
 		imp := namespaceAccess.Left.Name.Name()
@@ -3545,6 +3588,7 @@ func (sema *sema) checkNamespaceAccess(
 			referenceScope,
 			useDecl.Package.Scope,
 			fromImportPackage,
+			context...,
 		)
 	}
 
@@ -3590,17 +3634,82 @@ func (sema *sema) checkNamespaceAccess(
 		}
 	}
 	if d, ok := left.Node.(*ast.EnumDecl); ok {
+		template := d
 		var err error
+		args := namespaceAccess.TypeArgs
+		if len(d.TypeParams) != 0 && needsInference(args) {
+			i, err := sema.newInference(d.TypeParams, args, referenceScope)
+			if err != nil {
+				return nil, err
+			}
+			i.scope, i.file = d.Owner.Scope, d.File
+			if len(context) != 0 {
+				if err := i.expectedInstance(d, context[0]); err != nil {
+					return nil, err
+				}
+			}
+			if lit, ok := namespaceAccess.Right.Node.(*ast.StructLiteralExpr); ok {
+				for _, v := range d.Variants {
+					if v.Name.Name() == lit.Name.Name() {
+						if err := i.fields(v.Fields, lit.Values, referenceScope); err != nil {
+							return nil, err
+						}
+					}
+				}
+			}
+			args, err = i.result()
+			if err != nil {
+				return nil, err
+			}
+		}
 		d, err = sema.enumInstance(
 			d,
-			namespaceAccess.TypeArgs,
+			args,
 			referenceScope,
 			namespaceAccess.Left.Name,
 		)
 		if err != nil {
 			return nil, err
 		}
-		return sema.checkEnumAccess(namespaceAccess, d, referenceScope)
+		var ty *ast.ExprType
+		err = sema.withInferenceDependency(
+			needsInference(namespaceAccess.TypeArgs) && len(template.TypeParams) != 0,
+			func() error {
+				var err error
+				ty, err = sema.checkEnumAccess(namespaceAccess, d, referenceScope)
+				return err
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		if len(template.TypeParams) != 0 {
+			sema.suggestTypeArguments(
+				namespaceAccess.Left.Name,
+				namespaceAccess.TypeArgs,
+				d.TypeArgs,
+				template.TypeParams,
+				template.Owner,
+				template.File,
+				referenceScope,
+				func(i *typeInference) error {
+					if len(context) != 0 {
+						if err := i.expectedInstance(template, context[0]); err != nil {
+							return err
+						}
+					}
+					if lit, ok := namespaceAccess.Right.Node.(*ast.StructLiteralExpr); ok {
+						for _, v := range template.Variants {
+							if v.Name.Name() == lit.Name.Name() {
+								return i.fields(v.Fields, lit.Values, referenceScope)
+							}
+						}
+					}
+					return nil
+				},
+			)
+		}
+		return ty, nil
 	}
 
 	// TODO(errors)
@@ -3653,24 +3762,35 @@ func (sema *sema) checkImportAccess(
 	referenceScope *ast.Scope,
 	declScope *ast.Scope,
 	fromImportPackage bool,
+	context ...*ast.ExprType,
 ) (*ast.ExprType, error) {
+	var expected *ast.ExprType
+	if len(context) != 0 {
+		expected = context[0]
+	}
 	switch node.Kind {
 	case ast.KIND_ID_EXPR:
-		return sema.inferImportedValue(node.Node.(*ast.IdExpr), declScope, nil)
+		return sema.inferImportedValue(node.Node.(*ast.IdExpr), declScope, expected)
 	case ast.KIND_FN_CALL:
 		fnCall := node.Node.(*ast.FnCall)
 		fnRetType, err := sema.checkFnCall(
 			fnCall,
 			referenceScope,
 			declScope,
-			nil,
+			expected,
 			fromImportPackage,
 			false,
 		)
 		return fnRetType, err
 	case ast.KIND_NAMESPACE_ACCESS:
 		namespaceAccess := node.Node.(*ast.NamespaceAccess)
-		ty, err := sema.checkNamespaceAccess(namespaceAccess, referenceScope, declScope, true)
+		ty, err := sema.checkNamespaceAccess(
+			namespaceAccess,
+			referenceScope,
+			declScope,
+			true,
+			expected,
+		)
 		return ty, err
 	case ast.KIND_EXTERN_DECL:
 		return nil, fmt.Errorf("nothing do with a extern declaration, try accessing a prototype")
@@ -3922,11 +4042,19 @@ func (s *sema) checkAssignment(
 		switch expr.Kind {
 		case ast.KIND_FN_CALL:
 			fnCall := expr.Node.(*ast.FnCall)
+			targets := assignment.Targets[t : t+1]
+			if len(assignment.Values) == 1 {
+				targets = assignment.Targets[t:]
+			}
+			expected, err := s.assignmentContext(targets, referenceScope)
+			if err != nil {
+				return err
+			}
 			fnRetType, err := s.checkFnCall(
 				fnCall,
 				referenceScope,
 				declScope,
-				nil,
+				expected,
 				fromImportPackage,
 				false,
 			)

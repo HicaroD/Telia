@@ -14,13 +14,14 @@ fn identity<T>(value T) T {
 
 fn make_pair<A, B>(first A, second B) Pair<A, B> {
     return Pair<A, B>{
-        first: identity<A>(first),
-        second: identity<B>(second)
+        first: identity(first),
+        second: identity(second)
     }
 }
 
 fn main() i32 {
-    entry := make_pair<string, i32>("count", 42)
+    number i32 := 42
+    entry := make_pair<string, _>("count", number)
     io::println(entry.first)
     libc::printf("%d\n", entry.second)
     return 0

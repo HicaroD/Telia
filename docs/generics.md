@@ -3,8 +3,8 @@
 Named literals use `Type{field: value}`; see [literal syntax](literals.md) for
 control-flow header rules and compatibility with the old dotted spelling.
 
-Structs and functions can declare type parameters with angle brackets. Function
-calls require explicit type arguments; there is no type-argument inference.
+Structs, enums, and functions can declare type parameters with angle brackets.
+Type arguments can be explicit, inferred, or partially explicit using `_`.
 
 ```rust
 struct Pair<A, B> {
@@ -22,6 +22,79 @@ fn make_pair<A, B>(first A, second B) Pair<A, B> {
 
 entry := make_pair<string, i32>("count", identity<i32>(42))
 ```
+
+## Inference and partial arguments
+
+Existing explicit applications remain valid and retain their meaning. When
+arguments are omitted, the compiler combines information from value arguments
+and expected types (annotated initializers, assignments, returns, and surrounding
+function parameters):
+
+```rust
+number i32 := 42
+copy := identity(number)                      // T = i32
+entry := make_pair("count", number)           // A = string, B = i32
+partial := make_pair<string, _>("count", number)
+wide i64 := identity(42)                      // expected result supplies i64
+```
+
+Partial lists must include every position: use `<string, _>`, not `<string>`,
+for a declaration with two parameters. Explicit positions are fixed; `_` asks
+the compiler to infer that position. A completely omitted list infers all
+positions. Placeholders are application syntax, not standalone types or missing
+type arguments in variable annotations or declaration signatures.
+
+Inference matches pointers, arrays, slices, tuples, callback signatures, and
+nested generic types structurally. Concrete evidence is collected before
+existing numeric literal defaults are applied. Conflicting concrete types are
+errors; inference does not silently widen numbers. `nil` alone cannot determine
+a pointee type.
+
+Constructors use fields, payloads, and expected destination types:
+
+```rust
+entry := Pair{first: "count", second: number}
+empty Pair<string, i32> := Pair{}
+item := Option<_>::Some{value: number}
+none Option<i32> := Option::None
+```
+
+Here `Option<T>` is the enum from [enums](enums.md). Enum patterns can omit
+arguments already determined by the matched value: `Option::Some{value}` and
+`Option::None`. The enum's declaration must still match; a general `error`
+value does not reveal an error enum's generic arguments.
+
+A generic function can become a concrete callback through an expected signature
+or explicit specialization:
+
+```rust
+callback fn(value i32) i32 := identity
+explicit := identity<i32>
+partial_callback fn(value i32) i32 := identity<_>
+```
+
+Callback inference preserves calling-convention requirements. It introduces no
+runtime-polymorphic function values and does not relax foreign ABI restrictions.
+
+Without enough evidence, supply explicit arguments: an unannotated `Pair{}`, a
+payload-free `Option::None`, a result-only generic call, or a bare generic
+function value cannot invent unknown types. Inference uses local type information,
+not operations inside a function body.
+
+### Refactoring hints
+
+The compiler emits an informational hint when explicit arguments can be removed
+without changing the canonical concrete specialization. If complete omission is
+unsafe, it may suggest replacing some positions with `_` instead. For example,
+`identity<i64>(42)` must retain its type when omission would default to `int`.
+
+Hints do not affect build success and never edit source. Explicit spelling
+remains supported. Hint analysis is read-only and conservative: uncertain rewrites
+and specialization-dependent suggestions inside generic templates stay silent.
+Overlapping suggestions are avoided, as is circular evidence from an enclosing
+type that was inferred from the very arguments being considered for removal.
+
+## Qualified and nested applications
 
 Use the same notation after a package qualifier:
 

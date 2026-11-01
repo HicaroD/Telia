@@ -185,7 +185,10 @@ callback Compare := compare_items
 result := callback(left, right)
 ```
 
-Bare, non-generic function names are function values. Native function types
+Bare, non-generic function names are function values. Generic functions become
+concrete native function values through explicit specialization (`identity<i32>`),
+partial arguments (`identity<_>`), or an expected callback signature. See
+[generic inference](generics.md#inference-and-partial-arguments). Native function types
 (`type Compare = fn(...) Result`) remain native. Foreign callback aliases and
 their Telia implementations must explicitly opt in with `@[cc="c"]` or the
 matching `cc_macro`; a matching parameter list alone is not sufficient. Foreign
@@ -196,8 +199,9 @@ output slots are supported.
 An output slot is a pointer to callback storage, not a second function type.
 Callbacks can be initialized and compared with `nil`; check nullable callbacks
 before invoking them. Calling a null or expired callback is not made safe.
-Generic functions can contain independently specialized callback types; use a
-non-generic wrapper when taking the address of a generic function itself.
+Generic functions can contain independently specialized callback types. Generic
+templates still cannot carry C linkage attributes; use a concrete, appropriately
+annotated wrapper when exposing a generic implementation as a foreign callback.
 
 `cc="c"` selects the native C convention; extern prototypes default to it, but
 ordinary Telia functions and function types do not opt in implicitly. Other named

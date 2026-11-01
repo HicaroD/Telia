@@ -33,7 +33,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("enum construction and identity: %v", diags.Diags)
 	}
 }
@@ -62,7 +62,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("explicit enum tag representation: %v", diags.Diags)
 	}
 }
@@ -98,7 +98,7 @@ return 0
 		}
 	}
 	_, diags := compiler.CompilePackage(dir)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("imported enum identity: %v", diags.Diags)
 	}
 }
@@ -133,7 +133,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("named enum payload: %v", diags.Diags)
 	}
 }
@@ -164,7 +164,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic enum specialization: %v", diags.Diags)
 	}
 }
@@ -199,7 +199,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("value-producing match: %v", diags.Diags)
 	}
 }
@@ -245,7 +245,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("yield and copied pattern bindings: %v", diags.Diags)
 	}
 }
@@ -281,7 +281,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic match specializations: %v", diags.Diags)
 	}
 }
@@ -314,7 +314,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("generic enum factory: %v", diags.Diags)
 	}
 }
@@ -343,7 +343,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("short-circuited match must not execute: %v", diags.Diags)
 	}
 }
@@ -381,7 +381,7 @@ return 0
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileFile(path)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("match condition evaluation: %v", diags.Diags)
 	}
 }

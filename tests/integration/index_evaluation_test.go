@@ -42,7 +42,7 @@ return 0
 				"-fsanitize=undefined",
 				"-fno-sanitize-recover=all",
 			)
-			if len(diags.Diags) != 0 {
+			if diags.HasErrors() {
 				t.Fatalf("guarded index should compile: %v", diags.Diags)
 			}
 			defer removeTestBinary(t, exe)

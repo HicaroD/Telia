@@ -232,7 +232,7 @@ return 1
 
 func TestFSExampleUsesExplicitTextValidation(t *testing.T) {
 	path, diags := compiler.CompileOnly("../../examples/files.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile example: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)

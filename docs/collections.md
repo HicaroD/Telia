@@ -5,6 +5,11 @@ Arrays and slices are language types. Lists are ordinary generic Telia code in
 The same language and memory operations are available to application libraries.
 Maps and sets are not part of this milestone.
 
+Generic functions can infer element types from array and slice arguments, and
+from array-literal elements when the parameter supplies the array shape.
+Explicit applications remain valid; partial applications use `_` in every
+inferred position. See [generic inference](generics.md#inference-and-partial-arguments).
+
 ## Arrays
 
 ```rust
