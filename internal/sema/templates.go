@@ -365,6 +365,11 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			(left.IsError() && right.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR || right.IsError() && left.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR) {
 			return ast.NewBasicType(token.BOOL_TYPE), nil
 		}
+		if t.Op == token.EQUAL_EQUAL || t.Op == token.BANG_EQUAL {
+			if err := ast.EqualityEligibility(left, false); err != nil {
+				return nil, diagnostics.Diag{Title: "Unsupported equality", Message: err.Error(), Span: n.Span, Help: "General errors support presence checks against nil and kind comparisons, not whole-value equality."}
+			}
+		}
 		op := ast.BinaryOperators[t.Op]
 		// Literal operands adopt the other numeric operand's type, just as
 		// concrete expression checking does with an expected type.

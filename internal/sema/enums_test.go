@@ -1,6 +1,9 @@
 package sema_test
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestEnumRejectsRepeatedTagsWithBothLocations(t *testing.T) {
 	c := checkDiagnostics(
@@ -74,15 +77,15 @@ func TestEnumTagValidationRegressions(t *testing.T) {
 	}
 }
 
-func TestPayloadEnumsRequireMatchingInsteadOfTagOnlyEquality(t *testing.T) {
+func TestPayloadEnumsRejectIneligibleAlternativeWithComponentPath(t *testing.T) {
 	c := checkDiagnostics(
 		t,
-		"package main\nenum Event {\nResize {\nwidth i32\n}\n}\nfn main() {\nsame := Event::Resize{width: 1} == Event::Resize{width: 2}\n}\n",
+		"package main\nstruct Box<T> {\nvalue T\n}\nenum Event {\nEmpty\nResize {\nwidth Box<i32[]>\n}\n}\nfn main() {\nsame := Event::Empty == Event::Empty\n}\n",
 	)
-	if len(c.Diags) != 1 || c.Diags[0].Title != "Payload enum comparison" ||
+	if len(c.Diags) != 1 || c.Diags[0].Title != "Unsupported equality" ||
 		!c.Diags[0].Span.Valid() ||
 		c.Diags[0].Help == "" ||
-		len(c.Diags[0].Related) != 1 {
+		!strings.Contains(c.Diags[0].Message, "value::Resize.width.value") {
 		t.Fatalf("want structured payload-comparison diagnostic, got %v", c.Diags)
 	}
 }

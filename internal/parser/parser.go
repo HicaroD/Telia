@@ -144,6 +144,7 @@ func (p *Parser) addPackage(
 	}
 	if pkgTy == ast.PACKAGE_STD {
 		// Standard packages may own portable native sources, just like vendors.
+		pkg.StandardPath = filepath.ToSlash(filepath.Clean(pkgPath))
 		manifest := filepath.Join(fullPkgPath, "native.json")
 		if _, err := os.Stat(manifest); err == nil {
 			pkg.NativeManifest = manifest
