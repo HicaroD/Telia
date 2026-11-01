@@ -83,6 +83,9 @@ It does not validate external websites or make semantic claims about code fences
 
 ## Historical evidence
 
+[Internal semantic hashing](hashing.md) records the compiler/library key and
+checked seed boundary, native adapters, and focused verification commands.
+
 [Historical verification notes](verification-records.md) preserve local
 implementation-time platform/sanitizer observations. The
 [standard-library CLI coverage audit](stdlib-cli-coverage.md) preserves an

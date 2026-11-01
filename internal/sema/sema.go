@@ -1656,6 +1656,22 @@ func (sema *sema) checkFnCall(
 	var err error
 	_, localBuiltinLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
 	_, declBuiltinLookup := declScope.LookupAcrossScopes(fnCall.Name.Name())
+	if fnCall.Name.Name() == "__key_seed" && localBuiltinLookup != nil && declBuiltinLookup != nil {
+		if len(fnCall.TypeArgs) != 0 || len(fnCall.Args) != 0 {
+			return nil, fmt.Errorf("__key_seed requires no type or value arguments")
+		}
+		seed := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_ARRAY,
+			T:    &ast.SequenceType{Element: concreteBasicType(token.U64_TYPE), Length: 2},
+		}
+		sema.program.SequenceTypes = append(sema.program.SequenceTypes, seed)
+		ty := &ast.ExprType{Kind: ast.EXPR_TYPE_TUPLE, T: &ast.TupleType{Types: []*ast.ExprType{
+			seed, concreteBasicType(token.ERROR_TYPE),
+		}}}
+		fnCall.Builtin, fnCall.ResultType = "__key_seed", ty
+		sema.registerTupleType(ty)
+		return sema.checkCallAtOperator(fnCall, ty, referenceScope, fromImportPackage, isArg)
+	}
 	if isConversionBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil &&
 		declBuiltinLookup != nil {
 		ty, err := sema.checkConversion(fnCall, referenceScope, declScope, fromImportPackage)
@@ -2449,7 +2465,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 			return nil, enumTypeMismatch(idTy, expectedType, id.Name.Span)
 		}
 		return idTy, nil
-	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE, ast.EXPR_TYPE_TUPLE, ast.EXPR_TYPE_ERROR_KIND:
 		if !idTy.Equals(expectedType) {
 			return nil, fmt.Errorf("collection type mismatch")
 		}

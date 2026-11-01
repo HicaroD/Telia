@@ -64,3 +64,6 @@ sanitizers (UndefinedBehaviorSanitizer by default; use
 `TELIA_TEST_SANITIZERS=address,undefined` when AddressSanitizer is available).
 Windows skips sanitizer-only tests but runs ordinary behavior/failure checks.
 Matrix configuration alone is not evidence of a successful platform run.
+The matrix also runs [semantic hashing and seed-adapter checks](hashing.md),
+including reference vectors, compiled fixtures, deterministic entropy failures,
+and non-Windows UBSan checks.
