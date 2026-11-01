@@ -22,7 +22,7 @@ they return no value.
 use "std::io"
 use text "std::strings"
 use "pkg::helpers"
-use "vendor::sdl3"
+use "vendor::sdl"
 ```
 
 An import path uses `::` separators. Its prefix selects the standard library,

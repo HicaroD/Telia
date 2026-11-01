@@ -39,7 +39,7 @@ Import prefixes identify where to look:
 | --- | --- | --- |
 | `std` | Standard library | `use "std::strings"` |
 | `pkg` | Application packages relative to the build's root directory | `use "pkg::helpers"` |
-| `vendor` | Native vendor packages | `use "vendor::sdl3"` |
+| `vendor` | Native vendor packages | `use "vendor::sdl"` |
 
 For an application with `main.t` and `helpers/helpers.t`, build the application
 directory and import `pkg::helpers` from `main.t`. Keep helpers in their own

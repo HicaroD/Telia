@@ -71,7 +71,7 @@ def main():
         for library in ("std", "vendor"):
             copy_libraries(ROOT / "base" / library, stage / "base" / library, target)
         shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
-        shutil.copy2(ROOT / "docs" / "native-libraries.md", stage / "native-libraries.md")
+        shutil.copy2(ROOT / "docs" / "stdlib" / "native-libraries.md", stage / "native-libraries.md")
         examples = stage / "examples"
         examples.mkdir()
         shutil.copy2(ROOT / "examples" / "sdl.t", examples / "sdl.t")

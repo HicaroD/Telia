@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/HicaroD/Telia/internal/diagnostics"
 	"github.com/HicaroD/Telia/tests/compiler"
 )
 
@@ -65,14 +66,30 @@ func TestVendorImportLinksAndDeploysSharedLibrary(t *testing.T) {
 	root, pkg := vendorLibraryFixture(t)
 	t.Setenv("T_VENDOR_PATH", root)
 	source := filepath.Join(t.TempDir(), "main.t")
-	if err := os.WriteFile(source, []byte("package main\nuse \"vendor::answer\"\nfn main() i32 {\n return answer::vendor_answer() - 42\n}\n"), 0644); err != nil {
+	text := `package main
+use "vendor::answer"
+fn identity<T>(value T) T {
+    return value
+}
+fn main() i32 {
+    return identity<i32>(answer::vendor_answer()) - 42
+}
+`
+	if err := os.WriteFile(source, []byte(text), 0644); err != nil {
 		t.Fatal(err)
 	}
 	binary, diags := compiler.CompileOnly(source)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile vendor import: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })
+	hasHint := false
+	for _, diag := range diags.Diags {
+		hasHint = hasHint || diag.Severity == diagnostics.Hint
+	}
+	if !hasHint {
+		t.Fatal("expected an informational generic-argument simplification hint")
+	}
 	if err := os.Rename(pkg, pkg+"-unavailable"); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +119,7 @@ func TestVendorRequirementsAreTransitiveAndDeduplicated(t *testing.T) {
 			t.Fatal(err)
 		}
 		_, diags := compiler.CompileFile(source)
-		if len(diags.Diags) != 0 {
+		if diags.HasErrors() {
 			t.Fatalf("transitive native import: %v", diags.Diags)
 		}
 	}
@@ -123,7 +140,7 @@ func TestVendorImportCannotEscapeVendorRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, diags := compiler.CompileOnly(source)
-	if len(diags.Diags) == 0 {
+	if !diags.HasErrors() {
 		t.Fatal("vendor import escaped its root")
 	}
 }
@@ -150,7 +167,7 @@ extern {
 		if err := os.WriteFile(source, []byte(text), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if _, diags := compiler.CompileFile(source); len(diags.Diags) != 0 {
+		if _, diags := compiler.CompileFile(source); diags.HasErrors() {
 			t.Fatalf("subpackages must inherit and deduplicate native sources: %v", diags.Diags)
 		}
 	}
@@ -179,7 +196,7 @@ func TestVendorManifestInheritanceCannotUseTheVendorRootManifest(t *testing.T) {
 		if binary != "" {
 			t.Cleanup(func() { removeTestBinary(t, binary) })
 		}
-		if len(diags.Diags) == 0 {
+		if !diags.HasErrors() {
 			t.Fatal(
 				"an unrelated manifest above the top-level vendor package must not be inherited",
 			)
@@ -240,7 +257,7 @@ func TestVendorSubpackageManifestOverridesItsParent(t *testing.T) {
 	if err := os.WriteFile(source, []byte("package main\nuse \"vendor::answer::child\"\nfn main() i32 {\nreturn child::child_answer() - 43\n}\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, diags := compiler.CompileFile(source); len(diags.Diags) != 0 {
+	if _, diags := compiler.CompileFile(source); diags.HasErrors() {
 		t.Fatalf("nearest manifest must own child sources: %v", diags.Diags)
 	}
 }
@@ -283,7 +300,7 @@ func TestSDL3ExampleDrawsAndCleansUp(t *testing.T) {
 	}
 	t.Setenv("T_VENDOR_PATH", root)
 	binary, diags := compiler.CompileOnly("../../examples/sdl.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile SDL example: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })
@@ -311,7 +328,7 @@ func TestSDL3ExampleStaysOpenUntilQuitByDefault(t *testing.T) {
 	}
 	t.Setenv("T_VENDOR_PATH", root)
 	binary, diags := compiler.CompileOnly("../../examples/sdl.t")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile SDL example: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })
@@ -346,7 +363,7 @@ func TestSDL3SnakeDrawsThroughTheNativeFacade(t *testing.T) {
 	}
 	t.Setenv("T_VENDOR_PATH", root)
 	binary, diags := compiler.CompilePackageOnly("../../examples/snake")
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile Snake: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })
@@ -413,7 +430,7 @@ fn main() i32 {
 		t.Fatal(err)
 	}
 	binary, diags := compiler.CompileOnlyWithCFlags(path, helper)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile SDL event test: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })

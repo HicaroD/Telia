@@ -2,8 +2,10 @@
 import hashlib
 import importlib.util
 from pathlib import Path
+import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location("package_release", Path(__file__).with_name("package-release.py"))
 release = importlib.util.module_from_spec(spec)
@@ -55,3 +57,28 @@ class PackageReleaseTests(unittest.TestCase):
         for entry in entries:
             digest, name = entry.split("  ", 1)
             self.assertEqual(digest, hashlib.sha256((self.destination / name).read_bytes()).hexdigest())
+
+    def test_main_packages_reorganized_native_library_documentation(self):
+        for directory in ("base/std", "base/vendor", "docs/stdlib", "examples"):
+            (self.root / directory).mkdir(parents=True)
+        guide = "# Native vendor packages\nDocumentation from the canonical path.\n"
+        (self.root / "docs/stdlib/native-libraries.md").write_text(guide)
+        (self.root / "LICENSE").write_text("license")
+        for name in ("sdl.t", "hello.t"):
+            (self.root / "examples" / name).write_text("package main\n")
+        output = self.root / "release.tar.gz"
+
+        def build_compiler(command, **kwargs):
+            Path(command[command.index("-o") + 1]).write_bytes(b"compiler fixture")
+
+        with mock.patch.object(release, "ROOT", self.root), \
+                mock.patch.object(release.platform, "system", return_value="Linux"), \
+                mock.patch.object(release.platform, "machine", return_value="x86_64"), \
+                mock.patch.object(release.subprocess, "run", side_effect=build_compiler), \
+                mock.patch("sys.argv", ["package-release.py", "--output", str(output)]):
+            release.main()
+
+        with tarfile.open(output, "r:gz") as archive:
+            self.assertEqual(archive.extractfile("native-libraries.md").read().decode(), guide)
+            inventory = archive.extractfile("BUNDLE_SHA256SUMS").read().decode()
+            self.assertIn(hashlib.sha256(guide.encode()).hexdigest() + "  native-libraries.md\n", inventory)

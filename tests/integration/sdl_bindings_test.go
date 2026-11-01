@@ -31,7 +31,7 @@ func runSDLSourceWithCFlags(t *testing.T, source string, flags ...string) {
 		t.Fatal(err)
 	}
 	binary, diags := compiler.CompileOnlyWithCFlags(path, flags...)
-	if len(diags.Diags) != 0 {
+	if diags.HasErrors() {
 		t.Fatalf("compile SDL program: %v", diags.Diags)
 	}
 	t.Cleanup(func() { removeTestBinary(t, binary) })
