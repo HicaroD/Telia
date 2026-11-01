@@ -373,6 +373,16 @@ func (c *CCodegen) emitVarStmt(stmt *ast.VarStmt, indent string) {
 			target := c.emitVarTarget(stmt.Names[0])
 			val := c.emitExpr(stmt.Expr)
 			c.buf.WriteString(fmt.Sprintf("%s = %s;\n", target, val))
+		} else if stmt.Expr.Kind == ast.KIND_FN_CALL {
+			// Evaluate the call exactly once before updating any existing target.
+			// The semantic checker has already validated tuple arity and types.
+			call := stmt.Expr.Node.(*ast.FnCall)
+			tmp := c.nextTmp()
+			value := c.emitExpr(stmt.Expr)
+			c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", tupleTypedefName(getFullFnRetType(call)), tmp, value))
+			for i, name := range stmt.Names {
+				c.buf.WriteString(fmt.Sprintf("%s%s = %s._%d;\n", indent, c.emitVarTarget(name), tmp, i))
+			}
 		}
 	}
 }

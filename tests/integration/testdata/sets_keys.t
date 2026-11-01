@@ -10,6 +10,7 @@ use "std::errors"
 @[default_cc="c"]
 extern {
     fn _map_nan() f64
+    fn _map_infinity() f64
     fn _map_negative_zero() f64
     fn _map_malformed() c::ConstCString
 }
@@ -130,6 +131,8 @@ fn main() i32 {
     roundtrip<f32>(0.0, -0.0)
     roundtrip<float>(1.5, 1.5)
     roundtrip<f64>(0.0, _map_negative_zero())
+    roundtrip<f64>(_map_infinity(), _map_infinity())
+    roundtrip<f64>(-_map_infinity(), -_map_infinity())
     zeros := sets::create<f64>()
     sets::insert(&zeros, _map_negative_zero()) @fail
     duplicate := sets::insert(&zeros, 0.0) @fail

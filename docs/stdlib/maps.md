@@ -214,6 +214,12 @@ while true {
 }
 ```
 
+Existing bindings can also be updated with `key, score, found = maps::next(&iterator)`;
+the call executes once before its results are assigned. To reassign a fallible
+multi-result call, bind its full result including `error` and check that error.
+Error-handled (`@try`/`@fail`/`@catch`) multi-result reassignments are currently
+diagnosed; use fresh `:=` bindings for those forms.
+
 ## Shallow ownership and arena clone example
 
 One separately owned string is shared by three independently managed tables.

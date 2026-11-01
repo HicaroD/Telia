@@ -67,3 +67,10 @@ Matrix configuration alone is not evidence of a successful platform run.
 The matrix also runs [semantic hashing and seed-adapter checks](hashing.md),
 including reference vectors, compiled fixtures, deterministic entropy failures,
 and non-Windows UBSan checks.
+
+The same four-target matrix runs maps, sets, direct container loops and combined
+reference-model qualification, including `-O0`/`-O3`, deterministic entropy and
+partial allocation failures, forced-collision wraparound probing, and non-Windows
+UBSan. Windows uses the selected UCRT64 MinGW-w64 GCC toolchain and runs ordinary
+checks without sanitizer-only flags. See [qualification evidence](container-qualification.md)
+for executed results, pending native CI, acceptance coverage, and benchmark commands.

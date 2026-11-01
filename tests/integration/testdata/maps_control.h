@@ -12,6 +12,9 @@ static int map_entropy(void *bytes, size_t size) {
 static void _map_seed_failure(bool fail) { map_seed_fail = fail; }
 static int64_t _map_seed_calls(void) { return map_seed_calls; }
 static double _map_nan(void) { return NAN; }
+static double _map_infinity(void) { return INFINITY; }
+static double _qualification_float(uint64_t value) { return (double)value; }
+static uint64_t _qualification_index(double value) { return (uint64_t)value; }
 static double _map_negative_zero(void) { return -0.0; }
 static const char *_map_malformed(void) { return "\xff\xfe"; }
 #define _TELIA_ENTROPY(bytes, size) map_entropy(bytes, size)
