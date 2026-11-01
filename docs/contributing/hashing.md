@@ -125,3 +125,21 @@ not running; no MinGW compiler was installed). Their adapter simulations passed,
 and native CI is configured, but real platform qualification remains pending.
 ASan was not rerun because prior host probes hung even for minimal C; only the
 actual UBSan results above are claimed. No background suite remains pending.
+
+## Windows CI harness correction (2026-11-01)
+
+PR #117's first native CI run (`41362041449`, Windows job `125014272346`)
+failed in `TestHashSeedAdapters/linux`: the simulation removed `_WIN32`
+before including MinGW's `sys/types.h`, which rejects non-Win32 targets.
+The same job's native hashing integration selection passed; that does not make
+the job or the full Windows matrix a pass.
+
+The harness now loads `sys/types.h` and `wchar.h` under the host target macros
+before selecting any simulated adapter. Guarded forwarding headers reproduce
+the invalid include ordering on any host. All Linux, macOS and Windows adapter
+control-flow checks remain enabled at `-O0` and `-O3`; native entropy code is
+unchanged. The regression failed before the include-order fix and passed after
+it on macOS arm64. Focused hashing tests, build, documentation examples, link
+checks and formatting also passed locally. No MinGW cross-compiler was
+available; native Windows verification of this correction remains pending CI.
+ASan was not retried because of the recorded host hangs.

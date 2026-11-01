@@ -115,9 +115,14 @@ func TestHashSeedAdapters(t *testing.T) {
 #include <errno.h>
 #include <limits.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <wchar.h>
+// Load host headers before selecting a simulated runtime adapter. MinGW's
+// system headers require _WIN32, regardless of the adapter under test.
 #undef __linux__
 #undef __APPLE__
 #undef _WIN32
+#define _TELIA_TEST_ADAPTER_SELECTED 1
 typedef struct { bool present; int kind; } _Error;
 #define _TELIA_ERROR(kind,message) ((_Error){true, 42})
 static int mode, calls;
@@ -125,7 +130,6 @@ static void fill(unsigned char *p,size_t n) { for(size_t i=0;i<n;++i)p[i]=(unsig
 `
 	cases := []struct{ name, stub string }{
 		{"linux", `#define __linux__ 1
-#include <sys/types.h>
 static ssize_t getrandom(void *p,size_t n,unsigned flags) {
  (void)flags; ++calls;
  if(mode==1){errno=EIO;return -1;}
@@ -143,7 +147,6 @@ static int getentropy(void *p,size_t n) {
 }
 `},
 		{"windows", `#define _WIN32 1
-#include <wchar.h>
 #define WINAPI
 #define BCRYPT_USE_SYSTEM_PREFERRED_RNG 2
 #define LOAD_LIBRARY_SEARCH_SYSTEM32 0x800
@@ -168,6 +171,15 @@ static void FreeLibrary(HMODULE m){assert(m);}
 			}
 			for _, header := range []string{"sys/random.h", "bcrypt.h"} {
 				if err := os.WriteFile(filepath.Join(dir, header), nil, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Model MinGW's requirement that host headers see the native target,
+			// even when exercising a different runtime adapter on this host.
+			for _, header := range []string{"sys/types.h", "wchar.h"} {
+				guard := "#ifdef _TELIA_TEST_ADAPTER_SELECTED\n#error system header included after changing host target\n#endif\n"
+				guard += "#include_next <" + header + ">\n"
+				if err := os.WriteFile(filepath.Join(dir, header), []byte(guard), 0600); err != nil {
 					t.Fatal(err)
 				}
 			}
