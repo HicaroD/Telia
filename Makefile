@@ -16,9 +16,14 @@ build:
 build-dev:
 	go build -ldflags="-X main.DevMode=1" -o $(OUT) $(SRC)
 
-.PHONY: test
+.PHONY: test test-docs
 test:
 	go test ./...
+
+test-docs:
+	python3 scripts/check-docs.py
+	python3 -m unittest discover -s scripts -p 'test_check_docs.py'
+	go test ./tests/integration -run '^TestDocumentationExamples$$' -count=1
 
 .PHONY: fmt
 fmt: fmt-code fmt-lines

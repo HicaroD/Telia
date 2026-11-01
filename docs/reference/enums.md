@@ -1,0 +1,154 @@
+# Enums and matching
+
+Enums marked `: error` can classify the common `error` type. See
+[errors](errors.md) for construction, kind comparisons, open-ended matching,
+and payload lifetime rules.
+
+See [literal syntax](literals.md) for construction syntax and control-flow
+header rules.
+
+Enums have nominal identity and an optional integer tag representation:
+
+```rust
+const FirstTag u8 = 7
+enum Event u8 {
+    Quit = FirstTag
+    Resize
+}
+
+fn identity(event Event) Event {
+    return event
+}
+
+event := identity(Event::Quit)
+different := event != Event::Resize
+```
+
+Without a representation, tags use `int`. The first implicit tag is zero;
+each later implicit tag is the previous tag plus one. Explicit tags use the
+existing scalar constant-expression evaluator. Every tag must fit the integer
+representation; implicit increments cannot wrap. Names and tags must be unique.
+Representation aliases are resolved in the enum's declaring file.
+
+Construction uses `Enum::Variant`, including `package::Enum::Variant` for
+imports. Values can be assigned, passed, returned, and compared with `==` and
+`!=` within the same enum type. Enums are distinct from integers and other
+enums, even when their representations and tags coincide. Flags remain integer
+aliases plus constants, not enum arithmetic.
+
+Generic declarations and named payloads use the existing `<T>` type arguments:
+
+```rust
+enum Option<T> {
+    None
+    Some {
+        value T
+    }
+}
+item := Option<i32>::Some{value: 42}
+
+value := match item {
+    Option<i32>::None => 0
+    Option<i32>::Some{value} => {
+        value = value + 1
+        yield value
+    }
+}
+```
+
+Arguments can also be inferred from a payload or expected type:
+
+```rust
+number i32 := 42
+item := Option::Some{value: number}
+empty Option<i32> := Option<_>::None
+value := match item {
+    Option::None => 0
+    Option::Some{value} => value
+}
+```
+
+Explicit arguments remain valid. Partial lists use `_` for each inferred
+position; see [generic inference](generics.md#inference-and-partial-arguments).
+
+Payload construction initializes every field exactly once by name. Field
+expressions are evaluated once in source order. Positional payloads are not
+supported. Generic specializations keep independent payload types and layouts;
+construction and matching also work inside generic functions.
+
+Match patterns use named fields (`{value}`), optional renaming
+(`{value: result}`), and explicit `..` for omitted fields. Arms use `=>`;
+block results use `yield`. Every variant must be covered, or the final arm must
+be a `_` fallback. Duplicate variants, unreachable arms, and omitted fields
+without `..` are rejected. Every completing block path must yield a value.
+All arm results must have compatible types.
+
+Matches also accept integer values. Use `|` for alternatives and `if` for a
+boolean guard, with the usual `and` and `or` operators inside the guard:
+
+```rust
+result := match code {
+    1 | 2 => 3
+    n if n > 10 and n < 20 => 4
+    _ => 0
+}
+```
+
+A bare name binds a copy of the whole matched value; `_` ignores it. Integer
+patterns are integer literals, including negative literals, checked against the
+matched integer type. Integer matches need an unguarded catch-all (`_` or a
+binding). Enum and error patterns can also use alternatives and guards:
+
+```rust
+value := match item {
+    Option<i32>::Some{value} if value > 10 => value
+    Option<i32>::Some{value} => value + 1
+    Option<i32>::None => 0
+}
+```
+
+Arms are tried in source order. The guard runs only after its pattern matches;
+a false guard continues to the next arm. A shared guard runs once even if more
+than one alternative matches. Pattern bindings are available in the guard and
+result, but not outside the arm. Every alternative in an arm must bind the same
+names with the same types. Guarded arms do not count toward exhaustive coverage;
+use unguarded arms to cover every enum variant or add an unguarded catch-all.
+There is no logical `&` pattern; combine conditions in a guard using `and`.
+
+The matched expression is evaluated once, and only the selected arm executes.
+Matching remains at its expression evaluation site, including short-circuit
+operators and loop conditions. Nested matches have independent yield targets.
+Yield saves the result before running the arm's deferred cleanup; it does not
+run cleanup for enclosing scopes that remain active.
+
+**Bindings copy fields using ordinary assignment semantics.** Reassigning a
+binding does not change the original enum field. Copying a pointer still refers
+to the same pointee; copying does not deep-clone the pointee or transfer its
+ownership. There is no implicit borrow. `yield` cannot escape deferred cleanup
+or a called function into the enclosing match.
+
+Payload-free enums support `==` and `!=`. Payload enums do not have implicit
+equality: inspect them with `match` and explicitly compare relevant fields.
+
+The current C backend uses the selected integer representation for payload-free
+values and private tagged unions for payload enums. Match expressions currently
+use GCC/Clang statement expressions to preserve their evaluation site. These
+are internal lowering details, **not a foreign C enum ABI guarantee**.
+Header-owned foreign enums and their required fallback matches are described in
+[C interoperability](foreign-interop.md), along with records/constants,
+qualifiers, callbacks, convention macros, C scalars, and native `va_list` lifecycle.
+Integration tests compile and execute generated C. Local results do not establish
+compatibility on other targets; see [verification notes](../contributing/verification-records.md).
+
+## Readability hints
+
+The compiler may suggest `match` for a chain with at least three explicit cases
+(`if` plus two or more `elif` branches), at least two equality-based cases on
+the same local variable, and a final `else`. The hint includes a complete rewrite
+when every branch simply returns a value. Integer range checks can become guards.
+`else` and individual `or` alternatives do not count toward the case threshold.
+
+Short chains, mostly range-based conditions, mixed variables, calls in conditions,
+and chains without a complete safe rewrite stay silent. A chain is reported once,
+even across generic specializations. Hints are informational, not warnings or
+errors, and never prevent compilation.

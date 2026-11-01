@@ -3,7 +3,7 @@
 A 28 × 24 Snake game written in Telia. No image, font, or SDL extension libraries
 are needed: the interface uses SDL3's built-in debug text renderer.
 
-From the repository root, after [SDL setup](../../docs/native-libraries.md):
+From the repository root, after [SDL setup](../../docs/stdlib/native-libraries.md):
 
 ```sh
 go build -o telia ./cmd/compiler

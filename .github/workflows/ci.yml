@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [build, test, fmt-check, lint]
+        check: [build, test, test-docs, fmt-check, lint]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,7 +33,7 @@ jobs:
       - name: Configure checkout paths
         run: printf 'T_STD_PATH=%s/base/std\n' "$GITHUB_WORKSPACE" > config/env
       - name: Verify C toolchain
-        if: matrix.check == 'test'
+        if: matrix.check == 'test' || matrix.check == 'test-docs'
         run: |
           cc --version
           printf 'int main(void) { return 0; }\n' | cc -x c - -o "$RUNNER_TEMP/cc-smoke"

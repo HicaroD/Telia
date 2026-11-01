@@ -7,13 +7,9 @@ Programming Language, Telia is simple in its essence.
 package main
 
 use "std::io"
-use "std::strings"
 
 fn main() i32 {
-    greeting := strings::clone("Hello, Telia!") @fail
-    defer strings::free(&greeting)
-
-    io::println(strings::view(&greeting))
+    io::println("Hello, Telia!")
     return 0
 }
 ```
@@ -45,19 +41,17 @@ irm https://github.com/HicaroD/Telia/releases/latest/download/install.ps1 | iex
 
 Add `$env:LOCALAPPDATA\Telia\bin` to your user `PATH` for future terminals.
 
-See the [installation guide](docs/installation.md) for manual installation,
-customization, upgrades, and release publishing.
+See the [installation guide](docs/getting-started/installation.md) for manual
+installation, customization, and upgrades.
 
-## Language guides
+## Documentation
 
-- [Build a Unicode-aware command-line program](docs/command-line-programs.md)
-- [Binary-safe whole-file I/O](docs/files.md)
-- [Metadata, bounded reads, atomic saves, subprocesses, and terminal width](docs/native-cli-apis.md)
-- [Owned UTF-8 process arguments and environment lookup](docs/process.md)
-- [Checked standard-stream byte I/O](docs/standard-io.md)
-- [Unit testing](docs/testing.md)
-- [Collections and composed field access](docs/collections.md)
-- [Explicit integer and pointer conversions](docs/conversions.md)
-- [Checked integer and boolean text conversions](docs/string-conversions.md)
-- [Errors and cleanup-safe propagation](docs/errors.md)
-- [Memory ownership and transfer](docs/strings-and-memory.md#ownership-conventions-and-transfer)
+Start at the [documentation home](docs/README.md), or choose a path:
+
+- **Learn:** [First program](docs/getting-started/first-program.md) and
+  [language guide](docs/guide/README.md).
+- **Look up:** [Language reference](docs/reference/README.md) and
+  [standard library](docs/stdlib/README.md).
+- **Build something:** [Cookbook](docs/cookbook/README.md).
+- **Use an agent:** [Agent entry point](docs/agents.md).
+- **Contribute:** [Development and documentation maintenance](docs/contributing/README.md).
