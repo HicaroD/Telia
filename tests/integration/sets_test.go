@@ -44,29 +44,36 @@ func TestSetsNative(t *testing.T) {
 	for _, fixture := range []string{"sets.t", "sets_keys.t", "sets_ownership.t", "sets_model.t", "sets_failure.t", "sets_arena.t"} {
 		for _, opt := range []string{"-O0", "-O3"} {
 			for _, collision := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%s/collision=%v", fixture, opt, collision), func(t *testing.T) {
-					flags := []string{opt, "-include", header}
-					if runtime.GOOS != "windows" {
-						sanitizers := os.Getenv("TELIA_TEST_SANITIZERS")
-						if sanitizers == "" {
-							sanitizers = "undefined"
+				t.Run(
+					fmt.Sprintf("%s/%s/collision=%v", fixture, opt, collision),
+					func(t *testing.T) {
+						flags := []string{opt, "-include", header}
+						if runtime.GOOS != "windows" {
+							sanitizers := os.Getenv("TELIA_TEST_SANITIZERS")
+							if sanitizers == "" {
+								sanitizers = "undefined"
+							}
+							flags = append(
+								flags,
+								"-fsanitize="+sanitizers,
+								"-fno-sanitize-recover=all",
+							)
 						}
-						flags = append(flags, "-fsanitize="+sanitizers, "-fno-sanitize-recover=all")
-					}
-					if collision {
-						flags = append(flags, "-DTELIA_MAP_COLLISIONS=1")
-					}
-					path, diags := compiler.CompileOnlyWithCFlags("testdata/"+fixture, flags...)
-					if diags.HasErrors() {
-						t.Fatalf("set compilation: %v", diags.Diags)
-					}
-					defer removeTestBinary(t, path)
-					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-					defer cancel()
-					if out, err := exec.CommandContext(ctx, path).CombinedOutput(); err != nil {
-						t.Fatalf("set execution: %v: %s", err, out)
-					}
-				})
+						if collision {
+							flags = append(flags, "-DTELIA_MAP_COLLISIONS=1")
+						}
+						path, diags := compiler.CompileOnlyWithCFlags("testdata/"+fixture, flags...)
+						if diags.HasErrors() {
+							t.Fatalf("set compilation: %v", diags.Diags)
+						}
+						defer removeTestBinary(t, path)
+						ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+						defer cancel()
+						if out, err := exec.CommandContext(ctx, path).CombinedOutput(); err != nil {
+							t.Fatalf("set execution: %v: %s", err, out)
+						}
+					},
+				)
 			}
 		}
 	}
