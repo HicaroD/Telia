@@ -61,7 +61,8 @@ the tag for an undeclared tag, so equal values have equal hashes.
 
 The compiler also classifies concrete types for automatic **key eligibility**.
 The compiler provides internal seeded semantic hashing for these concrete types;
-this is not yet a map/set API or public hashing operation. Hashes are not stable
+heap [maps](../stdlib/maps.md) use it automatically, but there is no public hashing
+operation. Hashes are not stable
 serialization identifiers. Equality and key eligibility are distinct:
 
 | Concrete type family | Ordinary equality | Key eligible |
@@ -100,8 +101,8 @@ generic instances, are excluded as keys even when their fields are eligible:
 - `std::process::Args`, `std::process::Child` ([process ownership](../stdlib/process.md)).
 - `std::terminal::Handle`, `std::terminal::SavedMode` ([terminal ownership](../stdlib/terminal.md#handles-and-ownership)).
 
-The nominal exclusion also reserves `std::maps::Map` and `std::sets::Set` for
-their future implementations; neither container is provided by this slice.
+The nominal exclusion also covers `std::maps::Map` and reserves `std::sets::Set`
+for its future implementation.
 It propagates through aggregate components, not through pointer pointees.
 The exclusion also applies to zero values and borrowed instances of these
 declarations, such as a borrowed terminal `Handle`.

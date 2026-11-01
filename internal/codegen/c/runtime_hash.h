@@ -1,4 +1,8 @@
 // Private streaming SipHash-1-3 implementation. No Telia wrapping arithmetic.
+// Native-only deterministic collision seam; not a public hasher callback.
+#ifndef _TELIA_KEY_HASH
+#define _TELIA_KEY_HASH(value) (value)
+#endif
 _Static_assert(sizeof(uint64_t) == 8, "SipHash requires 64-bit uint64_t");
 typedef struct { uint64_t v0, v1, v2, v3, tail, length; unsigned used; } _TeliaSip;
 static inline uint64_t _telia_rotl64(uint64_t x, unsigned n) {

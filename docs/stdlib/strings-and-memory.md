@@ -226,14 +226,15 @@ Use the owning/view APIs above in applications.
 APIs use these conventions; they are programmer-managed contracts, not a borrow
 checker or automatic destruction:
 
-- **Owned results:** `strings::Owned`, `strings::COwned`, heap lists, arenas, and
-  non-null `memory::alloc` results have one cleanup owner. Assigning or passing
-  a handle by value is a shallow copy, not a transfer or clone.
+- **Owned results:** `strings::Owned`, `strings::COwned`, heap lists,
+  [maps](maps.md), arenas, and non-null `memory::alloc` results have one cleanup
+  owner. Assigning or passing a handle by value is a shallow copy, not a transfer
+  or clone.
 - **Borrowed inputs/views:** `string`, slices, and ordinary pointer parameters
   borrow storage unless the API explicitly documents consumption. Views do not
   keep owners alive. Free/reset invalidates views; list growth can also do so.
-- **Consuming cleanup:** `strings::free`, `strings::free_c`, `lists::free`, and
-  `memory::arena_destroy` consume and empty the addressed owner. Raw
+- **Consuming cleanup:** `strings::free`, `strings::free_c`, `lists::free`,
+  `maps::free`, and `memory::arena_destroy` consume and empty the addressed owner. Raw
   `memory::free` consumes the allocation but cannot clear the caller's pointer.
   Terminal close/restore contracts are documented in [terminal APIs](terminal.md).
 - **Transfer:** `memory::take<T>(source *T) T` returns the current value and
@@ -251,7 +252,7 @@ an owner with a registered defer, return `memory::take<T>(&owner)`, not `owner`.
 The destination must be new or previously cleaned up: overwriting another live
 owner still leaks it. `take` requires a valid non-null mutable pointer and a
 type whose zero value is a valid inert state, including for cleanup. This is
-supported for owning strings, lists, arenas, and raw allocation pointers; it is
+supported for owning strings, lists, maps, arenas, and raw allocation pointers; it is
 not a promise about arbitrary foreign handles or sentinel-based resources.
 
 Transfer does not modify pre-existing shallow copies or borrowed views. Such
