@@ -1,6 +1,7 @@
 package maps
 
 use "std::internal::swiss"
+use "std::memory"
 
 struct Map<K, V> {
     table swiss::Table<K, V>
@@ -13,6 +14,21 @@ struct Iterator<K, V> {
 
 fn create<K, V>() Map<K, V> {
     return zero<Map<K, V>>()
+}
+
+fn create_in<K, V>(arena *memory::Arena) Map<K, V> {
+    result := create<K, V>()
+    result.table.arena = arena
+    return result
+}
+
+fn clone<K, V>(map *Map<K, V>) (Map<K, V>, error) {
+    return clone_in(map, nil)
+}
+
+fn clone_in<K, V>(map *Map<K, V>, arena *memory::Arena) (Map<K, V>, error) {
+    table, err := swiss::clone_in(&map.table, arena)
+    return Map<K, V>{table: table}, err
 }
 
 fn count<K, V>(map *Map<K, V>) u64 {

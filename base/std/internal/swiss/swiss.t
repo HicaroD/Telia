@@ -167,24 +167,45 @@ fn rebuild<K, V>(table *Table<K, V>, buckets u64) error {
     fresh.entries = entries
     fresh.seed = seed
     fresh.arena = table.arena
-    old_controls := table.controls
-    old_entries := table.entries
-    index = 0
-    while index < len(old_controls) {
-        if old_controls[index] < 128 {
-            entry := old_entries[index]
-            hashed := hash(&fresh, entry.key)
-            target := vacant(&fresh, hashed)
-            entries[target] = entry
-            controls[target] = fingerprint(hashed)
-            fresh.count = fresh.count + 1
-        }
-        index = index + 1
-    }
-    fresh.occupied = fresh.count
+    copy_live(table, &fresh)
     release(table)
     *table = fresh
     return nil
+}
+
+// Destination is empty and has capacity for every source entry (no buffers
+// needed for an empty source).
+// Never use equality-based insertion: NaNs must remain separate live entries.
+fn copy_live<K, V>(source *Table<K, V>, destination *Table<K, V>) {
+    old_controls := source.controls
+    old_entries := source.entries
+    controls := destination.controls
+    entries := destination.entries
+    index u64 := 0
+    while index < len(old_controls) {
+        if old_controls[index] < 128 {
+            entry := old_entries[index]
+            hashed := hash(destination, entry.key)
+            target := vacant(destination, hashed)
+            entries[target] = entry
+            controls[target] = fingerprint(hashed)
+            destination.count = destination.count + 1
+        }
+        index = index + 1
+    }
+    destination.occupied = destination.count
+    return
+}
+
+fn clone_in<K, V>(source *Table<K, V>, arena *memory::Arena) (Table<K, V>, error) {
+    result := zero<Table<K, V>>()
+    result.arena = arena
+    err := reserve(&result, source.count)
+    if err != nil {
+        return result, err
+    }
+    copy_live(source, &result)
+    return result, nil
 }
 
 fn reserve<K, V>(table *Table<K, V>, requested u64) error {

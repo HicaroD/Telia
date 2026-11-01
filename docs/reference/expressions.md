@@ -61,7 +61,7 @@ the tag for an undeclared tag, so equal values have equal hashes.
 
 The compiler also classifies concrete types for automatic **key eligibility**.
 The compiler provides internal seeded semantic hashing for these concrete types;
-heap [maps](../stdlib/maps.md) use it automatically, but there is no public hashing
+[maps](../stdlib/maps.md) use it automatically, but there is no public hashing
 operation. Hashes are not stable
 serialization identifiers. Equality and key eligibility are distinct:
 

@@ -88,7 +88,7 @@ func TestMapsNative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fixture := range []string{"maps.t", "maps_model.t", "maps_failure.t", "maps_keys.t", "maps_ownership.t", "maps_checked.t"} {
+	for _, fixture := range []string{"maps.t", "maps_model.t", "maps_failure.t", "maps_keys.t", "maps_ownership.t", "maps_checked.t", "maps_clone.t", "maps_arena.t"} {
 		for _, opt := range []string{"-O0", "-O3"} {
 			for _, collision := range []bool{false, true} {
 				t.Run(

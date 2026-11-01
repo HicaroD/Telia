@@ -13,7 +13,7 @@ restrictions; do not infer those from a signature alone.
 | `std::io` | [Standard streams and printing](standard-io.md) |
 | `std::libc` | [Low-level C library declarations](libc.md) |
 | `std::lists` | [Growable generic lists](lists.md) |
-| `std::maps` | [Heap hash maps and explicit iteration](maps.md) |
+| `std::maps` | [Heap/arena hash maps, shallow clones, and explicit iteration](maps.md) |
 | `std::math` | [Native floating-point math](math.md) |
 | `std::memory` | [Heap allocation, arenas, and transfer](memory.md) |
 | `std::path` | [Path validation and canonicalization](path.md) |

@@ -257,7 +257,7 @@ not a promise about arbitrary foreign handles or sentinel-based resources.
 
 Transfer does not modify pre-existing shallow copies or borrowed views. Such
 views remain valid only while the transferred storage remains live. Moving an
-arena does not retarget existing lists' stored pointers to the old arena value;
+arena does not retarget existing lists' or maps' stored pointers to the old arena value;
 do not move an arena while those clients still reference its original address.
 There are currently no new owner-copy warnings/restrictions: custom ownership
 is not inferred from a struct's representation. Use explicit clone operations

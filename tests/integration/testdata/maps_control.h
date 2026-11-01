@@ -6,7 +6,7 @@ static int64_t map_seed_calls = 0;
 static bool map_seed_fail = false;
 static int map_entropy(void *bytes, size_t size) {
     ++map_seed_calls;
-    memset(bytes, 0x71, size);
+    memset(bytes, (unsigned char)(0x71 + map_seed_calls % 127), size);
     return map_seed_fail ? -1 : 0;
 }
 static void _map_seed_failure(bool fail) { map_seed_fail = fail; }

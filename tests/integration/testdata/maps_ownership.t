@@ -66,6 +66,16 @@ fn run() error {
     owner := strings::clone("survives") @try
     owned_map := maps::create<u64, strings::Owned>()
     maps::insert(&owned_map, 1, owner) @try
+    // Independent map buffers still share the one shallow resource owner.
+    arena := memory::arena_create() @try
+    defer memory::arena_destroy(&arena)
+    heap_copy := maps::clone(&owned_map) @try
+    arena_copy := maps::clone_in(&owned_map, &arena) @try
+    copied_owner, copied_found := maps::get(&heap_copy, 1)
+    testing::assert(copied_found and strings::view(&copied_owner) == "survives")
+    maps::free(&heap_copy)
+    maps::clear(&arena_copy)
+    maps::free(&arena_copy)
     maps::clear(&owned_map)
     testing::assert(strings::view(&owner) == "survives")
     maps::insert(&owned_map, 2, owner) @try
