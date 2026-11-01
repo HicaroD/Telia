@@ -35,6 +35,7 @@ func (c *CCodegen) emitErrorType() {
 	for _, name := range []string{"NotFound", "PermissionDenied", "MetadataFailed", "PathFailed", "InvalidState", "Unsupported", "FileSyncFailed", "FileRenameFailed", "FileRemoveFailed", "ProcessSpawnFailed", "ProcessWaitFailed", "ProcessTerminateFailed", "InvalidCodePoint"} {
 		fmt.Fprintf(c.buf, "static const char _telia_runtime_kind_%s;\n", name)
 	}
+	c.buf.WriteString("static const char _telia_runtime_kind_RandomnessFailed;\n")
 	for _, d := range c.program.Enums {
 		if d.IsError {
 			for _, v := range d.Variants {

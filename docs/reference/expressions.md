@@ -56,12 +56,13 @@ compare equal without reading any payload storage, and distinct tags compare
 unequal. This matches payload-free enum tag equality. In particular,
 `zero<Enum>()` still zero-initializes its representation; it does **not** select
 the first declared variant. If all variant tags are nonzero, two such zero
-values compare equal by their undeclared zero tag. Future automatic hashing must
-hash only the tag for an undeclared tag, so equal values have equal hashes.
+values compare equal by their undeclared zero tag. Automatic hashing hashes only
+the tag for an undeclared tag, so equal values have equal hashes.
 
 The compiler also classifies concrete types for automatic **key eligibility**.
-This classification is groundwork, not an implemented map/set API or hashing
-operation. Equality and key eligibility are distinct:
+The compiler provides internal seeded semantic hashing for these concrete types;
+this is not yet a map/set API or public hashing operation. Hashes are not stable
+serialization identifiers. Equality and key eligibility are distinct:
 
 | Concrete type family | Ordinary equality | Key eligible |
 | --- | --- | --- |

@@ -400,6 +400,19 @@ func (c *CCodegen) emitFnCallExpr(call *ast.FnCall) string {
 		return c.emitTestingAssertion(call)
 	}
 	switch call.Builtin {
+	case "__key_seed":
+		tmp := c.nextTmp()
+		return fmt.Sprintf(
+			"({ %s %s = {0}; %s._1 = _telia_hash_seed(&%s._0.data[0], &%s._0.data[1]); %s; })",
+			emitCType(call.ResultType),
+			tmp,
+			tmp,
+			tmp,
+			tmp,
+			tmp,
+		)
+	case "__key_hash":
+		return c.emitKeyHash(call)
 	case "widen", "ptr_cast":
 		return fmt.Sprintf("((%s)(%s))", emitCType(call.BuiltinType), c.emitExpr(call.Args[0]))
 	case "narrow":

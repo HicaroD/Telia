@@ -10,7 +10,7 @@ import (
 
 func isMemoryBuiltin(name string) bool {
 	switch name {
-	case "sizeof", "alignof", "zero", "slice_from_raw", "slice_data":
+	case "sizeof", "alignof", "zero", "slice_from_raw", "slice_data", "__key_hash":
 		return true
 	}
 	return false
@@ -78,6 +78,9 @@ func (s *sema) checkMemoryBuiltin(
 	if name == "slice_data" {
 		count = 1
 	}
+	if name == "__key_hash" {
+		count = 3
+	}
 	if len(call.TypeArgs) != 1 || len(call.Args) != count {
 		return nil, fmt.Errorf("%s requires one type argument and %d value arguments", name, count)
 	}
@@ -93,6 +96,20 @@ func (s *sema) checkMemoryBuiltin(
 	}
 	call.Builtin, call.BuiltinType = name, ty
 	result := concreteBasicType(token.U64_TYPE)
+	if name == "__key_hash" {
+		if err := ast.EqualityEligibility(ty, true); err != nil {
+			return nil, fmt.Errorf("ineligible hash key %s: %w", ty.T, err)
+		}
+		for i, arg := range call.Args {
+			want := ty
+			if i > 0 {
+				want = result
+			}
+			if _, err := s.inferExprTypeWithContext(arg, want, scope, decl, imported, false); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if name == "zero" {
 		result = ty
 	}

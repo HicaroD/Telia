@@ -670,6 +670,12 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		return nil, nil // Concrete specialization checks dependent callback types.
 	}
 	_, lookupErr := scope.LookupAcrossScopes(call.Name.Name())
+	if call.Name.Name() == "__key_seed" && lookupErr != nil {
+		if len(call.Args) != 0 || len(call.TypeArgs) != 0 {
+			return nil, fmt.Errorf("__key_seed requires no type or value arguments")
+		}
+		return nil, nil
+	}
 	if isConversionBuiltin(call.Name.Name()) && lookupErr != nil {
 		if len(call.TypeArgs) != 1 || len(call.Args) != 1 {
 			return nil, fmt.Errorf(
@@ -690,6 +696,9 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		}
 		if call.Name.Name() == "slice_data" {
 			count = 1
+		}
+		if call.Name.Name() == "__key_hash" {
+			count = 3
 		}
 		if len(call.TypeArgs) != 1 || len(call.Args) != count {
 			return nil, fmt.Errorf(
