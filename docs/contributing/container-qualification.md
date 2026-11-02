@@ -179,6 +179,55 @@ pending. The integration tip `901bd23` was verified as an ancestor and merging
 the current integration branch into the qualification branch was already up to
 date. The integration branch itself was not changed.
 
+## Windows qualification harness follow-up (PR #117)
+
+The complete failed log for native run `41364170014`, Windows job
+`125020700458`, showed four failing test groups after hashing/entropy passed:
+
+- Collection bounds checks: all ten `-O0`/`-O3` cases attempted to link the
+  unavailable MinGW `libubsan` runtime.
+- The dedicated collection sanitizer suite: all eleven fixtures attempted the
+  same unavailable runtime.
+- Collection composition and explicit resource cleanup: text expectations
+  rejected mixed LF/CRLF output from string and numeric printing.
+
+The follow-up changes only the harness, workflow label, and documentation.
+Windows keeps every bounds case without sanitizer flags and skips only the
+dedicated sanitizer suite, consistent with the existing native test policy.
+Non-Windows bounds checks retain UBSan, and the sanitizer-only suite still
+defaults to UBSan (with the existing explicit sanitizer override). The same
+platform flag policy also protects the ordinary empty-struct and list-failure
+checks. Collection text assertions normalize CRLF only; no compiler helper or
+byte-sensitive assertion changes.
+
+The full selected-test audit retained ordinary map/set model, ownership,
+failure, forced-collision, and debug/optimized coverage on Windows. Existing
+equality and container-loop sanitizer guards remain unchanged. Regression
+tests first failed on Windows sanitizer flags and both recorded mixed-line-ending
+outputs, then passed after the harness correction; lone CR, NUL, whitespace,
+and blank lines remain significant.
+
+Local follow-up verification on macOS arm64 used Go 1.22.1:
+
+- The exact workflow qualification selection above passed with `-count=1
+  -timeout=30m`: sema 2.329 seconds, integration 105.447 seconds, retaining
+  `-O0`/`-O3`, collision/failure models, and non-Windows UBSan.
+- All tests in `collections_test.go` plus harness regressions passed in a
+  separate focused run (24.608 seconds).
+- `go test ./... -count=1 -timeout=30m` completed successfully for every package;
+  integration took 442.873 seconds. No suite remained pending at handoff.
+- `make build fmt-check` and `make test-docs` passed (documentation examples
+  32.888 seconds); the pinned golangci-lint v1.64.8 passed using Go 1.23.12.
+- The changed workflow parsed as YAML; `git diff --check` passed.
+
+The task branch started at integration `eeb38ee`; merging `feat/109-maps-sets`
+into the task branch was already up to date. The integration branch was not
+modified.
+
+Native Windows execution of the corrected harness remains a CI gate, not a
+result established by local macOS checks. No AddressSanitizer retry is part of
+this correction.
+
 ## Coordinator handoff / remaining gate
 
 After reviewing and pushing the qualification branch, open a PR targeting the
