@@ -1656,6 +1656,22 @@ func (sema *sema) checkFnCall(
 	var err error
 	_, localBuiltinLookup := referenceScope.LookupAcrossScopes(fnCall.Name.Name())
 	_, declBuiltinLookup := declScope.LookupAcrossScopes(fnCall.Name.Name())
+	if fnCall.Name.Name() == "__key_seed" && localBuiltinLookup != nil && declBuiltinLookup != nil {
+		if len(fnCall.TypeArgs) != 0 || len(fnCall.Args) != 0 {
+			return nil, fmt.Errorf("__key_seed requires no type or value arguments")
+		}
+		seed := &ast.ExprType{
+			Kind: ast.EXPR_TYPE_ARRAY,
+			T:    &ast.SequenceType{Element: concreteBasicType(token.U64_TYPE), Length: 2},
+		}
+		sema.program.SequenceTypes = append(sema.program.SequenceTypes, seed)
+		ty := &ast.ExprType{Kind: ast.EXPR_TYPE_TUPLE, T: &ast.TupleType{Types: []*ast.ExprType{
+			seed, concreteBasicType(token.ERROR_TYPE),
+		}}}
+		fnCall.Builtin, fnCall.ResultType = "__key_seed", ty
+		sema.registerTupleType(ty)
+		return sema.checkCallAtOperator(fnCall, ty, referenceScope, fromImportPackage, isArg)
+	}
 	if isConversionBuiltin(fnCall.Name.Name()) && localBuiltinLookup != nil &&
 		declBuiltinLookup != nil {
 		ty, err := sema.checkConversion(fnCall, referenceScope, declScope, fromImportPackage)
@@ -2449,7 +2465,7 @@ func (sema *sema) inferIdExprTypeWithContext(
 			return nil, enumTypeMismatch(idTy, expectedType, id.Name.Span)
 		}
 		return idTy, nil
-	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE:
+	case ast.EXPR_TYPE_ARRAY, ast.EXPR_TYPE_SLICE, ast.EXPR_TYPE_TUPLE, ast.EXPR_TYPE_ERROR_KIND:
 		if !idTy.Equals(expectedType) {
 			return nil, fmt.Errorf("collection type mismatch")
 		}
@@ -2605,7 +2621,9 @@ func (s *sema) inferBinaryExprType(
 		return nil, false, err
 	}
 
-	if s.isErrorNilComparison(lhs, rhs) {
+	if (binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) &&
+		(s.isErrorNilComparison(lhs, rhs) || ((lhs.IsError() || rhs.IsError()) &&
+			(binary.Left.Kind == ast.KIND_NULLPTR_EXPR || binary.Right.Kind == ast.KIND_NULLPTR_EXPR))) {
 		binary.OperandType = ast.NewBasicType(token.ERROR_TYPE)
 		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
 	}
@@ -2614,47 +2632,42 @@ func (s *sema) inferBinaryExprType(
 			return nil, false, fmt.Errorf("error kinds only support == and !=")
 		}
 		result := ast.NewBasicType(token.BOOL_TYPE)
+		binary.OperandType = lhs
 		if expectedType != nil && !result.Equals(expectedType) {
 			return nil, false, fmt.Errorf("error kind comparison produces bool")
 		}
 		return result, false, nil
 	}
-	if lhs.Kind == ast.EXPR_TYPE_POINTER &&
-		(binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
-		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
-	}
-	if lhs.Kind == ast.EXPR_TYPE_FUNCTION && rhs.Kind == ast.EXPR_TYPE_FUNCTION &&
-		(binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) {
-		return ast.NewBasicType(token.BOOL_TYPE), ctx, nil
-	}
 
 	commonType := lhs // since they are the same
+	// Two bare null literals already compare by null identity; materialize their
+	// operands as raw pointers rather than leaking the inference-only nil type.
+	if (binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL) &&
+		binary.Left.Kind == ast.KIND_NULLPTR_EXPR && binary.Right.Kind == ast.KIND_NULLPTR_EXPR {
+		commonType = ast.RAWPTR_TYPE
+	}
 	binary.OperandType = commonType
-	if commonType.Kind == ast.EXPR_TYPE_ENUM {
-		d := commonType.T.(*ast.EnumType).Decl
-		if d.HasPayload {
+	if binary.Op == token.EQUAL_EQUAL || binary.Op == token.BANG_EQUAL {
+		if err := ast.EqualityEligibility(commonType, false); err != nil {
 			return nil, false, diagnostics.Diag{
-				Title:   "Payload enum comparison",
-				Message: "payload enums do not have implicit equality",
+				Title:   "Unsupported equality",
+				Message: err.Error(),
 				Span:    binary.Left.Span,
-				Help:    "Use match to inspect the variant and compare the fields explicitly.",
-				Related: []diagnostics.Related{
-					{Span: d.Name.Span, Message: "payload enum declared here"},
-				},
-			}
-		}
-		if binary.Op != token.EQUAL_EQUAL && binary.Op != token.BANG_EQUAL {
-			return nil, false, diagnostics.Diag{
-				Title:   "Invalid enum operator",
-				Message: "enum values only support == and !=",
-				Help:    "Use integer aliases and constants for arithmetic or flags.",
+				Help:    "Compare supported components explicitly; slices, foreign storage, and general errors have no whole-value equality.",
 			}
 		}
 		result := ast.NewBasicType(token.BOOL_TYPE)
-		if expectedType != nil && !result.Equals(expectedType) {
+		if expectedType != nil && !typeAssignable(result, expectedType) {
 			return nil, false, fmt.Errorf("type mismatch: expected %s, got bool", expectedType.T)
 		}
 		return result, ctx, nil
+	}
+	if commonType.Kind == ast.EXPR_TYPE_ENUM {
+		return nil, false, diagnostics.Diag{
+			Title:   "Invalid enum operator",
+			Message: "enum values only support == and !=",
+			Help:    "Use integer aliases and constants for arithmetic or flags.",
+		}
 	}
 
 	// TODO(errors)
@@ -3874,14 +3887,8 @@ func (sema *sema) checkForLoop(
 		if err != nil {
 			return err
 		}
-		if ty.Kind != ast.EXPR_TYPE_ARRAY && ty.Kind != ast.EXPR_TYPE_SLICE {
-			return fmt.Errorf("iteration requires an array or slice")
-		}
 		forLoop.RangeType = ty
-		forLoop.Binding.Type = ty.T.(*ast.SequenceType).Element
-		binding := &ast.Node{Kind: ast.KIND_VAR_ID_STMT, Node: forLoop.Binding}
-		forLoop.Binding.N = binding
-		if err := forLoop.Scope.Insert(forLoop.Binding.Name.Name(), binding); err != nil {
+		if err := sema.checkRangeBindings(forLoop, referenceScope); err != nil {
 			return err
 		}
 		sema.loopDepth++

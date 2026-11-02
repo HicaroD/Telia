@@ -68,8 +68,12 @@ jobs:
         run: go test ./internal/ctarget ./internal/native ./tests/integration -run 'TestWchar|TestScalars|TestInvalidNative|TestMissing|TestVendor|TestSDL3|TestBoolean|TestCString' -count=1 -timeout=30m
       - name: SDL facade generation policy checks
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Seeded semantic hashing and native entropy
+        run: go test ./internal/codegen/c ./tests/integration -run 'TestSipHash13|TestHash|TestSemanticHashing' -count=1 -timeout=10m
       - name: Unicode and string standard library checks
         run: go test ./tests/integration -run 'TestUTF8|TestString|TestExamplesUsePublishedStandardLibraryAPIs' -count=1 -timeout=10m
+      - name: Map and set qualification (debug, optimized, failures, collisions; non-Windows UBSan)
+        run: go test ./internal/sema ./tests/integration -run 'TestEquality|TestKeyEligibility|TestStructural|TestMaps|TestSets|TestContainer|TestCollection' -count=1 -timeout=30m
       - name: Checked text conversion checks
         env:
           TELIA_TEST_SANITIZERS: address,undefined

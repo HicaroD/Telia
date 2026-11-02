@@ -47,7 +47,8 @@ binds a copy of the field to the name `name`.
 
 Enum matches must cover every variant or end with `_ => ...`. A multi-statement
 arm uses a block and `yield` to provide its result, not `return` (which returns
-from the function). Payload enums do not have automatic equality.
+from the function). Payload enums have automatic equality when all payload
+fields support it; see [equality rules](../reference/expressions.md#equality-and-key-eligibility).
 
 **Common mistake:** constructing a literal directly in a control-flow header
 without parentheses. Use `match (Greeting::Named{name: "Ada"}) { ... }` because

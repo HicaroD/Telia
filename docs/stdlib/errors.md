@@ -23,6 +23,7 @@ that assume `use "std::errors"`. An enum value does not implicitly become an
 | `InvalidState`, `Unsupported` | Handle/state misuse or unsupported operation |
 | `ProcessSpawnFailed`, `ProcessWaitFailed`, `ProcessTerminateFailed` | Child lifecycle operation failed |
 | `InvalidCodePoint` | Value is not a Unicode scalar |
+| `RandomnessFailed` | Checked OS secret-seed acquisition failed when a map first needs storage; no weak fallback |
 
 This list is an identity catalogue, not a claim that each function can return
 every identity. Consult the operation's page for failure results and effects

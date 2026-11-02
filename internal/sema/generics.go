@@ -519,6 +519,22 @@ func (s *sema) instantiateStruct(
 	if err != nil {
 		return nil, err
 	}
+	// A container's key contract applies to its type, including unused zero handles,
+	// not only to specializations that happen to call the hashing builtin.
+	if template.Owner != nil && template.Owner.StandardPath == "maps" &&
+		template.Name.Name() == "Map" {
+		keyType := bindings[template.TypeParams[0].Name()]
+		if err := ast.EqualityEligibility(keyType, true); err != nil {
+			return nil, fmt.Errorf("invalid map key type %s: %w", keyType.T, err)
+		}
+	}
+	if template.Owner != nil && template.Owner.StandardPath == "sets" &&
+		template.Name.Name() == "Set" {
+		elementType := bindings[template.TypeParams[0].Name()]
+		if err := ast.EqualityEligibility(elementType, true); err != nil {
+			return nil, fmt.Errorf("invalid set element type %s: %w", elementType.T, err)
+		}
+	}
 	key := declarationKey(template.Owner, template.Name.Name()) + suffix
 	if cached := s.generics.structs[key]; cached != nil {
 		return cached, nil

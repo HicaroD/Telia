@@ -36,4 +36,5 @@ enum Error: error {
     ProcessWaitFailed
     ProcessTerminateFailed
     InvalidCodePoint
+    RandomnessFailed
 }

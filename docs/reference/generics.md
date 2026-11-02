@@ -50,6 +50,13 @@ existing numeric literal defaults are applied. Conflicting concrete types are
 errors; inference does not silently widen numbers. `nil` alone cannot determine
 a pointee type.
 
+Library container inference uses the same rules: an expected
+`sets::Set<string>` can supply the type for `sets::create()`, while
+`sets::insert(&names, "alice")` infers from the set and element. Map keys and
+set elements must satisfy [key eligibility](expressions.md#equality-and-key-eligibility)
+at concrete container type instantiation, including unused zero handles; see
+[`std::maps`](../stdlib/maps.md) and [`std::sets`](../stdlib/sets.md).
+
 Constructors use fields, payloads, and expected destination types:
 
 ```rust
@@ -167,6 +174,17 @@ Use concrete functions as interoperability wrappers.
 Generics introduce no runtime type lookup, boxing, or hidden allocation.
 Fields retain their concrete layout and alignment. Assignment and parameter
 passing keep the ordinary copying behavior of the substituted type.
+
+Structural `==` and `!=` use the resolved concrete fields of generic records,
+enums, arrays, and tuples. A generic comparison such as `return left == right`
+is checked when specialized: `T = Pair<string, i32>` can be eligible, while a
+slice-containing specialization is rejected with its unsupported component path.
+Every enum payload alternative participates in eligibility. Automatic key
+eligibility uses the same recursive classification with separate exclusions for
+function values and standard-library owning handles. No traits, annotations,
+custom equality, or public hashing operation is introduced here. Generic
+[maps](../stdlib/maps.md) validate key eligibility at concrete type instantiation. See
+[equality](expressions.md#equality-and-key-eligibility).
 
 In particular, copying `Pair<string, i32>` copies the borrowed string view, not
 its bytes. Storing an owning handle does not clone its storage or arrange its

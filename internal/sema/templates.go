@@ -365,6 +365,11 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			(left.IsError() && right.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR || right.IsError() && left.T.(*ast.BasicType).Kind == token.UNTYPED_NULLPTR) {
 			return ast.NewBasicType(token.BOOL_TYPE), nil
 		}
+		if t.Op == token.EQUAL_EQUAL || t.Op == token.BANG_EQUAL {
+			if err := ast.EqualityEligibility(left, false); err != nil {
+				return nil, diagnostics.Diag{Title: "Unsupported equality", Message: err.Error(), Span: n.Span, Help: "General errors support presence checks against nil and kind comparisons, not whole-value equality."}
+			}
+		}
 		op := ast.BinaryOperators[t.Op]
 		// Literal operands adopt the other numeric operand's type, just as
 		// concrete expression checking does with an expected type.
@@ -573,7 +578,9 @@ func (v *templateValidator) node(n *ast.Node) (*ast.ExprType, error) {
 			if _, err := v.node(t.Range); err != nil {
 				return nil, err
 			}
-			v.locals[t.Binding.Name.Name()] = nil
+			for _, binding := range t.Bindings {
+				v.locals[binding.Name.Name()] = nil
+			}
 			return nil, v.block(t.Block)
 		}
 		for _, n := range []*ast.Node{t.Init, t.Cond, t.Update} {
@@ -665,6 +672,12 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		return nil, nil // Concrete specialization checks dependent callback types.
 	}
 	_, lookupErr := scope.LookupAcrossScopes(call.Name.Name())
+	if call.Name.Name() == "__key_seed" && lookupErr != nil {
+		if len(call.Args) != 0 || len(call.TypeArgs) != 0 {
+			return nil, fmt.Errorf("__key_seed requires no type or value arguments")
+		}
+		return nil, nil
+	}
 	if isConversionBuiltin(call.Name.Name()) && lookupErr != nil {
 		if len(call.TypeArgs) != 1 || len(call.Args) != 1 {
 			return nil, fmt.Errorf(
@@ -685,6 +698,9 @@ func (v *templateValidator) call(call *ast.FnCall, scope *ast.Scope) (*ast.ExprT
 		}
 		if call.Name.Name() == "slice_data" {
 			count = 1
+		}
+		if call.Name.Name() == "__key_hash" {
+			count = 3
 		}
 		if len(call.TypeArgs) != 1 || len(call.Args) != count {
 			return nil, fmt.Errorf(

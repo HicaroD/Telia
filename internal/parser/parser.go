@@ -144,6 +144,7 @@ func (p *Parser) addPackage(
 	}
 	if pkgTy == ast.PACKAGE_STD {
 		// Standard packages may own portable native sources, just like vendors.
+		pkg.StandardPath = filepath.ToSlash(filepath.Clean(pkgPath))
 		manifest := filepath.Join(fullPkgPath, "native.json")
 		if _, err := os.Stat(manifest); err == nil {
 			pkg.NativeManifest = manifest
@@ -3134,9 +3135,27 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return nil, fmt.Errorf("expected 'for'")
 	}
 
-	if parser.lex.Peek().Kind == token.ID && parser.lex.Peek1().Name() == "in" {
-		name := parser.lex.Peek()
-		parser.lex.Skip()
+	// Scan the binding list without consuming a three-clause multi-name init.
+	look := 0
+	for parser.lex.PeekN(look).Kind == token.ID && parser.lex.PeekN(look+1).Kind == token.COMMA {
+		look += 2
+	}
+	if parser.lex.PeekN(look).Kind == token.ID && parser.lex.PeekN(look+1).Name() == "in" {
+		var bindings []*ast.VarIdStmt
+		for {
+			name, ok := parser.expect(token.ID)
+			if !ok {
+				return nil, fmt.Errorf("expected iteration binding name")
+			}
+			bindings = append(bindings, &ast.VarIdStmt{Name: name})
+			if !parser.lex.NextIs(token.COMMA) {
+				break
+			}
+			parser.lex.Skip()
+		}
+		if parser.lex.Peek().Name() != "in" {
+			return nil, fmt.Errorf("expected 'in' after iteration bindings")
+		}
 		parser.lex.Skip()
 		source, err := parser.parseHeaderExpr(parentScope)
 		if err != nil {
@@ -3150,10 +3169,10 @@ func (parser *Parser) ParseForLoop(parentScope *ast.Scope) (*ast.Node, error) {
 		return &ast.Node{
 			Kind: ast.KIND_FOR_LOOP_STMT,
 			Node: &ast.ForLoop{
-				Range:   source,
-				Binding: &ast.VarIdStmt{Name: name},
-				Scope:   scope,
-				Block:   block,
+				Range:    source,
+				Bindings: bindings,
+				Scope:    scope,
+				Block:    block,
 			},
 		}, nil
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ func TestArraysCopyInlineElementsAndZeroInitialize(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("arrays should compile: %v", diags.Diags)
 	}
-	if want := "3\n20\n0\n99\n"; output != want {
+	if want := "3\n20\n0\n99\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -37,16 +38,14 @@ func TestCollectionBoundsChecksInDebugAndRelease(t *testing.T) {
 				}
 				path, diags := compiler.CompileOnlyWithCFlags(
 					file,
-					opt,
-					"-fsanitize=undefined",
-					"-fno-sanitize-recover=all",
+					append([]string{opt}, collectionSanitizerFlags(runtime.GOOS)...)...,
 				)
 				if diags.HasErrors() {
 					t.Fatalf("bounds program should compile: %v", diags.Diags)
 				}
 				defer removeTestBinary(t, path)
 				output, err := compiler.RunBinary(path)
-				if err == nil || output != "runtime panic: "+tc.want+"\n" {
+				if err == nil || collectionTextOutput(output) != "runtime panic: "+tc.want+"\n" {
 					t.Fatalf("want bounds panic, got %q, %v", output, err)
 				}
 			})
@@ -55,6 +54,9 @@ func TestCollectionBoundsChecksInDebugAndRelease(t *testing.T) {
 }
 
 func TestCollectionsWithNativeSanitizers(t *testing.T) {
+	if len(collectionSanitizerFlags(runtime.GOOS)) == 0 {
+		t.Skip("MinGW-w64 does not provide the required sanitizer runtime")
+	}
 	sanitizers := os.Getenv("TELIA_TEST_SANITIZERS")
 	if sanitizers == "" {
 		sanitizers = "undefined"
@@ -92,7 +94,7 @@ func TestCollectionsComposeWithStructsArraysPointersAndNestedLists(t *testing.T)
 	if diags.HasErrors() {
 		t.Fatalf("composed collections should compile: %v", diags.Diags)
 	}
-	if want := "record\n2\n9\nnested\nrecord\n"; output != want {
+	if want := "record\n2\n9\nnested\nrecord\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -100,15 +102,14 @@ func TestCollectionsComposeWithStructsArraysPointersAndNestedLists(t *testing.T)
 func TestListsSupportEmptyStructElementsWithoutZeroSizeAllocation(t *testing.T) {
 	path, diags := compiler.CompileOnlyWithCFlags(
 		"testdata/list_empty_struct.t",
-		"-fsanitize=undefined",
-		"-fno-sanitize-recover=all",
+		collectionSanitizerFlags(runtime.GOOS)...,
 	)
 	if diags.HasErrors() {
 		t.Fatalf("empty element structs should compile: %v", diags.Diags)
 	}
 	defer removeTestBinary(t, path)
 	output, err := compiler.RunBinary(path)
-	if err != nil || output != "1\n1\n" {
+	if err != nil || collectionTextOutput(output) != "1\n1\n" {
 		t.Fatalf("want one stored nonzero-size value, got %q, %v", output, err)
 	}
 }
@@ -118,7 +119,7 @@ func TestCollectionElementsExposePointersForExplicitResourceCleanup(t *testing.T
 	if diags.HasErrors() {
 		t.Fatalf("element pointers should compile: %v", diags.Diags)
 	}
-	if want := "owned\n0\n"; output != want {
+	if want := "owned\n0\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -128,7 +129,7 @@ func TestIndexAndSliceOperandsAreEvaluatedOnceInSourceOrder(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("collection operands should compile: %v", diags.Diags)
 	}
-	if want := "source\nindex\n42\nsource\nindex\n42\n"; output != want {
+	if want := "source\nindex\n42\nsource\nindex\n42\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -140,10 +141,7 @@ func TestListFailuresPreserveStorageAndReleaseAllocations(t *testing.T) {
 	}
 	path, diags := compiler.CompileOnlyWithCFlags(
 		"testdata/list_failure.t",
-		"-include",
-		header,
-		"-fsanitize=undefined",
-		"-fno-sanitize-recover=all",
+		append([]string{"-include", header}, collectionSanitizerFlags(runtime.GOOS)...)...,
 	)
 	if diags.HasErrors() {
 		t.Fatalf("list failure fixture should compile: %v", diags.Diags)
@@ -153,7 +151,9 @@ func TestListFailuresPreserveStorageAndReleaseAllocations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("execution: %v: %s", err, output)
 	}
-	if want := "reserve failed\nappend failed\nclone failed\noverflow rejected\n2\n2\narena failed\n7\nreleased\n"; output != want {
+	if want := "reserve failed\nappend failed\nclone failed\noverflow rejected\n2\n2\narena failed\n7\nreleased\n"; collectionTextOutput(
+		output,
+	) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -163,7 +163,7 @@ func TestCheckedSliceAccessReturnsErrorsWithoutMutation(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("checked slice access should compile: %v", diags.Diags)
 	}
-	if want := "42\nmissing\nunchanged\n42\n"; output != want {
+	if want := "42\nmissing\nunchanged\n42\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -173,7 +173,9 @@ func TestListRemovalClearAndCloneKeepExplicitValueOwnership(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("list lifecycle should compile: %v", diags.Diags)
 	}
-	if want := "20\n10\n30\n1\n40\n0\n0\n1\n10\n20\n30\n40\n"; output != want {
+	if want := "20\n10\n30\n1\n40\n0\n0\n1\n10\n20\n30\n40\n"; collectionTextOutput(
+		output,
+	) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -183,7 +185,7 @@ func TestListsAppendAliasedSlicesAcrossHeapAndArenaGrowth(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("alias-safe list append should compile: %v", diags.Diags)
 	}
-	if want := "1\n2\n3\n2\n3\n1\n2\n3\n2\n3\n"; output != want {
+	if want := "1\n2\n3\n2\n3\n1\n2\n3\n2\n3\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -193,7 +195,7 @@ func TestTeliaListsGrowAndExposeBorrowedViews(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("Telia lists should compile: %v", diags.Diags)
 	}
-	if want := "3\n10\n77\n30\n"; output != want {
+	if want := "3\n10\n77\n30\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -203,7 +205,7 @@ func TestGenericLayoutPrimitivesSupportTypedHeapStorage(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("typed storage should compile: %v", diags.Diags)
 	}
-	if want := "4\n4\n42\n0\n"; output != want {
+	if want := "4\n4\n42\n0\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -213,7 +215,7 @@ func TestGenericArraysAndSlicesIterateByValue(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("generic collection iteration should compile: %v", diags.Diags)
 	}
-	if want := "6\n1\n0\n"; output != want {
+	if want := "6\n1\n0\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }
@@ -223,7 +225,7 @@ func TestSlicesBorrowWritableStorageAndCheckRanges(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("slices should compile: %v", diags.Diags)
 	}
-	if want := "3\n2\n77\n0\nbad range\n"; output != want {
+	if want := "3\n2\n77\n0\nbad range\n"; collectionTextOutput(output) != want {
 		t.Fatalf("want %q, got %q", want, output)
 	}
 }

@@ -66,6 +66,10 @@ func (c *CCodegen) emitSliceCall(call *ast.FnCall) string {
 }
 
 func (c *CCodegen) emitRangeLoop(stmt *ast.ForLoop, indent string) {
+	if stmt.RangeIter != nil {
+		c.emitContainerLoop(stmt, indent)
+		return
+	}
 	data, length := c.captureSequence(stmt.Range, stmt.RangeType)
 	index := c.nextTmp()
 	seq := stmt.RangeType.T.(*ast.SequenceType)
@@ -75,12 +79,48 @@ func (c *CCodegen) emitRangeLoop(stmt *ast.ForLoop, indent string) {
 	)
 	variable := &CVariable{
 		CType: emitCType(seq.Element),
-		Name:  c.nextTmp() + "_" + stmt.Binding.Name.Name(),
+		Name:  c.nextTmp() + "_" + stmt.Bindings[0].Name.Name(),
 	}
-	stmt.Binding.BackendType = variable
+	stmt.Bindings[0].BackendType = variable
 	c.buf.WriteString(fmt.Sprintf("%s %s = %s;\n", variable.CType, variable.Name, element))
 	c.emitLoopBody(stmt.Block, indent+"    ")
 	c.buf.WriteString(indent + "}\n")
+}
+
+func (c *CCodegen) emitContainerLoop(stmt *ast.ForLoop, indent string) {
+	// Capture an address, never a second shallow cleanup owner. In particular,
+	// indexed/indirect source expressions must run only once.
+	value := c.emitExpr(stmt.Range)
+	source, iterator, result := c.nextTmp(), c.nextTmp(), c.nextTmp()
+	fmt.Fprintf(c.buf, "{\n%s *%s = &(%s);\n", emitCType(stmt.RangeType), source, value)
+	fmt.Fprintf(
+		c.buf,
+		"%s %s = %s(%s);\n",
+		emitCType(stmt.RangeIter.RetType),
+		iterator,
+		c.mangledFnDeclName(stmt.RangeIter),
+		source,
+	)
+	c.buf.WriteString("while (true) {\n")
+	fmt.Fprintf(
+		c.buf,
+		"%s %s = %s(&%s);\n",
+		emitCType(stmt.RangeNext.RetType),
+		result,
+		c.mangledFnDeclName(stmt.RangeNext),
+		iterator,
+	)
+	fmt.Fprintf(c.buf, "if (!%s._%d) break;\n", result, len(stmt.Bindings))
+	for i, binding := range stmt.Bindings {
+		variable := &CVariable{
+			CType: emitCType(binding.Type),
+			Name:  c.nextTmp() + "_" + binding.Name.Name(),
+		}
+		binding.BackendType = variable
+		fmt.Fprintf(c.buf, "%s %s = %s._%d;\n", variable.CType, variable.Name, result, i)
+	}
+	c.emitLoopBody(stmt.Block, indent+"    ")
+	c.buf.WriteString(indent + "}\n}\n")
 }
 
 // Preserve source evaluation order without copying an addressable array's

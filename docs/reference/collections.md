@@ -3,7 +3,9 @@
 Arrays and slices are language types. Lists are ordinary generic Telia code in
 [`std::lists`](../../base/std/lists/lists.t), not a compiler-recognized collection.
 The same language and memory operations are available to application libraries.
-Maps and sets are not provided by the standard library.
+Heap/arena-backed [maps](../stdlib/maps.md) and [sets](../stdlib/sets.md) provide
+automatic semantic keys/elements, direct borrowed `for ... in` loops, and
+explicit iterators.
 
 Generic functions can infer element types from array and slice arguments, and
 from array-literal elements when the parameter supplies the array shape.
@@ -94,7 +96,7 @@ pointer and length. Changing the loop variable does not update the element;
 write through indexing instead. Element pointers can be obtained explicitly
 with `&view[index]`.
 
-All loop forms (`while`, three-part `for`, and array/slice iteration) support
+All loop forms (`while`, three-part `for`, and collection iteration) support
 `break` and `continue`. `break` exits the nearest enclosing loop; `continue`
 skips the rest of its body and starts the next iteration. Three-part `for`
 loops run their update step before testing the condition again; range loops
@@ -118,6 +120,45 @@ for value in view {
 Structural list mutation during iteration is prohibited by the API contract,
 not enforced by lifetime analysis. Nested scopes and deferred cleanup work as
 usual. Generic user-defined iteration protocols are not introduced here.
+
+### Maps and sets
+
+```rust
+for key, value in scores {
+    // Shallow copies; changing key/value does not change the stored entry.
+}
+for element in names {
+    // Shallow element copy.
+}
+```
+
+Direct iteration recognizes only the actual `std::maps::Map<K, V>` and
+`std::sets::Set<T>` declarations, including aliases and concrete generic
+specializations. Maps require exactly two binding names; sets, arrays, and
+slices require exactly one. User records named `Map`/`Set` are not iterable.
+
+The source is evaluated once and its live handle is borrowed, never cloned or
+made into another cleanup owner. Iteration allocates nothing and uses the same
+`iter`/`next` operations as explicit iteration. It visits every live entry once
+in unspecified order when exhausted without prohibited mutation. Empty loops
+require neither allocation nor randomness. Bindings are shallow copies;
+iteration adds no cleanup and grants no mutable entry references.
+
+Container sources must designate addressable, mutable, live storage: variables,
+fields, indexed storage, or dereferenced pointers. Returned container values and
+fields of temporary records are rejected; first store the owner in a variable
+and arrange its cleanup. A pointer-returning expression can designate live
+storage, but its lifetime and non-nullness remain the caller's obligation.
+The handle must remain at the same live address for the entire loop.
+
+Do not insert (including replacements/duplicates), remove, reserve, clear, free,
+transfer, reset backing arenas, or otherwise structurally mutate the iterated
+container. This is an API contract, not new borrow checking. Map `get_ptr`
+updates to existing values are permitted; later iterations read current values.
+Assigning copied bindings does not update stored entries. `break`, `continue`,
+nested loops, returns, `@try`, and block-scoped `defer` retain normal control-flow
+and cleanup behavior. See [maps](../stdlib/maps.md#borrowing-and-invalidation)
+and [sets](../stdlib/sets.md#ownership-and-borrowing) for invalidation details.
 
 ## Dynamic lists
 

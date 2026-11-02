@@ -13,10 +13,12 @@ restrictions; do not infer those from a signature alone.
 | `std::io` | [Standard streams and printing](standard-io.md) |
 | `std::libc` | [Low-level C library declarations](libc.md) |
 | `std::lists` | [Growable generic lists](lists.md) |
+| `std::maps` | [Heap/arena hash maps, shallow clones, and explicit iteration](maps.md) |
 | `std::math` | [Native floating-point math](math.md) |
 | `std::memory` | [Heap allocation, arenas, and transfer](memory.md) |
 | `std::path` | [Path validation and canonicalization](path.md) |
 | `std::process` | [Arguments/environment and package navigation](process.md), [children](native-cli-apis.md#subprocesses), [working directory](native-cli-apis.md#paths-and-current-directory) |
+| `std::sets` | [Heap/arena hash sets, shallow clones, and explicit iteration](sets.md) |
 | `std::slices` | [Borrowed-slice helpers](slices.md) |
 | `std::strconv` | [Checked text parsing and formatting](string-conversions.md) |
 | `std::strings` | [Borrowed/owned text and C strings](strings-and-memory.md), [byte copying](native-cli-apis.md#bytes-and-strings) |
@@ -54,6 +56,13 @@ generated Unicode classifiers, list buffer allocation helpers, parsing internals
 and terminal encoding internals are implementation plumbing unless explicitly
 documented otherwise. `strings::from_c`, `slices::length`, and other explicitly
 listed low-level operations remain application APIs.
+
+`std::internal::swiss` is the shared [table engine](../contributing/maps-engine.md),
+not an application API. Map/set representation and iterator fields are also internal.
+
+| Internal package | Contributor contract |
+| --- | --- |
+| `std::internal::swiss` | [Shared map/set table engine](../contributing/maps-engine.md) (not an application API) |
 
 The sources linked from each page help audit behavior; they do not replace the
 contracts or authorize calling undocumented helpers. Contributors adding a new

@@ -10,10 +10,77 @@ import (
 
 func isMemoryBuiltin(name string) bool {
 	switch name {
-	case "sizeof", "alignof", "zero", "slice_from_raw", "slice_data":
+	case "sizeof", "alignof", "zero", "slice_from_raw", "slice_data", "__key_hash":
 		return true
 	}
 	return false
+}
+
+// Direct container loops borrow the original handle and use precisely the
+// library iterator specializations, not a name-based user iterator protocol.
+func (s *sema) checkRangeBindings(loop *ast.ForLoop, scope *ast.Scope) error {
+	ty := loop.RangeType
+	var types []*ast.ExprType
+	if ty.Kind == ast.EXPR_TYPE_ARRAY || ty.Kind == ast.EXPR_TYPE_SLICE {
+		types = []*ast.ExprType{ty.T.(*ast.SequenceType).Element}
+	} else {
+		var container *ast.StructDecl
+		if ty.Kind == ast.EXPR_TYPE_STRUCT {
+			container = ty.T.(*ast.StructType).Decl
+		}
+		if container == nil || container.Template == nil || container.Template.Owner == nil {
+			return fmt.Errorf("iteration requires an array, slice, std::maps::Map or std::sets::Set")
+		}
+		template := container.Template
+		pkg := template.Owner
+		name := template.Name.Name()
+		if !((pkg.StandardPath == "maps" && name == "Map") || (pkg.StandardPath == "sets" && name == "Set")) {
+			return fmt.Errorf("iteration requires an array, slice, std::maps::Map or std::sets::Set")
+		}
+		// Confirm declaration identity in the canonical package, not just spelling.
+		decl, ok := pkg.Scope.Nodes[name]
+		if !ok || decl.Node != template {
+			return fmt.Errorf("iteration requires a standard container declaration")
+		}
+		if !loop.Range.IsAddressable() {
+			return fmt.Errorf("container iteration requires addressable live storage; store temporary containers in a variable first")
+		}
+		if s.readOnlyStorage(loop.Range, scope) {
+			return fmt.Errorf("container iteration requires mutable live storage")
+		}
+		types = container.TypeArgs
+		for i, name := range []string{"iter", "next"} {
+			node, ok := pkg.Scope.Nodes[name]
+			if !ok {
+				return fmt.Errorf("missing standard container %s", name)
+			}
+			fn, err := s.instantiateFunction(node.Node.(*ast.FnDecl), container.TypeArgs, scope, loop.Bindings[0].Name)
+			if err != nil {
+				return err
+			}
+			if i == 0 {
+				loop.RangeIter = fn
+			} else {
+				loop.RangeNext = fn
+			}
+		}
+	}
+	if len(loop.Bindings) != len(types) {
+		return fmt.Errorf(
+			"iteration requires %d binding(s), got %d",
+			len(types),
+			len(loop.Bindings),
+		)
+	}
+	for i, binding := range loop.Bindings {
+		binding.Type = types[i]
+		node := &ast.Node{Kind: ast.KIND_VAR_ID_STMT, Node: binding}
+		binding.N = node
+		if err := loop.Scope.Insert(binding.Name.Name(), node); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *sema) inferIndex(
@@ -78,6 +145,9 @@ func (s *sema) checkMemoryBuiltin(
 	if name == "slice_data" {
 		count = 1
 	}
+	if name == "__key_hash" {
+		count = 3
+	}
 	if len(call.TypeArgs) != 1 || len(call.Args) != count {
 		return nil, fmt.Errorf("%s requires one type argument and %d value arguments", name, count)
 	}
@@ -93,6 +163,20 @@ func (s *sema) checkMemoryBuiltin(
 	}
 	call.Builtin, call.BuiltinType = name, ty
 	result := concreteBasicType(token.U64_TYPE)
+	if name == "__key_hash" {
+		if err := ast.EqualityEligibility(ty, true); err != nil {
+			return nil, fmt.Errorf("ineligible hash key %s: %w", ty.T, err)
+		}
+		for i, arg := range call.Args {
+			want := ty
+			if i > 0 {
+				want = result
+			}
+			if _, err := s.inferExprTypeWithContext(arg, want, scope, decl, imported, false); err != nil {
+				return nil, err
+			}
+		}
+	}
 	if name == "zero" {
 		result = ty
 	}

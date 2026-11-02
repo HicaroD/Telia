@@ -29,7 +29,7 @@ allocation or cleanup. It is appropriate only when zero is an inert valid state
 for that type. It cannot repair other shallow copies or extend an arena's life.
 
 See [ownership conventions](../stdlib/strings-and-memory.md#ownership-conventions-and-transfer)
-for strings, lists, arenas, transfer, and invalidation. Native file, child, and
+for strings, lists, maps, sets, arenas, transfer, and invalidation. Native file, child, and
 terminal handles have their own close/restore contracts; do not generalize a
 transfer pattern to an arbitrary foreign handle.
 
