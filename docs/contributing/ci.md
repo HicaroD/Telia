@@ -74,3 +74,7 @@ partial allocation failures, forced-collision wraparound probing, and non-Window
 UBSan. Windows uses the selected UCRT64 MinGW-w64 GCC toolchain and runs ordinary
 checks without sanitizer-only flags. See [qualification evidence](container-qualification.md)
 for executed results, pending native CI, acceptance coverage, and benchmark commands.
+The selection also includes collection bounds checks at both optimization levels:
+Windows runs those without UBSan and skips only the dedicated collection sanitizer
+suite. Collection text-output assertions accept mixed LF/CRLF line endings;
+byte-preservation tests retain exact byte comparisons.
